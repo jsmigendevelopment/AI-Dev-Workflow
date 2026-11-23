@@ -3,9 +3,16 @@ import { createMiddleware, createServerOnlyFn } from '@tanstack/react-start'
 
 import type { Actor } from '@/lib/actor'
 import { type ApiResult, unauthenticated } from '@/lib/app-error'
-import { authorizedParties, isNativeBearer, NO_PARTY, requestForClerk } from '@/lib/authorized-parties'
+import {
+  authorizedParties,
+  isApiRedirect,
+  isNativeBearer,
+  nativeClaimMissing,
+  NO_PARTY,
+  requestForClerk,
+} from '@/lib/authorized-parties'
 import { BUILD_TARGET } from '@/lib/build-target'
-import { bearerToken } from '@/lib/http'
+import { bearerToken, envelopeResponse } from '@/lib/http'
 import { logger } from '@/lib/logger'
 
 import { serverEnv } from './env'
@@ -34,6 +41,7 @@ export const clerkKeys = createServerOnlyFn(() => {
 })
 
 let warnedNoParty = false
+let warnedNoClaim = false
 
 /**
  * The origins this request's session token may come from (src/lib/authorized-parties.ts). Same
@@ -77,8 +85,15 @@ function withoutDebugState(context: unknown): void {
 const clerkOptions = createServerOnlyFn((request: Request) => {
   const keys = clerkKeys()
   if (!keys) return undefined
-  // A native app's token has no `azp`: verified without the list, only where the app opted in.
-  if (isNativeBearer(request, serverEnv().CLERK_ALLOW_NATIVE_TOKENS === 'true')) return keys
+  const env = serverEnv()
+  // Fails closed: native tokens allowed but no claim to check means no native path at all.
+  if (nativeClaimMissing(env) && !warnedNoClaim) {
+    warnedNoClaim = true
+    logger.warn('clerk_native_claim_missing', { variable: 'CLERK_NATIVE_APP_CLAIM' })
+  }
+  // A native app's token has no `azp`: verified without the list only where the app opted in and
+  // the token carries our `app` claim. Without it, the list refuses the token like any other.
+  if (isNativeBearer(request, env)) return keys
   return { ...keys, authorizedParties: partiesFor(request) }
 })
 
@@ -96,11 +111,15 @@ export const authMiddleware = createMiddleware().server(async (args) => {
   }
   try {
     const result = await run({ ...args, request: requestForClerk(args.request), next })
-    withoutDebugHeaders(result instanceof Response ? result : result.response)
-    return result
+    const response = result instanceof Response ? result : result.response
+    withoutDebugHeaders(response)
+    // Belt and braces: requestForClerk already drops what makes Clerk redirect on the API.
+    return isApiRedirect(args.request, response) ? envelopeResponse(unauthenticated()) : result
   } catch (thrown) {
     // Clerk throws its handshake redirect (a 307) as a Response.
-    if (thrown instanceof Response) withoutDebugHeaders(thrown)
+    if (!(thrown instanceof Response)) throw thrown
+    withoutDebugHeaders(thrown)
+    if (isApiRedirect(args.request, thrown)) return envelopeResponse(unauthenticated())
     throw thrown
   }
 })

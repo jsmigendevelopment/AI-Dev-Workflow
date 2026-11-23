@@ -68,6 +68,12 @@ describe('env schema', () => {
     expect(run({ CLERK_ALLOW_NATIVE_TOKENS: 'yes' })).toThrow(/CLERK_ALLOW_NATIVE_TOKENS must be/)
   })
 
+  it('takes CLERK_NATIVE_APP_CLAIM only as a short lowercase name', () => {
+    expect(run({ CLERK_NATIVE_APP_CLAIM: 'my-app.mobile' })().CLERK_NATIVE_APP_CLAIM).toBe('my-app.mobile')
+    for (const bad of ['My App', '-app', 'a'.repeat(65), 'app,other'])
+      expect(run({ CLERK_NATIVE_APP_CLAIM: bad }), bad).toThrow(/CLERK_NATIVE_APP_CLAIM must be/)
+  })
+
   it('takes LAUNCHED and SITE_PROTECTION only as their exact values', () => {
     expect(
       run({ LAUNCHED: 'false', SITE_PROTECTION: 'password', SITE_PASSWORD: 'k3Vq9XbT0wLr7NpZs2YhAe5D' })(),

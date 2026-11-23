@@ -13,6 +13,8 @@ declare namespace Cloudflare {
     CLERK_AUTHORIZED_PARTIES?: string
     // "true": native apps' bearer tokens without azp on /api/v1 (src/lib/authorized-parties.ts).
     CLERK_ALLOW_NATIVE_TOKENS?: string
+    // The value a native token's `app` claim must have (Clerk's session token claims).
+    CLERK_NATIVE_APP_CLAIM?: string
     TURNSTILE_SITE_KEY?: string
     TURNSTILE_SECRET_KEY?: string
     // The password gate (test and previews only), set by setup-cloudflare --protect password.
