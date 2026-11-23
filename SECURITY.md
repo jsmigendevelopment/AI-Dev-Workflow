@@ -27,4 +27,4 @@ Only the maintainer sees the report. You'll get a reply in the advisory thread. 
 
 ## Versions
 
-Only the newest version gets fixes. Update with `npx ai-dev-workflow@latest update`.
+Only the newest version gets fixes. Update with `npx onrails@latest update`.

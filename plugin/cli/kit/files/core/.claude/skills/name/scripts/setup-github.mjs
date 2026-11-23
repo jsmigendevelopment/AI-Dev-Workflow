@@ -4,7 +4,8 @@
 //   node .agents/skills/name/scripts/setup-github.mjs --dry-run [--plan free|team|enterprise]
 //   node .agents/skills/name/scripts/setup-github.mjs [--plan free|team|enterprise]
 // Needs the GitHub CLI (`gh`) signed in as a repo admin. Run it again any time: it skips what's done.
-// The plan comes from --plan, else `github_plan` in docs/profile.toml or ~/.ai-dev-workflow/profile.toml,
+// The plan comes from --plan, else `github_plan` in docs/profile.toml or ~/.onrails/profile.toml
+// (~/.ai-dev-workflow/, its name before the rename, works too),
 // else it asks. Each step says which plan it needs. Steps your plan doesn't allow are skipped with the reason.
 //   Free:        Dependabot on every repo. Rules, environments and secret scanning on public repos only.
 //   Team:        adds rules on main, environments, deployment branches and environment secrets on
@@ -39,7 +40,8 @@ function planFromArgs() {
 function planFromProfile() {
   let root = ".";
   try { root = git(["rev-parse", "--show-toplevel"]); } catch {}
-  for (const file of [join(root, "docs", "profile.toml"), join(homedir(), ".ai-dev-workflow", "profile.toml")]) {
+  const homes = [".onrails", ".ai-dev-workflow"].map((name) => join(homedir(), name, "profile.toml"));
+  for (const file of [join(root, "docs", "profile.toml"), ...homes]) {
     if (!existsSync(file)) continue;
     const value = /^github_plan\s*=\s*"([^"\n]*)"/m.exec(readFileSync(file, "utf8"))?.[1]?.trim().toLowerCase();
     if (value) return { plan: value, from: file };

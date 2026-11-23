@@ -10,7 +10,13 @@ import { join } from "node:path";
 import { readJson, toNative } from "./files.mjs";
 
 export const DEFAULT_KIT_DIR = fileURLToPath(new URL("../kit/", import.meta.url));
-export const PROJECT_MANIFEST = ".ai-dev-workflow.json";
+// The record of what was installed. Projects set up before the rename to onRails have the
+// old name; it is read when the new one is missing, and update offers to rename it.
+export const PROJECT_MANIFEST = ".onrails.json";
+export const OLD_PROJECT_MANIFEST = ".ai-dev-workflow.json";
+// The kit's copy of a file you already have goes next to it with this suffix.
+export const NEW_SUFFIX = ".onrails-new";
+export const OLD_NEW_SUFFIX = ".kit-new";
 
 // npm drops or obeys files like .gitignore inside a package, so they are stored renamed.
 const NPM_SPECIAL = new Set([".gitignore", ".npmignore", ".npmrc"]);

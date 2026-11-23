@@ -66,7 +66,7 @@ export function listAddons(packName, { kitDir, log = console.log } = {}) {
     log(`The ${packName} pack has no add-ons in kit v${kit.version}.`);
     return 0;
   }
-  log(`Add-ons for ${packName} in kit v${kit.version} (apply with: npx ai-dev-workflow add ${packName}/<add-on>):`);
+  log(`Add-ons for ${packName} in kit v${kit.version} (apply with: npx onrails add ${packName}/<add-on>):`);
   const width = Math.max(...names.map((n) => n.length));
   for (const name of names) log(`  ${name.padEnd(width)}  ${addons[name].summary}`);
   return 0;

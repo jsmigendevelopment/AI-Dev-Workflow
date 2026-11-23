@@ -59,7 +59,8 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
 
 7. **One short `AGENTS.md`.**
    - If the repo already has one, merge the kit's standing rules, the always-stop list and the commands table into it. Don't overwrite it.
-   - If the person copied the kit's file in as `AGENTS.kit.md`, merge that in, then delete `AGENTS.kit.md`.
+   - If the kit's copy is next to it as `AGENTS.onrails.md`, merge that in, then delete `AGENTS.onrails.md`. A repo set up before the rename to onRails has it as `AGENTS.kit.md`: treat it the same way.
+   - List the other copies the kit left next to the person's files, for them to compare: `*.onrails-new` and `.codex/config.onrails.toml` (older repos: `*.kit-new` and `.codex/config.kit.toml`).
    - Keep it short. Long generated instruction files cost more and don't help.
    - Show the person the diff before you commit.
 

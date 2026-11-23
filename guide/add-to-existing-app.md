@@ -7,15 +7,15 @@ You have an app. It may already have its own `AGENTS.md`, `CLAUDE.md` or skills.
 Open Claude Code or Codex in the app's root folder and paste:
 
 ```text
-Add the AI-Dev-Workflow kit to this repo. Run `npx ai-dev-workflow init` on a new branch, show me what it added and kept, then run /join.
+Add onRails to this repo. Run `npx onrails init` on a new branch, show me what it added and kept, then run /join.
 ```
 
-Or do it yourself: `npx ai-dev-workflow init`, then type `/join` (Codex: `$join`). You need Node 22 or newer.
+Or do it yourself: `npx onrails init`, then type `/join` (Codex: `$join`). You need Node 22 or newer.
 
 ## 2. What `init` does
 
 - Copies in `AGENTS.md`, `CLAUDE.md`, `.agents/skills/`, `.claude/`, `.codex/` and `.github/ISSUE_TEMPLATE/`.
-- Copies your profile to `docs/profile.toml`, if you have one at `~/.ai-dev-workflow/profile.toml` and the repo doesn't.
+- Copies your profile to `docs/profile.toml`, if you have one at `~/.onrails/profile.toml` and the repo doesn't.
 - Prints what it added, what it kept, and a short `Next:` list.
 
 ## 3. What `init` never does
@@ -24,11 +24,11 @@ It never overwrites a file of yours.
 
 | You already have | What you get |
 |---|---|
-| `AGENTS.md` | Yours stays. The kit's arrives as `AGENTS.kit.md`. |
+| `AGENTS.md` | Yours stays. The kit's arrives as `AGENTS.onrails.md`. |
 | `CLAUDE.md` | Yours stays. It adds the line `@AGENTS.md` if it's missing. |
 | `.claude/settings.json` | Yours stays. The kit's `deny` rules are added to it. |
-| `.codex/config.toml` | Yours stays. The kit's arrives as `.codex/config.kit.toml`. |
-| Any other file at the same path, a skill included | Yours stays. The kit's copy arrives next to it as `<file>.kit-new`. |
+| `.codex/config.toml` | Yours stays. The kit's arrives as `.codex/config.onrails.toml`. |
+| Any other file at the same path, a skill included | Yours stays. The kit's copy arrives next to it as `<file>.onrails-new`. |
 
 It doesn't run your code, push, or touch GitHub.
 
@@ -49,16 +49,17 @@ It doesn't run your code, push, or touch GitHub.
    - how changes ship;
    - the risk dial (how careful each merge is);
    - who else works here.
-5. It writes `docs/` and merges `AGENTS.kit.md` into your `AGENTS.md`. It shows you the diff first.
+5. It writes `docs/` and merges `AGENTS.onrails.md` into your `AGENTS.md`. It shows you the diff first.
 
 ## 5. Review it as one pull request
 
-- Keep it all on one branch, for example `chore/add-ai-dev-workflow`, and open one pull request.
+- Keep it all on one branch, for example `chore/add-onrails`, and open one pull request.
 - Read these first:
   - the `AGENTS.md` diff (your rules and the kit's, merged);
   - `.claude/settings.json`;
   - `docs/stack.md` (the risk dial and the automation level).
-- Compare each `.kit-new` and `config.kit.toml` copy with your file. Keep what you want, then delete the copy.
+- Compare each `.onrails-new` and `config.onrails.toml` copy with your file. Keep what you want, then delete the copy.
+- Set up before the rename to onRails? The same copies have older names: `.kit-new`, `config.kit.toml` and `AGENTS.kit.md`. `update` and `/join` still read them, and `update` renames `AGENTS.kit.md` and `config.kit.toml` if you never changed them.
 - Once the repo has the kit's CI, a change to the agents' own files fails until you add the `human-approved` label. That's on purpose: you sign off on new agent rules.
 - Merge it yourself.
 

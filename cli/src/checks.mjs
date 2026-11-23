@@ -2,6 +2,7 @@
 // fix is the one-line hint; remedy is what doctor --fix offers:
 //   { run: [argv...], cwd, print: [lines], action: { describe, run() } }
 import { globalSkillChecks } from "./global.mjs";
+import { homeChecks } from "./home.mjs";
 import { agentInstallLines, installPlan, pnpmPlan } from "./installers.mjs";
 import { loadKit } from "./kit.mjs";
 import { pluginChecks } from "./plugin.mjs";
@@ -43,6 +44,7 @@ export function runChecks(projectDir, { kitDir, sys = realSystem() } = {}) {
       true, { print: agentInstallLines(sys.platform) });
   }
 
+  checks.push(...homeChecks({ home: sys.home }));
   checks.push(...globalSkillChecks({ kitDir, home: sys.home }));
   checks.push(...pluginChecks({ home: sys.home, env: sys.env, kitVersion: kitVersionFor(projectDir, kitDir) }));
   checks.push(...projectChecks(projectDir, { kitDir, sys }));

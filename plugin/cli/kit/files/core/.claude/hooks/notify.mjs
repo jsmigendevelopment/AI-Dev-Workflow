@@ -17,28 +17,33 @@
 // The rules (the `ask` skill has the full convention):
 // - blocker: ping now. decision: one batched ping at most every [notify] batch_minutes (default 30).
 //   fyi: never pings; recorded on the board for /back.
-// - presence away (~/.ai-dev-workflow/presence.json): only --critical pings. The rest waits for /back.
+// - presence away (~/.onrails/presence.json): only --critical pings. The rest waits for /back.
 // - [notify] quiet_hours = "22:00-07:00" (local time): held until they end, except --critical.
 // - ping level, from docs/stack.md ("Ping level:") or [notify] ping:
 //   decisions (default) | blockers (decisions don't ping) | critical (only critical pings).
 // - Desktop notification on macOS, Windows and Linux ([notify] desktop = false turns it off).
 //   Phone too, if NTFY_TOPIC is set (the free ntfy app; NTFY_SERVER moves it off ntfy.sh).
-// Held and batched pings live in ~/.ai-dev-workflow/notify-batch.json, next to presence.json.
-// --print skips the actual delivery (for tests); ADW_NOW sets the clock (for tests).
+// Held and batched pings live in ~/.onrails/notify-batch.json, next to presence.json.
+// Until the person moves it, ~/.ai-dev-workflow/ (the old name) is used instead of ~/.onrails/.
+// --print skips the actual delivery (for tests); ONRAILS_NOW sets the clock (for tests).
+// ADW_NOW and ADW_NOTIFY_PRINT, the names before the rename, still work.
 // Never blocks or fails the agent: every error is swallowed.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
-const HOME_DIR = join(homedir(), ".ai-dev-workflow");
+// ~/.onrails, or ~/.ai-dev-workflow (its name before the rename to onRails) while only that one exists.
+const NEW_HOME = join(homedir(), ".onrails"), OLD_HOME = join(homedir(), ".ai-dev-workflow");
+const HOME_DIR = !existsSync(NEW_HOME) && existsSync(OLD_HOME) ? OLD_HOME : NEW_HOME;
 const BATCH = join(HOME_DIR, "notify-batch.json");
 const PRESENCE = join(HOME_DIR, "presence.json");
-const now = () => (process.env.ADW_NOW ? new Date(process.env.ADW_NOW) : new Date());
+const NOW = process.env.ONRAILS_NOW || process.env.ADW_NOW;
+const now = () => (NOW ? new Date(NOW) : new Date());
 const argv = process.argv.slice(2);
 const flag = (name) => { const i = argv.indexOf(name); return i === -1 ? undefined : argv[i + 1]; };
 const has = (name) => argv.includes(name);
-const PRINT = has("--print") || process.env.ADW_NOTIFY_PRINT === "1";
+const PRINT = has("--print") || (process.env.ONRAILS_NOTIFY_PRINT || process.env.ADW_NOTIFY_PRINT) === "1";
 
 function rootOf(dir) {
   try { return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { return dir; }
@@ -73,7 +78,7 @@ function config(root) {
 
 const readJson = (file, fallback) => { try { return JSON.parse(readFileSync(file, "utf8")); } catch { return fallback; } };
 // False when the home folder can't be written (for example a Codex sandbox without
-// ~/.ai-dev-workflow in [sandbox_workspace_write] writable_roots).
+// ~/.onrails in [sandbox_workspace_write] writable_roots).
 function saveBatch(state) {
   try {
     mkdirSync(HOME_DIR, { recursive: true });
@@ -83,7 +88,7 @@ function saveBatch(state) {
     return true;
   } catch { return false; }
 }
-const NOT_SAVED = { saved: false, warning: `could not save ${BATCH} (a sandbox? allow writes to ~/.ai-dev-workflow)` };
+const NOT_SAVED = { saved: false, warning: `could not save ${BATCH} (a sandbox? allow writes to ${HOME_DIR})` };
 const away = () => readJson(PRESENCE, { status: "here" }).status === "away";
 
 // "22:00-07:00" -> the Date the current quiet stretch ends, or null if not quiet now.

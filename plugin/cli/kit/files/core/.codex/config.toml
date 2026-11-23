@@ -11,5 +11,7 @@ approval_policy = "on-request"
 # The loop needs the network for git push, gh, and installing packages.
 network_access = true
 # The kit's scripts keep presence, the work log, the board and held pings in
-# ~/.ai-dev-workflow/, outside the repo. Codex expands "~" to your home folder.
-writable_roots = ["~/.ai-dev-workflow"]
+# ~/.onrails/, outside the repo. Codex expands "~" to your home folder.
+# ~/.ai-dev-workflow is the same folder's name before the rename to onRails: the scripts
+# use it until you move it (any onrails command offers to).
+writable_roots = ["~/.onrails", "~/.ai-dev-workflow"]

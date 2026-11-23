@@ -132,7 +132,7 @@ The risk dial is how careful each merge is. The automation level is how much age
 
 - Away (`/afk`)? Only production down or a security hole pings.
 - Quiet hours and the batch window are in your profile under `[notify]`. Phone pings: set `NTFY_TOPIC`.
-- **The board:** `~/.ai-dev-workflow/boards/<project>.md`, or a Google Sheet with `[board] sheet`. Keep it open instead of watching threads.
+- **The board:** `~/.onrails/boards/<project>.md`, or a Google Sheet with `[board] sheet`. Keep it open instead of watching threads.
 
 → [Pings, the board and automation](staying-in-the-loop.md)
 

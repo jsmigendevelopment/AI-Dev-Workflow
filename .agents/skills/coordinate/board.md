@@ -4,7 +4,7 @@ One page per project that the person can keep open instead of watching threads. 
 
 ## Where it lives
 
-- `~/.ai-dev-workflow/boards/<project>.md`, outside the repo. Never commit it, and never add it to `.gitignore`. It isn't in the repo to begin with.
+- `~/.onrails/boards/<project>.md`, outside the repo. Never commit it, and never add it to `.gitignore`. It isn't in the repo to begin with.
 - `<project>.events.jsonl` next to it. It's append-only, so many threads can write at once.
 - `[board] dir = "<folder>"` in the profile moves both, for example to a Google Drive folder you can open on your phone.
 - `[board] sheet = "<Google Sheet URL>"` adds a Google Sheet copy that cloud threads can update (below).
@@ -54,7 +54,7 @@ The presence status is at the top, and each section says when it was last update
 
 When the profile sets `[board] sheet` and you have the Google Sheets connector, the board is also a sheet: one tab per project, plus an "All projects" tab. **This step is untested.** Check the first write by eye.
 
-**No sheet yet?** Offer once: *"Want your board as a Google Sheet so you can see it from your phone and cloud threads can update it?"* On a yes, create a spreadsheet named "AI-Dev-Workflow board" and put its URL in the home profile under `[board] sheet`. On a no, write `sheet = "off"` there, so nobody asks again.
+**No sheet yet?** Offer once: *"Want your board as a Google Sheet so you can see it from your phone and cloud threads can update it?"* On a yes, create a spreadsheet named "onRails board" and put its URL in the home profile under `[board] sheet`. On a no, write `sheet = "off"` there, so nobody asks again.
 
 **Once per tab** (it isn't there yet), set it up and format it in one call:
 

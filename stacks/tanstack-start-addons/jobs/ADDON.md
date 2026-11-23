@@ -30,7 +30,7 @@ With no keys this needs nothing: queues and crons run in local dev too.
 
 ## Apply
 
-1. Copy `files/` into the project root. The CLI does this step: `npx ai-dev-workflow add tanstack-start/jobs`.
+1. Copy `files/` into the project root. The CLI does this step: `npx onrails add tanstack-start/jobs`.
 2. `wrangler.jsonc`: set the entry, then add the queue and the cron at the top level, before `"env"` (local dev uses these).
    ```jsonc
    "main": "src/server.ts",

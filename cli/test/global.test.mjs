@@ -18,15 +18,15 @@ test("init --global copies only idea, join, back and afk to both personal skills
   }
 });
 
-test("init --global never overwrites: a changed file keeps yours and gets a .kit-new", () => {
+test("init --global never overwrites: a changed file keeps yours and gets a .onrails-new", () => {
   const home = tmp();
   put(home, ".claude/skills/idea/SKILL.md", "my idea\n");
   const log = logger();
   initGlobal({ home, log });
   assert.equal(read(home, ".claude/skills/idea/SKILL.md"), "my idea\n");
-  assert.equal(read(home, ".claude/skills/idea/SKILL.md.kit-new"), kitSkill("idea"));
-  assert.ok(!exists(home, ".agents/skills/idea/SKILL.md.kit-new"));
-  assert.match(log.text(), /yours kept, kit's copy in ~\/\.claude\/skills\/idea\/SKILL\.md\.kit-new/);
+  assert.equal(read(home, ".claude/skills/idea/SKILL.md.onrails-new"), kitSkill("idea"));
+  assert.ok(!exists(home, ".agents/skills/idea/SKILL.md.onrails-new"));
+  assert.match(log.text(), /yours kept, kit's copy in ~\/\.claude\/skills\/idea\/SKILL\.md\.onrails-new/);
   const again = logger();
   initGlobal({ home, log: again });
   assert.match(again.text(), /~\/\.agents\/skills: \d+ unchanged\./);

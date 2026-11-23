@@ -117,7 +117,7 @@ export function zoneChanges(
   const expression = scannerRuleExpression(hosts)
   const rule = {
     ref: SCANNER_RULE_REF,
-    description: 'Block vulnerability-scanner paths (ai-dev-workflow kit)',
+    description: 'Block vulnerability-scanner paths (onRails)',
     expression,
     action: 'block',
     enabled: true,

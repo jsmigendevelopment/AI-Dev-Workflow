@@ -1,14 +1,14 @@
 // profile init | show | copy [dir]: the person's own defaults, kept at
-// ~/.ai-dev-workflow/profile.toml and copied into projects as docs/profile.toml.
+// ~/.onrails/profile.toml (or ~/.ai-dev-workflow/ until it's moved, see home.mjs) and copied into projects as docs/profile.toml.
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { toNative, writeFile } from "./files.mjs";
+import { homeDir } from "./home.mjs";
 import { loadKit } from "./kit.mjs";
 import { askDefault, confirm } from "./prompt.mjs";
 
 export const TEMPLATE = ".agents/skills/idea/templates/profile.toml";
-export const profilePath = (home = homedir()) => join(home, ".ai-dev-workflow", "profile.toml");
+export const profilePath = (home) => join(homeDir(home), "profile.toml");
 
 const QUESTIONS = [
   ["github_owner", "GitHub account or organisation for new repos"],
@@ -48,14 +48,14 @@ export async function profileInit({ home, kitDir, ask, yes = false, log = consol
 
 export function profileShow({ home, log = console.log } = {}) {
   const path = profilePath(home);
-  if (!existsSync(path)) return log("No profile yet. Run: npx ai-dev-workflow profile init"), 1;
+  if (!existsSync(path)) return log("No profile yet. Run: npx onrails profile init"), 1;
   log(`# ${path}\n${readFileSync(path, "utf8").trimEnd()}`);
   return 0;
 }
 
 export async function profileCopy(dir = ".", { home, ask, yes = false, log = console.log } = {}) {
   const from = profilePath(home);
-  if (!existsSync(from)) return log("No profile yet. Run: npx ai-dev-workflow profile init"), 1;
+  if (!existsSync(from)) return log("No profile yet. Run: npx onrails profile init"), 1;
   const to = toNative(resolve(dir), "docs/profile.toml");
   const data = readFileSync(from);
   if (existsSync(to)) {

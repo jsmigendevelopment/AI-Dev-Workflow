@@ -29,7 +29,7 @@ test("init through the binary installs the kit", () => {
   const dir = tmp();
   const r = run("init", dir);
   assert.equal(r.status, 0, r.stderr);
-  assert.ok(exists(dir, ".ai-dev-workflow.json"));
+  assert.ok(exists(dir, ".onrails.json"));
 });
 
 test("profile and doctor --fix through the binary, with a temp home and piped answers", () => {
@@ -39,7 +39,7 @@ test("profile and doctor --fix through the binary, with a temp home and piped an
   assert.equal(show.status, 1);
   const made = spawnSync(process.execPath, [CLI, "profile", "init"], { encoding: "utf8", env, input: "octo\nteam\n" });
   assert.equal(made.status, 0, made.stderr);
-  assert.ok(exists(home, ".ai-dev-workflow/profile.toml"));
+  assert.ok(exists(home, ".onrails/profile.toml"));
   const shown = spawnSync(process.execPath, [CLI, "profile", "show"], { encoding: "utf8", env });
   assert.match(shown.stdout, /github_owner = "octo"/);
   assert.match(shown.stdout, /github_plan = "team"/);

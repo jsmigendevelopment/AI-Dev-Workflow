@@ -43,7 +43,7 @@ test("doctor compares the plugin with the project's kit version, not the CLI's",
   const home = tmp(), dir = tmp();
   put(home, ".claude/plugins/installed_plugins.json", claudeRecord("0.4.0"));
   init(dir, { log: logger(), home });
-  put(dir, ".ai-dev-workflow.json", JSON.stringify({ kitVersion: "0.3.0", files: {} }));
+  put(dir, ".onrails.json", JSON.stringify({ kitVersion: "0.3.0", files: {} }));
   const text = labels(runChecks(dir, { sys: fakeSystem({ home }) }));
   assert.match(text, /plugin core@onrails is v0\.4\.0, the kit here is v0\.3\.0/);
 });

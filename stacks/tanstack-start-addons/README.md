@@ -23,8 +23,8 @@ Optional pieces for an app made from `stacks/tanstack-start`. The tech grill (`s
 ## Applying one
 
 ```sh
-npx ai-dev-workflow add tanstack-start --list-addons
-npx ai-dev-workflow add tanstack-start/<add-on>      # copies files/, skips files you have (--force overwrites)
+npx onrails add tanstack-start --list-addons
+npx onrails add tanstack-start/<add-on>      # copies files/, skips files you have (--force overwrites)
 ```
 
 The CLI copies `files/` and prints the rest of the `## Apply` steps. Those are small edits to `composition.ts`, `wrangler.jsonc`, `env.d.ts` and `eslint.config.js`, plus installs with pinned versions. Do them in order, then run `pnpm check`.

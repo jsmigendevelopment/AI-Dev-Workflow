@@ -63,7 +63,7 @@ Method: `npm view <pkg> version` and `dist-tags` for every package named; `git l
 
 **Date:** 2026-11-22. Re-check versions and prices before building.
 
-**Starting point:** `stacks/electron-desktop/PACK.md` (the stub) and `guide/platform-packs-research.md`, section 2 and fact-check rows 19 to 35. This dossier doesn't repeat the Electron versus Tauri comparison. It goes one level down: what the pack must contain.
+**Starting point:** `stacks/electron-desktop/PACK.md` (the stub) and `research/platform-packs.md`, section 2 and fact-check rows 19 to 35. This dossier doesn't repeat the Electron versus Tauri comparison. It goes one level down: what the pack must contain.
 
 **Constraints used:** the kit's check contract (`check`, `lint`, `typecheck`, `test`, `test:e2e`, `build`), decoupled feature modules with a boundary check in lint, the web pack's renderer conventions (React, shadcn/ui, Tailwind, Zod, Vitest, Playwright, `eslint-plugin-boundaries`), and the always-stop list (money, secrets, production).
 
@@ -568,7 +568,7 @@ The minute counts are guesses [I]. At 100 pull-request runs a month with the Win
 
 ### Sources (CI)
 
-- `guide/platform-packs-research.md`, fact-check rows 17 and 35 (Actions prices).
+- `research/platform-packs.md`, fact-check rows 17 and 35 (Actions prices).
 - `electron/electron` `v45.4.1`: `docs/breaking-changes.md` (42.0). `electron/forge` `v8.0.1`: template scripts.
 - The check contract in this repo's `AGENTS.md`.
 
@@ -646,7 +646,7 @@ The web pack's loop merges, deploys to a test URL, and smoke-tests it. A desktop
 - `MicrosoftDocs/windows-dev-docs` `docs`: `hub/apps/develop/smart-app-control/overview.md`.
 - `clerk/clerk-docs` `main`: `docs/guides/development/deployment/electron.mdx`.
 - [S] Web search, 2026-11-22: Azure's Artifact Signing pricing page (tiers and quotas, no amounts); reseller price lists and certificate-authority pages on 2026 validity limits.
-- `guide/platform-packs-research.md`, fact-check rows 28 to 32.
+- `research/platform-packs.md`, fact-check rows 28 to 32.
 
 ---
 
@@ -893,4 +893,4 @@ Four spikes, each a few hours, in this order. Each ends in a line in `docs/decis
 
 What this dossier could not verify at all, after the fact-check: the Azure Artifact Signing price and current eligibility; whether free signing for open-source projects is still offered; Google's current embedded sign-in policy text; Chrome's Local Network Access rollout details (secondary only); Node issue 47086 (secondary only); whether Forge 8's Vite package really drops a native module; whether `addChildView` re-parenting keeps the page; how reachable a Node-created named pipe is from another machine on a default Windows install; whether `node-pty` loads in a `utilityProcess`; whether killing a ConPTY ends all grandchildren; GitHub Actions run times; and anything that needs a real Windows desktop.
 
-<sub>AI-Dev-Workflow kit · research dossier · 2026-11-22 · fact-checked 2026-11-23</sub>
+<sub>onRails · research dossier · 2026-11-22 · fact-checked 2026-11-23</sub>

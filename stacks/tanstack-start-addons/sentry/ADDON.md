@@ -20,7 +20,7 @@ With no DSN the app builds, tests pass and nothing is sent.
 
 ## Apply
 
-1. Copy `files/` into the project root. The CLI does this step: `npx ai-dev-workflow add tanstack-start/sentry`.
+1. Copy `files/` into the project root. The CLI does this step: `npx onrails add tanstack-start/sentry`.
    The pack already has a `src/client.tsx` (Start's entry plus an `onCaughtError` that doesn't report an `AppError` a section's boundary showed). Replace it with this one (`--force` for that file), then keep that rule so expected errors (signed out, not found) don't become Sentry events:
    ```tsx
    const report = Sentry.reactErrorHandler()

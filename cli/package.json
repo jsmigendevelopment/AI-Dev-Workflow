@@ -1,8 +1,9 @@
 {
-  "name": "ai-dev-workflow",
+  "name": "onrails",
   "version": "0.4.0",
-  "description": "Install and update the AI-Dev-Workflow kit in your project: agent rules, skills, guardrails and stack packs for Claude Code and Codex.",
+  "description": "Install and update onRails in your project: agent rules, skills, guardrails and stack packs for Claude Code and Codex.",
   "keywords": [
+    "onrails",
     "claude-code",
     "codex",
     "ai-agents",
@@ -18,19 +19,18 @@
   ],
   "author": "Jay Smigen",
   "license": "MIT",
-  "homepage": "https://github.com/jsmigendevelopment/AI-Dev-Workflow#readme",
+  "homepage": "https://github.com/jsmigendevelopment/onRails#readme",
   "bugs": {
-    "url": "https://github.com/jsmigendevelopment/AI-Dev-Workflow/issues"
+    "url": "https://github.com/jsmigendevelopment/onRails/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jsmigendevelopment/AI-Dev-Workflow.git",
+    "url": "git+https://github.com/jsmigendevelopment/onRails.git",
     "directory": "cli"
   },
   "type": "module",
   "bin": {
-    "ai-dev-workflow": "bin/cli.mjs",
-    "adw": "bin/cli.mjs"
+    "onrails": "bin/cli.mjs"
   },
   "files": [
     "bin",

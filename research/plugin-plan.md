@@ -77,7 +77,7 @@ Other facts that shape the plan:
 
 1. The person installs the plugin once: `/plugin marketplace add <owner>/<repo>`, then `/plugin install <entry>@<marketplace>`.
 2. In an empty folder they type `/idea`. No project skill has that name yet, so the plugin's `or:idea` runs.
-3. Its first step: is the kit here (`.ai-dev-workflow.json` or whatever the manifest is called after the rename)? No: ask, then run the CLI's `init --no-start` for the person. Then carry on with the project's own `idea` skill, which is now on disk (project skills hot-reload).
+3. Its first step: is the kit here (`.onrails.json`, or `.ai-dev-workflow.json` in a project set up before the rename)? No: ask, then run the CLI's `init --no-start` for the person. Then carry on with the project's own `idea` skill, which is now on disk (project skills hot-reload).
 4. From then on, `/idea` in that project runs the project's copy. The plugin's copy only starts things.
 
 ## 5. Stopping two copies from fighting

@@ -30,7 +30,7 @@ https://github.com/you/notes-app/issues/14
 
 **While you're away** (`/afk`), only critical blockers ping: production down, or a live security hole. Everything else waits for `/back`.
 
-**Your settings** are in your profile, `~/.ai-dev-workflow/profile.toml`:
+**Your settings** are in your profile, `~/.onrails/profile.toml`:
 
 ```toml
 [notify]
@@ -46,7 +46,7 @@ Agents call `node .claude/hooks/notify.mjs`. It also runs as the Claude Code not
 
 ## 📋 The board
 
-One page per project, `~/.ai-dev-workflow/boards/<project>.md`. Keep it open instead of watching threads.
+One page per project, `~/.onrails/boards/<project>.md`. Keep it open instead of watching threads.
 
 ```markdown
 # 📋 notes-app · board

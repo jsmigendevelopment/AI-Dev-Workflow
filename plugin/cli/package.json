@@ -1,12 +1,11 @@
 {
-  "name": "ai-dev-workflow",
+  "name": "onrails",
   "version": "0.4.0",
-  "description": "Install and update the AI-Dev-Workflow kit in your project: agent rules, skills, guardrails and stack packs for Claude Code and Codex.",
+  "description": "Install and update onRails in your project: agent rules, skills, guardrails and stack packs for Claude Code and Codex.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "ai-dev-workflow": "bin/cli.mjs",
-    "adw": "bin/cli.mjs"
+    "onrails": "bin/cli.mjs"
   },
   "engines": {
     "node": ">=22"

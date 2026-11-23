@@ -18,6 +18,6 @@ export function doctor(dir = ".", { kitDir, sys, log = console.log } = {}) {
   printChecks(checks, log);
   const failed = requiredFailed(checks);
   log(failed ? "\nSome required checks failed." : "\nAll required checks passed.");
-  if (checks.some((ch) => ch.status === FAIL && ch.remedy)) log("To fix what can be fixed: npx ai-dev-workflow doctor --fix");
+  if (checks.some((ch) => ch.status === FAIL && ch.remedy)) log("To fix what can be fixed: npx onrails doctor --fix");
   return failed ? 1 : 0;
 }

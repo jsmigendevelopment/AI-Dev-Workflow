@@ -27,7 +27,7 @@ Hyperdrive with `pg` (node-postgres) is Cloudflare's current guidance for Postgr
 
 Apply this **before** the `jobs`, `stripe` or `r2-uploads` add-ons, or port their tables too (see the end).
 
-1. Copy `files/` into the project root, overwriting the four pack files. The CLI does this step: `npx ai-dev-workflow add tanstack-start/database-supabase --force`.
+1. Copy `files/` into the project root, overwriting the four pack files. The CLI does this step: `npx onrails add tanstack-start/database-supabase --force`.
 2. Install:
    ```sh
    pnpm add pg@8.23.1

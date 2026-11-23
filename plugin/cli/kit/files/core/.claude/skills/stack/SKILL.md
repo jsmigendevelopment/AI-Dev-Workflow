@@ -104,7 +104,7 @@ For other platforms there's no fixed default. Recommend the mainstream choice, s
 
 ## Stack packs
 
-**Add-ons:** a pack can have add-ons (for the web pack, `stacks/tanstack-start-addons/`). Offer one only when the app needs it, then apply it with `npx ai-dev-workflow add tanstack-start/<add-on>` and finish the steps in its `ADDON.md`.
+**Add-ons:** a pack can have add-ons (for the web pack, `stacks/tanstack-start-addons/`). Offer one only when the app needs it, then apply it with `npx onrails add tanstack-start/<add-on>` and finish the steps in its `ADDON.md`.
 
 A stack pack is a ready-made starter for one stack: configs, the folder skeleton, an example module, CI and the check contract, already working. Look for a skill named `stack-<name>` (for example `stack-tanstack-start`).
 
@@ -112,7 +112,7 @@ A stack pack is a ready-made starter for one stack: configs, the folder skeleton
 - **A stub pack** (`stacks/<name>/PACK.md`, no app files yet): the groundwork is done but the starter isn't built. Tell the person, then build it in their project by following `PACK.md` step by step: the pinned versions, the folder structure, how each check-contract command maps, CI and release. Re-check the versions first, because they age. Slice 0 isn't done until every check-contract command passes. Afterwards, offer to contribute the finished starter back to the kit.
 - **No pack:** slice 0 sets up the same things by hand, following the check contract and `architecture.md`. Afterwards, offer to save the result as a new pack.
 
-Research behind the packs: `guide/platform-packs-research.md` in the kit.
+Research behind the packs: `research/platform-packs.md` in the kit.
 
 ## Write it down
 

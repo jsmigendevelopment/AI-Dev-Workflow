@@ -8,7 +8,7 @@ test("doctor in an empty folder reports the missing kit and fails", () => {
   const log = logger();
   assert.equal(doctor(tmp(), { log }), 1);
   assert.match(log.text(), /✗ Kit not installed here/);
-  assert.match(log.text(), /fix: Run: npx ai-dev-workflow init/);
+  assert.match(log.text(), /fix: Run: npx onrails init/);
 });
 
 test("doctor after init checks the kit and the skills mirror", () => {

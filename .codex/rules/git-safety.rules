@@ -32,7 +32,7 @@ prefix_rule(
     justification = "This throws away local work. Ask the person first.",
 )
 
-# The kit's own helper scripts: they only write under ~/.ai-dev-workflow.
+# The kit's own helper scripts: they only write under ~/.onrails (or ~/.ai-dev-workflow, its old name).
 prefix_rule(
     pattern = ["node", [".claude/hooks/notify.mjs", ".agents/skills/coordinate/scripts/board.mjs", ".agents/skills/afk/scripts/worklog.mjs"]],
     decision = "allow",
