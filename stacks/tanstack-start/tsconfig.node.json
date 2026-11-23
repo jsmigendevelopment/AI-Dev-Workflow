@@ -1,0 +1,9 @@
+{
+  // Tests, e2e and config files: these run in Node, so they get Node types.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client"]
+  },
+  "include": ["src", "e2e", "worker-configuration.d.ts", "*.config.ts"],
+  "exclude": []
+}

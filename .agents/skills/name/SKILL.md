@@ -21,7 +21,7 @@ Naming waits until now because you can't name something before you know what it 
 
 4. **Make it a git repo now.** Run `git init` in this folder if it isn't one already. Add a `.gitignore` that covers `.env*`, secrets and build output. Move `kickoff/` into `docs/`, then make the first commit.
 
-5. **Connect GitHub.** The person creates the GitHub repo (don't create it yourself unless they say to). Then add it as the remote and push.
+5. **Connect GitHub.** The person creates the GitHub repo (don't create it yourself unless they say to). Then add it as the remote and push. Once CI exists (slice 0), set up GitHub for them with `scripts/setup-github.mjs` from this skill (see `pyramid` step 1).
    - If they'd rather wait, carry on locally. Issues are written as files until there's a remote (see `issues`).
 
 6. **Record** the name, visibility, licence and remote in `docs/decisions.md`.

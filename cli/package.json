@@ -1,0 +1,38 @@
+{
+  "name": "ai-dev-workflow",
+  "version": "0.3.0",
+  "description": "Install and update the AI-Dev-Workflow kit (agent rules, skills and stack packs for Claude Code and Codex) in your project.",
+  "type": "module",
+  "bin": {
+    "ai-dev-workflow": "bin/cli.mjs",
+    "adw": "bin/cli.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "kit"
+  ],
+  "scripts": {
+    "bundle": "node scripts/bundle.mjs",
+    "prepack": "node scripts/bundle.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "agents",
+    "ai",
+    "workflow",
+    "skills"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jsmigendevelopment/AI-Dev-Workflow.git",
+    "directory": "cli"
+  },
+  "homepage": "https://github.com/jsmigendevelopment/AI-Dev-Workflow#readme",
+  "license": "MIT"
+}

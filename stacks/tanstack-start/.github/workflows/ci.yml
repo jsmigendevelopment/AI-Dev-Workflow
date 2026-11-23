@@ -1,0 +1,59 @@
+# Runs on every pull request and on main. Uses the check contract in package.json.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # reads the version from packageManager
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint # ESLint with the module boundary check, then Prettier
+      - run: pnpm typecheck
+      - run: pnpm test # service, controller and repository tests (local D1)
+      - name: Migrations match the tables
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain migrations)" ]; then
+            echo "A table changed without a migration. Run pnpm db:generate and commit the result."
+            git status --porcelain migrations
+            exit 1
+          fi
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for committed secrets
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.18.4 detect --no-git --source /repo --redact
+
+  agent-files:
+    # A pull request that changes the agents' own rules needs the person.
+    # They add the `human-approved` label after reading the diff.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Agent rule files need a human
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE"...HEAD | grep -E '^(AGENTS\.md|CLAUDE\.md|\.agents/|\.claude/|\.github/)' || true)
+          if [ -n "$changed" ] && ! echo ",$LABELS," | grep -q ",human-approved,"; then
+            echo "These files change the agents' rules and need the human-approved label:"
+            echo "$changed"
+            exit 1
+          fi

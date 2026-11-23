@@ -19,7 +19,7 @@ description: Use when implementing one issue ("implement issue 12", "build this 
    - the UI kit's components;
    - small, readable files.
 7. **Run every check** in "Commands that work here" in `AGENTS.md`: lint, typecheck, the boundary check, tests and build. All of it must pass.
-8. **Open the pull request** with `Closes #N` and, for each acceptance check, the test that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
+8. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #N` and, for each acceptance check, the test that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
 
 ## Never
 

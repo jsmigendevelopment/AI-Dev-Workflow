@@ -26,6 +26,8 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
 8. **Follow `docs/architecture.md` and `docs/design.md`.** Feature modules don't import each other. The API goes controller → service → repository/client. Use the chosen UI kit's components, and keep files small and readable.
 9. **Secrets stay secret.** Never read, print or commit `.env` files, tokens or keys. Refer to them by name.
 10. **Reuse before you build:** an open-source library first, then a free-tier SaaS, then build it yourself.
+11. **Never sit idle without telling the person.** If GitHub or any service says you're rate-limited or blocked, tell the person right away: what's blocked, and when it resets (`gh api rate_limit` shows it, and checking it doesn't count against the limit). Use a push notification if your tool has one. Then keep doing everything that doesn't need that service, and pick the blocked work back up after the reset.
+12. **Never force-push, and never push straight to `main`.** Changes reach main through a pull request.
 
 ## Skills
 
@@ -40,7 +42,9 @@ When a step names a skill, open it. If it doesn't load by name, read `.agents/sk
 
 Called by those, by issues and by the loop:
 - `grill`, `name`, `stack`, `research`, `pyramid`, `issues`, `routing`;
-- `coordinate`, `build`, `pr-review`, `pr-security`, `qa`.
+- `coordinate`, `build`, `pr-review`, `pr-security`, `qa`;
+- `web-performance`, `web-security`, `seo`, `a11y`, `dependencies`;
+- stack packs: `stack-<name>` (for example `stack-tanstack-start`).
 
 An issue's `Skills:` line names at most three. Load them.
 
@@ -53,6 +57,19 @@ Fill these in once `/idea` or `/join` has run.
 - **Where things stand:** `docs/state.md`
 - **Risk dial:** see `docs/stack.md`
 - **Test URL:** 
-- **Commands that work here:** install, dev, lint, typecheck, test, e2e, build.
+- **Commands that work here:** fill in the exact commands once known.
 
-<sub>AI-Dev-Workflow kit · v0.2 · 2026-11</sub>
+## The check contract
+
+Every project provides these commands, whatever the stack. Skills, CI and the loop only call these names.
+
+| Command | Runs |
+|---|---|
+| `check` | lint, typecheck, test and build, in order |
+| `lint` | the linter, including the boundary check |
+| `typecheck` | the type checker |
+| `test` | unit tests for every slice so far |
+| `test:e2e` | the `auto` acceptance checks in a real browser |
+| `build` | the production build |
+
+<sub>AI-Dev-Workflow kit · v0.3 · 2026-11</sub>

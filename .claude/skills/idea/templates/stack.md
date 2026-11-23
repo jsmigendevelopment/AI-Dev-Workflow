@@ -42,4 +42,4 @@ Whatever the dial, the **always-stop list** in `AGENTS.md` still applies: produc
 
 - Test URL: 
 - Preview per pull request: yes / no
-- Production: deployed by the person only
+- Production: deployed by the person only. Production keys live only in the GitHub `production` environment, which waits for the person's approval (set up by `setup-github.mjs`).

@@ -12,3 +12,7 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/sync-skills.mjs --check
+      - run: npm run bundle && npm test
+        working-directory: cli
+      - run: npm pack --dry-run
+        working-directory: cli

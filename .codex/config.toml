@@ -1,0 +1,11 @@
+# Codex settings for this repo. Codex loads this file, .codex/rules/ and
+# .codex/hooks only after you mark the project as trusted.
+
+# Agents can edit files in the repo and run commands. Anything outside the
+# sandbox asks you first.
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+
+[sandbox_workspace_write]
+# The loop needs the network for git push, gh, and installing packages.
+network_access = true
