@@ -42,7 +42,7 @@ pass 1    ████   ████   ████   ████   ███�
      4. On a yes, run it without `--dry-run` and show the results, including anything skipped because of their plan.
 2. **Seed data and test users.** Once the schema is designed (step 4), the first slice that adds a table also adds a seed script and **two test users**, so `qa` can always sign in and check that one user can't see another's data.
 3. **List the slices** from `docs/mvp.md`. One slice is one thing a user can do, end to end. Name the **core.** Not every app needs auth.
-4. **Design what the slices share.** In `docs/design.md`: the schema, the API contracts, and a wireframe and layout for every screen in pass 1. Plain text or ASCII wireframes are fine. Builders follow this design. They don't invent their own.
+4. **Design what the slices share.** In `docs/design.md`: theme tokens from the "Look and feel" answers (colours checked for contrast in light and dark, radius, fonts, type scale, spacing, motion), applied to the UI kit's theme; the schema, the API contracts, and a wireframe and layout for every screen in pass 1. Plain text or ASCII wireframes are fine. Builders follow this design. They don't invent their own.
 5. **Order pass 1.** Slice 0 first, then the slice that proves the riskiest idea, usually the core.
 6. **Plan the passes.** For each pass, list its slices and what "better" means for each one: speed, edge cases, polish, more depth in the core.
 7. **Make each pass a milestone,** with the slices ordered by priority and dependency.

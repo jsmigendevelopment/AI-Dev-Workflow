@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **The grill asks about look and feel (#41).** A new product topic, with open questions first because it is taste: the feel in three words, apps they like, existing brand files, light or dark, density, the voice of the copy, and what to avoid. The answers go to "Look and feel" in `docs/design.md`, and the CTO step turns them into theme tokens. A `[design]` section in the profile pre-fills it.
 - **`onrails` is on npm** (0.4.0, published 2026-11-23). `npx onrails init` is the README's install path next to the plugin.
 - **Release workflow for the CLI (#37).** A `v*` tag runs `.github/workflows/release.yml`: it checks the tag matches the CLI and plugin version, runs the same checks as CI, checks the package holds only the intended files, waits for approval in the `release` environment, then publishes `onrails` to npm with trusted publishing (no token) and provenance. `npm run release:bump <version>` moves the CLI, both plugin manifests, the `AGENTS.md` footer and the changelog together, and CI fails if they drift. `RELEASING.md` has the owner's one-time setup. Nothing is published yet.
 - **Competitor scan in the background (#34).** Once the grill has covered "who and why" and "the main flow", a scan of 3 to 8 competitors runs in the background on the everyday model. The MVP topic opens with what exists, what users complain about and the gaps, and the naming step drops names close to a competitor's. `/join` offers it once.
