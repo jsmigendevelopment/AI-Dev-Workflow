@@ -14,6 +14,9 @@ import * as z from 'zod'
 const optional = (schema: z.ZodType<string>) =>
   z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), schema.optional())
 
+// One origin: lowercase scheme and host, an optional port, no path, no wildcard.
+const ORIGIN = String.raw`https?:\/\/(?:\[[0-9a-f:]+\]|[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)(?::\d{1,5})?`
+
 export const buildEnvSchema = z.object({
   /** The one site-URL source: canonicals, og:url, sitemap, robots, security.txt. No trailing slash. */
   SITE_URL: optional(
@@ -33,6 +36,19 @@ export const runtimeEnvSchema = z
     CLERK_SECRET_KEY: optional(z.string().startsWith('sk_', 'must start with sk_')),
     /** Optional: the instance's PEM public key (Clerk dashboard → API keys → JWKS public key). */
     CLERK_JWT_KEY: optional(z.string().includes('BEGIN PUBLIC KEY', { message: 'must be a PEM public key' })),
+    /**
+     * Optional: more origins Clerk session tokens may come from (their `azp`), comma-separated
+     * exact origins, no wildcards. SITE_URL and this environment's own origins are already in
+     * (src/lib/authorized-parties.ts). For a custom test domain or a second production domain.
+     */
+    CLERK_AUTHORIZED_PARTIES: optional(
+      z
+        .string()
+        .regex(
+          new RegExp(`^${ORIGIN}(\\s*,\\s*${ORIGIN})*$`),
+          'must be exact origins like https://app.example.com,https://www.example.com',
+        ),
+    ),
     TURNSTILE_SITE_KEY: optional(z.string().regex(/^[\w-]{10,}$/, 'is not a Turnstile site key')),
     TURNSTILE_SECRET_KEY: optional(z.string().regex(/^[\w-]{10,}$/, 'is not a Turnstile secret key')),
     /**

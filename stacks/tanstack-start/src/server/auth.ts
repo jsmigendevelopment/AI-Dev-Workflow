@@ -3,7 +3,10 @@ import { createMiddleware, createServerOnlyFn } from '@tanstack/react-start'
 
 import type { Actor } from '@/lib/actor'
 import { type ApiResult, unauthenticated } from '@/lib/app-error'
+import { authorizedParties, NO_PARTY } from '@/lib/authorized-parties'
+import { BUILD_TARGET } from '@/lib/build-target'
 import { bearerToken } from '@/lib/http'
+import { logger } from '@/lib/logger'
 
 import { serverEnv } from './env'
 
@@ -26,11 +29,44 @@ export const clerkKeys = createServerOnlyFn(() => {
   return CLERK_JWT_KEY ? { secretKey, publishableKey, jwtKey: CLERK_JWT_KEY } : { secretKey, publishableKey }
 })
 
-/** Request middleware: runs Clerk when it's configured, and steps aside when it isn't. */
-export const authMiddleware = createMiddleware().server((args) => {
+let warnedNoParty = false
+
+/**
+ * The origins this request's session token may come from (src/lib/authorized-parties.ts). Same
+ * list for the cookie and the bearer header, since both pass through `authenticateRequest`.
+ */
+const partiesFor = createServerOnlyFn((request: Request): string[] => {
+  const url = new URL(request.url)
+  const parties = authorizedParties(url, BUILD_TARGET, serverEnv().CLERK_AUTHORIZED_PARTIES)
+  if (parties[0] === NO_PARTY && !warnedNoParty) {
+    warnedNoParty = true
+    logger.warn('clerk_no_authorized_party', { host: url.host })
+  }
+  return parties
+})
+
+// Clerk adds why a token was refused (and, for a wrong `azp`, the allowed origins) as response
+// headers. Every refusal must look the same from outside: the reason goes to the log instead.
+const DEBUG_HEADERS = ['x-clerk-auth-reason', 'x-clerk-auth-message']
+
+function withoutDebugHeaders(response: Response): void {
+  const reason = response.headers.get('x-clerk-auth-reason')
+  if (reason === 'token-invalid-authorized-parties') logger.warn('clerk_token_refused', { reason })
+  for (const name of DEBUG_HEADERS) response.headers.delete(name)
+}
+
+/**
+ * Request middleware: runs Clerk when it's configured, and steps aside when it isn't. Clerk
+ * checks the token's `azp` against `authorizedParties`; a token without `azp` is refused too.
+ */
+export const authMiddleware = createMiddleware().server(async (args) => {
   const keys = clerkKeys()
-  const run = keys ? clerkMiddleware(keys).options.server : undefined
-  return run ? run(args) : args.next()
+  const options = keys ? { ...keys, authorizedParties: partiesFor(args.request) } : undefined
+  const run = options ? clerkMiddleware(options).options.server : undefined
+  if (!run) return args.next()
+  const result = await run(args)
+  withoutDebugHeaders(result instanceof Response ? result : result.response)
+  return result
 })
 
 /** Function middleware: puts the verified actor (or null) on the server function's context. */
@@ -45,7 +81,7 @@ export const withActor = createMiddleware({ type: 'function' }).server(async ({ 
 
 /**
  * The actor for an `/api/v1` route: a Clerk session token sent as `Authorization: Bearer`, which
- * `authMiddleware` already verified (signature, expiry, issuer). Only the header counts, never
+ * `authMiddleware` already verified (signature, expiry, authorized party). Only the header counts, never
  * the cookie, so a cross-site page can't use a signed-in browser's session here (no CSRF check
  * needed). `auth()` accepts session tokens only: an API key or M2M token reads as signed out.
  */

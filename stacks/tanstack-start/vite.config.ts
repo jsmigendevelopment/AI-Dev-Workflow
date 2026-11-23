@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs'
+
 import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 
+import { readResources } from './scripts/cloudflare/wrangler-config.ts'
 import { buildEnvSchema, parseEnv } from './src/lib/env-schema.ts'
 import { llmsTxt, robotsTxt, securityTxt, sitemapXml } from './src/lib/seo-files.ts'
 import { DEFAULT_SITE_URL, INDEXABLE_PAGES, SITE } from './src/lib/site.ts'
@@ -52,10 +55,20 @@ export default defineConfig(({ mode }) => {
   if (!env.SITE_URL && mode === 'production')
     console.warn(`SITE_URL is not set: canonicals use ${DEFAULT_SITE_URL} and production is sent noindex.`)
   const securityContact = env.SECURITY_CONTACT ?? `mailto:security@${new URL(siteUrl).hostname}`
+  // Which wrangler environment this build is for, and in a test build the test Worker's name:
+  // its previews are the only non-local hosts Clerk tokens may come from without being listed
+  // (src/lib/authorized-parties.ts).
+  const deployEnv = process.env.CLOUDFLARE_ENV ?? ''
+  const testWorker =
+    deployEnv === 'test' ? readResources(readFileSync('wrangler.jsonc', 'utf8')).test.worker : ''
   return {
     resolve: { tsconfigPaths: true },
     server: { port: 3000 },
-    define: { 'import.meta.env.SITE_URL': JSON.stringify(env.SITE_URL ?? '') },
+    define: {
+      'import.meta.env.SITE_URL': JSON.stringify(env.SITE_URL ?? ''),
+      'import.meta.env.CLOUDFLARE_ENV': JSON.stringify(deployEnv),
+      'import.meta.env.TEST_WORKER': JSON.stringify(testWorker),
+    },
     plugins: [
       cloudflare({ viteEnvironment: { name: 'ssr' } }),
       tailwindcss(),

@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
+import { e2eClerkVars } from './e2e/clerk-tokens'
 import { E2E_ACCESS, E2E_PASSWORD } from './e2e/helpers'
 
 const port = 4173
@@ -10,7 +11,7 @@ const launchOptions = { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || 
 const deployed = process.env.BASE_URL?.replace(/\/$/, '')
 const local = (p: number) => `http://localhost:${p}`
 
-// The same build, previewed four ways. `CLOUDFLARE_INCLUDE_PROCESS_ENV` makes the preview read
+// The same build, previewed five ways. `CLOUDFLARE_INCLUDE_PROCESS_ENV` makes the preview read
 // these vars on top of wrangler.jsonc's top level (where LAUNCHED is "true", protection "none").
 const variant = (p: number, vars: Record<string, string>) => ({
   command: `pnpm preview --port ${p} --strictPort`,
@@ -20,7 +21,7 @@ const variant = (p: number, vars: Record<string, string>) => ({
   env: { CLOUDFLARE_INCLUDE_PROCESS_ENV: 'true', ...vars },
 })
 
-const SPECIAL = /(access-check|coming-soon|site-gate|visual)\.spec\.ts/
+const SPECIAL = /(access-check|clerk-parties|coming-soon|site-gate|visual)\.spec\.ts/
 // The screenshot tests run only through `pnpm test:visual` (scripts/test-visual.ts sets VISUAL).
 const visual = !!process.env.VISUAL && !deployed
 
@@ -79,6 +80,13 @@ export default defineConfig({
                 use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 3) },
                 testMatch: /access-check\.spec\.ts/,
               },
+              // Clerk's authorizedParties (src/lib/authorized-parties.ts): a made-up instance whose
+              // tokens the tests sign themselves (e2e/clerk-tokens.ts).
+              {
+                name: 'clerk',
+                use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 4) },
+                testMatch: /clerk-parties\.spec\.ts/,
+              },
             ]),
       ],
   webServer: deployed
@@ -96,6 +104,11 @@ export default defineConfig({
               variant(port + 1, { LAUNCHED: 'false' }),
               variant(port + 2, { SITE_PROTECTION: 'password', SITE_PASSWORD: E2E_PASSWORD }),
               variant(port + 3, E2E_ACCESS),
+              // Signed-in calls read the notes table: migrate the local D1 first.
+              {
+                ...variant(port + 4, { ...e2eClerkVars(), CLERK_TELEMETRY_DISABLED: '1' }),
+                command: `pnpm db:migrate:local && pnpm preview --port ${port + 4} --strictPort`,
+              },
             ]),
       ],
 })

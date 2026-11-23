@@ -6,6 +6,8 @@ declare namespace Cloudflare {
     CLERK_PUBLISHABLE_KEY?: string
     CLERK_SECRET_KEY?: string
     CLERK_JWT_KEY?: string
+    // Optional extra origins for Clerk's authorizedParties (src/lib/authorized-parties.ts).
+    CLERK_AUTHORIZED_PARTIES?: string
     TURNSTILE_SITE_KEY?: string
     TURNSTILE_SECRET_KEY?: string
     // The password gate (test and previews only), set by setup-cloudflare --protect password.
@@ -20,4 +22,8 @@ declare namespace Cloudflare {
 // Public build-time values, validated and inlined by vite.config.ts.
 interface ImportMetaEnv {
   readonly SITE_URL: string
+  /** `CLOUDFLARE_ENV` at build time: '' (local), 'test' or 'production'. */
+  readonly CLOUDFLARE_ENV: string
+  /** The test Worker's name from wrangler.jsonc, in a test build only. */
+  readonly TEST_WORKER: string
 }

@@ -1,0 +1,118 @@
+import { describe, expect, it } from 'vitest'
+
+import { authorizedParties, type BuildTarget, NO_PARTY, partiesConfigError } from './authorized-parties'
+
+const local: BuildTarget = { deployEnv: 'local', testWorker: '', siteUrl: '' }
+const test: BuildTarget = { deployEnv: 'test', testWorker: 'app-test', siteUrl: '' }
+const production: BuildTarget = {
+  deployEnv: 'production',
+  testWorker: '',
+  siteUrl: 'https://app.example.com',
+}
+
+const partiesFor = (url: string, target: BuildTarget, extra?: string) =>
+  authorizedParties(new URL(url), target, extra)
+
+describe('authorizedParties: the origins a Clerk session token (azp) may come from', () => {
+  it('local: the loopback origin the request came to, port included', () => {
+    expect(partiesFor('http://localhost:4173/api/v1/notes', local)).toEqual(['http://localhost:4173'])
+    expect(partiesFor('http://127.0.0.1:3000/', local)).toEqual(['http://127.0.0.1:3000'])
+    expect(partiesFor('http://[::1]:3000/', local)).toEqual(['http://[::1]:3000'])
+  })
+
+  it('local: a request to a non-loopback host gets no own-origin party (fails closed)', () => {
+    expect(partiesFor('http://192.168.1.20:3000/', local)).toEqual([NO_PARTY])
+    expect(partiesFor('http://localhost.evil.example:3000/', local)).toEqual([NO_PARTY])
+  })
+
+  it('production: SITE_URL as an origin, never the request origin', () => {
+    expect(partiesFor('https://app.example.com/notes', production)).toEqual(['https://app.example.com'])
+    expect(partiesFor('https://app-production.acme.workers.dev/', production)).toEqual([
+      'https://app.example.com',
+    ])
+    expect(partiesFor('http://localhost:4173/', production)).toEqual(['https://app.example.com'])
+    const withPath = { ...production, siteUrl: 'https://example.com/app' }
+    expect(partiesFor('https://example.com/app', withPath)).toEqual(['https://example.com'])
+  })
+
+  it('every environment: CLERK_AUTHORIZED_PARTIES adds exact origins', () => {
+    expect(
+      partiesFor(
+        'https://app.example.com/',
+        production,
+        'https://www.example.com, https://admin.example.com',
+      ),
+    ).toEqual(['https://app.example.com', 'https://www.example.com', 'https://admin.example.com'])
+    expect(partiesFor('https://test.example.com/', test, 'https://test.example.com')).toEqual([
+      'https://test.example.com',
+    ])
+  })
+
+  it('test: a preview origin passes only when it is the request’s own and matches the test Worker', () => {
+    expect(partiesFor('https://pr-12-app-test.acme.workers.dev/notes', test)).toEqual([
+      'https://pr-12-app-test.acme.workers.dev',
+    ])
+    expect(partiesFor('https://app-test.acme.workers.dev/', test)).toEqual([
+      'https://app-test.acme.workers.dev',
+    ])
+  })
+
+  it('test: look-alike hosts never become a party', () => {
+    for (const url of [
+      'https://pr-12-app-test.acme.workers.dev.evil.com/',
+      'https://pr-12-app-tester.acme.workers.dev/',
+      'https://pr-12-other-app-test.acme.workers.dev/',
+      'https://evil-pr-12-app-test.acme.workers.dev/',
+      'https://pr-12-app-test.a.b.workers.dev/',
+      'https://pr-x-app-test.acme.workers.dev/',
+      'https://pr-12-app-test.acme.workers.dev:8443/',
+      'http://pr-12-app-test.acme.workers.dev/',
+      'https://pr-12-app-testXacme.workers.dev/',
+      'http://localhost:4173/',
+    ])
+      expect(partiesFor(url, test), url).toEqual([NO_PARTY])
+  })
+
+  it('test: without the test Worker name there is no preview rule', () => {
+    expect(partiesFor('https://pr-1-app-test.acme.workers.dev/', { ...test, testWorker: '' })).toEqual([
+      NO_PARTY,
+    ])
+  })
+
+  it('never returns an empty list: Clerk skips the azp check entirely on an empty list', () => {
+    expect(partiesFor('https://pr-1-app-test.acme.workers.dev/', production)).not.toContain(
+      'https://pr-1-app-test.acme.workers.dev',
+    )
+    const none = { ...production, siteUrl: '' }
+    expect(partiesFor('https://app.example.com/', none)).toEqual([NO_PARTY])
+    expect(() => new URL(NO_PARTY).origin).not.toThrow()
+    expect(new URL(NO_PARTY).origin).toBe('null')
+  })
+
+  it('drops duplicates', () => {
+    expect(partiesFor('https://app.example.com/', production, 'https://app.example.com')).toEqual([
+      'https://app.example.com',
+    ])
+  })
+})
+
+describe('partiesConfigError: fails closed at startup when production has no origin', () => {
+  const keys = { CLERK_SECRET_KEY: 'sk_test_x', CLERK_PUBLISHABLE_KEY: 'pk_test_x' }
+
+  it('production with Clerk keys needs SITE_URL or CLERK_AUTHORIZED_PARTIES', () => {
+    const none = { ...production, siteUrl: '' }
+    expect(partiesConfigError(keys, none)).toMatch(/CLERK_AUTHORIZED_PARTIES is missing/)
+    expect(partiesConfigError(keys, none)).toMatch(/SITE_URL/)
+    expect(partiesConfigError(keys, production)).toBeNull()
+    expect(partiesConfigError({ ...keys, CLERK_AUTHORIZED_PARTIES: 'https://a.example' }, none)).toBeNull()
+  })
+
+  it('live keys anywhere need a fixed origin too; no keys, nothing to check', () => {
+    const live = { CLERK_SECRET_KEY: 'sk_live_DO_NOT_PRINT', CLERK_PUBLISHABLE_KEY: 'pk_live_x' }
+    expect(partiesConfigError(live, test)).toMatch(/CLERK_AUTHORIZED_PARTIES is missing/)
+    expect(partiesConfigError(live, test)).not.toContain('DO_NOT_PRINT')
+    expect(partiesConfigError(keys, test)).toBeNull()
+    expect(partiesConfigError(keys, local)).toBeNull()
+    expect(partiesConfigError({}, { ...production, siteUrl: '' })).toBeNull()
+  })
+})
