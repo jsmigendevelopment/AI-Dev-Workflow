@@ -36,7 +36,17 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
 3. **Features:** the person's ideas, questions on each, then yours if they stall. Sort each into must, later or not now.
 4. **The floor:** every item on the floor checklist in `features.md` gets an answer or a recorded default. Never skipped.
 5. **The MVP:** open with the competitor scan, in five lines or fewer: what exists, what users complain about, and the gaps. Then ask: *"What will yours do that they don't?"* If the scan isn't back yet, say so and continue; revisit the MVP when it lands. The one core piece. Push for one. If they name five, ask which one they'd keep if they could keep only one. **The core is never defaulted.**
-6. **Confirm:** show back the vision, the main flow, the features and the MVP, and ask what's wrong with them.
+6. **Look and feel.** Taste, so ask open questions first and give your suggestion only after they answer:
+   - *"Describe the feel in three words."* (for example calm, playful, serious)
+   - *"Name two or three apps or sites whose look you like, and what you like about each."*
+   - Do they have a logo, brand colours or fonts already? Where are the files?
+   - Light, dark, or both, following the device? (Default: both.)
+   - Dense like a dashboard, or roomy like a landing page?
+   - How should the words sound: friendly, plain, formal, funny?
+   - Anything to avoid: colours, styles, or a competitor's look?
+
+   Then sum it up in three lines. If they want visuals, offer a mood board or logo ideas on the creative tier (see `routing`). Write the answers to "Look and feel" in `design.md`. The CTO step turns them into theme tokens and wireframes. A profile's `[design]` answers are defaults to confirm, not skip.
+7. **Confirm:** show back the vision, the main flow, the features, the MVP and the look and feel, and ask what's wrong with them.
 
 ### Existing-project topics (`/join`, or a big feature)
 

@@ -38,6 +38,14 @@ test_site_protection = "access"
 test_site_logins = ["google", "otp"]
 avoid = []                      # tools you never want recommended
 
+[design]
+# Your usual look and feel. The grill shows these as defaults to confirm.
+feel = ""            # three words, e.g. "calm, modern, friendly"
+theme = "both"       # "light", "dark" or "both" (follows the device)
+density = "roomy"    # "roomy" or "dense"
+voice = "plain"      # how the copy sounds
+references = []      # apps or sites whose look you like
+
 [routing]
 # Your models per tier. Leave a tier empty if you don't have it.
 strongest = ""                  # e.g. "Claude Fable 5.2"
