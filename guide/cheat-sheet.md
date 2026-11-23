@@ -1,43 +1,72 @@
-# Cheat sheet
+<p align="center">
+  <img src="../assets/cheat-sheet.svg" alt="Cheat sheet: /idea, /join, /back, /afk" width="100%">
+</p>
 
-The whole workflow on one page.
+## ⌨️ Commands
 
-## Starting a new app
+| | Claude Code | Codex | Use it when | Or just say |
+|---|---|---|---|---|
+| 💡 | **`/idea`** | `$idea` | You have an idea for a new app | "I have an idea for an app" |
+| 🧭 | **`/join`** | `$join` | You're new to a repo that isn't set up yet | "Help me get set up in this repo" |
+| ☀️ | **`/back`** | `$back` | You're starting work, or back from a break | "I'm back" · "pick up where we left off" |
+| 🌙 | **`/afk`** | `$afk` | You're stepping away and want it to keep building | "brb" · "good night" |
 
-1. **Pitch it.** Tell the AI your idea in your own words.
-2. **Get grilled.** It asks three questions at a time, about the product only. No time limit, nothing skipped.
-3. **Find the MVP.** The one core thing that makes the app stand out.
-4. **Name it and make the repo.** The intermission.
-5. **Tech grill.** Platform, stack, architecture, API, data, UI kit and infra. The AI recommends, you tweak. Research the crucial unknowns.
-6. **Plan the pyramid.** Tracer-bullet slices stacked into passes. The core gets the most passes.
-7. **Write the issues.** The strongest model writes them, each with checks, a fence, dependencies, priority, model, effort and skills.
-8. **Start the loop.** Build → review → security review → merge, on repeat.
-9. **Auto-test.** Merge deploys to test, and an agent tests it in a real browser.
-10. **Try it yourself.** Your feedback becomes new issues.
-11. **Level up.** A fast model builds the MVP, then stronger models make the core great.
+> [!TIP]
+> **Typing the command always works.** The plain phrase usually does, on a strong model.
 
-## Joining an existing app
+---
 
-1. **Map it.** The AI reads the repo and writes a one-page map.
-2. **Run it.** Install, build, test. Record the commands that work.
-3. **Get grilled** on what the code can't tell you.
-4. **Write it down.** A short `AGENTS.md` and a `docs/` folder.
-5. **Then the same loop** from step 7 above.
+## 🔑 Trigger phrases
 
-## Every new session
-
-1. **Read the state note.**
-2. **Check what changed.**
-3. **Ask who else is working on the repo.**
-4. **Pick the work.**
-5. **Update the state note** before you stop.
-
-## The three commands to remember
-
-| You say | It does |
+| Say | Get |
 |---|---|
-| `new-project` | Idea → planned repo |
-| `join-project` | Existing repo → understood and documented |
-| `new-session` | Picks up where things left off |
+| "Grill me. Three questions at a time, each with your recommended answer." | A real interview instead of silent guesses |
+| "Give me three options with trade-offs and a recommendation." | Choices, not the first idea it had |
+| "Use the `<name>` skill." | That skill, every time |
+| "Tracer bullets" · "vertical slices" | Thin, end-to-end features you can try right away |
+| "Modular monolith" | Feature modules you can split out later |
+| "Controller → service → repository" | An API that's easy to test and swap parts in |
+| "Review the diff in a fresh context. Don't read the description." | A reviewer that judges the code, not the story |
+| "What's out of scope?" | A fence, so it doesn't wander |
 
-In Claude Code, type `/new-project`. In Codex, type `$new-project`. Or just say it in plain words.
+---
+
+## 🧠 Model routing
+
+<sub>Example setup, checked 2026-11. Swap in your own models.</sub>
+
+| Job | Tier · effort | Example |
+|---|---|---|
+| 🗣️ Your live thread (the loop) | Everyday · low | Opus 5.5 low |
+| 🔥 Grill, planning chat | Everyday · medium | Opus 5.5 medium |
+| 🏛️ CTO: research, pyramid, schema, API, wireframes | **Strongest · high** | Fable 5.2 high |
+| 📋 Writing issues from the plan | Everyday · medium | Opus 5.5 medium |
+| 🔨 Build pass 1 | Everyday · low | Opus 5.5 low |
+| ✨ Build pass 2+ | Everyday · medium | Opus 5.5 medium |
+| 🔍 Code review | Never below the builder | Opus 5.5 low / medium |
+| 🛡️ Security review (risky only) | One step above review, plus a second vendor for personal data or money | Opus 5.5 medium + ChatGPT |
+| 🎨 Art | Creative | ChatGPT |
+
+**Start low. Escalate one step only after a verified failure.**
+
+---
+
+## 🎚 Risk dial and lanes
+
+| Dial | Who merges | Pick it when |
+|---|---|---|
+| 🟢 **Move fast** | Agents, after the checks pass | Side project or startup, no real users yet |
+| 🟡 **Careful** | Agents. The person reads schema and API changes first. | Real users or real money |
+| 🔴 **Strict** | The person approves every merge | Bank, health, anything regulated |
+
+| Lane | Checks before merge | When |
+|---|---|---|
+| **tiny** | CI · code review | Copy, styling, config. No logic. |
+| **normal** | CI · code review · QA on the preview | Most issues |
+| **risky** | Normal · security review · the person | Auth, secrets, personal data, money, migrations, new dependencies |
+
+🛑 **Always waits for a person, whatever the dial:** production, secrets, deleting or migrating real data, and spending money.
+
+---
+
+<p align="center"><sub><a href="../README.md">← Back to the README</a> · made by <a href="https://me.jsmigen.dev">jay</a></sub></p>

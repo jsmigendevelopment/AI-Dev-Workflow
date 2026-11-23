@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Keeps .claude/skills (Claude Code) identical to .agents/skills (Codex, the master copy),
-// and .github/ISSUE_TEMPLATE/slice.md identical to the write-issues skill's template.
+// and .github/ISSUE_TEMPLATE/slice.md identical to the issues skill's template.
 // Usage:  node scripts/sync-skills.mjs          copy the master copies over the mirrors
 //         node scripts/sync-skills.mjs --check  fail if a mirror differs
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
@@ -8,7 +8,7 @@ import { dirname, join, relative } from "node:path";
 
 const SRC = ".agents/skills";
 const DEST = ".claude/skills";
-const ISSUE_SRC = join(SRC, "write-issues", "templates", "slice.md");
+const ISSUE_SRC = join(SRC, "issues", "templates", "slice.md");
 const ISSUE_DEST = ".github/ISSUE_TEMPLATE/slice.md";
 
 function files(dir) {
