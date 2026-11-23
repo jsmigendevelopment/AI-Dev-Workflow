@@ -108,7 +108,30 @@ function unverifiedClaims(token: string): Record<string, unknown> | null {
  */
 export function isNativeBearer(request: Request, allowNative: boolean): boolean {
   if (!allowNative || !isApiPath(new URL(request.url).pathname)) return false
+  // Belt and braces: Clerk reads the cookie when it doesn't take the header, and this path
+  // turns the origin check off. Any Clerk session cookie and it's not a native call.
+  if (hasClerkSessionCookie(request)) return false
   const token = bearerToken(request)
   const claims = token ? unverifiedClaims(token) : null
   return claims !== null && !('azp' in claims)
+}
+
+const CLERK_SESSION_COOKIE = /^(__session|__client_uat)(_|$)/
+
+function hasClerkSessionCookie(request: Request): boolean {
+  return (request.headers.get('cookie') ?? '')
+    .split(';')
+    .some((pair) => CLERK_SESSION_COOKIE.test(pair.trim().split('=')[0] ?? ''))
+}
+
+/**
+ * The request Clerk sees. On `/api/v1` only the header may sign in, so Clerk gets the URL,
+ * method and headers without `Cookie`: a cookie can't authenticate an API call whatever the
+ * `Authorization` header says. No body: Clerk never needs it and the route still reads it.
+ */
+export function requestForClerk(request: Request): Request {
+  if (!isApiPath(new URL(request.url).pathname)) return request
+  const headers = new Headers(request.headers)
+  headers.delete('cookie')
+  return new Request(request.url, { method: request.method, headers })
 }

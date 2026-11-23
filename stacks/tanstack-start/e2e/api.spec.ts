@@ -46,10 +46,15 @@ test('a token that is not a valid Clerk session token is 401', async ({ request 
 })
 
 test('the session cookie alone never signs in to the API', async ({ request }) => {
-  const response = await request.get('/api/v1/notes', {
-    headers: { cookie: '__session=eyJhbGciOiJSUzI1NiJ9.e30.c2ln; __client_uat=1700000000' },
-  })
-  expect(response.status()).toBe(401)
+  const cookie = '__session=eyJhbGciOiJSUzI1NiJ9.e30.c2ln; __client_uat=1700000000'
+  // Nor with a header Clerk ignores (it would read the cookie). With real keys and a valid
+  // cookie: e2e/clerk-parties.spec.ts.
+  for (const authorization of [undefined, 'bearer junk', 'BEARER junk', 'Bearer']) {
+    const response = await request.get('/api/v1/notes', {
+      headers: { cookie, ...(authorization ? { authorization } : {}) },
+    })
+    expect(response.status(), authorization ?? 'no header').toBe(401)
+  }
 })
 
 test('API bodies are capped before anything reads them, auth included', async ({ baseURL }) => {

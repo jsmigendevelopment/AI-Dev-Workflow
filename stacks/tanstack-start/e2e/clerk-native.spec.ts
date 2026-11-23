@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { bearer, signedInAs } from './clerk-tokens'
+import { bearer, sessionCookie, sessionToken, signedInAs, UNSIGNED } from './clerk-tokens'
 
 // The same made-up Clerk instance with CLERK_ALLOW_NATIVE_TOKENS=true (the `clerk-native`
 // project): a native app's bearer token has no `azp` and gets through on /api/v1. Nothing else
@@ -24,4 +24,22 @@ test('cookie: a session with no azp is still signed out', async ({ request }) =>
 
 test('cookie: a session for this origin still signs in', async ({ request, baseURL }) => {
   expect(await signedInAs(request, new URL(baseURL!).origin)).toBe('"user_e2e"')
+})
+
+test('a lowercase bearer with no azp plus another site’s session cookie is refused', async ({ request }) => {
+  const cookie = await sessionCookie('https://evil.example')
+  for (const authorization of [`bearer ${UNSIGNED}`, `BEARER ${UNSIGNED}`, `Bearer  ${UNSIGNED}`]) {
+    const response = await request.get('/api/v1/notes', { headers: { authorization, cookie } })
+    expect(response.status(), authorization.split(' ')[0]).toBe(401)
+  }
+})
+
+test('an exact Bearer with no azp is refused while a Clerk session cookie is there', async ({ request }) => {
+  const { token } = await sessionToken(undefined)
+  for (const cookie of ['__session=x', '__client_uat=0', await sessionCookie('https://evil.example')]) {
+    const response = await request.get('/api/v1/notes', {
+      headers: { authorization: `Bearer ${token}`, cookie },
+    })
+    expect(response.status(), cookie.slice(0, 14)).toBe(401)
+  }
 })

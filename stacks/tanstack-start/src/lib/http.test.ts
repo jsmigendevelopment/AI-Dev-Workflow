@@ -8,7 +8,10 @@ const withAuth = (value?: string) =>
 describe('api helpers', () => {
   it('reads a bearer token from the Authorization header only', () => {
     expect(bearerToken(withAuth('Bearer eyJ.abc-_.x9'))).toBe('eyJ.abc-_.x9')
-    expect(bearerToken(withAuth('bearer   tok'))).toBe('tok')
+    // Clerk only reads the exact scheme `Bearer` and one space; anything else would let it fall
+    // back to the cookie while this said "header token" (src/lib/clerk-header.test.ts).
+    expect(bearerToken(withAuth('bearer   tok'))).toBeNull()
+    expect(bearerToken(withAuth('bearer tok'))).toBeNull()
     expect(bearerToken(withAuth())).toBeNull()
     expect(bearerToken(withAuth('Basic dXNlcjpwYXNz'))).toBeNull()
     expect(bearerToken(withAuth('Bearer two tokens'))).toBeNull()
