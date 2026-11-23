@@ -11,7 +11,7 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
 
 - deleting or migrating real data;
 - touching production settings, secrets or `.env` files;
-- deploying to production, or making the app public (turning off its "Coming soon" page);
+- deploying to production, or making the app public (turning off its "Coming soon" page). Launch is the person's call, never the end of a pass or the pyramid;
 - spending money or signing up for a paid service.
 
 ## Standing rules

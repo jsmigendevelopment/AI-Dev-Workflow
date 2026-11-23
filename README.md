@@ -127,11 +127,11 @@ You plan once. Every step saves to files, so you can stop any time and `/or:back
 | 4 | **Wireframes + name** | Your strongest model draws every screen in the background: a clickable prototype in light and dark, plus sketches. It asks first. Meanwhile: 5–7 name ideas, `git init`, and a GitHub repo if you say yes. | `wireframes/index.html`, `design.md` |
 | 5 | **You approve the screens** | "What would you change?" until you say yes. Nothing technical starts before. | `decisions.md` |
 | 6 | **Tech grill** | Platform, stack, data, auth, environments, CI and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
-| 7 | **Plan** | Your strongest model plans the slices and designs the schema and API from your approved screens. It asks before it starts. | `pyramid.md`, `design.md` |
-| 8 | **Issues** | One per slice. Each has WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
+| 7 | **Plan** | Your strongest model outlines three passes, details the first, and designs the schema and API from your approved screens. It asks before it starts. | `pyramid.md`, `design.md` |
+| 8 | **Issues** | One per slice, for the current pass only. Each has WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
 | 9 | **Keys** | It lists every account and key the first deploy needs and walks you through them. About 10 minutes. | |
 | 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue. | `state.md`, one line per merge |
-| 11 | **You try it** | You get "ready to try" with what was tested and screenshots. Each point of feedback becomes a new issue. | |
+| 11 | **Pass gate** | The loop stops after each pass. You try it, a fresh audit checks the code against the plan and the screens, some cleanup is picked, and the next pass is planned. | `pyramid.md` |
 
 **What each pull request goes through:** build → CI → code review → QA on the preview → security review (risky changes only) → merge the exact commit that was checked → deploy to the test site → smoke test. A failed check goes back to a fresh builder. After two rejected rounds, the issue is parked and you're asked.
 
@@ -147,8 +147,10 @@ You plan once. Every step saves to files, so you can stop any time and `/or:back
 The old way builds the whole schema, then the whole API, then the whole UI. You see nothing until the end. **Tracer bullets** are thin slices that each go all the way through. You can try something real after the first one, and steer while it's cheap.
 
 - **Slice 0** is the skeleton: the app runs, CI checks every pull request, and main deploys to test.
-- **Pass 1** is wide and thin: every slice works end to end.
-- **Each pass up** is narrower and deeper. The core gets the most passes.
+- **The MVP is three passes:** Works (a thin tracer bullet through every slice), Real (the core goes deep), Ready (the core polished, plus speed, accessibility, SEO and the launch checklist).
+- **Only what the core can't work without** goes in. Other features get their own 1- to 2-pass pyramid after the MVP.
+- **A gate between passes:** you try it, a fresh audit, cleanup, a re-plan. Later passes stay an outline until then.
+- **The end of pass 3 is "MVP complete" on the test site, not launch.** Going live is your call, whenever you choose.
 
 → [The `pyramid` skill](.agents/skills/pyramid/SKILL.md)
 

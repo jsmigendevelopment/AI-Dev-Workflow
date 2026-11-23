@@ -1,6 +1,6 @@
 ---
 name: issues
-description: Use to turn a plan, a pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - each with WHEN/THEN acceptance checks that carry IDs, tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, a complexity score, priority and the skills to load, then a read-only consistency check. Runs on the everyday model from the CTO's plan.
+description: Use to turn a plan, the current pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - each with WHEN/THEN acceptance checks that carry IDs, tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, a complexity score, priority and the skills to load, then a read-only consistency check. Runs on the everyday model from the CTO's plan.
 ---
 
 # Issues: the contract between the plan and every agent after it
@@ -13,7 +13,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
 
 ## Steps
 
-1. **One milestone per pyramid pass** (or per feature, for a project that's already built).
+1. **The current pass only.** One milestone per pass in `docs/pyramid.md` (or per feature, for a project that's already built). Write detailed issues for the pass marked `building`, or the next pass during its gate's re-plan. Asked for issues for a later pass? Refuse: it stays an outline until its gate has run (`pyramid`'s pass gate). Offer the gate if the current pass is done.
 2. **One issue per slice per pass.** Split anything a reviewer couldn't read in one sitting (about 400 changed lines) into sub-issues.
 3. **Fill in every field** of `.github/ISSUE_TEMPLATE/slice.md` (copy it from this skill's `templates/` if it's missing).
 4. **Acceptance checks.** Write each one as `AC-<issue>-<n>: WHEN <situation> THEN <result>`, numbered from 1, one result each. The test that proves it carries the ID in its title. No number until the issue exists? Create it, then add the IDs with `gh issue edit`.
@@ -36,7 +36,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - **Who merges:** after the lane, write `merged by: agents` or `merged by: the person`. Take it from the "Automation level" switches in `docs/stack.md`, and the risk dial. The more careful one wins.
 7. **Labels.** Create any that are missing first (`gh label create "<name>" --force`):
    - `priority:p0` to `priority:p3`;
-   - `pass:1` to `pass:3`;
+   - `pass:<n>`, one per pass in the outline;
    - `slice:core`, `slice:support`;
    - `lane:tiny`, `lane:normal`, `lane:risky`;
    - `status:ready` once nothing blocks it: no `[NEEDS CLARIFICATION]` left, complexity 7 or under;
@@ -73,4 +73,4 @@ Write each issue as `docs/issues/NNN-short-title.md` from the same template, and
 
 ## From feedback or bugs
 
-One issue per point, in the person's words: "what I saw, what I want." For a bug: the steps, what was expected, what happened, a screenshot, and the PR that caused it if known. Tag it with the current pass.
+One issue per point, in the person's words: "what I saw, what I want." For a bug: the steps, what was expected, what happened, a screenshot, and the PR that caused it if known. Tag it with the current pass, or the next one when it comes from a pass gate.

@@ -14,6 +14,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 1. **Read the board first.** Run `node .agents/skills/coordinate/scripts/board.mjs render --print`. It shows what needs the person, what's being built and in review, what merged today, and the FYIs, from every thread on this machine. If the profile sets `[board] sheet` and you have the Google Sheets connector, rewrite the project's tab once (see `../coordinate/board.md`). No sheet set and you have the connector? Offer one, once.
 
 2. **Read the state.** Read `docs/state.md`, and if it exists, the `/afk` section in it: when the person left, the commit on main, the queue and the rules set.
+   - Read the pass status in `docs/pyramid.md`. A pass at `gate`? Load `../pyramid/references/pass-gate.md`. Running it is the first triage option. The MVP's last pass done and production still "Coming soon"? Say: *"MVP complete; launch is your call."* Never start the launch yourself.
    - List stale research: `node .agents/skills/research/scripts/check-research.mjs docs/research --stale`.
    - No `docs/state.md`, but a `grill-log.md` in `kickoff/` or `docs/`? A paused kickoff. Resume `/idea` at the first line its coverage map hasn't ticked.
 
@@ -40,7 +41,8 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 7. **Retro, after a long run.** The person was away for the night or longer, or the loop merged or parked 5 or more issues since the last retro? Run the retro below, unless the `/afk` section in `docs/state.md` already has one for this run. Then show its findings in the report.
 
 8. **Triage.** Offer three options with your pick first:
-   - try the three riskiest merges first (usually the right pick);
+   - a pass at `gate`: run the pass gate (the right pick then);
+   - try the three riskiest merges first (usually the right pick otherwise);
    - clear the `needs-human` list;
    - start or keep running `coordinate`.
 
