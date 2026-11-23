@@ -1,0 +1,1 @@
+I have an idea for an app: a shared grocery list for me and my three flatmates. Anyone can add an item, whoever does the shopping ticks items off, and the app splits what we spent. That's my whole pitch. I'm happy with the recommended automation level and I don't want a profile. Go ahead and start.

@@ -1,0 +1,83 @@
+# Skill evals: runs each scenario in evals/scenarios/ twice with Claude Code, with the kit
+# and without, and fails when a "with" check fails or the kit made no difference.
+# It spends money on the Anthropic API, so it runs only when skills or rules change, or by hand.
+# The key lives in the `evals` environment only. evals/README.md has the owner's setup.
+name: evals
+on:
+  pull_request:
+    paths:
+      - ".agents/skills/**"
+      - "AGENTS.md"
+      - "plugin/**"
+      - "scripts/**"
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model. Haiku is the cheap default; Sonnet costs about 20x more; Opus and Fable are the strong tiers."
+        type: choice
+        default: claude-haiku-5-5
+        options:
+          - claude-haiku-5-5
+          - claude-sonnet-5-5
+          - claude-opus-5-5
+          - claude-fable-5-2
+      scenario:
+        description: "Scenarios, comma-separated (empty: all)"
+        type: string
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: evals-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  evals:
+    # Pull requests from forks never get the key, so they don't run at all.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: evals
+    env:
+      HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+    steps:
+      - name: Skip when the key is missing
+        if: env.HAS_KEY != 'true'
+        run: |
+          echo "::notice title=Evals skipped::No ANTHROPIC_API_KEY in the evals environment. See 'Setup step for you' in evals/README.md."
+          echo "### Skill evals skipped: no ANTHROPIC_API_KEY in the \`evals\` environment. See evals/README.md." >> "$GITHUB_STEP_SUMMARY"
+      # Actions pinned to commit SHAs (tags checked with git ls-remote, 2026-11-23).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.HAS_KEY == 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: env.HAS_KEY == 'true'
+        with:
+          node-version: 24.22.3
+      # The same pinned Claude Code as the plugin checks in check-skills.yml
+      # (npm view @anthropic-ai/claude-code@2.1.330, published 2026-11-20).
+      - name: Install Claude Code
+        if: env.HAS_KEY == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.330 && claude --version
+      - name: Bundle the kit the CLI installs
+        if: env.HAS_KEY == 'true'
+        run: npm run bundle
+        working-directory: cli
+      - name: Run the evals
+        if: env.HAS_KEY == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Inputs go through env, never into the script text.
+          MODEL: ${{ inputs.model || 'claude-haiku-5-5' }}
+          SCENARIO: ${{ inputs.scenario }}
+        run: |
+          args=(--model "$MODEL" --summary "$GITHUB_STEP_SUMMARY")
+          if [ -n "$SCENARIO" ]; then args+=(--scenario "$SCENARIO"); fi
+          node evals/run.mjs "${args[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && env.HAS_KEY == 'true'
+        with:
+          name: eval-results
+          path: evals/results/
+          if-no-files-found: ignore
+          retention-days: 30

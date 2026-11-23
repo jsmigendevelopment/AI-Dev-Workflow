@@ -1,0 +1,79 @@
+// Runs Claude Code headless on one fixture and returns its events.
+// Flags checked 2026-11-23 against `claude --help` of Claude Code 2.1.330 and
+// code.claude.com/docs/en/cli-reference (--max-turns is documented there, not in --help).
+import { spawn } from "node:child_process";
+
+// What the agent may do without asking. Anything else is denied, not prompted (dontAsk mode),
+// and the attempt still shows in the transcript, which is what the checks read.
+export const ALLOWED_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "Skill", "TodoWrite",
+  "Bash(git *)", "Bash(node *)", "Bash(npm *)", "Bash(ls *)", "Bash(cat *)", "Bash(mkdir *)", "Bash(grep *)"];
+// No network from a fixture: no web, no GitHub, no downloads.
+export const DISALLOWED_TOOLS = ["WebFetch", "WebSearch", "Bash(gh *)", "Bash(curl *)", "Bash(wget *)"];
+
+/** The argv for one run. The prompt goes on stdin, so the variadic tool lists can't swallow it. */
+export function claudeArgs({ model, maxTurns, maxBudgetUsd }) {
+  return [
+    "-p",
+    "--output-format", "stream-json",
+    "--verbose", // stream-json in print mode needs it
+    "--model", model,
+    "--max-turns", String(maxTurns),
+    "--max-budget-usd", String(maxBudgetUsd),
+    "--permission-mode", "dontAsk",
+    // Project settings only: the kit's .claude/settings.json loads, the person's own ~/.claude/settings.json doesn't.
+    "--setting-sources", "project,local",
+    "--strict-mcp-config", // no MCP servers from anywhere
+    "--no-session-persistence",
+    "--allowedTools", ALLOWED_TOOLS.join(","),
+    "--disallowedTools", DISALLOWED_TOOLS.join(","),
+  ];
+}
+
+// The child gets only these variables: no GitHub tokens, no cloud keys, nothing else from the shell.
+const PASS_ENV = ["PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "TERM", "TMPDIR", "TEMP", "TMP",
+  "USERPROFILE", "APPDATA", "LOCALAPPDATA", "SystemRoot", "XDG_CONFIG_HOME", "CLAUDE_CONFIG_DIR",
+  "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "NODE_EXTRA_CA_CERTS", "ANTHROPIC_API_KEY"];
+
+/** The environment for a run. With an API key, HOME is a clean temp folder, so no personal skills or CLAUDE.md leak in. */
+export function claudeEnv(source, { home }) {
+  const env = {};
+  for (const key of PASS_ENV) if (source[key] !== undefined) env[key] = source[key];
+  if (source.ANTHROPIC_API_KEY && home) env.HOME = env.USERPROFILE = home;
+  env.ONRAILS_NOTIFY_PRINT = "1"; // the kit's notify hook never pings anyone's phone from an eval
+  return env;
+}
+
+/** Spawns claude in cwd with the prompt on stdin. Kills it at the timeout. Never rejects. */
+export function runClaude({ bin = "claude", args, cwd, env, prompt, timeoutSec }) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    let child;
+    try {
+      child = spawn(bin, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
+    } catch (error) {
+      resolve({ status: "error", error: error.message, stdout, stderr, durationMs: 0 });
+      return;
+    }
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+      setTimeout(() => child.kill("SIGKILL"), 5000).unref();
+    }, timeoutSec * 1000);
+    child.stdout.on("data", (d) => (stdout += d));
+    child.stderr.on("data", (d) => (stderr += d));
+    child.stdin.on("error", () => {}); // a child that exits early closes stdin; the exit code reports it
+    child.stdin.end(prompt);
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      resolve({ status: "error", error: error.message, stdout, stderr, durationMs: Date.now() - started });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      const status = timedOut ? "timeout" : code === 0 ? "ok" : "error";
+      resolve({ status, exitCode: code, stdout, stderr: stderr.slice(-2000), durationMs: Date.now() - started });
+    });
+  });
+}

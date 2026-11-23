@@ -232,6 +232,10 @@ The rules are in [`AGENTS.md`](AGENTS.md). In the `tanstack-start` pack, tools e
 
 The [`secrets`](.agents/skills/secrets/SKILL.md) skill lists each variable and where to get it. It has click-by-click steps for 14 providers. You type values into a git-ignored file or a prompt. A script pushes them to GitHub and Cloudflare and prints names only. Paste a key into chat by mistake? It tells you to rotate it. → [Environments](guide/environments.md)
 
+### Tests that the skills change behaviour
+
+[`evals/`](evals/README.md) holds seven small scenarios, one per rule that matters most: the grill asks before it builds, no force push or push to main, keys never in chat or git, test first inside the fence, a reviewer catches a weakened test, the wireframe gate, and asking before the strongest model. Each runs in Claude Code twice, with the kit and without, and checks what the agent did from its transcript and files, never from another model's opinion. A scenario passes only if the kit made the difference. CI runs them on Claude Haiku 5.5 when a skill, `AGENTS.md`, the plugin or a script changes, for an estimated $0.20 a run. `npm run evals` runs them locally with your own login.
+
 ### And the rest
 
 | Guardrail | How it works |
