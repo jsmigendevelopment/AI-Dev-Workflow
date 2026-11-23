@@ -105,7 +105,7 @@ Per workspace: `cd apps/mobile && pnpm test` works the same way. Packages have n
 
 **Styling:** Uniwind compiles `className` at build time from `src/global.css` (Tailwind 4, theme tokens for light and dark). The class names work on React Native's own components.
 
-**Clerk setup (the person does this, once per Clerk instance):** turn on the **Native API**; add the app on **Native applications** (iOS bundle ID and team ID, Android package name); a production instance needs a domain even without a website. Use the same Clerk application as the web app so one account works on both.
+**Clerk setup (the person does this, once per Clerk instance):** turn on the **Native API**; add the app on **Native applications** (iOS bundle ID and team ID, Android package name); a production instance needs a domain even without a website. Use the same Clerk application as the web app so one account works on both, and a Clerk application of its own per product: `apps/web` accepts the mobile app's tokens, which carry no origin (`azp`), because `CLERK_ALLOW_NATIVE_TOKENS` is `"true"` in `apps/web/wrangler.jsonc`, so any native app on the same Clerk instance could call this API.
 
 ## Mobile e2e (Maestro)
 

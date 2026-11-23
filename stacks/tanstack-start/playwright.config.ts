@@ -11,7 +11,7 @@ const launchOptions = { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || 
 const deployed = process.env.BASE_URL?.replace(/\/$/, '')
 const local = (p: number) => `http://localhost:${p}`
 
-// The same build, previewed five ways. `CLOUDFLARE_INCLUDE_PROCESS_ENV` makes the preview read
+// The same build, previewed six ways. `CLOUDFLARE_INCLUDE_PROCESS_ENV` makes the preview read
 // these vars on top of wrangler.jsonc's top level (where LAUNCHED is "true", protection "none").
 const variant = (p: number, vars: Record<string, string>) => ({
   command: `pnpm preview --port ${p} --strictPort`,
@@ -21,7 +21,7 @@ const variant = (p: number, vars: Record<string, string>) => ({
   env: { CLOUDFLARE_INCLUDE_PROCESS_ENV: 'true', ...vars },
 })
 
-const SPECIAL = /(access-check|clerk-parties|coming-soon|site-gate|visual)\.spec\.ts/
+const SPECIAL = /(access-check|clerk-native|clerk-parties|coming-soon|site-gate|visual)\.spec\.ts/
 // The screenshot tests run only through `pnpm test:visual` (scripts/test-visual.ts sets VISUAL).
 const visual = !!process.env.VISUAL && !deployed
 
@@ -87,6 +87,12 @@ export default defineConfig({
                 use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 4) },
                 testMatch: /clerk-parties\.spec\.ts/,
               },
+              // The same with CLERK_ALLOW_NATIVE_TOKENS on, as the monorepo-expo pack sets it.
+              {
+                name: 'clerk-native',
+                use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 5) },
+                testMatch: /clerk-native\.spec\.ts/,
+              },
             ]),
       ],
   webServer: deployed
@@ -109,6 +115,11 @@ export default defineConfig({
                 ...variant(port + 4, { ...e2eClerkVars(), CLERK_TELEMETRY_DISABLED: '1' }),
                 command: `pnpm db:migrate:local && pnpm preview --port ${port + 4} --strictPort`,
               },
+              variant(port + 5, {
+                ...e2eClerkVars(),
+                CLERK_TELEMETRY_DISABLED: '1',
+                CLERK_ALLOW_NATIVE_TOKENS: 'true',
+              }),
             ]),
       ],
 })

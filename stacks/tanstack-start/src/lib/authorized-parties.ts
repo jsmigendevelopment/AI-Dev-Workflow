@@ -10,7 +10,12 @@
  *   own workers.dev host or one of its previews (`pr-<n>-<test worker>.<subdomain>.workers.dev`)
  *   in a test build. It is the host the request reached, so a stranger's site never matches it:
  *   a token for `pr-1-app-test.evil.workers.dev` has that `azp`, not ours.
+ *
+ * One exception, `isNativeBearer`: a native app sends no `Origin`, so its token has no `azp`.
  */
+
+import { bearerToken } from './http'
+import { isApiPath } from './request-limits'
 
 export type DeployEnv = 'local' | 'test' | 'production'
 
@@ -80,4 +85,30 @@ export function partiesConfigError(env: ClerkVars, target: BuildTarget): string 
   const needsFixed = target.deployEnv === 'production' || env.CLERK_SECRET_KEY.startsWith('sk_live_')
   if (!needsFixed || fixedParties(target.siteUrl, env.CLERK_AUTHORIZED_PARTIES).length > 0) return null
   return 'CLERK_AUTHORIZED_PARTIES is missing (Clerk keys are set for production: set the SITE_URL variable for the build, or list the app’s origins in CLERK_AUTHORIZED_PARTIES)'
+}
+
+/** The token's claims, unverified (Clerk verifies it next), or null when it isn't a JWT. */
+function unverifiedClaims(token: string): Record<string, unknown> | null {
+  const part = token.split('.')[1]
+  if (!part) return null
+  try {
+    const claims: unknown = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')))
+    return typeof claims === 'object' && claims !== null ? (claims as Record<string, unknown>) : null
+  } catch {
+    // Not base64 or not JSON: not a native token. Clerk refuses it on its own.
+    return null
+  }
+}
+
+/**
+ * True only for a native app's call (`CLERK_ALLOW_NATIVE_TOKENS` on): `Authorization: Bearer`
+ * on `/api/v1`, with a token that has no `azp` claim at all. That one request is verified without
+ * `authorizedParties`; signature, expiry and token type are still checked. Never the cookie (with
+ * a header Clerk reads only the header), never a token that names an origin, even a wrong one.
+ */
+export function isNativeBearer(request: Request, allowNative: boolean): boolean {
+  if (!allowNative || !isApiPath(new URL(request.url).pathname)) return false
+  const token = bearerToken(request)
+  const claims = token ? unverifiedClaims(token) : null
+  return claims !== null && !('azp' in claims)
 }

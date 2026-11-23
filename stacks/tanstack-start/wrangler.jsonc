@@ -25,7 +25,8 @@
   // checks Access's JWT with them (src/lib/access-jwt.ts). Vars are not inherited: each lists its own.
   // CLERK_AUTHORIZED_PARTIES (optional, any environment): extra exact origins Clerk tokens may come
   // from, e.g. a custom test domain. SITE_URL, localhost and the test Worker's previews need nothing
-  // here (src/lib/authorized-parties.ts).
+  // here (src/lib/authorized-parties.ts). CLERK_ALLOW_NATIVE_TOKENS: "true" when a native app calls
+  // /api/v1 (its tokens have no azp); the monorepo-expo pack sets it in every environment.
   "vars": { "LAUNCHED": "true", "SITE_PROTECTION": "none" },
   "d1_databases": [
     {

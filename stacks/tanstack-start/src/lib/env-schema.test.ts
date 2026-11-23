@@ -59,6 +59,11 @@ describe('env schema', () => {
       expect(run({ CLERK_AUTHORIZED_PARTIES: bad }), bad).toThrow(/CLERK_AUTHORIZED_PARTIES must be/)
   })
 
+  it('takes CLERK_ALLOW_NATIVE_TOKENS only as "true" or "false"', () => {
+    expect(run({ CLERK_ALLOW_NATIVE_TOKENS: 'true' })().CLERK_ALLOW_NATIVE_TOKENS).toBe('true')
+    expect(run({ CLERK_ALLOW_NATIVE_TOKENS: 'yes' })).toThrow(/CLERK_ALLOW_NATIVE_TOKENS must be/)
+  })
+
   it('takes LAUNCHED and SITE_PROTECTION only as their exact values', () => {
     expect(
       run({ LAUNCHED: 'false', SITE_PROTECTION: 'password', SITE_PASSWORD: 'k3Vq9XbT0wLr7NpZs2YhAe5D' })(),

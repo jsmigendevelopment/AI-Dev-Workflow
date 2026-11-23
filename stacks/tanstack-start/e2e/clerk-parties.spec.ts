@@ -1,6 +1,6 @@
-import { type APIRequestContext, expect, test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
-import { sessionToken } from './clerk-tokens'
+import { bearer, sessionToken, signedInAs } from './clerk-tokens'
 
 // Clerk's authorizedParties (src/lib/authorized-parties.ts), end to end through clerkMiddleware,
 // on a local preview with a made-up Clerk instance (the `clerk` project in playwright.config.ts).
@@ -17,23 +17,6 @@ const WRONG = {
   'a missing azp (Clerk refuses it once authorizedParties is set)': undefined,
 } as const
 
-const bearer = async (request: APIRequestContext, azp: string | undefined) => {
-  const { token } = await sessionToken(azp)
-  return request.get('/api/v1/notes', { headers: { authorization: `Bearer ${token}` } })
-}
-
-// The session cookie as Clerk's browser SDK sets it on a development instance. The page's
-// server-rendered Clerk state says who Clerk let in.
-const signedInAs = async (request: APIRequestContext, azp: string | undefined) => {
-  const { token, iat } = await sessionToken(azp)
-  const cookie = `__session=${token}; __client_uat=${iat}; __clerk_db_jwt=dvb_e2e`
-  const response = await request.get('/', { headers: { cookie } })
-  expect(response.status()).toBe(200)
-  for (const header of ['x-clerk-auth-reason', 'x-clerk-auth-message'])
-    expect(response.headers()[header], header).toBeUndefined()
-  return /"userId":(null|"[^"]*")/.exec(await response.text())?.[1]
-}
-
 test('bearer: a token for this origin signs in', async ({ request, baseURL }) => {
   const response = await bearer(request, new URL(baseURL!).origin)
   expect(response.status()).toBe(200)
@@ -42,6 +25,22 @@ test('bearer: a token for this origin signs in', async ({ request, baseURL }) =>
 
 test('cookie: a session for this origin signs in', async ({ request, baseURL }) => {
   expect(await signedInAs(request, new URL(baseURL!).origin)).toBe('"user_e2e"')
+})
+
+test('bearer: a spoofed X-Forwarded-Host never makes its origin a party', async ({ request }) => {
+  const { token } = await sessionToken('http://localhost:4178')
+  const response = await request.get('/api/v1/notes', {
+    headers: { authorization: `Bearer ${token}`, 'x-forwarded-host': 'localhost:4178' },
+  })
+  expect(response.status()).toBe(401)
+  expect(await response.json()).toEqual(UNAUTHENTICATED)
+})
+
+test('bearer: a native token (no azp) is refused while CLERK_ALLOW_NATIVE_TOKENS is off', async ({
+  request,
+}) => {
+  const response = await bearer(request, undefined)
+  expect(response.status()).toBe(401)
 })
 
 for (const [name, azp] of Object.entries(WRONG)) {
