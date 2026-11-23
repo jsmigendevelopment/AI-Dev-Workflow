@@ -12,6 +12,7 @@ import {
   requestForClerk,
 } from '@/lib/authorized-parties'
 import { BUILD_TARGET } from '@/lib/build-target'
+import { clerkFrontendOrigins, leavesAllowedOrigins, refusedRedirect } from '@/lib/clerk-redirects'
 import { bearerToken, envelopeResponse } from '@/lib/http'
 import { logger } from '@/lib/logger'
 
@@ -45,9 +46,10 @@ let warnedNoClaim = false
 
 /**
  * The origins this request's session token may come from (src/lib/authorized-parties.ts). Same
- * list for the cookie and the bearer header, since both pass through `authenticateRequest`.
+ * list for the cookie and the bearer header, since both pass through `authenticateRequest`, and
+ * the only origins a Clerk redirect target may name (src/server/request-guards.ts).
  */
-const partiesFor = createServerOnlyFn((request: Request): string[] => {
+export const partiesFor = createServerOnlyFn((request: Request): string[] => {
   const url = new URL(request.url)
   const parties = authorizedParties(url, BUILD_TARGET, serverEnv().CLERK_AUTHORIZED_PARTIES)
   if (parties[0] === NO_PARTY && !warnedNoParty) {
@@ -98,6 +100,22 @@ const clerkOptions = createServerOnlyFn((request: Request) => {
 })
 
 /**
+ * True when Clerk's own redirect (thrown before the app ran) leaves the authorized parties and
+ * Clerk's Frontend API, or sends Clerk's handshake back anywhere but the parties (#66). Belt and
+ * braces: the guards refuse a foreign `__clerk_redirect_url` and requestForClerk drops the proxy
+ * headers Clerk would build a foreign URL from.
+ */
+const clerkLeavesSite = createServerOnlyFn((request: Request, redirect: Response): boolean => {
+  const allowed = {
+    parties: partiesFor(request),
+    frontendApi: clerkFrontendOrigins(serverEnv().VITE_CLERK_PUBLISHABLE_KEY),
+  }
+  if (!leavesAllowedOrigins(redirect, new URL(request.url), allowed)) return false
+  logger.warn('clerk_redirect_refused', { status: redirect.status })
+  return true
+})
+
+/**
  * Request middleware: runs Clerk when it's configured, and steps aside when it isn't. Clerk
  * checks the token's `azp` against `authorizedParties`; a token without `azp` is refused too.
  */
@@ -105,7 +123,10 @@ export const authMiddleware = createMiddleware().server(async (args) => {
   const options = clerkOptions(args.request)
   const run = options ? clerkMiddleware(options).options.server : undefined
   if (!run) return args.next()
+  // A Response thrown before Clerk calls `next` is Clerk's own redirect; later ones are the app's.
+  let reachedApp = false
   const next: typeof args.next = (opts) => {
+    reachedApp = true
     withoutDebugState(opts?.context)
     return args.next(opts)
   }
@@ -120,6 +141,8 @@ export const authMiddleware = createMiddleware().server(async (args) => {
     if (!(thrown instanceof Response)) throw thrown
     withoutDebugHeaders(thrown)
     if (isApiRedirect(args.request, thrown)) return envelopeResponse(unauthenticated())
+    if (!reachedApp && clerkLeavesSite(args.request, thrown))
+      return refusedRedirect(args.handlerType === 'serverFn')
     throw thrown
   }
 })

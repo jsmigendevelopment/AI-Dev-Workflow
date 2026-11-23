@@ -149,21 +149,38 @@ function hasClerkSessionCookie(request: Request): boolean {
 // `__clerk_synced` (a redirect or a handshake). `/api/v1` takes part in none of them.
 const isClerkParam = (name: string): boolean => name.toLowerCase().startsWith('__clerk')
 
+// Proxy headers Clerk builds its own URL from (`deriveUrlFromHeaders`, `forwardedProto`). On a
+// Worker `request.url` is the host the request reached; a client can send these with any value,
+// and Clerk would put that host in a handshake's `redirect_url` or a redirect's Location (#66).
+const FORWARDED_HEADERS = [
+  'x-forwarded-host',
+  'x-forwarded-proto',
+  'x-forwarded-port',
+  'cloudfront-forwarded-proto',
+  'forwarded',
+]
+
 /**
- * The request Clerk sees. On `/api/v1` only the header may sign in, so Clerk gets the method and
- * headers without `Cookie`, and the URL without any `__clerk*` query parameter: a cookie can't
- * authenticate an API call whatever the `Authorization` header says, and Clerk's parameters in
- * the query are a plain 401. No body: Clerk never needs it and the route still reads the original
- * request, query included.
+ * The request Clerk sees. On every path, without the proxy headers above. On `/api/v1` only the
+ * header may sign in, so Clerk also gets no `Cookie` and the URL without any `__clerk*` query
+ * parameter: a cookie can't authenticate an API call whatever the `Authorization` header says,
+ * and Clerk's parameters in the query are a plain 401. No body: Clerk never needs it and the
+ * route still reads the original request, query and proxy headers included. A page with no proxy
+ * header gets the original request.
  */
 export function requestForClerk(request: Request): Request {
   const url = new URL(request.url)
-  if (!isApiPath(url.pathname)) return request
+  const api = isApiPath(url.pathname)
+  const forwarded = FORWARDED_HEADERS.filter((name) => request.headers.has(name))
+  if (!api && forwarded.length === 0) return request
   const headers = new Headers(request.headers)
-  headers.delete('cookie')
-  const clerkParams = [...new Set([...url.searchParams.keys()].filter(isClerkParam))]
-  // Only when present: deleting re-encodes the whole query string.
-  for (const name of clerkParams) url.searchParams.delete(name)
+  for (const name of forwarded) headers.delete(name)
+  if (api) {
+    headers.delete('cookie')
+    const clerkParams = [...new Set([...url.searchParams.keys()].filter(isClerkParam))]
+    // Only when present: deleting re-encodes the whole query string.
+    for (const name of clerkParams) url.searchParams.delete(name)
+  }
   return new Request(url, { method: request.method, headers })
 }
 
