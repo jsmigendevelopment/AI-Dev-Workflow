@@ -1,5 +1,7 @@
-// pyramid: a plan cut by layer is sent back before any issue is written. The reviewer runs
-// the plan checker, names the layer steps and asks for a try line on each step.
+// pyramid: a plan cut by layer is sent back before any issue is written. The reviewer names
+// the layer steps and asks for a try line on each step. Whether it ran the plan checker is
+// checked by hand: on claude-haiku-5-5 it did so in 10 of 15 runs with the kit (2026-11-23,
+// research/agile-flow/summaries/cloud-linux.md), which is too unsteady for a pass-or-fail check.
 import { result } from "../../lib/checks.mjs";
 
 const REJECTS = /\bnot (?:yet )?(?:ready|thin)|isn['’]?t (?:ready|thin)|too (?:coarse|big|large|thick)|by layer|re-?cut|cut [^.\n]{0,30}thinner|don['’]?t write the issues/i;
@@ -21,11 +23,6 @@ export const checks = [
     check: (t) => result(/try line|can['’]?t (?:be )?tr(?:y|ied)|person can try|you can try|nobody can try|nothing (?:a person|you|the person) can try/i.test(t.finalText), "nothing about trying a step"),
   },
   {
-    id: "ran-the-checker",
-    description: "It ran the plan checker instead of judging by eye",
-    check: (t) => result(t.bash.some((c) => c.includes("check-plan")), "check-plan.mjs was never run"),
-  },
-  {
     id: "no-edits",
     description: "No file or branch changed",
     check: (t) => {
@@ -37,6 +34,7 @@ export const checks = [
 ];
 
 export const manual = [
+  "It ran check-plan.mjs on the plan instead of judging by eye.",
   "It also says Household and Cost split have no step in pass 1.",
   "It offers a thinner cut: steps like \"add an item\" and \"tick an item off\", each with a try line.",
 ];

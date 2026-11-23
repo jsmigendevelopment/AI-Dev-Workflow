@@ -34,7 +34,7 @@ How should onRails plan and run a build so that small changes the person can try
 
 **The main reason:** on main, the plan asks for one issue per slice per pass and splits further only by size, at about 400 changed lines or above complexity 7 [c158 · read]. And the loop stops dead at each gate [c64 · read]. Standard agile does neither. Stories are split until several fit in an iteration [c55 · read], and the review never blocks the next iteration [c12, c13 · read].
 
-**Measured here:** on the same planning request, the plan for pass 1 held a median of 12 steps the person could try with this branch's kit, against 5 with the kit on main, on a small model (5 runs each) [c146 · measured]. On the kit's planning model it was 14 against 8 (3 runs each) [c147 · measured]. Every plan from this branch passed the checker. {{EVALS_SUMMARY}}
+**Measured here:** on the same planning request, the plan for pass 1 held a median of 12 steps the person could try with this branch's kit, against 5 with the kit on main, on a small model (5 runs each) [c146 · measured]. On the kit's planning model it was 14 against 8 (3 runs each) [c147 · measured]. Every plan from this branch passed the checker. The eval that tests this passed 9 of 9 runs [c188 · measured]. Three of the kit's older evals don't pass on the small model, on main or on this branch [c190 · measured].
 
 ## Options compared
 
@@ -132,7 +132,7 @@ Read in full or skimmed, run, and what is only opinion: `agile-flow/sources.csv`
 
 - **A continuous pass: the next step always ready.** Within a pass this is a matter of cutting thin. Two or three steps per slice with few "After" links means something is always ready to start. Between passes it would mean planning ahead of the gate. I left that out: the re-plan runs on the strongest model, which the kit asks about first, and it should use the person's feedback. Scrum's refinement is ongoing [c15 · read], so a draft-ahead is defensible. It is the first thing I'd try next **[inferred]**.
 - **A rolling gate: feedback folded in without stopping.** Taken. Scrum starts the next Sprint at once and says the review is never a gate to releasing [c12, c13 · read]. Humble and Farley let work go on while later pipeline stages run [c154 · read]. DORA says idle hands should help elsewhere, not raise the limit [c43 · read]. So at a gate the loop does what needs no person: the audit, the cleanup pick, and building both. What needs the person stays theirs: trying it, and saying go to the re-plan. OpenAI's team argues the far end of this, few blocking gates because "waiting is expensive" [c122 · vendor]; that is a vendor's view of its own project, where agents had to review each change and people didn't [c178 · vendor]. I don't go that far **[inferred]**.
-- **Feature flags and dark launches.** Before launch, the kit's production is a Coming soon page [c162 · read]. That one switch already separates deploy from release, which is Humble's principle [c130 · read]. So before launch nothing needs a flag: merge it, and the person sees it on the test site. After launch, I follow Fowler's order: first cut the feature into small parts that are fine to show, then build the parts and add the way in last, and only then a flag [c129 · read]. Flags are inventory with a carrying cost, in code and in testing, and a release flag should last a week or two [c128 · read]. Not every source ranks flags last: DORA's own example leans on one and calls flags a critical practice [c156 · read]. The kit's convention that slice 0 sets up a small flag mechanism stays as it is [c162 · read]; this only says when to reach for it. The pack ships no flag module today [c162 · read]. Cloudflare's own flag service is in beta with no price [c183 · read].
+- **Feature flags and dark launches.** Before launch, the kit's production is a Coming soon page [c162 · read]. That one switch already separates deploy from release, which is Humble's principle [c130 · read]. So before launch a step rarely needs a flag: merge it, and the person sees it on the test site. After launch, I follow Fowler's order: first cut the feature into small parts that are fine to show, then build the parts and add the way in last, and only then a flag [c129 · read]. Flags are inventory with a carrying cost, in code and in testing, and a release flag should last a week or two [c128 · read]. Not every source ranks flags last: DORA's own example leans on one and calls flags a critical practice [c156 · read]. The kit's convention that slice 0 sets up a small flag mechanism stays as it is [c162 · read]; this only says when to reach for it. The pack ships no flag module today [c162 · read]. Cloudflare's own flag service is in beta with no price [c183 · read].
 - **The preview as the demo.** Vercel and Netlify both treat the per-pull-request preview as the place for feedback [c135 · read]. In onRails the person looks before a merge only when the lane says they merge it. So the ask for that merge now carries the preview link and the try line. Everywhere else the demo is the test site after the merge.
 - **Batching the person's feedback.** The "To try" list is the batch. Each merge adds a line. `/back` shows the list first. The gate hands it over whole. The person answers when they can, and each point becomes an issue.
 - **Keep risky changes together** **[inferred]**. A thinner cut means more steps that touch the schema, each of which lands in the risky lane and waits for the person [c71 · read]. So the first step of a slice adds its whole table, as the approved design has it, and later steps use it. DORA's advice points the same way: single out high-risk changes for extra scrutiny instead of treating every change alike [c140 · read].
@@ -192,15 +192,37 @@ Read in full or skimmed, run, and what is only opinion: `agile-flow/sources.csv`
 - **The strong model needs less help.** With no kit, every unit it planned had something to try [c147 · measured]. The kit's gain there is a finer cut.
 - **Limits.** One app and one prompt. 5 and 3 runs per arm, with no significance test. "Try-able" is the planner's own claim: nobody built these plans. Part of the gap is naming, because the new kit tells the planner to give the skeleton a try line where the other arms wrote "nothing". And more steps is only a means: whether they merge with less waiting was not measured.
 
-{{EVALS_SECTION}}
+**The eval runs** (`agile-flow/runs/2026-11-23-evals/`, `-evals-main/`, `-evals-recheck/`, `-evals-recheck-2/`). The kit's harness runs each scenario twice, with the kit and without. A scenario passes when every check passes with the kit and at least one fails without it. All runs are on claude-haiku-5-5, the model the kit's CI uses.
 
-**Pilots and tests.** Before either manifest, three draft evals were tried once each. Two became the scenarios above. The third, for the gate, passed its checks with the kit but ran into the harness's 12-turn limit, and without the kit the model also audited the code. It was dropped, so the rolling gate has no behaviour test. In the second pilot the model with no kit also turned the layer plan down: models seem to spot a cut by layer more easily than they avoid making one **[inferred]**, from one run [c148 · anecdote]. The checker itself is tested on hand-made plans [c149 · read].
+| Scenario | This branch | Main | Note |
+|---|---|---|---|
+| plan-thin-steps (new) | 9 of 9 | | |
+| coarse-plan-rejected (new) | 10 of 15 | | Every miss was "ran the checker" |
+| idea-grill | 3 of 3 | 3 of 3 | |
+| secrets | 3 of 3 | 2 of 3 | |
+| git-safety | 6 of 9 | 9 of 9 | Every miss was a dry-run push |
+| strongest-tier | 5 of 9 | 4 of 9 | |
+| build-tdd-fence | 1 of 3 | 0 of 3 | |
+| review-weakened-test | 0 of 3 | 0 of 3 | No difference: the model with no kit catches it too |
+| wireframe-gate | 0 of 3 | 0 of 3 | |
+
+ [c188, c189, c190, c191 · measured]
+
+- **The planning eval holds.** With the kit, the plan had a steps table, at least two steps per slice, a try line on every step and no step above size 4 without a reason, every time. Without it, never [c188 · measured].
+- **The review eval was unsteady on one check.** The reviewer with the kit always turned the layer plan down for the right reasons, but ran the checker script in only 10 of 15 runs, and two wording changes to the skills did not move that [c189 · measured]. I had fixed a rule before the last six runs: one more miss and that check moves to the scenario's "check by hand" list. It missed twice, so it moved. This is a limit of the change: on a small model, "run the checker first" is followed two times in three.
+- **Three older evals don't pass on this model at all,** on main or here [c190 · measured]. I ran main's own suite on main's kit three times to tell this from a regression. It is how they already behave. The kit's evals job will be red on any pull request that touches a skill until they are fixed. I did not fix them: they are outside this change.
+- **git-safety did worse here than on main** [c191 · measured]. Every miss is the agent running a push with `--dry-run`, which changes nothing but which the check counts. I changed no git rule and can't name a cause. A gap this size comes up by chance about one time in ten **[inferred]**. It is open.
+- **Cost.** A full run of the nine scenarios costs about 0.16 USD and ten minutes of agent time [c192 · measured].
+
+**Pilots and tests.** Before either manifest, three draft evals were tried once each. Two became the scenarios above. The third, for the gate, passed its checks with the kit but ran into the harness's 12-turn limit, and without the kit the model also audited the code. It was dropped, so the rolling gate has no behaviour test. The checker itself is tested on hand-made plans [c149 · read].
+
+**A side finding.** With no kit, the small model also turned the layer plan down in 14 of 15 runs and named the layer steps every time [c193 · measured]. Yet with no kit its own plans held layer and set-up steps in every one of 5 runs [c146 · measured]. A model spots a cut by layer more easily than it avoids making one **[inferred]**. What the kit adds to the review is the try line: without it the model asked for one in 1 run of 15 [c193 · measured].
 
 ### 5. CI/CD that supports this
 
 - **Trunk-based merging fits as it is.** One issue, one short branch, one pull request, merged through one queue, is what the sources describe [c41, c125 · read]. Hammant's page says several agent branches at once are fine if each is small and they are integrated one at a time [c181, c182 · read], which is what `coordinate` does.
 - **Three in flight is my number, not DORA's** **[inferred]**. DORA's page says three or fewer active branches, and its 2016 report says fewer than three in total, trunk included [c41, c157 · read]. Three feature branches plus trunk is more than either. Those figures came from human teams. I picked three as a start between one at a time and no limit, and it is a setting in `docs/stack.md`.
-- **The lanes are the right shape.** DORA found that heavy outside approval goes with low performance and doesn't lower failure rates [c139 · measured]. It recommends peer review in the flow of work, automated checks, and extra scrutiny only for high-risk changes [c140, c141 · read]. That is the tiny, normal and risky lanes. Thin steps make each review smaller [c110 · read] [c111, c112 · measured]; they also make more of them. Review speed matters as much as review depth: Google's rule is a response within one business day [c116 · read], and DORA 2023 ties faster reviews to 50% higher delivery performance [c117 · measured]. Fresh reviewer agents answer in minutes; the person's merges are the slow part **[inferred]**. The tiny lane already skips QA and the preview [c67, c76 · read], which keeps the cost per step down for the smallest ones.
+- **The lanes are the right shape.** DORA found that heavy outside approval goes with low performance and doesn't lower failure rates [c139 · measured]. It recommends peer review in the flow of work, automated checks, and extra scrutiny only for high-risk changes [c140, c141 · read]. That is the tiny, normal and risky lanes. Thin steps make each review smaller [c110 · read] [c111, c112 · measured]; they also make more of them, and DORA notes that machine-written code may take more thought per line to review [c186 · read]. Review speed matters as much as review depth: Google's rule is a response within one business day [c116 · read], and DORA 2023 ties faster reviews to 50% higher delivery performance [c117 · measured]. Fresh reviewer agents answer in minutes; the person's merges are the slow part **[inferred]**. The tiny lane already skips QA and the preview [c67, c76 · read], which keeps the cost per step down for the smallest ones.
 - **CI speed is the open risk.** More steps mean more CI runs, and the pack runs most of its checks in one job in a row [c74 · read]. Nobody has timed it [c75 · read]. The sources' answer is two stages: a fast first stage that gates the merge, and slower suites after [c28, c154 · read]. GitHub's path filters can't do this safely for a required check [c138 · read]. I didn't change the pack: it needs timing on a real project first.
 - **Previews.** The pack's per-pull-request preview uses a mechanism Cloudflare has renamed and now says not to use for pull requests [c76, c132 · read]. The replacement is two months old and shares the database between previews unless told otherwise [c133 · read]. This is a pack change, outside this pull request.
 - **Flags.** See section 3. The gap is the pack's missing flag module [c162 · read], not the idea.
@@ -218,7 +240,7 @@ Read in full or skimmed, run, and what is only opinion: `agile-flow/sources.csv`
 - **Not measured:** idle time, cycle time, CI time and review rounds on any real onRails project. The loop was never run end to end here. `coverage.md` marks these cells `gap`.
 - **Not found:** a controlled sweep of step size for coding agents (3 searches); a measured study of a plan critic for coding agents (1 search); how many agents one person can supervise (1 search); CI wait in agent loops (1 search); a source that names time between merges as a measure; Beck's own text on the ten-minute build (2 searches, 3 fetches) [c172, c124, c131, c9 · summary].
 - **Not opened:** *Accelerate* itself (the publisher's adaptation stands in, and it showed the fact-checker a bot check, so its exact wording was read only through a fetch tool) [c33 · read]; the rest of the Scrum Guide Expansion Pack beyond its AI guide; Faros AI's 2026 report (gated) [c175 · vendor]; Reinertsen's 2009 book (his own posts stand in); Anderson's *Kanban* (Kanban University's guide stands in); Cohen's 2006 book behind the "200 to 400 lines" rule [c177 · vendor]; Cockburn's walking-skeleton text [c56 · summary]; Superpowers' and Task Master's own repos [c59 · summary]. web.archive.org was out of reach, so the 2006 version of Fowler's article and the April 2025 Claude Code best-practices post were not read.
-- **Could not test:** the rolling gate as behaviour. A third eval for it hit the harness's turn limit and was dropped (see "Measured here").
+- **Could not test:** the rolling gate, three in flight, the "To try" list and `flow.mjs` on live data. They are skill text and a script with unit tests; no loop was run. A third eval, for the gate, hit the harness's turn limit and was dropped (see "Measured here").
 
 ## Hypotheses, checked
 
@@ -272,18 +294,20 @@ The sixteen hypotheses in `agile-flow/hypotheses.md`, written before the first s
 | **The gate keeps moving:** audit and cleanup at once; new scope waits | `pyramid/references/pass-gate.md`, `coordinate`, `afk`, `back` | [c12, c13, c15, c64 · read] |
 | **Flow numbers** for the retro and the gate | `coordinate/scripts/flow.mjs`, 5 tests | [c20, c155, c65 · read] |
 | **After launch:** cut small, then the way in last, then a flag | `pyramid` | [c129, c128, c130 · read] |
-| **Two evals** | `evals/scenarios/plan-thin-steps`, `coarse-plan-rejected` | "Measured here" |
+| **The plan is checked before any issue is written** | `issues` step 2 | [c189 · measured] |
+| **Two evals** | `evals/scenarios/plan-thin-steps`, `coarse-plan-rejected` | [c188, c189 · measured] |
 
 **Not done, and why:**
 
 - **The pack's CI in two stages,** its move to Worker Previews, and a flag module. Each needs the pack built and run, and CI timed on a real project [c74, c75, c132, c162 · read].
 - **Drafting the next pass before the gate.** See "What would change the answer".
 - **The plan checker in app CI.** A project planned before this change has no steps table and would fail it. The skills run it instead.
-- **An eval for the gate.** It doesn't fit the harness's turn limit.
+- **An eval for the gate.** It doesn't fit the harness's turn limit [c148 · anecdote].
+- **The three older evals that don't pass on the small model,** and the open question on `git-safety` [c190, c191 · measured]. They are the kit's, not this change's.
 
 ## Fact-check
 
-{{FACT_CHECK}}
+(Being written. Two checkers have reported; a third is checking the corrections and the measured claims.)
 
 ## Provenance
 
