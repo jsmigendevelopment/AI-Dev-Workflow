@@ -93,7 +93,7 @@ Other facts that shape the plan:
 
 | | A. Bootstrap plugin (entry skills only) | B. Full plugin (all skills and hooks) | C. No plugin (`init` and `init --global`) |
 |---|---|---|---|
-| What it is | `or` ships `idea`, `join`, `back`, `afk`, which run `init` when the kit is missing | `or` ships all 26 skills and the hooks; `init` writes only `AGENTS.md`, `docs/` and settings | What we have today |
+| What it is | `or` ships `idea`, `join`, `back`, `afk`, which run `init` when the kit is missing | `or` ships all 28 skills and the hooks; `init` writes only `AGENTS.md`, `docs/` and settings | What we have today |
 | Type `/idea` in an empty folder | Yes | Yes | Only after `init --global` |
 | Works in cloud sessions | Yes: the loop uses project files | No: user plugins don't load there | Yes |
 | Deny rules | Project files, as today | Still project files (a plugin can't ship them) | Project files |

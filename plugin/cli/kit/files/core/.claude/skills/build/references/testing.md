@@ -6,17 +6,17 @@ The goal is tests that catch real breaks, not tests that pad a number.
 
 ## 1. Tests first for every acceptance check
 
-Every `auto` acceptance check on an issue becomes a test before the code. Name it so it's obvious which check it covers. Run it, watch it fail, then build until it passes.
+Every `auto` acceptance check on an issue becomes a test before its code. Name it so it's obvious which check it covers. Run it, watch it fail, then build until it passes. Take the checks one at a time, not all the tests first and then all the code: a batch of tests written up front tests what you imagined, not what you built.
 
 **Why:** a test written first is a statement of what "done" means, made before the code can bend it. Acceptance tests written first and run by someone else added 34–48 points on one benchmark ([evidence](evidence.md)).
 
 ## 2. Strict red/green for bugs and core logic, not for everything
 
-Strict red/green means one small failing test, the least code to pass it, then the next test. Use it for:
+The loop is red, green, refactor. **Red:** one failing test, failing for the right reason. **Green:** the least code to pass it. **Refactor:** tidy names and repeats while every test stays green, with no new behaviour. Then the next test. Strict red/green means small steps, one small test per cycle. Use it for:
 - **every bug:** first a test that reproduces it and fails, then the fix;
 - **core logic:** business rules in a service, permissions, money, anything the core slice depends on.
 
-For the rest (wiring, a simple screen, config), write the acceptance tests first, then build in normal steps.
+For the rest (wiring, a simple screen, config), write each acceptance test before its code, then build in bigger steps.
 
 **Why:** the owner's own runs found strict TDD on easy issues cost 1.5–2× the turns with no measured gain. The payoff is on code where a quiet mistake is expensive, so that's where the cost goes.
 
@@ -41,6 +41,8 @@ Snapshots are fine for a stable serialised output you'd review by eye, like a ge
 ## 6. Each test would fail without the change
 
 Before you call a test done, ask: if I undo the change, does this fail? If not, it tests nothing. A good check is to break the code on purpose for a moment and see the test go red.
+
+The expected value must come from somewhere else: the issue, a worked example, a known literal. A test that recomputes it the way the code does (`expect(total(items)).toBe(items.reduce(...))`) passes by construction and can never catch a bug.
 
 **Why:** a test that always passes gives false comfort, which is worse than no test.
 
@@ -73,3 +75,7 @@ The `pr-review` skill checks, for each pull request:
 - no snapshot stands in for a logic test;
 - the area tests in rule 8, for any change that touches money, time, error or empty states, logs, events, env or access;
 - no test was weakened, skipped or deleted.
+
+---
+
+The loop and the rule on expected values are based on Matt Pocock's [tdd](https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd) (MIT).

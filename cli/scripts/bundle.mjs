@@ -90,6 +90,7 @@ function pluginFiles(version, coreFiles) {
   for (const path of walk(join(CLI, "src"))) out[`src/${path}`] = readFileSync(toNative(join(CLI, "src"), path));
   out["bin/cli.mjs"] = readFileSync(join(CLI, "bin", "cli.mjs"));
   out["LICENSE"] = readFileSync(join(CLI, "LICENSE"));
+  out["NOTICE"] = readFileSync(join(REPO, "NOTICE"));
   const pkg = readJson(join(CLI, "package.json"));
   const slim = { name: pkg.name, version, description: pkg.description, license: pkg.license, type: pkg.type, bin: pkg.bin, engines: pkg.engines };
   out["package.json"] = Buffer.from(JSON.stringify(slim, null, 2) + "\n");
@@ -135,6 +136,8 @@ for (const name of stackNames.sort()) {
   if (existsSync(addonDir)) addons[name] = bundleAddons(addonDir, join(OUT, "files", "addons", name));
 }
 
+// npm ships LICENSE on its own but not NOTICE, so it goes in kit/, which is in "files".
+writeFile(join(OUT, "NOTICE"), readFileSync(join(REPO, "NOTICE")));
 writeFile(join(OUT, "manifest.json"), JSON.stringify({ kitVersion: version, core, packs, addons }, null, 2) + "\n");
 const packCount = Object.values(packs).reduce((n, p) => n + Object.keys(p.files).length, 0);
 const addonCount = Object.values(addons).reduce((n, a) => n + Object.keys(a).length, 0);

@@ -34,7 +34,7 @@ onRails is a kit you add to a project. It tells the agent what to do, and it che
 | Part | What it is | When it applies |
 |---|---|---|
 | [`AGENTS.md`](AGENTS.md) | 13 standing rules, the code rules and a stop-and-ask list | Every session |
-| 26 skills | Step-by-step instructions, one job each | When a request names the skill |
+| 28 skills | Step-by-step instructions, one job each | When a request names the skill |
 | Guardrails | CI checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
 
 - **Rules and conventions keep it on track.** It asks instead of guessing. Lint and CI fail the build when the code breaks a rule.
@@ -107,7 +107,7 @@ The plugin's copy of the CLI carries the rules and skills only. The stack packs 
 | ☀️ | **`/or:back`** | [`/back`](.agents/skills/back/SKILL.md) | `$back` | You start work, or come back | What changed → who else is working → what to do first |
 | 🌙 | **`/or:afk`** | [`/afk`](.agents/skills/afk/SKILL.md) | `$afk` | You step away | How long? → usage check → safe rules → keeps building until a hard stop |
 
-That's all you type. The other 22 skills are called for you. Want to run one step yourself? → [Cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself)
+That's all you type. The other 24 skills are called for you. Want to run one step yourself? → [Cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself)
 
 ---
 
@@ -367,7 +367,7 @@ The strongest model on high effort for every job is slow and burns your limits. 
 ```
 AGENTS.md                  ← rules every agent follows, every session (Codex + Claude)
 CLAUDE.md                  ← one line: @AGENTS.md
-.agents/skills/            ← the 26 skills, master copy (Codex reads this)
+.agents/skills/            ← the 28 skills, master copy (Codex reads this)
 .claude/skills/            ← the same skills (Claude Code reads this)
 .claude/settings.json      ← Claude Code: blocked git commands and hooks
 .claude/hooks/             ← the session-start and notify hooks
@@ -386,8 +386,8 @@ scripts/sync-skills.mjs    ← keeps the skill copies identical, and makes plugi
 |---|---|
 | **You type** (4) | `idea` · `join` · `back` · `afk` |
 | **Planning** (8) | `grill` · `name` · `stack` · `secrets` · `research` · `pyramid` · `issues` · `routing` |
-| **The loop** (7) | `coordinate` · `build` · `pr-review` · `pr-security` · `qa` · `ask` · `automation` |
-| **Know-how**, named in issues (5) | `web-performance` · `web-security` · `seo` · `a11y` · `dependencies` |
+| **The loop** (8) | `coordinate` · `build` · `diagnose` · `pr-review` · `pr-security` · `qa` · `ask` · `automation` |
+| **Know-how**, named in issues (6) | `web-performance` · `web-security` · `seo` · `a11y` · `dependencies` · `writing-for-agents` |
 | **Stack packs** (2) | `stack-tanstack-start` · `stack-monorepo-expo` |
 
 </details>
@@ -406,7 +406,7 @@ onRails stands on other people's ideas.
 
 | Who | What onRails took |
 |---|---|
-| **Matt Pocock** ([his video](https://www.youtube.com/watch?v=4DhcSPkEbwI) · [his skills](https://github.com/mattpocock/skills)) | The "grill me" interview (his [`grill-me`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grill-me) skill), and the push to do test-driven development with AI (his [`tdd`](https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd) skill) |
+| **Matt Pocock** ([his video](https://www.youtube.com/watch?v=4DhcSPkEbwI) · [his skills](https://github.com/mattpocock/skills)) | The "grill me" interview (his [`grill-me`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grill-me) skill), the push to do test-driven development with AI (his [`tdd`](https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd) skill), and the skills adapted from his: `diagnose` (from [`diagnosing-bugs`](https://github.com/mattpocock/skills/tree/main/skills/engineering/diagnosing-bugs)), the red, green, refactor loop in `build`, the retro in `/back` and `/afk` (from [`retro`](https://github.com/mattpocock/skills/tree/main/skills/engineering/retro)) and `writing-for-agents` (from [`writing-for-agents`](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents)). MIT, see [NOTICE](NOTICE) |
 | **Andy Hunt and Dave Thomas,** [*The Pragmatic Programmer*](https://pragprog.com/titles/tpp20/) | Tracer bullets: thin slices that run end to end, the idea behind the pyramid |
 | **Kent Beck,** *Test-Driven Development: By Example* | Write the failing test first |
 | **[Code with Antonio](https://www.youtube.com/@codewithantonio)** | Feature modules with views, sections and components |

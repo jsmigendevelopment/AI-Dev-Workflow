@@ -12,10 +12,16 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 2. **Unclear? Ask, don't guess.** An unclear issue is a ⏳ decision. Use the `ask` skill: comment up to three questions, each with your recommended answer, label it `needs-human`, ping, and stop. If the work would hit the always-stop list, it's a 🛑 blocker instead.
 3. **Branch** from the latest main: `feat/<n>-<short-name>`, or `fix/<n>-<short-name>` for a bug. No issue, no branch: ask for one. Start each commit message with the issue number.
 4. **Copy the nearest example.** Find the closest module, route or test the repo already has, and match its naming, error handling, layout and test style. If a generator exists (`pnpm new:module` or similar, listed in "Commands that work here"), use it. Never free-write a module a generator makes.
-5. **Tests first.** Turn every `auto` acceptance check into a test, named so it's obvious which check it covers. Run it and watch it fail. Then build until it passes.
-   - **A bug or core logic** (business rules, permissions, money): strict red/green. One failing test, the least code to pass it, then the next. A bug fix starts with a test that reproduces it.
+5. **Tests first: red, green, refactor.** Turn every `auto` acceptance check into a test, named so it's obvious which check it covers. Take one check at a time:
+   1. **Red.** Write the test for this check. Run it and watch it fail for the right reason: the assertion, not a typo or a missing import.
+   2. **Green.** Write the least code that makes it pass. Nothing for the next check yet.
+   3. **Refactor.** Tidy names and repeats while every test stays green. No new behaviour.
+
+   Then the next check. Don't write every test first and then all the code: a batch of tests tests what you imagined, not what you built.
+   - **A bug or core logic** (business rules, permissions, money): small steps, one small test per cycle. A bug fix starts with a test that reproduces it (the `diagnose` skill). For wiring, a simple screen or config, bigger steps are fine, but each check's test still comes before its code.
    - Test behaviour through the public interface. Mock only the edges: network, clock, randomness. Use the memory fake, not mocks of your own code.
-   - No snapshot tests for logic. Each test must fail without your change.
+   - Expected values come from the issue or a worked example, never recomputed the way the code computes them.
+   - No snapshot tests for logic. Each test must fail without your change. The reasons: `references/testing.md`.
 6. **Stay inside the fence.** Build nothing from "Out of scope." Found another problem? Open a new issue for it.
 7. **Follow the design and the architecture:**
    - the screens and contracts in `docs/design.md`;
@@ -73,3 +79,7 @@ The shape is in `docs/architecture.md`. The reasons are in `guide/app-convention
 ## References
 
 The full rules, with the reason for each: `references/code-style.md`, `references/testing.md` and `references/app-conventions.md` in this skill's folder.
+
+---
+
+Step 5's loop is based on Matt Pocock's [tdd](https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd) (MIT).
