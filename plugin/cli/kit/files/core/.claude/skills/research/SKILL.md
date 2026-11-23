@@ -34,3 +34,16 @@ Everything else gets three options with trade-offs and a recommendation, decided
 - Write "not found in N searches", never "doesn't exist."
 - Date everything. Tools and models change fast.
 - If the evidence is thin, say so. Don't dress up a guess as a finding.
+
+## Competitor scan
+
+A lighter kind of research, started by `grill` in the background once "who and why" and "the main flow" are done. Everyday model, medium effort (see `routing`). It doesn't stop the grill.
+
+1. **Find 3 to 8 competitors,** plus what people use today instead: a spreadsheet, a general tool, or nothing.
+2. **For each:** what it does well, what it does badly, its pricing and free tier, and who it's for. Check its own site and docs, and say when you couldn't.
+3. **What users complain about:** reviews, forums, app-store comments. Quote short and link.
+4. **The gaps:** what nobody does well, and where this app could stand out.
+5. **Write it** to `docs/research/competitors.md` (`kickoff/research/competitors.md` before the repo exists), with the date, sources, a label on every claim (read on their site, user review, guess), and the model and effort that ran it. Keep it under 2 pages.
+6. **Bring back five lines** for the MVP topic: what exists, the top complaints, and the gaps.
+
+In `/join`, offer it once as an optional step. Re-run it before a big new feature or a pricing decision.

@@ -9,7 +9,7 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
 
 ## Steps
 
-0. **Ask the automation level first** (see `automation`). Show this table, and say in one line how it differs from the risk dial: *the automation level is how much agents do without you; the risk dial is how careful each merge is.* The profile's `[defaults] automation` is the suggested pick. For a repo other people already ship from, recommend Hands-on or Recommended, never Full. Write it into `docs/stack.md` in step 6.
+0. **Ask the automation level first** (see `automation`). Show this table, and say in one line how it differs from the risk dial: *the automation level is how much agents do without you; the risk dial is how careful each merge is.* The profile's `[defaults] automation` is the suggested pick. For a repo other people already ship from, recommend Hands-on or Recommended, never Full. Write it into `docs/stack.md` in step 7.
 
 | Level | Agents do | You do |
 |---|---|---|
@@ -41,7 +41,9 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
    - For an area the repo doesn't cover yet (forms, data grids, charts, Markdown, code highlighting, long lists, keyboard shortcuts), the kit's TanStack default (the `stack` skill's table) is the pick to confirm, not a question. A library the repo already uses for that area is a clash row like any other.
    - **Never silently switch a repo to the kit's conventions.** "Adopt ours" means an issue for the move, not a quiet rewrite.
 
-5. **Grill the person.** Open `grill` and run its existing-project topics. Ask only what the code can't tell you:
+5. **Offer a competitor scan** (optional, once): *"Want me to check what competitors do, in the background?"* On a yes, run the `research` skill's "Competitor scan" while you grill.
+
+6. **Grill the person.** Open `grill` and run its existing-project topics. Ask only what the code can't tell you:
    - the purpose and users, and what's live versus experimental;
    - what's fragile, and what must never break;
    - which conventions are deliberate and which are accidents (step 4 covers the clashes);
@@ -49,7 +51,7 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
    - the risk dial (see `templates/stack.md` in the `idea` skill), next to the automation level from step 0;
    - whether other people or other agents work in this repo.
 
-6. **Write it down** from the `idea` skill's `templates/`:
+7. **Write it down** from the `idea` skill's `templates/`:
    - `docs/vision.md`;
    - `docs/stack.md`, with its "Automation level" section filled in;
    - `docs/architecture.md` (as the code *is*, plus the rules the person wants going forward, with "Conventions this repo keeps" from step 4);
@@ -57,16 +59,16 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
    - `docs/decisions.md`;
    - `docs/state.md`.
 
-7. **One short `AGENTS.md`.**
+8. **One short `AGENTS.md`.**
    - If the repo already has one, merge the kit's standing rules, the always-stop list and the commands table into it. Don't overwrite it.
    - If the kit's copy is next to it as `AGENTS.onrails.md`, merge that in, then delete `AGENTS.onrails.md`. A repo set up before the rename to onRails has it as `AGENTS.kit.md`: treat it the same way.
    - List the other copies the kit left next to the person's files, for them to compare: `*.onrails-new` and `.codex/config.onrails.toml` (older repos: `*.kit-new` and `.codex/config.kit.toml`).
    - Keep it short. Long generated instruction files cost more and don't help.
    - Show the person the diff before you commit.
 
-8. **Keys and accounts.** Before any building, open `secrets`: check which keys the test deploy needs and which are missing (by name only), and offer to wire the missing ones now. Missing ones go to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the deploy.
+9. **Keys and accounts.** Before any building, open `secrets`: check which keys the test deploy needs and which are missing (by name only), and offer to wire the missing ones now. Missing ones go to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the deploy.
 
-9. **Hand off.** In under 10 lines: what you learned, what surprised you, and the three things you'd fix or build first. Then ask what they want to work on, and open `issues` for it.
+10. **Hand off.** In under 10 lines: what you learned, what surprised you, and the three things you'd fix or build first. Then ask what they want to work on, and open `issues` for it.
 
 ## Done when
 

@@ -32,9 +32,10 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
 
 1. **Who and why:** users, the problem, what they do today, what success looks like.
 2. **The main flow:** one user's whole journey, step by step.
+   - **Then start the competitor scan in the background** (see `research`, "Competitor scan") and keep grilling. Don't wait for it.
 3. **Features:** the person's ideas, questions on each, then yours if they stall. Sort each into must, later or not now.
 4. **The floor:** every item on the floor checklist in `features.md` gets an answer or a recorded default. Never skipped.
-5. **The MVP:** the one core piece. Push for one. If they name five, ask which one they'd keep if they could keep only one. **The core is never defaulted.**
+5. **The MVP:** open with the competitor scan, in five lines or fewer: what exists, what users complain about, and the gaps. Then ask: *"What will yours do that they don't?"* If the scan isn't back yet, say so and continue; revisit the MVP when it lands. The one core piece. Push for one. If they name five, ask which one they'd keep if they could keep only one. **The core is never defaulted.**
 6. **Confirm:** show back the vision, the main flow, the features and the MVP, and ask what's wrong with them.
 
 ### Existing-project topics (`/join`, or a big feature)

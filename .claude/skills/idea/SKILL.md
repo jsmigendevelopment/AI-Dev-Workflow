@@ -26,6 +26,7 @@ Run the steps in order. Don't write app code before step 8 unless the person say
 1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter.
 
 2. **Product grill.** Open `grill` and run its product topics. Until the repo exists, the notes live in a local `kickoff/` folder: `grill-log.md`, `decisions.md`, `features.md` and `vision.md`, each started from this skill's `templates/`.
+   - After the first two topics, the grill starts a competitor scan in the background. It writes `kickoff/research/competitors.md` and is ready by the MVP topic.
    - If the person needs a break, save and stop. `/back` resumes from the grill log.
 
 3. **Find the MVP.** This is the last topic of the grill: **the one core piece that makes this app stand out,** made as good as possible, plus only the thin supporting slices it needs. **The core is never filled in with a default.** If the person won't choose, stop here and say so. Write `kickoff/mvp.md` from `templates/mvp.md`.
