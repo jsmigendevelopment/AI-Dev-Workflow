@@ -388,7 +388,7 @@ onRails stands on other people's ideas.
 
 | Who | What onRails took |
 |---|---|
-| **Matt Pocock** ([his video](https://www.youtube.com/watch?v=4DhcSPkEbwI)) | The "grill me" interview, and the push to do test-driven development with AI |
+| **Matt Pocock** ([his video](https://www.youtube.com/watch?v=4DhcSPkEbwI) · [his skills](https://github.com/mattpocock/skills)) | The "grill me" interview (his [`grill-me`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grill-me) skill), and the push to do test-driven development with AI (his [`tdd`](https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd) skill) |
 | **Andy Hunt and Dave Thomas,** [*The Pragmatic Programmer*](https://pragprog.com/titles/tpp20/) | Tracer bullets: thin slices that run end to end, the idea behind the pyramid |
 | **Kent Beck,** *Test-Driven Development: By Example* | Write the failing test first |
 | **[Code with Antonio](https://www.youtube.com/@codewithantonio)** | Feature modules with views, sections and components |
