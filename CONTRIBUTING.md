@@ -43,6 +43,7 @@ From the repo root:
 
 ```bash
 node scripts/sync-skills.mjs --check
+node scripts/check-research.mjs research/
 cd cli && npm run bundle && npm test
 ```
 

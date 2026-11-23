@@ -1,0 +1,17 @@
+{
+  "schema": "research-provenance/1",
+  "dossier": "plugin-plan.md",
+  "stores": [],
+  "roles": [
+    {
+      "role": "author",
+      "model": "unknown",
+      "effort": "unknown",
+      "harness": "unknown",
+      "started": "unknown",
+      "finished": "2026-11-23",
+      "brief": "unknown",
+      "notes": "The plan says: researched 2026-11-23. It was never fact-checked; the build in issue #4 tested it, and plugin/ is now the source of truth. No Research-Model or Research-Effort trailer: the standard came later. Commit 48f223f carries Co-Authored-By: Claude Opus 5.5 and a Claude-Session trailer. That names the session that committed the file, not the model that ran this role, so the model stays unknown."
+    }
+  ]
+}

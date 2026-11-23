@@ -386,9 +386,10 @@ cli/                       ← the onrails CLI
 plugin/                    ← the plugin: the four entry skills and a copy of the CLI (generated)
 .claude-plugin/            ← the plugin marketplace (Codex: .agents/plugins/)
 guide/                     ← the guides above
-research/                  ← the research and plans behind the kit (never copied into a project)
+research/                  ← the research and plans behind the kit (never copied into a project), indexed with provenance
 assets/                    ← diagrams
 scripts/sync-skills.mjs    ← keeps the skill copies identical, and makes plugin/skills
+scripts/check-research.mjs ← checks a research folder: index, provenance, labels, re-check dates (ships in the research skill)
 ```
 
 | Skills | |

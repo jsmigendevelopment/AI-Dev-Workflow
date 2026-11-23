@@ -1,0 +1,28 @@
+{
+  "schema": "research-provenance/1",
+  "dossier": "platform-packs.md",
+  "stores": [],
+  "roles": [
+    {
+      "role": "author",
+      "model": "unknown",
+      "effort": "unknown",
+      "harness": "unknown",
+      "started": "unknown",
+      "finished": "2026-11-22",
+      "brief": "unknown",
+      "notes": "The dossier says: draft, 2026-11-22. No Research-Model or Research-Effort trailer: the standard came later. Commit 7115c45 carries Co-Authored-By: Claude Opus 5.5 and a Claude-Session trailer. That names the session that committed the file, not the model that ran this role, so the model stays unknown."
+    },
+    {
+      "role": "fact-check",
+      "model": "unknown",
+      "effort": "unknown",
+      "harness": "unknown",
+      "started": "2026-11-22",
+      "finished": "2026-11-22",
+      "brief": "unknown",
+      "disposition": "../platform-packs.md#fact-check-2026-11-22",
+      "notes": "The dossier says: fact-checked the same day by an independent pass. Model and effort were not recorded."
+    }
+  ]
+}

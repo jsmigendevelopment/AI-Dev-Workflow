@@ -14,6 +14,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 1. **Read the board first.** Run `node .agents/skills/coordinate/scripts/board.mjs render --print`. It shows what needs the person, what's being built and in review, what merged today, and the FYIs, from every thread on this machine. If the profile sets `[board] sheet` and you have the Google Sheets connector, rewrite the project's tab once (see `../coordinate/board.md`). No sheet set and you have the connector? Offer one, once.
 
 2. **Read the state.** Read `docs/state.md`, and if it exists, the `/afk` section in it: when the person left, the commit on main, the queue and the rules set.
+   - List stale research: `node .agents/skills/research/scripts/check-research.mjs docs/research --stale`.
    - No `docs/state.md`, but a `grill-log.md` in `kickoff/` or `docs/`? A paused kickoff. Resume `/idea` at the first line its coverage map hasn't ticked.
 
 3. **Check GitHub** with `gh` or your tool's GitHub access:
@@ -31,7 +32,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
    - **Merged:** split into *checked and passed*, *checked and failed*, and *not checked yet*, with test links.
    - **Failed or parked,** and why.
    - **Waiting on you,** most important first: 🛑 blockers, then ⏳ decisions, each with its recommended answer, from the board and the "Waiting on you" list in `docs/state.md`. Then run `node .claude/hooks/notify.mjs --clear`, so held pings don't fire now that they've been seen.
-   - **FYI:** ready to try, usage, rate limits.
+   - **FYI:** ready to try, usage, rate limits, and stale research dossiers, each with its re-check date. Offer to re-check one before a decision leans on it.
    - **Usage** used, and when it resets.
    - **Still running.**
    - **Anyone else** who touched the repo.

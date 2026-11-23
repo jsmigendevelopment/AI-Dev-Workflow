@@ -1,0 +1,28 @@
+{
+  "schema": "research-provenance/1",
+  "dossier": "competitors.md",
+  "stores": [],
+  "roles": [
+    {
+      "role": "author",
+      "model": "claude-opus-5-5",
+      "effort": "unknown",
+      "harness": "Claude Code, subagent",
+      "started": "unknown",
+      "finished": "2026-11-23",
+      "brief": "unknown",
+      "notes": "From the dossier's Provenance section: written by claude-opus-5-5, running as a subagent in Claude Code; effort not exposed to the agent. One research pass. Commit 3967b80."
+    },
+    {
+      "role": "fact-check",
+      "model": "claude-opus-5-5",
+      "effort": "unknown",
+      "harness": "Claude Code, separate subagent",
+      "started": "2026-11-23",
+      "finished": "2026-11-23",
+      "brief": "unknown",
+      "disposition": "../competitors.md#fact-check",
+      "notes": "From the dossier's Provenance section: a separate claude-opus-5-5 subagent in Claude Code; effort not exposed to the agent."
+    }
+  ]
+}

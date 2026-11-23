@@ -1,6 +1,6 @@
 ---
 name: research
-description: Use when a decision is crucial, uncertain and expensive to undo and nobody knows the best answer ("we need to research this", "what's the best way to do X", "which library should we use", "is this even possible") - runs a focused research thread on the strongest model, compares at least three options against evidence, fact-checks the result, and writes a dated dossier with a recommendation into docs/research/.
+description: Use when a decision is crucial, uncertain and expensive to undo and nobody knows the best answer ("we need to research this", "what's the best way to do X", "which library should we use", "is this even possible") - runs a focused research thread on the strongest model, compares at least three options against evidence, fact-checks it in a fresh session, and writes a dated dossier with a recommendation, its sources, provenance and a re-check date into docs/research/.
 ---
 
 # Research: don't guess on the decisions that matter
@@ -18,21 +18,21 @@ Everything else gets three options with trade-offs and a recommendation, decided
 
 ## How
 
-1. **Check what's known.** Look in `docs/research/`, and in the person's research library if they have one. Don't redo current research.
-2. **Run it in its own thread** on the strongest model at high effort (see `routing`). Give that thread the question, the constraints from `docs/vision.md` and `docs/stack.md`, and what "good" means for this app.
-3. **Write the dossier** to `docs/research/<topic>.md`:
-   - the **question** and the **date**;
-   - **options:** at least three, with real trade-offs;
-   - **evidence** for each: sources read in full, sources skimmed, any small experiment run, and what's only opinion;
-   - a **recommendation** and **confidence** (high, medium or low), with the reason;
-   - **what would change the answer.**
-4. **Fact-check before anyone acts on it.** A fresh agent checks every number and claim against its source and lists what's wrong, overstated or unsupported. Fix those first.
-5. **Bring back the recommendation, not the whole dossier.** The person decides, and the decision goes into `docs/decisions.md` with a link to the dossier.
+1. **Check what's known.** Read `docs/research/README.md`, the index, and the person's research library if they have one. Don't redo a `current` dossier.
+2. **Run it in its own thread** on the strongest model at high effort (see `routing`). Commit its brief first: the question, the constraints from `docs/vision.md` and `docs/stack.md`, and what "good" means for this app.
+3. **Write the dossier** to `docs/research/<topic>.md` from the `idea` skill's `templates/research.md`, with its store in `docs/research/<topic>/` (`references/desk-research.md`): at least three options, every claim labelled, a recommendation with its confidence, and what would change the answer.
+4. **Record provenance** in `docs/research/<topic>/provenance.json`: the exact model ID, effort, harness, dates and brief for every role (`references/provenance.md`). `unknown` when the session doesn't show it. Never guess.
+5. **Fact-check before anyone acts on it.** A fresh session, on another model if you have one, checks every claim and writes `fact-check.csv`. Each finding gets fixed, disputed or accepted, with a reason. Until then the dossier is `draft`.
+6. **Add its row to the index:** the question, the decision it fed, the date, the status, the re-check date and the author's model and effort.
+7. **Check it:** `node .agents/skills/research/scripts/check-research.mjs docs/research/`. Done when it passes.
+8. **Commit with the trailers** `Research-Model: <exact ID>` and `Research-Effort: <effort or unknown>`, in the commit and the pull request.
+9. **Bring back the recommendation, not the whole dossier.** The person decides. The decision goes into `docs/decisions.md` with a link to the dossier.
 
 ## Rules
 
 - Write "not found in N searches", never "doesn't exist."
-- Date everything. Tools and models change fast.
+- Date everything. A dossier says when to re-check it: 6 months at most, 3 or fewer when prices, betas or fast-moving tools drive the answer. Past that date it's stale. `/back` and `doctor` list stale ones.
+- Status is `draft` (not fact-checked), `current`, `stale` (re-check due) or `superseded by <what>`.
 - If the evidence is thin, say so. Don't dress up a guess as a finding.
 
 ## Competitor scan
@@ -43,7 +43,19 @@ A lighter kind of research, started by `grill` in the background once "who and w
 2. **For each:** what it does well, what it does badly, its pricing and free tier, and who it's for. Check its own site and docs, and say when you couldn't.
 3. **What users complain about:** reviews, forums, app-store comments. Quote short and link.
 4. **The gaps:** what nobody does well, and where this app could stand out.
-5. **Write it** to `docs/research/competitors.md` (`kickoff/research/competitors.md` before the repo exists), with the date, sources, a label on every claim (read on their site, user review, guess), and the model and effort that ran it. Keep it under 2 pages.
-6. **Bring back five lines** for the MVP topic: what exists, the top complaints, and the gaps.
+5. **Write it** to `docs/research/competitors.md` (`kickoff/research/competitors.md` before the repo exists) from the template, with its store, its `provenance.json` and its index row. Label every claim. Keep it under 2 pages.
+6. **Fact-check it in the background,** the same way as above. Until then it's `draft`.
+7. **Bring back five lines** for the MVP topic: what exists, the top complaints, and the gaps. Say it's a draft until the fact-check is done.
 
 In `/join`, offer it once as an optional step. Re-run it before a big new feature or a pricing decision.
+
+## References
+
+Load a file only when its row fits.
+
+| File | Load when |
+|---|---|
+| `references/desk-research.md` | Writing a dossier's store (hypotheses, coverage, sources, claims) or running its fact-check. |
+| `references/provenance.md` | Writing `provenance.json`, starting a helper or fact-checker, or backfilling an old dossier. |
+| `references/measurements.md` | The dossier rests on numbers you measure yourself. |
+| `references/provenance.schema.json` | You need the exact shape of `provenance.json`. |

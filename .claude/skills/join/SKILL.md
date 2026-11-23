@@ -57,6 +57,7 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
    - `docs/architecture.md` (as the code *is*, plus the rules the person wants going forward, with "Conventions this repo keeps" from step 4);
    - `docs/security-policy.md`;
    - `docs/decisions.md`;
+   - `docs/research/README.md`, from `templates/research-index.md`, with a row for the competitor scan if it ran;
    - `docs/state.md`.
 
 8. **One short `AGENTS.md`.**
@@ -72,4 +73,4 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
 
 ## Done when
 
-The app runs locally, the commands are recorded, every convention clash has a decision, `docs/map.md` and `docs/state.md` exist, and the person has read the new `AGENTS.md`.
+The app runs locally, the commands are recorded, every convention clash has a decision, `docs/map.md`, `docs/state.md` and `docs/research/README.md` exist, and the person has read the new `AGENTS.md`.

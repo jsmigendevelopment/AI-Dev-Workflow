@@ -1,0 +1,28 @@
+{
+  "schema": "research-provenance/1",
+  "dossier": "foundations.md",
+  "stores": [],
+  "roles": [
+    {
+      "role": "author",
+      "model": "unknown",
+      "effort": "unknown",
+      "harness": "unknown",
+      "started": "unknown",
+      "finished": "2026-11-23",
+      "brief": "unknown",
+      "notes": "The dossier says: one research pass, 2026-11-23. No Research-Model or Research-Effort trailer: the standard came later. Commit 7115c45 carries Co-Authored-By: Claude Opus 5.5 and a Claude-Session trailer. That names the session that committed the file, not the model that ran this role, so the model stays unknown."
+    },
+    {
+      "role": "fact-check",
+      "model": "unknown",
+      "effort": "unknown",
+      "harness": "unknown",
+      "started": "2026-11-23",
+      "finished": "2026-11-23",
+      "brief": "unknown",
+      "disposition": "../foundations.md#fact-check",
+      "notes": "The dossier says: an independent pass by a different agent, 2026-11-23. Corrections were made in place and listed in its Fact-check section. Model and effort were not recorded."
+    }
+  ]
+}

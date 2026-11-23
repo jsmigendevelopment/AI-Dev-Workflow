@@ -25,7 +25,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter.
 
-2. **Product grill.** Open `grill` and run its product topics. Until the repo exists, the notes live in a local `kickoff/` folder: `grill-log.md`, `decisions.md`, `features.md` and `vision.md`, each started from this skill's `templates/`.
+2. **Product grill.** Open `grill` and run its product topics. Until the repo exists, the notes live in a local `kickoff/` folder: `grill-log.md`, `decisions.md`, `features.md` and `vision.md`, each started from this skill's `templates/`, plus `kickoff/research/README.md` from `templates/research-index.md`, so the first dossier has a home.
    - After the first two topics, the grill starts a competitor scan in the background. It writes `kickoff/research/competitors.md` and is ready by the MVP topic.
    - If the person needs a break, save and stop. `/back` resumes from the grill log.
 
@@ -60,7 +60,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 ## Done when
 
-- `docs/` holds the vision, features, MVP, decisions, stack, architecture, security policy, design, wireframes, pyramid and state.
+- `docs/` holds the vision, features, MVP, decisions, stack, architecture, security policy, design, wireframes, pyramid, state and `research/README.md`.
 - `docs/decisions.md` has a "Wireframes approved" row whose hash matches `docs/wireframes/index.html`.
 - Every MVP issue has WHEN/THEN acceptance checks with IDs, a fence, dependencies, risk flags, a lane, a complexity score, a priority and a `Skills:` line, and the consistency check found no open gap.
 - The person has seen the plan and said go.
