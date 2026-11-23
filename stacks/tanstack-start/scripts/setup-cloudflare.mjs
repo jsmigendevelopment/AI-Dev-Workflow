@@ -5,7 +5,8 @@
 //   node scripts/setup-cloudflare.mjs
 // Options: --account <id> (several accounts), --zone <example.com> (default: the production
 // routes' domain), --bot-fight-mode (recommended once the custom domain exists), --managed-robots,
-// --skip-secrets, and the person's choice for the test and preview URLs:
+// --skip-secrets, --no-first-deploy (no first deploy of the test Worker, which previews need), and
+// the person's choice for the test and preview URLs:
 //   --protect access [--logins google,github,...]    Cloudflare Access (recommended), plus who:
 //     --allow-emails a@x.com,b@y.com | --allow-domain company.com | --allow-github-org <org>
 //   --protect password [--new-password]             a password page in the app
@@ -52,8 +53,8 @@ const env = {
 }
 
 // Child processes never see the tokens or a login's client secret.
-function run(cmd, cmdArgs, input) {
-  const childEnv = { ...env }
+function run(cmd, cmdArgs, input, extraEnv = {}) {
+  const childEnv = { ...env, ...extraEnv }
   delete childEnv.CLOUDFLARE_ZONE_TOKEN
   delete childEnv.CLOUDFLARE_ACCESS_TOKEN
   for (const name of Object.keys(childEnv)) if (name.startsWith('ACCESS_')) delete childEnv[name]
@@ -97,6 +98,7 @@ const code = await setupCloudflare(
     botFightMode: args.includes('--bot-fight-mode'),
     managedRobots: args.includes('--managed-robots'),
     skipSecrets: args.includes('--skip-secrets'),
+    noFirstDeploy: args.includes('--no-first-deploy'),
     protect: value('--protect'),
     accessEmail: value('--access-email'),
     newPassword: args.includes('--new-password'),
@@ -108,7 +110,7 @@ const code = await setupCloudflare(
     productionOk: args.includes('--production-ok'),
   },
   {
-    wrangler: (a, input) => run('pnpm', ['exec', 'wrangler', ...a], input),
+    wrangler: (a, input, extraEnv) => run('pnpm', ['exec', 'wrangler', ...a], input, extraEnv),
     run,
     api,
     randomSecret: () => randomBytes(24).toString('base64url'),

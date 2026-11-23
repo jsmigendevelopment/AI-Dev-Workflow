@@ -11,6 +11,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - **Cloudflare's agent setup, offered in slice 0.** The TanStack Start skill offers Cloudflare's skills and MCP server for Claude Code or Codex, from a reviewed copy dated 2026-11-22. Creating resources still goes through `setup-cloudflare`.
 - **A plan for shipping the kit as a Claude Code plugin:** [`guide/plugin-plan.md`](guide/plugin-plan.md).
 
+### Fixed
+
+- **The first pull request can merge now.** `setup-cloudflare` deploys the test Worker once, as the Coming soon page, so previews have a Worker to upload to. `--no-first-deploy` skips it. If the test Worker is missing, the `preview` job fails and names the fix (#3).
+
 ### Being built
 
 - A needs-you convention: one clear way for agents to flag what's waiting on you.

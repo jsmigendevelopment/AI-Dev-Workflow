@@ -1,6 +1,8 @@
 # Deploys main to the test environment, then checks it in a real browser.
 # Every merged pull request lands here. If the smoke fails, the previous version is put back and
 # an issue is opened for the person. CI already ran the full check on this commit before merge.
+# The very first test deploy is setup-cloudflare's (same commands), so the first pull request
+# already has a test Worker to preview on.
 name: deploy-test
 on:
   push:

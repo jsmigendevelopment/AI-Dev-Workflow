@@ -63,10 +63,11 @@ describe('test and preview protection', () => {
     )
     const opts = { protect: 'access' as const, accessEmail: 'ann@example.com' }
     expect((await run(freshWorld(), files, opts, ACCESS)).output()).toContain('Zero Trust is not set up')
+    // With the first test deploy skipped, nothing makes the Worker, so Access must refuse.
     const undeployed = await run(
       { ...freshWorld(), access: { ...zeroTrust(), workers: [] } },
       files,
-      opts,
+      { ...opts, noFirstDeploy: true },
       ACCESS,
     )
     expect(undeployed.output()).toContain('not deployed yet')

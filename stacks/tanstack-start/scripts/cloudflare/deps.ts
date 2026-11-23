@@ -11,10 +11,13 @@ export interface ApiResult {
 }
 
 export interface Deps {
-  /** Runs `wrangler <args>` (through pnpm exec in the real entry), with optional stdin. */
-  wrangler(args: string[], input?: string): Promise<CommandResult>
-  /** Runs any other command (node, gh). */
-  run(cmd: string, args: string[], input?: string): Promise<CommandResult>
+  /**
+   * Runs `wrangler <args>` (through pnpm exec in the real entry), with optional stdin and extra
+   * environment variables (`CLOUDFLARE_ENV`).
+   */
+  wrangler(args: string[], input?: string, env?: Record<string, string>): Promise<CommandResult>
+  /** Runs any other command (node, gh, pnpm). */
+  run(cmd: string, args: string[], input?: string, env?: Record<string, string>): Promise<CommandResult>
   /**
    * The Cloudflare API. Paths under `/zones` use the zone token; paths under `/accounts` use the
    * Access token (Cloudflare Access only).
@@ -45,6 +48,8 @@ export interface Options {
   /** Cloudflare's managed robots.txt: off by default (the app writes its own). */
   managedRobots?: boolean
   skipSecrets?: boolean
+  /** Skip the first test deploy (the test Worker that pull request previews upload to). */
+  noFirstDeploy?: boolean
   /** How the test Worker and its previews are protected: the person's choice (`PROTECTION_CHOICES`). */
   protect?: Protection | undefined
   /** Cloudflare Access: the old single-email flag, same as one entry in `allowEmails`. */

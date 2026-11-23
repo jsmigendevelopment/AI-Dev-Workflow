@@ -3,6 +3,8 @@
 # updated on each push. It is uploaded, not deployed: the test environment's live version does not
 # change. Previews use the test D1 database and test secrets, never production's.
 # Skipped for forks (no secrets), Dependabot and pull requests labelled `lane:tiny`.
+# The test Worker must exist first: setup-cloudflare deploys it once at slice 0, deploy-test.yml
+# on every merge after that. Without it this job fails and says how to make it.
 # A protected test Worker protects its previews too (setup-cloudflare --protect): people sign in
 # (Cloudflare Access) or type the password; agents send the headers in e2e/gate.ts.
 name: preview
@@ -51,6 +53,24 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # A preview is a version of the test Worker, so it can't exist before the test Worker does.
+      # Asked of the API, not guessed from an upload error. It fails on purpose: this check is
+      # required, and a pass with no preview would let a pull request merge unchecked.
+      - name: The test Worker exists
+        run: |
+          name=$(jq -r .name dist/server/wrangler.json)
+          status=$(curl -sS -o workers.json -w '%{http_code}' -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts") || status=000
+          if [ "$status" != 200 ]; then
+            echo "::error title=Can't list Workers::Cloudflare answered ${status}. Check CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the GitHub environment preview."
+            exit 1
+          fi
+          if ! jq -e --arg name "$name" '.result | any(.id == $name)' workers.json > /dev/null; then
+            msg="The test Worker ${name} doesn't exist yet, so there is nothing to preview on. Make it once: re-run node scripts/setup-cloudflare.mjs (it deploys the test Worker), or run gh workflow run deploy-test.yml --ref main if main already has the database ids. Then re-run this job."
+            echo "::error title=No test Worker yet::${msg}"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
       - name: Upload a preview version
         id: upload
         env:
