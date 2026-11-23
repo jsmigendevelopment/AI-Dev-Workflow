@@ -62,7 +62,7 @@ Take them in order. Stop at the first one that gives steps of size 4 or under.
 | "has no try line", "a developer's check" | Write what the person does on the test site and what they see. Nothing to see? Fold it into the next step that shows something. |
 | "size N is above 4 with no reason" | Cut it with the seven ways above. If it truly can't be cut, write why after the number. |
 | "N steps for M slices" | You listed slices. Cut each slice by verb, then by path. |
-| "pass 1 has no step for the slice" | Pass 1 runs one thin step through every slice. Add that slice's plainest path. |
+| "pass 1 has no step for the slice" | Pass 1 runs through every slice. Add that slice's plainest path. |
 | "steps are above size 4" | More than one step in three is big. Cut the biggest ones first. |
 
 ## Thin enough? The numbers

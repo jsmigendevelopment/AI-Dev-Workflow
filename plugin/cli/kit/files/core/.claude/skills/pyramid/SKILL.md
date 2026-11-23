@@ -72,7 +72,7 @@ pass 1  ████ ████ ████ ████ ████
      2. Run `node .agents/skills/name/scripts/setup-github.mjs --dry-run` and show them the list.
      3. Say in one line what it does (labels, Dependabot, secret scanning, rules on main, a production environment that waits for them) and ask: *"Set this up now?"*
      4. On a yes, run it without `--dry-run` and show the results, including anything skipped because of their plan.
-2. **Seed data and test users.** Once the schema is designed (step 4), the first slice that adds a table also adds a seed script and **two test users**, so `qa` can always sign in and check that one user can't see another's data.
+2. **Seed data and test users.** Once the schema is designed (step 4), the first step that adds a table also adds a seed script and **two test users**, so `qa` can always sign in and check that one user can't see another's data.
 3. **List the slices** from `docs/mvp.md`. One slice is one thing a user can do, end to end. Name the **core.** Keep only slices that pass "does the core work without it?". Not every app needs auth.
 4. **Design what the slices share.** Start from the approved screens and tokens in `docs/design.md` and `docs/wireframes/index.html`. No approval row in `docs/decisions.md`? Stop and run `wireframes` first. Apply the tokens to the UI kit's theme, then write the schema and the API contracts the screens need. A screen that must change goes back through `wireframes` for approval. Builders follow this design. They don't invent their own.
 5. **Outline every pass.** For each: the milestone name, its slices, and one line per slice on what "better" means.

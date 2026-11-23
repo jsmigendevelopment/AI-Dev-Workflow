@@ -1,0 +1,264 @@
+id,title,location,accessed,read
+s1,"The 2020 Scrum Guide (HTML port) (Ken Schwaber, Jeff Sutherland / scrumguides.org, November 2020)",https://scrumguides.org/scrum-guide.html,2026-11-23,full
+s2,"Scrum Guide Revision History (scrumguides.org, newest entry: 2017 to 2020 changes; page footer © 2025)",https://scrumguides.org/revisions.html,2026-11-23,skimmed
+s3,"Scrum Guides home page (scrumguides.org, footer © 2025)",https://scrumguides.org/index.html,2026-11-23,full
+s4,"Scrum Guide Expansion Pack (landing page) (Jeff Sutherland, John Coleman, Ralph Jocham, no date on landing page; site footer © 2026)",https://scrumexpansion.org/,2026-11-23,skimmed
+s5,"The Kanban Guide (May 2025), v2025.5 (John Coleman, Daniel Vacanti and others / kanbanguides.org, updated May 1, 2025)",https://kanbanguides.org/the-kanban-guide/2025.5/,2026-11-23,full
+s6,"The Kanban Guide, December 2020, v2020.12 (PDF) (Orderly Disruption Ltd, Daniel S. Vacanti Inc., December 2020 (PDF created 2020-12-04))",https://kanbanguides.org/the-kanban-guide/2020.12/pdf/kanban-guide.v2020.12.en.pdf,2026-11-23,full
+s7,"The Kanban Guide v2020.12 (HTML page) (kanbanguides.org, December 2020)",https://kanbanguides.org/the-kanban-guide/2020.12/,2026-11-23,full
+s8,"History, Open Guide to Kanban (kanbanguides.org, ""Living Document - Updated July 2, 2025"")",https://kanbanguides.org/open-guide-to-kanban/history/,2026-11-23,skimmed
+s9,"The Official Guide to The Kanban Method (web page) (Kanban University, no date found on page)",https://kanban.university/kanban-guide/,2026-11-23,skimmed
+s10,"Iterative Development (Don Wells, extremeprogramming.org, © 1999)",http://www.extremeprogramming.org/rules/iterative.html,2026-11-23,full
+s11,"Make frequent small releases (Don Wells, © 1997, 1999)",http://www.extremeprogramming.org/rules/releaseoften.html,2026-11-23,full
+s12,"Integrate Often (Don Wells, © 1997, 1999)",http://www.extremeprogramming.org/rules/integrateoften.html,2026-11-23,full
+s13,"Release Planning (Don Wells, © 1999)",http://www.extremeprogramming.org/rules/planninggame.html,2026-11-23,full
+s14,"Create a Spike Solution (Don Wells, © 1999)",http://www.extremeprogramming.org/rules/spike.html,2026-11-23,full
+s15,"User Stories (Don Wells, © 1999)",http://www.extremeprogramming.org/rules/userstories.html,2026-11-23,full
+s16,"Project Velocity (Don Wells, © 1999)",http://www.extremeprogramming.org/rules/velocity.html,2026-11-23,full
+s17,"Set a Sustainable, Measurable, Predictable Pace (Don Wells, © 1997, 1999, 2009)",http://www.extremeprogramming.org/rules/overtime.html,2026-11-23,full
+s18,"Iteration Planning (Don Wells, © 1999)",http://www.extremeprogramming.org/rules/iterationplanning.html,2026-11-23,full
+s19,"Acceptance Tests (Don Wells, © 1997, 1999)",http://www.extremeprogramming.org/rules/functionaltests.html,2026-11-23,full
+s20,"The Rules of Extreme Programming (index) (Don Wells, © 1999)",http://www.extremeprogramming.org/rules.html,2026-11-23,full
+s21,"PlanningGame (C2 wiki) (Ward Cunningham's wiki, many hands, last edit August 29, 2013)",https://c2.com/wiki/remodel/pages/PlanningGame,2026-11-23,skimmed
+s22,"ContinuousIntegration (C2 wiki) (C2 wiki, last edit July 13, 2011)",https://c2.com/wiki/remodel/pages/ContinuousIntegration,2026-11-23,skimmed
+s23,"SpikeSolution (C2 wiki) (C2 wiki, last edit August 13, 2010)",https://c2.com/wiki/remodel/pages/SpikeSolution,2026-11-23,skimmed
+s24,"ExtremeProgrammingCorePractices (C2 wiki) (C2 wiki, last edit April 2, 2011)",https://c2.com/wiki/remodel/pages/ExtremeProgrammingCorePractices,2026-11-23,full
+s25,"WalkingSkeleton (C2 wiki) (C2 wiki, last edit August 22, 2008)",https://c2.com/wiki/remodel/pages/WalkingSkeleton,2026-11-23,full
+s26,"SmallReleases (C2 wiki) (C2 wiki, last edit November 24, 2014)",https://c2.com/wiki/remodel/pages/SmallReleases,2026-11-23,full
+s27,"Extreme Programming Explained, 2nd ed., publisher's sample pages (contents, Chapter 1, index) (Kent Beck with Cynthia Andres / Addison-Wesley, book published Nov 16, 2004 (InformIT store page))",https://www.informit.com/content/images/9780321278654/samplepages/9780321278654.pdf,2026-11-23,full
+s28,"What is XP? (Chapter 1 as an article) (Cynthia Andres, Kent Beck / InformIT, Apr 29, 2005)",https://www.informit.com/articles/article.aspx?p=367636,2026-11-23,skimmed
+s29,"Continuous Integration (2024 revision) (Martin Fowler, 18 January 2024)",https://martinfowler.com/articles/continuousIntegration.html,2026-11-23,skimmed
+s30,"Continuous Integration (original version). Note: the folder key says 2006 but this is the 2000 original (Martin Fowler, Matthew Foemmel, 10 September 2000)",https://martinfowler.com/articles/originalContinuousIntegration.html,2026-11-23,skimmed
+s31,"Continuous Delivery: Anatomy of the Deployment Pipeline (Chapter 5 of the book, pages 2 to 10) (Jez Humble, David Farley / InformIT, Sep 7, 2010)",https://www.informit.com/articles/article.aspx?p=1621865&seqNum=2,2026-11-23,skimmed
+s32,"Principles (Jez Humble, continuousdelivery.com, no page date; site © 2010-2026)",https://continuousdelivery.com/principles/,2026-11-23,full
+s33,"Continuous Integration (Jez Humble, continuousdelivery.com, no page date; site © 2010-2026)",https://continuousdelivery.com/foundations/continuous-integration/,2026-11-23,full
+s34,"Patterns (Jez Humble, continuousdelivery.com, no page date; site © 2010-2026)",https://continuousdelivery.com/implementing/patterns/,2026-11-23,full
+s35,"What is Continuous Delivery? (Jez Humble, continuousdelivery.com, no page date)",https://continuousdelivery.com/,2026-11-23,skimmed
+s36,"Measure Software Delivery Performance with Four Key Metrics (""adapted from Accelerate"") (IT Revolution (publisher of Accelerate, 2018), published 2021-02-25, modified 2023-10-24 (page metadata))",https://itrevolution.com/articles/measure-software-delivery-performance-four-key-metrics/,2026-11-23,full
+s37,"DORA's software delivery performance metrics (Nathen Harvey / dora.dev, last updated January 5, 2026)",https://dora.dev/guides/dora-metrics/,2026-11-23,full
+s38,"A history of DORA's software delivery metrics (Nathen Harvey / dora.dev, January 2, 2026)",https://dora.dev/insights/dora-metrics-history/,2026-11-23,full
+s39,"State of AI-assisted Software Development 2025 (DORA report), v. 2025.2 (Google Cloud / DORA, announced September 23, 2025; this PDF created 2025-10-15)",https://services.google.com/fh/files/misc/2025_state_of_ai_assisted_software_development.pdf,2026-11-23,skimmed
+s40,"Announcing the 2025 DORA Report (Google Cloud Blog, September 23, 2025)",https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report,2026-11-23,skimmed
+s41,"Accelerate State of DevOps 2024 (DORA report), v. 2024.3 (Google Cloud / DORA, 2024; this PDF created 2024-11-19)",https://services.google.com/fh/files/misc/2024_final_dora_report.pdf,2026-11-23,skimmed
+s42,"DORA's Research Program (archive list) (dora.dev, no date)",https://dora.dev/research/,2026-11-23,full
+s43,"Publications by DORA (dora.dev, no date)",https://dora.dev/research/publications/,2026-11-23,full
+s44,"DORA Insights (post list) (dora.dev, newest post Jun 2, 2026)",https://dora.dev/insights/,2026-11-23,skimmed
+s45,"Capability: Working in small batches (dora.dev, last updated December 8, 2025)",https://dora.dev/capabilities/working-in-small-batches/,2026-11-23,full
+s46,"Capability: Trunk-based development (dora.dev, no date on page)",https://dora.dev/capabilities/trunk-based-development/,2026-11-23,full
+s47,"Capability: Continuous integration (dora.dev, no date on page)",https://dora.dev/capabilities/continuous-integration/,2026-11-23,full
+s48,"Capability: Work in process limits (dora.dev, no date on page)",https://dora.dev/capabilities/wip-limits/,2026-11-23,full
+s49,"Capability: Visual management (dora.dev, no date on page)",https://dora.dev/capabilities/visual-management/,2026-11-23,full
+s50,"Capability: Streamlining change approval (dora.dev, last updated October 30, 2025)",https://dora.dev/capabilities/streamlining-change-approval/,2026-11-23,full
+s51,"Capability: Test automation (dora.dev, last updated July 17, 2025)",https://dora.dev/capabilities/test-automation/,2026-11-23,skimmed
+s52,"Lean Software Development: An Agile Toolkit, publisher's sample pages (contents, introduction, Chapter 3, index) (Mary and Tom Poppendieck / Addison-Wesley, book 2003; PDF created 2013-11-26)",https://ptgmedia.pearsoncmg.com/images/9780321150783/samplepages/0321150783.pdf,2026-11-23,skimmed
+s53,"Implementing Lean Software Development: From Concept to Cash, publisher's sample pages (contents, Chapter 1, index) (Mary and Tom Poppendieck / Addison-Wesley, book 2006)",https://www.ciscopress.com/content/images/9780321437389/samplepages/0321437381.pdf,2026-11-23,skimmed
+s54,"Why Do Iterations Work? (Donald Reinertsen, reinertsenassociates.com, January 1, 2011)",http://reinertsenassociates.com/why-do-iterations-work/,2026-11-23,full
+s55,"Is One-Piece Flow the Lower Limit for Product Developers? (Donald Reinertsen, November 1, 2012)",http://reinertsenassociates.com/is-one-piece-flow-the-lower-limit-for-product-developers/,2026-11-23,full
+s56,"The Lean Approach to Context Switching (Donald Reinertsen, March 1, 2011)",http://reinertsenassociates.com/the-lean-approach-to-context-switching/,2026-11-23,full
+s57,"Understanding the Magic of Lean Product Development (slides) (Donald G. Reinertsen, November 16, 2011)",https://qconsf.com/sf2011/dl/qcon-sanfran-2011/slides/DonReinertsen_UnderstandingTheMagicOfLeanProductDevelopment.pdf,2026-11-23,full
+s58,"INVEST in Good Stories, and SMART Tasks (Bill Wake, xp123.com, August 17, 2003 (postscript added 2-16-2011))",https://xp123.com/invest-in-good-stories-and-smart-tasks/,2026-11-23,full
+s59,"SPIDR: Five Simple but Powerful Ways to Split User Stories (Mike Cohn, Mountain Goat Software, page metadata: published 2024-06-18; ""Last updated August 6th, 2026"". First publication date not on the page)",https://www.mountaingoatsoftware.com/agile/five-simple-but-powerful-ways-to-split-user-stories,2026-11-23,full
+s60,"Splitting user stories -- the hamburger method (Gojko Adzic, gojko.net, page shows ""Feb 23, 2012""; the URL path says 2012/01/23)",https://gojko.net/2012/01/23/splitting-user-stories-the-hamburger-method/,2026-11-23,full
+s61,"The New User Story Backlog is a Map (Jeff Patton, jpattonassociates.com, October 8, 2008 (updated April 12, 2023))",https://jpattonassociates.com/the-new-backlog/,2026-11-23,full
+s62,"Crystal Clear, publisher's sample Chapter 2 (""Applied: the seven properties"") (Alistair Cockburn / Addison-Wesley, book published Oct 19, 2004 (InformIT store page))",https://www.informit.com/content/images/0201699478/samplechapter/cockburn_ch02.pdf,2026-11-23,skimmed
+s63,"Elephant Carpaccio facilitation guide (blog post) (Henrik Kniberg, blog.crisp.se, 2013-07-25)",https://blog.crisp.se/2013/07/25/henrikkniberg/elephant-carpaccio-facilitation-guide,2026-11-23,full
+s64,"Elephant Carpaccio facilitation guide (the guide itself) (Henrik Kniberg and Alistair Cockburn, 2013-07-11)",https://docs.google.com/document/d/1TCuuu-8Mm14oxsOnlk8DqfZAA1cvtYu9WGv67Yj_sSk/pub,2026-11-23,full
+s65,"Elephant Carpaccio (course page) (Alistair Cockburn, alistaircockburn.com, © 2022)",https://alistaircockburn.com/Elephant-Carpaccio,2026-11-23,full
+s66,"Tracer Bullets and Prototypes: A Conversation with Andy Hunt and Dave Thomas, Part VIII (Bill Venners, artima.com, April 21, 2003)",https://www.artima.com/articles/tracer-bullets-and-prototypes,2026-11-23,full
+s67,"Pragmatic Programmer Tips (20th Anniversary Edition tip list) (The Pragmatic Bookshelf, no date (edition 2019))",https://pragprog.com/tips/,2026-11-23,skimmed
+s68,"Extract ""Don't Outrun Your Headlights"" (Topic 27) from The Pragmatic Programmer, 20th Anniversary Edition (Dave Thomas, Andy Hunt / Pearson, © 2020)",https://media.pragprog.com/titles/tpp20/dont-outrun-your-headlights.pdf,2026-11-23,skimmed
+s69,"The Humanizing Work Guide to Splitting User Stories (Richard Lawrence, Peter Green / Humanizing Work, published 2020-10-22, modified 2026-05-26 (page metadata))",https://www.humanizingwork.com/the-humanizing-work-guide-to-splitting-user-stories/,2026-11-23,full
+s70,"Measuring AI Ability to Complete Long Software Tasks (abstract page) (Kwa, West, Becker et al. (METR), 2025-03-18 (v1); v4 2026-07-10; NeurIPS 2025)",https://arxiv.org/abs/2503.14499,2026-11-23,full
+s71,"Same paper, HTML version (v4) (Kwa et al. (METR), v4 2026-07-10)",https://arxiv.org/html/2503.14499,2026-11-23,skimmed
+s72,"Measuring AI Ability to Complete Long Software Tasks (blog post) (METR, 2025-03-19 (banner: some text out of date))",https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/,2026-11-23,full
+s73,"Task-Completion Time Horizons of Frontier AI Models (METR, last updated 2026-09-08; 'no longer actively updated')",https://metr.org/time-horizons/,2026-11-23,full
+s74,"benchmark_results_1_1.yaml (data behind METR-TH) (METR, undated; linked from METR-TH)",https://metr.org/assets/benchmark_results_1_1.yaml,2026-11-23,full
+s75,"Time Horizon 1.1 (METR, 2026-01-29)",https://metr.org/blog/2026-01-29-time-horizon-1-1/,2026-11-23,full
+s76,"Summary of METR's predeployment evaluation of GPT-5.6 Sol (METR, 2026-06-26)",https://metr.org/blog/2026-06-26-gpt-5-6-sol/,2026-11-23,full
+s77,"Research note on time horizon limitations (METR researcher (note, 'unpolished'), 2026-01-22)",https://metr.org/notes/2026-01-22-time-horizon-limitations/,2026-11-23,skimmed
+s78,"Research Update: Algorithmic vs. Holistic Evaluation (METR, 2025-08-12)",https://metr.org/blog/2025-08-12-research-update-towards-reconciling-slowdown-with-time-horizons/,2026-11-23,skimmed
+s79,"Many SWE-bench-Passing PRs Would Not Be Merged into Main (Whitfill, Wu, Becker, Rush (METR note), 2026-03-10)",https://metr.org/notes/2026-03-10-many-swe-bench-passing-prs-would-not-be-merged-into-main/,2026-11-23,skimmed
+s80,"Summary of METR's predeployment evaluation of Claude Opus 5.5 (METR, 2026-09-22)",https://metr.org/blog/2026-09-22-claude-opus-5-5/,2026-11-23,skimmed
+s81,"Measuring Time Horizon using Claude Code and Codex (METR note, 2026-02-13)",https://metr.org/notes/2026-02-13-measuring-time-horizon-using-claude-code-and-codex/,2026-11-23,skimmed
+s82,"Metrics of Agent Ability (METR note, 2026-07-24)",https://metr.org/notes/2026-07-24-metrics-of-model-ability/,2026-11-23,skimmed
+s83,"Introducing SWE-bench Verified (OpenAI, 2024-08-13)",https://openai.com/index/introducing-swe-bench-verified/,2026-11-23,skimmed
+s84,"SWE-Bench Pro: Can AI Agents Solve Long-Horizon Software Engineering Tasks? (Deng, Da, Pan et al. (Scale AI), 2025-09-21; v2 2025-11-14)",https://arxiv.org/html/2509.16941v2,2026-11-23,skimmed
+s85,"SWE-bench: Can Language Models Resolve Real-World GitHub Issues? (Jimenez, Yang, Wettig, Yao, Pei, Press, Narasimhan, 2023-10-10; v3 2024-11-11)",https://arxiv.org/html/2310.06770,2026-11-23,skimmed
+s86,"SWE-Lancer: Can Frontier LLMs Earn $1 Million from Real-World Freelance Software Engineering? (Miserendino, Wang, Patwardhan, Heidecke (OpenAI), 2025-02-17; v4 2025-05-29)",https://arxiv.org/html/2502.12115,2026-11-23,skimmed
+s87,"Beyond Resolution Rates: Behavioral Drivers of Coding Agent Success and Failure (Mehtiyev, Assunção, 2026-04-02)",https://arxiv.org/abs/2604.02547,2026-11-23,skimmed
+s88,"The Rise of AI Teammates in Software Engineering (SE) 3.0 (AIDev dataset) (Li, Zhang, Hassan, 2025-07-20)",https://arxiv.org/html/2507.15003,2026-11-23,skimmed
+s89,"Where Do AI Coding Agents Fail? An Empirical Study of Failed Agentic Pull Requests in GitHub (Ehsani, Pathak, Rawal, Al Mujahid, Imran, Chatterjee, 2026-01-21 (MSR '26))",https://arxiv.org/html/2601.15195,2026-11-23,skimmed
+s90,"A Task-Level Evaluation of AI Agents in Open-Source Projects (Rahman, Rabbi, Zibran, 2026-02-02)",https://arxiv.org/html/2602.02345,2026-11-23,skimmed
+s91,"Let's Make Every Pull Request Meaningful: An Empirical Analysis of Developer and Agentic Pull Requests (Yoshioka, Monno, Tokumasu, Wakamatsu, Ota, Weeraddana, Matsumoto, 2026-01-26)",https://arxiv.org/html/2601.18749,2026-11-23,skimmed
+s92,"Comparing AI Coding Agents: A Task-Stratified Analysis of Pull Request Acceptance (Pinna, Gong, Williams, Sarro, 2026-02-09; v2 2026-05-07)",https://arxiv.org/html/2602.08915,2026-11-23,skimmed
+s93,"Devin's 2025 Performance Review: Learnings From 18 Months of Agents At Work (Cognition, 2025-11-14)",https://cognition.ai/blog/devin-annual-performance-review-2025,2026-11-23,skimmed
+s94,"Building effective agents (page title now 'Building effective AI agents') (Anthropic, 2024-12-19)",https://www.anthropic.com/engineering/building-effective-agents,2026-11-23,skimmed
+s95,"Effective context engineering for AI agents (Anthropic, 2025-09-29)",https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents,2026-11-23,skimmed
+s96,"Effective harnesses for long-running agents (Justin Young (Anthropic), 2025-11-26)",https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents,2026-11-23,full
+s97,"Harness design for long-running application development (Prithvi Rajasekaran (Anthropic), 2026-03-24)",https://www.anthropic.com/engineering/harness-design-long-running-apps,2026-11-23,skimmed
+s98,"Best practices for Claude Code (current docs). The old post URL anthropic.com/engineering/claude-code-best-practices now answers HTTP 308 to this page (Anthropic, undated; read 2026-11-23)",https://code.claude.com/docs/en/best-practices,2026-11-23,full
+s99,"Claude Code docs: permission modes (plan mode) (Anthropic, undated)",https://code.claude.com/docs/en/permission-modes,2026-11-23,skimmed
+s100,"Claude Code docs: common workflows (Anthropic, undated)",https://code.claude.com/docs/en/common-workflows,2026-11-23,skimmed
+s101,"Claude prompting best practices (Anthropic, undated)",https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices,2026-11-23,skimmed
+s102,"Prompting Claude Fable 5.2 (Anthropic, undated)",https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-2,2026-11-23,skimmed
+s103,"Building a C compiler with a team of parallel Claudes (Nicholas Carlini (Anthropic), 2026-02-05)",https://www.anthropic.com/engineering/building-c-compiler,2026-11-23,skimmed
+s104,"How we built our multi-agent research system (Anthropic, 2025-06-13)",https://www.anthropic.com/engineering/multi-agent-research-system,2026-11-23,skimmed
+s105,"Measuring AI agent autonomy in practice (Anthropic, 2026-02-18)",https://www.anthropic.com/research/measuring-agent-autonomy,2026-11-23,skimmed
+s106,"Use Claude Code with your Pro, Max, or Ultra plan (Anthropic Help Center, 'Updated over 3 weeks ago' on 2026-11-23)",https://support.claude.com/en/articles/11145838-using-claude-code-with-your-pro-or-max-plan,2026-11-23,full
+s107,"Claude Code May–August 2026 weekly limits promotion (Anthropic Help Center, 'Updated over 3 weeks ago' on 2026-11-23)",https://support.claude.com/en/articles/15910845-claude-code-may-july-2026-weekly-limits-promotion,2026-11-23,skimmed
+s108,"API rate limits (Anthropic, undated)",https://platform.claude.com/docs/en/api/rate-limits,2026-11-23,skimmed
+s109,"Claude Code docs: Manage costs effectively (Anthropic, undated)",https://code.claude.com/docs/en/costs,2026-11-23,skimmed
+s110,"Using PLANS.md for multi-hour problem solving (Aaron Friel (OpenAI cookbook), 2025-10-07; now marked archived)",https://developers.openai.com/cookbook/articles/codex_exec_plans,2026-11-23,full
+s111,"GPT-5 prompting guide (Kotha, Lee, Zakariasson, Kavanaugh (OpenAI cookbook), 2025-08-07; now marked archived)",https://developers.openai.com/cookbook/examples/gpt-5/gpt-5_prompting_guide,2026-11-23,skimmed
+s112,"Codex Prompting Guide (Noah MacCallum, Brian Fioca (OpenAI cookbook), 2026-02-25)",https://developers.openai.com/cookbook/examples/gpt-5/codex_prompting_guide,2026-11-23,skimmed
+s113,"Run long horizon tasks with Codex (Derrick Choi (OpenAI), 2026-02-23)",https://developers.openai.com/blog/run-long-horizon-tasks-with-codex,2026-11-23,skimmed
+s114,"Codex: Best practices (OpenAI, undated)",https://developers.openai.com/codex/learn/best-practices,2026-11-23,skimmed
+s115,"Codex docs: Long-running work (OpenAI, undated)",https://developers.openai.com/codex/long-running-work,2026-11-23,full
+s116,"Codex docs: Prompting (OpenAI, undated)",https://developers.openai.com/codex/prompting,2026-11-23,skimmed
+s117,"Harness engineering: leveraging Codex in an agent-first world (Ryan Lopopolo (OpenAI), 2026-02-11)",https://openai.com/index/harness-engineering/,2026-11-23,skimmed
+s118,"Codex pricing (OpenAI, undated)",https://developers.openai.com/codex/pricing,2026-11-23,skimmed
+s119,"Scaling long-running autonomous coding (Wilson Lin (Cursor), 2026-01-14)",https://cursor.com/blog/scaling-agents,2026-11-23,skimmed
+s120,"Best practices for using GitHub Copilot to work on tasks (GitHub Docs, undated)",https://docs.github.com/en/copilot/tutorials/coding-agent/get-the-best-results,2026-11-23,skimmed
+s121,"Plan-and-Solve Prompting (Wang, Xu, Lan, Hu, Lan, Lee, Lim, 2023-05-06 (ACL 2023))",https://arxiv.org/abs/2305.04091,2026-11-23,skimmed
+s122,"Least-to-Most Prompting Enables Complex Reasoning in Large Language Models (Zhou, Schärli, Hou et al., 2022-05-21 (ICLR 2023))",https://arxiv.org/abs/2205.10625,2026-11-23,skimmed
+s123,"Decomposed Prompting: A Modular Approach for Solving Complex Tasks (Khot, Trivedi, Finlayson, Fu, Richardson, Clark, Sabharwal, 2022-10-05 (ICLR 2023))",https://arxiv.org/abs/2210.02406,2026-11-23,skimmed
+s124,"ADaPT: As-Needed Decomposition and Planning with Language Models (Prasad, Koller, Hartmann, Clark, Sabharwal, Bansal, Khot, 2023-11-08; v2 2024-04-08 (NAACL 2024 findings))",https://arxiv.org/abs/2311.05772,2026-11-23,skimmed
+s125,"Self-planning Code Generation with Large Language Models (Jiang, Dong, Wang, Fang, Shang, Li, Jin, Jiao, 2023-03-12; v5 2025-10-20)",https://arxiv.org/abs/2303.06689,2026-11-23,skimmed
+s126,"Solving a Million-Step LLM Task with Zero Errors (Meyerson, Paolo, Dailey et al., 2025-11-12)",https://arxiv.org/abs/2511.09030,2026-11-23,skimmed
+s127,"Runtime-Structured Task Decomposition for Agentic Coding Systems (Asthana, Zhang, DeLuca, Patel, Mahindru, 2026-05-14)",https://arxiv.org/abs/2605.15425,2026-11-23,skimmed
+s128,"Decomposition Buys Integrity, Not Yield (Rong He, 2026-09-15)",https://arxiv.org/abs/2609.17464,2026-11-23,skimmed
+s129,"Adaptive Skill Granularity for Coding Agents: Runtime Routing and Macro-to-Micro Recovery (Zhang, Jiang, Wang, Zhou, 2026-10-22)",https://arxiv.org/abs/2610.31461,2026-11-23,skimmed
+s130,"Why Do Multi-Agent LLM Systems Fail? (Cemri, Pan, Yang et al., 2025-03-17; v3 2025-10-26)",https://arxiv.org/html/2503.13657,2026-11-23,skimmed
+s131,"Quantifying Overclaiming Propensity in Frontier LLM Agents (Smyth, Mantilla-Ramos, Notsawo et al., 2026-09-17; v3 2026-09-22)",https://arxiv.org/abs/2609.20812,2026-11-23,skimmed
+s132,"Building to the Test: Coding Agents Deliver What You Check, Not What You Requested (Ma, Kereopa-Yorke, Schultz, 2026-06-26)",https://arxiv.org/abs/2606.28430,2026-11-23,skimmed
+s133,"Can Large Language Models Really Improve by Self-critiquing Their Own Plans? (Valmeekam, Marquez, Kambhampati, 2023-10-12)",https://arxiv.org/abs/2310.08118,2026-11-23,skimmed
+s134,"On the Self-Verification Limitations of Large Language Models on Reasoning and Planning Tasks (Stechly, Valmeekam, Kambhampati, 2024-02-12; v2 2024-08-03)",https://arxiv.org/abs/2402.08115,2026-11-23,skimmed
+s135,"Test-Driven Development for Code Generation (Mathews, Nagappan, 2024-02-21; v2 2024-06-11)",https://arxiv.org/abs/2402.13521,2026-11-23,skimmed
+s136,"DORA Research: 2024 (report page) (DORA / Google Cloud, last updated 2026-04-13)",https://dora.dev/research/2024/dora-report/,2026-11-23,full
+s137,"DORA AI Capabilities Model report (PDF, v. 2025.1) (DORA / Google Cloud, 2025 (PDF file dated 2025-12-08; landing page last updated 2025-11-25))",https://services.google.com/fh/files/misc/2025_dora_ai_capabilities_model.pdf,2026-11-23,skimmed
+s138,"The AI Productivity Paradox Report 2025 (blog summary) (Faros AI (vendor), 2025-07-23)",https://www.faros.ai/blog/ai-productivity-paradox-report-2025,2026-11-23,skimmed
+s139,"The Acceleration Whiplash, AI Engineering Report Q2 2026 (landing page) (Faros AI (vendor), 2026 (Q2); page notes a newer Q3 'Speed Trap' report)",https://www.faros.ai/research/ai-acceleration-whiplash,2026-11-23,skimmed
+s140,"2026 Software Engineering Benchmarks Report (PDF) (LinearB (vendor), 2026 (PDF file dated 2026-04-28))",https://assets.linearb.io/image/upload/v1765300694/resources/LinearB_2026_Software_Engineering_Benchmarks_Report.pdf,2026-11-23,skimmed
+s141,"The 2026 State of Software Delivery, Q2 report (PDF) (CircleCI (vendor), 2026 (PDF file dated 2026-07-07))",https://circleci.com/landing-pages/assets/2026-q2-state-of-software-delivery-report.pdf,2026-11-23,skimmed
+s142,"AI coding has made CI a bottleneck, so we reworked ours to keep up (Linear, 2026-09-21)",https://linear.app/now/ci-bottleneck-reworked,2026-11-23,skimmed
+s143,"AI Copilot Code Quality: 2025 Look Back at 12 Months of Data (download page) (GitClear (vendor), 2025)",https://www.gitclear.com/ai_assistant_code_quality_2025_research,2026-11-23,skimmed
+s144,"Small CLs (Google Engineering Practices) (Google, undated)",https://google.github.io/eng-practices/review/developer/small-cls.html,2026-11-23,full
+s145,"Modern Code Review: A Case Study at Google (Sadowski, Söderberg, Church, Sipko, Bacchelli, 2018 (ICSE-SEIP '18))",https://storage.googleapis.com/gweb-research2023-media/pubtools/4476.pdf,2026-11-23,skimmed
+s146,"Characteristics of Useful Code Reviews: An Empirical Study at Microsoft (Bosu, Greiler, Bird, 2015 (venue MSR 2015 per the brief; not printed in the extracted text))",https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/bosu2015useful.pdf,2026-11-23,skimmed
+s147,"Best Practices for Code Review (SmartBear (vendor), undated)",https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/,2026-11-23,skimmed
+s148,"Best Practices for Peer Code Review (white paper; third-party mirror) (SmartBear (vendor), mirrored on cnblogs.com, undated)",https://files.cnblogs.com/dangjian/BestPracticesForPeerCodeReview.pdf,2026-11-23,skimmed
+s149,"Cisco Systems case study page (SmartBear (vendor), undated)",https://smartbear.com/resources/case-studies/cisco-systems-collaborator/,2026-11-23,skimmed
+s150,"Bigger Isn't Always Better: A Comparative Evaluation of LLMs for Automated Code Review (Kumar, Bararia, Raj, 2026-04-09)",https://arxiv.org/abs/2606.15689,2026-11-23,skimmed
+s151,"SWE-PRBench: Benchmarking AI Code Review Quality Against Pull Request Feedback (Deepak Kumar, 2026-03-27)",https://arxiv.org/html/2603.26130v1,2026-11-23,skimmed
+s152,"SWR-Bench: Assessing LLM Performance in Real-World Code Review Comment Generation (Zeng, Shi, Han et al., 2025-09-01; v2 2026-06-05)",https://arxiv.org/html/2509.01494v1,2026-11-23,skimmed
+s153,"Your parallel Agent limit (Addy Osmani (personal blog), 2026-04-07)",https://addyosmani.com/blog/cognitive-parallel-agents/,2026-11-23,skimmed
+s154,"Trunk Based Development: Introduction (Paul Hammant (and contributors), no date on the page; footer ""© 2017-2020""; ""SHA-1 Published: 44abf38fc1215e859c3157536c0dfa5353925ce0"")",https://trunkbaseddevelopment.com/,2026-11-23,full
+s155,"Short-Lived Feature Branches (Paul Hammant, no date on the page (same footer and SHA-1); text mentions AI coding agents, so it was revised after 2020)",https://trunkbaseddevelopment.com/short-lived-feature-branches/,2026-11-23,full
+s156,"Feature flags (Paul Hammant, no date on the page)",https://trunkbaseddevelopment.com/feature-flags/,2026-11-23,full
+s157,"Branch by Abstraction (Paul Hammant, no date on the page)",https://trunkbaseddevelopment.com/branch-by-abstraction/,2026-11-23,full
+s158,"Release from trunk (Paul Hammant, no date on the page)",https://trunkbaseddevelopment.com/release-from-trunk/,2026-11-23,full
+s159,"Branch for release (Paul Hammant, no date on the page)",https://trunkbaseddevelopment.com/branch-for-release/,2026-11-23,skimmed
+s160,"Capabilities: Pervasive security (the page that explains ""shifting left"") (DORA, no date on the page)",https://dora.dev/capabilities/pervasive-security/,2026-11-23,full
+s161,"DORA's software delivery performance metrics (Nathen Harvey, DORA, ""Last updated: January 5, 2026"")",https://dora.dev/guides/dora-metrics-four-keys/,2026-11-23,full
+s162,"Capabilities: Continuous delivery (DORA, no date on the page)",https://dora.dev/capabilities/continuous-delivery/,2026-11-23,skimmed
+s163,"Capabilities: Deployment automation (DORA, no date on the page)",https://dora.dev/capabilities/deployment-automation/,2026-11-23,skimmed
+s164,"Capabilities: Loosely coupled teams (DORA, no date on the page)",https://dora.dev/capabilities/loosely-coupled-teams/,2026-11-23,skimmed
+s165,"2016 State of DevOps Report (Puppet + DORA, 2016)",https://dora.dev/research/2016/2016-state-of-devops-report.pdf,2026-11-23,skimmed
+s166,"2017 State of DevOps Report (Puppet + DORA, 2017)",https://dora.dev/research/2017/2017-state-of-devops-report.pdf,2026-11-23,skimmed
+s167,"Accelerate: State of DevOps 2018 (DORA, 2018)",https://dora.dev/research/2018/dora-report/2018-dora-accelerate-state-of-devops-report.pdf,2026-11-23,skimmed
+s168,"Accelerate: State of DevOps 2019 (DORA, 2019)",https://dora.dev/research/2019/dora-report/2019-dora-accelerate-state-of-devops-report.pdf,2026-11-23,skimmed
+s169,"Accelerate State of DevOps 2023 (DORA, ""v. 2023-12"")",https://dora.dev/research/2023/dora-report/2023-dora-accelerate-state-of-devops-report.pdf,2026-11-23,skimmed
+s170,"Accelerate State of DevOps 2024 (DORA, ""v. 2024.3"")",https://dora.dev/research/2024/dora-report/2024-dora-accelerate-state-of-devops-report.pdf,2026-11-23,skimmed
+s171,"Feature Toggles (aka Feature Flags) (Pete Hodgson, on martinfowler.com, 09 October 2017 (complete article first published 08 February 2016, per its revision list))",https://martinfowler.com/articles/feature-toggles.html,2026-11-23,skimmed
+s172,"Feature Flag (bliki) (Martin Fowler, 29 October 2010; revised 2016-02-12 and 2023-07-14)",https://martinfowler.com/bliki/FeatureFlag.html,2026-11-23,full
+s173,"Keystone Interface (Martin Fowler, 29 April 2020)",https://martinfowler.com/bliki/KeystoneInterface.html,2026-11-23,full
+s174,"Dark Launching (Martin Fowler, 29 April 2020)",https://martinfowler.com/bliki/DarkLaunching.html,2026-11-23,full
+s175,"Branch By Abstraction (Martin Fowler, 7 January 2014)",https://martinfowler.com/bliki/BranchByAbstraction.html,2026-11-23,full
+s176,"Deployment Pipeline (Martin Fowler, 30 May 2013)",https://martinfowler.com/bliki/DeploymentPipeline.html,2026-11-23,full
+s177,"Continuous Delivery (Martin Fowler, 30 May 2013, updated 12 August 2014)",https://martinfowler.com/bliki/ContinuousDelivery.html,2026-11-23,full
+s178,"Four Principles of Low-Risk Software Releases (blog stub) (Jez Humble, 16 February 2012)",https://continuousdelivery.com/2012/02/four-principles-of-low-risk-software-releases/,2026-11-23,full
+s179,"Continuous Delivery: Anatomy of the Deployment Pipeline (chapter 5 of the book, publisher's excerpt) (Jez Humble and David Farley, InformIT, Sep 7, 2010)",https://www.informit.com/articles/article.aspx?p=1621865,2026-11-23,skimmed
+s180,"Facebook Chat (Eugene Letuchy, Facebook Engineering, May 13, 2008)",https://engineering.fb.com/2008/05/13/web/facebook-chat/,2026-11-23,skimmed
+s181,"Hammering Usernames (Facebook Engineering (no byline in the page text I fetched), July 1, 2009)",https://engineering.fb.com/2009/07/01/web/hammering-usernames/,2026-11-23,full
+s182,"OpenFeature home page (OpenFeature (CNCF), no date on the page; footer ""© 2026"")",https://openfeature.dev/,2026-11-23,full
+s183,"OpenFeature Specification: Introduction (OpenFeature, no date on the page)",https://openfeature.dev/specification/,2026-11-23,full
+s184,"Welcome to OpenFeature (docs intro) (OpenFeature, no date on the page)",https://openfeature.dev/docs/reference/intro/,2026-11-23,full
+s185,"CNCF project page: OpenFeature (CNCF, no date on the page)",https://www.cncf.io/projects/openfeature/,2026-11-23,skimmed
+s186,"OpenFeature becomes a CNCF incubating project (CNCF, December 19, 2023)",https://www.cncf.io/blog/2023/12/19/openfeature-becomes-a-cncf-incubating-project/,2026-11-23,skimmed
+s187,"Cloudflare Flagship (docs overview) (Cloudflare, no date on the page; metadata dateModified 2026-11-04)",https://developers.cloudflare.com/flagship/,2026-11-23,full
+s188,"Changelog: Flagship now in public beta (Cloudflare, May 26, 2026)",https://developers.cloudflare.com/changelog/post/2026-05-26-public-beta/,2026-11-23,full
+s189,"Introducing Flagship: feature flags built for the age of AI (Cloudflare blog, 2026-04-17 (metadata datePublished); in-page ""Update, May 26, 2026"")",https://blog.cloudflare.com/flagship/,2026-11-23,skimmed
+s190,"Flagship: Best practices (Cloudflare, metadata dateModified 2026-06-24)",https://developers.cloudflare.com/flagship/best-practices/,2026-11-23,full
+s191,"Flagship: Limits (Cloudflare, metadata dateModified 2026-10-19)",https://developers.cloudflare.com/flagship/reference/limits/,2026-11-23,full
+s192,"Flagship: Percentage rollouts (Cloudflare, metadata dateModified 2026-10-19)",https://developers.cloudflare.com/flagship/targeting/percentage-rollouts/,2026-11-23,full
+s193,"Flagship: Get started (Cloudflare, metadata dateModified 2026-10-29)",https://developers.cloudflare.com/flagship/get-started/,2026-11-23,skimmed
+s194,"Workers: Versions & deployments (Cloudflare, metadata dateModified 2026-11-19)",https://developers.cloudflare.com/workers/versions-and-deployments/,2026-11-23,full
+s195,"Workers: Gradual deployments (Cloudflare, metadata dateModified 2026-11-12)",https://developers.cloudflare.com/workers/versions-and-deployments/gradual-deployments/,2026-11-23,full
+s196,"Workers: Version URLs (the page that used to be ""Preview URLs"") (Cloudflare, metadata dateModified 2026-11-19)",https://developers.cloudflare.com/workers/configuration/previews/,2026-11-23,full
+s197,"Workers: Previews (Cloudflare, metadata dateModified 2026-09-24)",https://developers.cloudflare.com/workers/previews/,2026-11-23,full
+s198,"Workers Previews: Resources and isolation (Cloudflare, metadata dateModified 2026-11-21)",https://developers.cloudflare.com/workers/previews/resources/,2026-11-23,skimmed
+s199,"Workers Previews: Compare workflows (Cloudflare, metadata dateModified 2026-11-19)",https://developers.cloudflare.com/workers/previews/compare-workflows/,2026-11-23,full
+s200,"Workers Previews: Examples (Cloudflare, metadata dateModified 2026-10-01)",https://developers.cloudflare.com/workers/previews/examples/,2026-11-23,skimmed
+s201,"Changelog: Test every pull request in an isolated environment with Worker Previews (Cloudflare, September 22, 2026)",https://developers.cloudflare.com/changelog/post/2026-09-22-worker-previews/,2026-11-23,skimmed
+s202,"Workers Builds: Build branches (Cloudflare, metadata dateModified 2026-11-08)",https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/,2026-11-23,full
+s203,"Environments (holds the Preview environment section) (Vercel, front matter last_updated 2026-09-17)",https://vercel.com/docs/deployments/environments,2026-11-23,skimmed
+s204,"Comments Overview (Vercel, front matter last_updated 2026-08-19)",https://vercel.com/docs/comments,2026-11-23,skimmed
+s205,"Limits (Vercel, front matter last_updated 2026-09-16)",https://vercel.com/docs/limits,2026-11-23,skimmed
+s206,"Deployment Protection (Vercel, front matter last_updated 2026-09-15)",https://vercel.com/docs/deployment-protection,2026-11-23,skimmed
+s207,"Preview deployments for retail campaign review (knowledge-base guide) (Vercel, published 2026-09-28, last_updated 2026-10-02)",https://vercel.com/kb/guide/preview-deployments-retail-campaign-review,2026-11-23,skimmed
+s208,"Deploy Previews (Netlify, ""Last updated: Nov 10, 2026"")",https://docs.netlify.com/deploy/deploy-types/deploy-previews/,2026-11-23,full
+s209,"Manage deploys overview (Netlify, ""Last updated: Sep 30, 2026"")",https://docs.netlify.com/deploy/manage-deploys/manage-deploys-overview/,2026-11-23,skimmed
+s210,"Dependency caching reference (GitHub Docs, no date on the page)",https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching,2026-11-23,skimmed
+s211,"Control the concurrency of workflows and jobs (GitHub Docs, no date on the page)",https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency,2026-11-23,full
+s212,"Concurrency (concept page) (GitHub Docs, no date on the page)",https://docs.github.com/en/actions/concepts/workflows-and-actions/concurrency,2026-11-23,full
+s213,"Workflow syntax for GitHub Actions (GitHub Docs, no date on the page)",https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax,2026-11-23,skimmed
+s214,"Running variations of jobs in a workflow (GitHub Docs, no date on the page)",https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations,2026-11-23,skimmed
+s215,"About protected branches (GitHub Docs, no date on the page)",https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches,2026-11-23,skimmed
+s216,"Troubleshooting required status checks (GitHub Docs, no date on the page)",https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/troubleshooting-required-status-checks,2026-11-23,skimmed
+s217,"Managing a merge queue (GitHub Docs, no date on the page)",https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue,2026-11-23,full
+s218,"Merging a pull request with a merge queue (GitHub Docs, no date on the page)",https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/merging-a-pull-request-with-a-merge-queue,2026-11-23,skimmed
+s219,"Sharding (Playwright docs (Microsoft), no date on the page)",https://playwright.dev/docs/test-sharding,2026-11-23,skimmed
+s220,"Speed of Code Reviews (Google, eng-practices, no date on the page)",https://google.github.io/eng-practices/review/reviewer/speed.html,2026-11-23,full
+s221,"Do Small Code Changes Merge Faster? A Multi-Language Empirical Investigation (arXiv 2203.05045) (Gunnar Kudrjavets and 3 others, submitted 9 Mar 2022)",https://arxiv.org/abs/2203.05045,2026-11-23,skimmed
+s222,"2025 Engineering Benchmarks: Insights from 6.1M+ Pull Requests (blog post about the report) (LinearB (vendor), January 8, 2025)",https://linearb.io/blog/2025-engineering-benchmarks-insights,2026-11-23,skimmed
+s223,"The Kanban Guide (May 2025) (Orderly Disruption Limited and Daniel S. Vacanti, Inc., ""Updated: May 1, 2025"", v2025.5)",https://kanbanguides.org/english/,2026-11-23,skimmed
+s224,"SP 800-218, Secure Software Development Framework (SSDF) Version 1.1 (Souppaya, Scarfone, Dodson; NIST, February 2022)",https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218.pdf,2026-11-23,skimmed
+s225,"OWASP DevSecOps Guideline (project page) (OWASP, no date on the page; footer ""© 2026"")",https://owasp.org/www-project-devsecops-guideline/,2026-11-23,skimmed
+s226,"Extreme Programming Explained, 2nd ed. (store page with table of contents) (Kent Beck with Cynthia Andres; InformIT, book 2004)",https://www.informit.com/store/extreme-programming-explained-embrace-change-9780134051987,2026-11-23,skimmed
+s227,"The Art of Agile Development: Ten-Minute Build (James Shore, no date checked)",https://www.jamesshore.com/v2/books/aoad1/ten_minute_build,2026-11-23,skimmed
+s228,"onRails pyramid skill, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/pyramid/SKILL.md,2026-11-23,full
+s229,"onRails pass gate reference, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/pyramid/references/pass-gate.md,2026-11-23,full
+s230,"onRails issues skill, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/issues/SKILL.md,2026-11-23,full
+s231,"onRails consistency check, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/issues/references/consistency.md,2026-11-23,full
+s232,"onRails coordinate skill, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/coordinate/SKILL.md,2026-11-23,full
+s233,"onRails build skill, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/build/SKILL.md,2026-11-23,full
+s234,"onRails pr-review skill, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/pr-review/SKILL.md,2026-11-23,full
+s235,"onRails qa skill, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/qa/SKILL.md,2026-11-23,full
+s236,"onRails back skill, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/back/SKILL.md,2026-11-23,full
+s237,"onRails afk skill, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/afk/SKILL.md,2026-11-23,full
+s238,"onRails routing skill, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/routing/SKILL.md,2026-11-23,full
+s239,"onRails idea skill and its templates, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/idea/,2026-11-23,full
+s240,"onRails grill and wireframes skills, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/grill/SKILL.md,2026-11-23,full
+s241,"onRails research skill and its references, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/research/,2026-11-23,full
+s242,"onRails automation and ask skills, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/automation/SKILL.md,2026-11-23,full
+s243,"onRails README, AGENTS.md and guide/README.md, as on main",jsmigendevelopment/onRails@06b0b92:README.md,2026-11-23,full
+s244,"onRails guide/evidence.md and guide/principles.md, as on main",jsmigendevelopment/onRails@06b0b92:guide/evidence.md,2026-11-23,full
+s245,"onRails guide/app-conventions.md, section 9, as on main",jsmigendevelopment/onRails@06b0b92:guide/app-conventions.md,2026-11-23,skimmed
+s246,"onRails research/competitors.md (the kit's own fact-checked competitor scan, 2026-11-23)",jsmigendevelopment/onRails@06b0b92:research/competitors.md,2026-11-23,full
+s247,"onRails research: foundations, platform-packs, electron-pack, authorization, plugin-plan (headings and provenance read for the format; not used for claims)",jsmigendevelopment/onRails@06b0b92:research/,2026-11-23,skimmed
+s248,"onRails evals: README, run.mjs, lib and the seven scenarios, as on main",jsmigendevelopment/onRails@06b0b92:evals/,2026-11-23,full
+s249,"onRails tanstack-start pack: .github/workflows/ci.yml, preview.yml, pr-rules.yml, deploy-test.yml, as on main",jsmigendevelopment/onRails@06b0b92:stacks/tanstack-start/.github/workflows/,2026-11-23,skimmed
+s250,"onRails tanstack-start pack: src/lib file list and README, searched for a feature-flag module (4 greps: flag, feature.flag, featureFlag, FLAG_)",jsmigendevelopment/onRails@06b0b92:stacks/tanstack-start/src/lib/,2026-11-23,skimmed
+s251,"onRails stack-tanstack-start skill, Environments and deploys section, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/stack-tanstack-start/SKILL.md,2026-11-23,skimmed
+s252,"Searches of the kit at 06b0b92 for ""definition of done"", ""cycle time"", ""lead time"", ""throughput"", ""velocity"", ""WIP"" and ""in flight"" in .agents/skills, AGENTS.md, README.md and guide/ (7 greps)",jsmigendevelopment/onRails@06b0b92:.agents/skills/,2026-11-23,skimmed
+s253,GitHub Spec Kit: templates/tasks-template.md and templates/spec-template.md,github/spec-kit@a4d571229e164e440f8950cac034607bae7b7518:templates/,2026-11-23,full
+s254,"The author's re-fetch of 44 quotes from 20 of the pages above, compared word for word (42 matched as fetched; 2 differed only in spacing or had been reworded on the page)",research/agile-flow/coverage.md,2026-11-23,full
+s255,"Pilot runs of the three draft eval scenarios on claude-haiku-5-5, made while writing them and before any manifest (one run each, with and without the kit)",research/agile-flow/runs/2026-11-23-evals/summaries/cloud-linux.md,2026-11-23,full
+s256,"Search, 1 query: a controlled sweep of step size for coding agents (same task, same model, coarse against fine). Not found",websearch: arXiv 2025 2026 task decomposition granularity coding agents too coarse too fine subtask size effect on success rate,2026-11-23,full
+s257,"Search, 1 query: a measured study of a plan critic or plan review for coding agents. Not found","websearch: LLM plan verification critic agent improves plan quality measured arXiv 2025 ""plan"" verifier coding agent SWE-bench plan review before execution",2026-11-23,full
+s258,"Search, 1 query: a measured figure for how many coding agents one person can supervise. Not found",websearch: how many coding agents can one developer supervise in parallel study measured 2026 human review bottleneck agents,2026-11-23,full
+s259,"Search, 1 query: a controlled study of CI wait time in agent workflows. Not found",websearch: CI wait time bottleneck AI coding agents measured 2026 agent workflow continuous integration minutes waiting study,2026-11-23,full
+s260,"Search, 2 queries and 3 direct fetches: Kent Beck's own text on the Ten-Minute Build, Weekly Cycle, Quarterly Cycle and Slack. Not found online; only the contents page","websearch: Kent Beck ""Extreme Programming Explained"" second edition ""Ten-Minute Build"" ""Weekly Cycle"" ""Quarterly Cycle"" ""Slack"" sample chapter informit",2026-11-23,full
+s261,Search of the sources read: a primary source that names time between merges as a flow metric. Not found,"grep of the DORA pages, six DORA report PDFs and the Kanban Guide",2026-11-23,full
+s262,"Search, 1 site-restricted query and a grep of nine DORA pages and six report PDFs: a DORA page that says ""decouple deployment from release"" or ""proxy for batch size"". Not found","websearch: ""decouple"" OR ""decoupling"" deployment release ""feature flags"" site:dora.dev",2026-11-23,full
+s263,"Search, 1 query and 2 direct URLs: Cohen, Best Kept Secrets of Peer Code Review (2006). Not obtained","websearch: Cohen ""Best Kept Secrets of Peer Code Review"" pdf ""Code Review at Cisco Systems"" chapter 2500 reviews 3.2 million lines 200 lines defect density",2026-11-23,full
