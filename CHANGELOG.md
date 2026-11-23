@@ -9,6 +9,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - **`init` offers to start the session.** In a terminal it asks "Start Claude Code here now with /idea?" (`/join` when the folder already has code), asks which agent when you have both, and hands the terminal over. `--start` skips the question, `--no-start` turns it off.
 - **`init --global`** copies the four entry skills (`idea`, `join`, `back`, `afk`) to `~/.claude/skills` and `~/.agents/skills`. It never overwrites, and `doctor` warns when they fall behind the CLI.
 - **Cloudflare's agent setup, offered in slice 0.** The TanStack Start skill offers Cloudflare's skills and MCP server for Claude Code or Codex, from a reviewed copy dated 2026-11-22. Creating resources still goes through `setup-cloudflare`.
+- **The onRails plugin** for Claude Code and Codex: `/plugin marketplace add jsmigendevelopment/onRails`, then `/plugin install core@onrails`. It gives you `/or:idea`, `/or:join`, `/or:back` and `/or:afk` in any folder. Each one hands off to the project's copy, or offers to install the kit from a CLI copy inside the plugin, with no npm. `sync-skills` makes the skills, `npm run bundle` makes `plugin/cli/`, and CI validates both. `doctor` reports the plugin's version. `init --global` now points to the plugin.
 - **A plan for shipping the kit as a Claude Code plugin:** [`guide/plugin-plan.md`](guide/plugin-plan.md).
 
 ### Fixed

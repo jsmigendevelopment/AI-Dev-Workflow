@@ -39,6 +39,7 @@
   ],
   "scripts": {
     "bundle": "node scripts/bundle.mjs",
+    "bundle:check": "node scripts/bundle.mjs --check",
     "prepack": "node scripts/bundle.mjs",
     "test": "node --test \"test/*.test.mjs\""
   },

@@ -12,7 +12,20 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/sync-skills.mjs --check
+      - run: npm run bundle:check
+        working-directory: cli
       - run: npm run bundle && npm test
         working-directory: cli
       - run: npm pack --dry-run
         working-directory: cli
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # validate needs no sign-in (checked with Claude Code 2.1.330 and an empty HOME).
+      - run: npx -y @anthropic-ai/claude-code@2.1.330 plugin validate ./plugin
+      - run: npx -y @anthropic-ai/claude-code@2.1.330 plugin validate .
+      - run: node scripts/sync-skills.mjs --check

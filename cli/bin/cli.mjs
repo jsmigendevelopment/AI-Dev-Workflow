@@ -22,7 +22,8 @@ Usage:
                                                   install the kit (default: this folder), then offer
                                                   to start Claude Code or Codex there with /idea or /join
   npx ai-dev-workflow init --global               copy idea, join, back and afk to ~/.claude/skills
-                                                  and ~/.agents/skills (never overwrites)
+                                                  and ~/.agents/skills (never overwrites). The
+                                                  plugin is the recommended way now: see the README
   npx ai-dev-workflow update [dir] [--dry-run]    update to the kit in this CLI version
   npx ai-dev-workflow doctor [dir]                check your tools and the kit
   npx ai-dev-workflow doctor [dir] --fix [--yes] [--dry-run]

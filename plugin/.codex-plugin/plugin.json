@@ -1,0 +1,26 @@
+{
+  "name": "or",
+  "version": "0.4.0",
+  "description": "onRails: type $idea or $join in any folder. Installs the kit's rules, skills and guardrails into the project, then hands off to the project's own copy.",
+  "author": {
+    "name": "onRails",
+    "url": "https://github.com/jsmigendevelopment/onRails"
+  },
+  "homepage": "https://github.com/jsmigendevelopment/onRails",
+  "repository": "https://github.com/jsmigendevelopment/onRails",
+  "license": "MIT",
+  "keywords": ["onrails", "agents", "skills", "workflow", "tracer-bullet", "kickoff"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "onRails",
+    "shortDescription": "Idea to planned repo, then an agent build loop",
+    "developerName": "onRails",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/jsmigendevelopment/onRails",
+    "defaultPrompt": [
+      "I have an idea for a new app",
+      "Help me get set up in this repo"
+    ]
+  }
+}

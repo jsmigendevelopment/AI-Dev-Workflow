@@ -1,0 +1,13 @@
+{
+  "name": "or",
+  "version": "0.4.0",
+  "description": "onRails: type /idea or /join in any folder. Installs the kit's rules, skills and guardrails into the project, then hands off to the project's own copy.",
+  "author": {
+    "name": "onRails",
+    "url": "https://github.com/jsmigendevelopment/onRails"
+  },
+  "homepage": "https://github.com/jsmigendevelopment/onRails",
+  "repository": "https://github.com/jsmigendevelopment/onRails",
+  "license": "MIT",
+  "keywords": ["onrails", "agents", "skills", "workflow", "tracer-bullet", "kickoff"]
+}

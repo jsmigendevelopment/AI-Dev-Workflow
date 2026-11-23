@@ -14,6 +14,16 @@
 > [!TIP]
 > **Typing the command always works.** The plain phrase usually does, on a strong model.
 
+**Got the plugin?** The commands show as `/or:idea`, `/or:join`, `/or:back`, `/or:afk`. Plain `/idea` works too. In a folder with the kit, it runs the project's copy. Install it once:
+
+```text
+/plugin marketplace add jsmigendevelopment/onRails
+/plugin install core@onrails
+/reload-plugins
+```
+
+Codex: `codex plugin marketplace add jsmigendevelopment/onRails`, then `codex plugin add or@onrails`. Updates are by hand (`claude plugin update core@onrails`). Cloud sessions don't load personal plugins; they use the repo's skills. Don't mix the plugin with `init --global`. → [README](../README.md#install-as-a-plugin)
+
 **Adding the kit to an app you already have?** → [Step by step](add-to-existing-app.md)
 
 ---

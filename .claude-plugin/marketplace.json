@@ -1,0 +1,20 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "onrails",
+  "description": "onRails: agent rules, skills and guardrails for Claude Code and Codex.",
+  "owner": {
+    "name": "onRails",
+    "url": "https://github.com/jsmigendevelopment/onRails"
+  },
+  "plugins": [
+    {
+      "name": "core",
+      "source": "./plugin",
+      "description": "The four commands you type: /or:idea, /or:join, /or:back and /or:afk. They install the kit into a project, then hand off to the project's copy.",
+      "homepage": "https://github.com/jsmigendevelopment/onRails",
+      "repository": "https://github.com/jsmigendevelopment/onRails",
+      "license": "MIT",
+      "category": "development"
+    }
+  ]
+}

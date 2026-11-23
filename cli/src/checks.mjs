@@ -3,7 +3,10 @@
 //   { run: [argv...], cwd, print: [lines], action: { describe, run() } }
 import { globalSkillChecks } from "./global.mjs";
 import { agentInstallLines, installPlan, pnpmPlan } from "./installers.mjs";
+import { loadKit } from "./kit.mjs";
+import { pluginChecks } from "./plugin.mjs";
 import { projectChecks } from "./project-checks.mjs";
+import { readProjectManifest } from "./sync.mjs";
 import { FAIL, INFO, OK } from "./marks.mjs";
 import { realSystem } from "./system.mjs";
 
@@ -41,6 +44,14 @@ export function runChecks(projectDir, { kitDir, sys = realSystem() } = {}) {
   }
 
   checks.push(...globalSkillChecks({ kitDir, home: sys.home }));
+  checks.push(...pluginChecks({ home: sys.home, env: sys.env, kitVersion: kitVersionFor(projectDir, kitDir) }));
   checks.push(...projectChecks(projectDir, { kitDir, sys }));
   return checks;
+}
+
+// The project's kit version, else this CLI's, else none.
+function kitVersionFor(projectDir, kitDir) {
+  const manifest = readProjectManifest(projectDir);
+  if (manifest) return manifest.kitVersion;
+  try { return loadKit(kitDir).version; } catch { return null; } // a missing bundle is reported by projectChecks
 }
