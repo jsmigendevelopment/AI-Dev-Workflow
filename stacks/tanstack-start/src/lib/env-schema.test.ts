@@ -1,24 +1,26 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { buildEnvSchema, parseEnv, runtimeEnvSchema } from './env-schema'
+import { buildEnvSchema, envAliases, parseEnv, runtimeEnvSchema } from './env-schema'
 
 const run = (raw: Record<string, string | undefined>) => () => parseEnv(runtimeEnvSchema, raw, 'Worker')
 
 describe('env schema', () => {
   it('accepts a fresh clone with no keys at all', () => {
     expect(run({})()).toEqual({})
-    expect(run({ CLERK_SECRET_KEY: '', CLERK_PUBLISHABLE_KEY: '  ' })()).toEqual({})
+    expect(run({ CLERK_SECRET_KEY: '', VITE_CLERK_PUBLISHABLE_KEY: '  ' })()).toEqual({})
   })
 
   it('accepts a complete pair', () => {
-    expect(run({ CLERK_PUBLISHABLE_KEY: 'pk_test_abc', CLERK_SECRET_KEY: 'sk_test_abc' })()).toMatchObject({
+    expect(
+      run({ VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_abc', CLERK_SECRET_KEY: 'sk_test_abc' })(),
+    ).toMatchObject({
       CLERK_SECRET_KEY: 'sk_test_abc',
     })
   })
 
   it('fails fast on a half-set pair, naming the missing variable and never printing a value', () => {
     const secret = 'sk_live_DO_NOT_PRINT_ME'
-    expect(run({ CLERK_SECRET_KEY: secret })).toThrow(/CLERK_PUBLISHABLE_KEY is missing/)
+    expect(run({ CLERK_SECRET_KEY: secret })).toThrow(/VITE_CLERK_PUBLISHABLE_KEY is missing/)
     try {
       run({ CLERK_SECRET_KEY: secret, TURNSTILE_SITE_KEY: 'x' })()
     } catch (error) {
@@ -30,14 +32,16 @@ describe('env schema', () => {
   })
 
   it('rejects a malformed key without echoing it', () => {
-    expect(run({ CLERK_SECRET_KEY: 'oops-secret', CLERK_PUBLISHABLE_KEY: 'pk_x' })).toThrow(
+    expect(run({ CLERK_SECRET_KEY: 'oops-secret', VITE_CLERK_PUBLISHABLE_KEY: 'pk_x' })).toThrow(
       /CLERK_SECRET_KEY must start with sk_/,
     )
-    expect(run({ CLERK_SECRET_KEY: 'oops-secret', CLERK_PUBLISHABLE_KEY: 'pk_x' })).not.toThrow(/oops-secret/)
+    expect(run({ CLERK_SECRET_KEY: 'oops-secret', VITE_CLERK_PUBLISHABLE_KEY: 'pk_x' })).not.toThrow(
+      /oops-secret/,
+    )
   })
 
   it('takes an optional Clerk JWT public key, only with the Clerk keys', () => {
-    const keys = { CLERK_PUBLISHABLE_KEY: 'pk_test_abc', CLERK_SECRET_KEY: 'sk_test_abc' }
+    const keys = { VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_abc', CLERK_SECRET_KEY: 'sk_test_abc' }
     const pem = '-----BEGIN PUBLIC KEY-----\nMIIB\n-----END PUBLIC KEY-----'
     expect(run({ ...keys, CLERK_JWT_KEY: pem })().CLERK_JWT_KEY).toBe(pem)
     expect(run({ ...keys, CLERK_JWT_KEY: 'not-a-key' })).toThrow(/CLERK_JWT_KEY must be a PEM public key/)
@@ -102,6 +106,51 @@ describe('env schema', () => {
     )
     expect(run({ ...access, ACCESS_AUD: 'not hex' })).toThrow(/ACCESS_AUD must be/)
     expect(run({ ...access, ACCESS_PATHS: 'admin' })).toThrow(/ACCESS_PATHS must be/)
+  })
+
+  // #13: Clerk's CLI (`clerk env pull`) and its TanStack Start quickstart name the publishable key
+  // VITE_CLERK_PUBLISHABLE_KEY; apps set up before that keep CLERK_PUBLISHABLE_KEY working.
+  describe('the old CLERK_PUBLISHABLE_KEY name', () => {
+    const pk = 'pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk'
+
+    it('is read as VITE_CLERK_PUBLISHABLE_KEY, with a warning that names both and no value', () => {
+      const warn = vi.fn()
+      const raw = envAliases(warn)({ CLERK_PUBLISHABLE_KEY: pk, CLERK_SECRET_KEY: 'sk_test_abc' })
+      expect(run(raw)()).toMatchObject({ VITE_CLERK_PUBLISHABLE_KEY: pk, CLERK_SECRET_KEY: 'sk_test_abc' })
+      expect(raw).not.toHaveProperty('CLERK_PUBLISHABLE_KEY')
+      expect(warn).toHaveBeenCalledExactlyOnceWith('CLERK_PUBLISHABLE_KEY', 'VITE_CLERK_PUBLISHABLE_KEY')
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(pk)
+    })
+
+    it('warns once, however many times the env is read', () => {
+      const warn = vi.fn()
+      const read = envAliases(warn)
+      for (let i = 0; i < 3; i++) read({ CLERK_PUBLISHABLE_KEY: pk })
+      expect(warn).toHaveBeenCalledTimes(1)
+    })
+
+    it('loses to the documented name when both are set, still warning', () => {
+      const warn = vi.fn()
+      const raw = envAliases(warn)({ VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_new', CLERK_PUBLISHABLE_KEY: pk })
+      expect(raw).toEqual({ VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_new' })
+      expect(warn).toHaveBeenCalledTimes(1)
+    })
+
+    it('changes nothing and says nothing when only the documented name is set, or the old one is blank', () => {
+      const warn = vi.fn()
+      const read = envAliases(warn)
+      expect(read({ VITE_CLERK_PUBLISHABLE_KEY: pk })).toEqual({ VITE_CLERK_PUBLISHABLE_KEY: pk })
+      expect(read({ CLERK_PUBLISHABLE_KEY: '  ' })).toEqual({})
+      expect(read({})).toEqual({})
+      expect(warn).not.toHaveBeenCalled()
+    })
+
+    it('still fails a half-set pair under the documented name', () => {
+      const raw = envAliases(vi.fn())({ CLERK_PUBLISHABLE_KEY: pk })
+      expect(run(raw)).toThrow(
+        /CLERK_SECRET_KEY is missing \(set both VITE_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY/,
+      )
+    })
   })
 
   it('checks the build-time site URL', () => {

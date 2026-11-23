@@ -104,7 +104,7 @@ describe('authorizedParties: the origins a Clerk session token (azp) may come fr
 })
 
 describe('partiesConfigError: fails closed at startup when production has no origin', () => {
-  const keys = { CLERK_SECRET_KEY: 'sk_test_x', CLERK_PUBLISHABLE_KEY: 'pk_test_x' }
+  const keys = { CLERK_SECRET_KEY: 'sk_test_x', VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_x' }
 
   it('production with Clerk keys needs SITE_URL or CLERK_AUTHORIZED_PARTIES', () => {
     const none = { ...production, siteUrl: '' }
@@ -115,7 +115,7 @@ describe('partiesConfigError: fails closed at startup when production has no ori
   })
 
   it('live keys anywhere need a fixed origin too; no keys, nothing to check', () => {
-    const live = { CLERK_SECRET_KEY: 'sk_live_DO_NOT_PRINT', CLERK_PUBLISHABLE_KEY: 'pk_live_x' }
+    const live = { CLERK_SECRET_KEY: 'sk_live_DO_NOT_PRINT', VITE_CLERK_PUBLISHABLE_KEY: 'pk_live_x' }
     expect(partiesConfigError(live, test)).toMatch(/CLERK_AUTHORIZED_PARTIES is missing/)
     expect(partiesConfigError(live, test)).not.toContain('DO_NOT_PRINT')
     expect(partiesConfigError(keys, test)).toBeNull()

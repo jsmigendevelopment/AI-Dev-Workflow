@@ -32,7 +32,8 @@ export const buildEnvSchema = z.object({
 
 export const runtimeEnvSchema = z
   .object({
-    CLERK_PUBLISHABLE_KEY: optional(z.string().startsWith('pk_', 'must start with pk_')),
+    /** The name Clerk's CLI writes and its TanStack Start docs use. Public, though read at runtime. */
+    VITE_CLERK_PUBLISHABLE_KEY: optional(z.string().startsWith('pk_', 'must start with pk_')),
     CLERK_SECRET_KEY: optional(z.string().startsWith('sk_', 'must start with sk_')),
     /** Optional: the instance's PEM public key (Clerk dashboard → API keys → JWKS public key). */
     CLERK_JWT_KEY: optional(z.string().includes('BEGIN PUBLIC KEY', { message: 'must be a PEM public key' })),
@@ -92,7 +93,7 @@ export const runtimeEnvSchema = z
   })
   .superRefine((env, ctx) => {
     const pairs = [
-      ['CLERK_PUBLISHABLE_KEY', 'CLERK_SECRET_KEY'],
+      ['VITE_CLERK_PUBLISHABLE_KEY', 'CLERK_SECRET_KEY'],
       ['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
     ] as const
     if (env.SITE_PROTECTION === 'password' && !env.SITE_PASSWORD)
@@ -125,6 +126,34 @@ export const runtimeEnvSchema = z
   })
 
 export type RuntimeEnv = z.output<typeof runtimeEnvSchema>
+
+type RawEnv = Record<string, string | undefined>
+
+/** Old names still read, and the name each one means now. */
+const ALIASES = { CLERK_PUBLISHABLE_KEY: 'VITE_CLERK_PUBLISHABLE_KEY' } as const
+
+/**
+ * Before the schema: an old name's value moves to its current name (the current one wins when
+ * both are set), and `warn` hears each old name once for the life of the returned reader. `warn`
+ * gets names only, never a value.
+ */
+export function envAliases(warn: (oldName: string, name: string) => void): (raw: RawEnv) => RawEnv {
+  const warned = new Set<string>()
+  return (raw) => {
+    const out = { ...raw }
+    for (const [oldName, name] of Object.entries(ALIASES)) {
+      const value = out[oldName]
+      delete out[oldName]
+      if (value === undefined || value.trim() === '') continue
+      if (out[name] === undefined || out[name].trim() === '') out[name] = value
+      if (!warned.has(oldName)) {
+        warned.add(oldName)
+        warn(oldName, name)
+      }
+    }
+    return out
+  }
+}
 
 /** Names and rules only. A Zod message never carries the value, and this never adds one. */
 export function describeEnvError(error: z.ZodError, where: string): string {

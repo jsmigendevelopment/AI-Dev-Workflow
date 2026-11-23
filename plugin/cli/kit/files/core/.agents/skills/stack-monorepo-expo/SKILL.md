@@ -81,6 +81,7 @@ A module never imports another module, and never imports `@clerk/*`. Auth is `us
 16. The web pack's licence check lists the whole workspace, and jest-expo and Vitest bring `@csstools/color-helpers` (MIT-0) through jsdom. It fails until MIT-0 is on the web pack's allow-list.
 17. eslint-plugin-boundaries 7 deprecates `mode` in element descriptors; use `partialMatch`. Prove any new rule fails on a deliberate violation before trusting it.
 18. The iOS e2e job's `App.xcworkspace` and `App` scheme come from `name` in `app.json`; rename them together.
+19. One Clerk key, two names, each Clerk's own: `VITE_CLERK_PUBLISHABLE_KEY` in `apps/web` (TanStack Start) and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` in `apps/mobile` (Expo). Run `clerk env pull` inside each app's folder: it picks the name from that folder's `package.json` and writes `.env.local` there. From the root it finds neither and falls back to `CLERK_PUBLISHABLE_KEY` in the root `.env.local`, which no app reads (`detectFramework` and `FALLBACK_KEY` in `clerk/cli`'s `framework.ts`, read 2026-11-23).
 
 ## What an agent can't verify
 

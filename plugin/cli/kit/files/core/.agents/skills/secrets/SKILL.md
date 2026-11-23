@@ -36,7 +36,7 @@ When a step adds a service, it adds its variables here in this format.
    |---|---|
    | `cloudflare.md` | `wrangler login`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_TOKEN`, `CLOUDFLARE_ACCESS_TOKEN`, Zero Trust, `TURNSTILE_*`, `VITE_CF_BEACON_TOKEN` |
    | `github.md` | the `test`, `production` and `preview` environments, and every secret and variable the workflows read |
-   | `clerk.md` | `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` |
+   | `clerk.md` | `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` |
    | `google-oauth.md`, `github-oauth.md`, `facebook.md`, `linkedin.md`, `yandex.md`, `entra.md` | `ACCESS_<LOGIN>_CLIENT_ID`, `ACCESS_<LOGIN>_CLIENT_SECRET` (and `ACCESS_ENTRA_TENANT_ID`) for Cloudflare Access |
    | `stripe.md` | `STRIPE_*` |
    | `resend.md` | `RESEND_API_KEY`, `EMAIL_FROM` |

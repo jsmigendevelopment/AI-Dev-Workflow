@@ -87,9 +87,9 @@ function responseHeaders(response: Response, url: URL, nonce: string | undefined
   // baseline: keep it. HTML always gets the page policy below.
   if (!isHtml && response.headers.has('content-security-policy')) delete headers['Content-Security-Policy']
   if (isHtml && nonce && !import.meta.env.DEV) {
-    const { CLERK_PUBLISHABLE_KEY, TURNSTILE_SITE_KEY } = serverEnv()
+    const { VITE_CLERK_PUBLISHABLE_KEY, TURNSTILE_SITE_KEY } = serverEnv()
     headers['Content-Security-Policy'] = pageCsp(nonce, {
-      clerkHost: clerkHostFromKey(CLERK_PUBLISHABLE_KEY),
+      clerkHost: clerkHostFromKey(VITE_CLERK_PUBLISHABLE_KEY),
       turnstile: Boolean(TURNSTILE_SITE_KEY),
       botChallengeOrigin: botChallengeOrigin(url, SITE_URL, DEFAULT_SITE_URL),
     })

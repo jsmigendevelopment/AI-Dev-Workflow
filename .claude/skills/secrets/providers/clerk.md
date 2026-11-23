@@ -11,18 +11,21 @@ Last checked: 2026-11-23. Official docs:
 - https://clerk.com/docs/guides/dashboard/dns-domains/subdomain-allowlist
 - Clerk's agent-setup prompt, `prompts/cli-setup.md` in `clerk/clerk-docs`
 - `clerk env pull` and the framework table in `clerk/cli` (`packages/cli-core/src/commands/env/README.md`, `src/lib/framework.ts`)
+- The TanStack Start quickstart (`docs/getting-started/quickstart.tanstack-react-start.mdx` in `clerk/clerk-docs`) and the SDK's env reader (`packages/tanstack-react-start/src/utils/env.ts` in `clerk/javascript`: `VITE_CLERK_PUBLISHABLE_KEY` first, then `CLERK_PUBLISHABLE_KEY`)
 
-How: clerk.com was blocked here, so these were read from Clerk's public repos (`clerk/clerk-docs`, commit of 2026-11-22; `clerk/cli`, commit of 2026-11-20). `[V]` = matches that source. `[U]` = not checked. Nothing here was run against a real Clerk account.
+How: clerk.com was blocked here, so these were read from Clerk's public repos (`clerk/clerk-docs`, commit of 2026-11-22; `clerk/cli`, commit of 2026-11-20; `clerk/javascript`, commit of 2026-11-22). `[V]` = matches that source. `[U]` = not checked. Nothing here was run against a real Clerk account.
 
 **What it's for.** Sign-in. The pack reads:
 
 ```text
-CLERK_PUBLISHABLE_KEY   pk_test_... or pk_live_...   public
-CLERK_SECRET_KEY        sk_test_... or sk_live_...   secret
-CLERK_JWT_KEY           optional, the JWKS Public Key (PEM), public
+VITE_CLERK_PUBLISHABLE_KEY   pk_test_... or pk_live_...   public
+CLERK_SECRET_KEY             sk_test_... or sk_live_...   secret
+CLERK_JWT_KEY                optional, the JWKS Public Key (PEM), public
 ```
 
-The mobile app (monorepo pack) reads `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`: the same key as the web app.
+These are Clerk's own names for TanStack Start: its quickstart's `.env`, and what `clerk env pull` writes (`framework.ts` in `clerk/cli`). `[V]` The Worker reads the publishable key at runtime despite the `VITE_` prefix; it's public either way. The pack's old name, `CLERK_PUBLISHABLE_KEY`, still works, with one warning in the Worker log (`env_name_deprecated`): rename it when you next touch the file.
+
+The mobile app (monorepo pack) reads `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`: the same key as the web app. Clerk's CLI writes that name for Expo too. `[V]`
 
 **Which keys where.** A Clerk app has two instances. `[V]`
 
@@ -42,7 +45,7 @@ Production keys need a domain you own and can add DNS records to. They don't wor
   "url": "https://dashboard.clerk.com/~/api-keys",
   "steps": "## 1.",
   "vars": {
-    "CLERK_PUBLISHABLE_KEY": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "shape": {"prefix": ["pk_test_", "pk_live_"]}},
+    "VITE_CLERK_PUBLISHABLE_KEY": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "shape": {"prefix": ["pk_test_", "pk_live_"]}},
     "CLERK_SECRET_KEY": {"secret": true, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "shape": {"prefix": ["sk_test_", "sk_live_"]}},
     "CLERK_JWT_KEY": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "shape": {"prefix": ["-----BEGIN PUBLIC KEY-----"]}}
   }
@@ -71,17 +74,13 @@ Not copied on purpose: Clerk's Next.js, Vercel and iOS steps, and anything namin
    pnpm dlx clerk@latest apps list --json
    pnpm dlx clerk@latest link --app <the app id you chose>
    ```
-3. Pull the development keys into the local file, and into the test file the secrets script reads. The agent may run these: they write files and print no values. `[V]` flags:
+3. Pull the development keys into the local file, and into the test file the secrets script reads. The agent may run these: they write files and print no values. They write `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`, the names the pack reads, so nothing needs renaming. `[V]` flags and names:
    ```bash
    pnpm dlx clerk@latest env pull --instance dev
    pnpm dlx clerk@latest env pull --instance dev --file .env.test.local
    ```
-4. **Rename one line in both files.** Clerk's CLI writes `VITE_CLERK_PUBLISHABLE_KEY` for TanStack Start (`[V]`, from `framework.ts`), but this pack reads `CLERK_PUBLISHABLE_KEY`. Open each file in your editor and change the name, keep the value:
-   ```text
-   CLERK_PUBLISHABLE_KEY=
-   ```
-5. Optional, for `/api/v1` without a call to Clerk: on https://dashboard.clerk.com/~/api-keys copy the **JWKS Public Key** into `CLERK_JWT_KEY` in the same files. `[V]` page, `[U]` exact label placement.
-6. Check:
+4. Optional, for `/api/v1` without a call to Clerk: on https://dashboard.clerk.com/~/api-keys copy the **JWKS Public Key** into `CLERK_JWT_KEY` in the same files. `[V]` page, `[U]` exact label placement.
+5. Check:
    ```bash
    pnpm dlx clerk@latest doctor
    ```
@@ -109,7 +108,7 @@ This is a production step: the person says yes first (always-stop list).
    pnpm dlx clerk@latest env pull --instance prod --print
    ```
    It prints two `KEY=value` lines. `[V]`
-4. Open `.env.production.local` (git-ignored) in your editor. Paste the two lines. Rename `VITE_CLERK_PUBLISHABLE_KEY` to `CLERK_PUBLISHABLE_KEY`. Save. Clear the terminal.
+4. Open `.env.production.local` (git-ignored) in your editor. Paste the two lines as they are. Save. Clear the terminal.
 5. The agent pushes them, names only, after a dry run and the person's yes:
    ```bash
    node .agents/skills/secrets/scripts/push-secrets.mjs --dry-run --wrangler --env production
@@ -127,7 +126,8 @@ A development instance is capped at 100 users and shows a "Development" banner. 
 ## Why / if it goes wrong
 
 - **Why the person runs `--print`:** a plain `env pull --instance prod` writes production keys over your development keys. `--print` touches no file, and running it in your own terminal keeps the values out of the agent's chat log. The secrets script then sends each value to GitHub and Cloudflare on stdin and prints names only.
-- **"Missing env: CLERK_PUBLISHABLE_KEY"** after `env pull`: the rename in step 4 was missed.
+- **`VITE_CLERK_PUBLISHABLE_KEY is missing`** in the Worker log: the file or the Worker has `CLERK_SECRET_KEY` but no publishable key under either name. Run step 3 again.
+- **`env_name_deprecated` in the Worker log:** an environment still has the old `CLERK_PUBLISHABLE_KEY`. It works. Set `VITE_CLERK_PUBLISHABLE_KEY` with the same value (`pnpm connect clerk --force`, or step 3 and the secrets script), then remove the old one (`npx wrangler secret delete CLERK_PUBLISHABLE_KEY --env <env>`, after the person's yes).
 - **Two apps by mistake:** someone ran `clerk init`. Pick one app; don't switch without the person's yes.
 - **Users don't copy** from development to production. Production starts empty. `[V]`
 - **Social logins:** development uses Clerk's shared OAuth credentials. Production needs your own for each provider. `[V]`

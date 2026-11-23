@@ -114,7 +114,7 @@ Set `SITE_URL` before the first deploy: until it is set, canonicals point at loc
 ## Set up Clerk
 
 1. Create an application at clerk.com (the free tier is enough).
-2. Copy `.env.example` to `.env` and fill in `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. Never commit `.env`.
+2. Copy `.env.example` to `.env` and fill in `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` (or let `clerk env pull` write them: those are the names Clerk's CLI uses). Never commit `.env`. The old name `CLERK_PUBLISHABLE_KEY` still works, with a warning.
 3. `pnpm dev`, open `/notes`, sign in.
 
 The server reads the keys per request in `src/server/auth.ts`. The signed-in user comes from the verified Clerk session, never from the request body. The CSP opens Clerk's Frontend API host (read from the publishable key) only when the keys are set.

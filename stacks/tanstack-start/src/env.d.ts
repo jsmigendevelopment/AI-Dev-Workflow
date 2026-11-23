@@ -3,6 +3,9 @@
 // Every name here is validated in src/lib/env-schema.ts.
 declare namespace Cloudflare {
   interface Env {
+    // Clerk's name for TanStack Start (`clerk env pull` writes it). Read at runtime, not inlined.
+    VITE_CLERK_PUBLISHABLE_KEY?: string
+    // The pack's old name: still read, with a warning (envAliases in src/lib/env-schema.ts).
     CLERK_PUBLISHABLE_KEY?: string
     CLERK_SECRET_KEY?: string
     CLERK_JWT_KEY?: string

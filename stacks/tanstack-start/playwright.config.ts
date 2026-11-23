@@ -87,7 +87,8 @@ export default defineConfig({
                 use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 4) },
                 testMatch: /clerk-parties\.spec\.ts/,
               },
-              // The same with CLERK_ALLOW_NATIVE_TOKENS on, as the monorepo-expo pack sets it.
+              // The same with CLERK_ALLOW_NATIVE_TOKENS on, as the monorepo-expo pack sets it, and the
+              // publishable key under its old name (the alias).
               {
                 name: 'clerk-native',
                 use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 5) },
@@ -115,8 +116,9 @@ export default defineConfig({
                 ...variant(port + 4, { ...e2eClerkVars(), CLERK_TELEMETRY_DISABLED: '1' }),
                 command: `pnpm db:migrate:local && pnpm preview --port ${port + 4} --strictPort`,
               },
+              // The old key name, so the alias (src/lib/env-schema.ts) is proved on a built Worker.
               variant(port + 5, {
-                ...e2eClerkVars(),
+                ...e2eClerkVars('CLERK_PUBLISHABLE_KEY'),
                 CLERK_TELEMETRY_DISABLED: '1',
                 CLERK_ALLOW_NATIVE_TOKENS: 'true',
               }),
