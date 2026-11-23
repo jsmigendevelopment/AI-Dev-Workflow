@@ -9,6 +9,7 @@ Swap D1 (SQLite) for Supabase Postgres, reached from the Worker through Cloudfla
 | **Env vars** | `DATABASE_URL` (secret; only in your shell when running `pnpm db:migrate`, never in the Worker). Bindings: `HYPERDRIVE` |
 | **Packages** | `pg@8.23.1`; dev: `@types/pg@8.23.1`, `@electric-sql/pglite@0.5.16` (in-process Postgres for the contract tests) |
 | **Issue** | `Skills: build, research` · lane `risky` (schema and data, a new data processor, production settings). Ask the person before you delete D1 migrations that have run anywhere but a laptop. |
+| **Vendor setup** | the `supabase` CLI (`supabase start` for local Postgres) and Supabase's agent tools, the kit's way: `.agents/skills/secrets/setup/supabase.md`. Keys and Hyperdrive: `.agents/skills/secrets/providers/supabase.md` |
 
 ## What it adds or replaces
 

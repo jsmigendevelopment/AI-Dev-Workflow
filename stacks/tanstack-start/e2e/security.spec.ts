@@ -96,6 +96,47 @@ test('escaped spaces and letters inside a path, and encoded query strings, still
   expect((await request.get('/notes?q=a%20b%26c')).status()).toBe(200)
 })
 
+test('a lowercase escape of a non-ASCII character reaches the app like the uppercase one (#65)', async ({
+  request,
+}) => {
+  for (const path of ['/notes/caf%c3%a9', '/notes/caf%C3%A9']) {
+    const response = await request.get(path)
+    expect(response.headers()['content-type'], path).toContain('text/html')
+    expect([200, 404], path).toContain(response.status())
+  }
+})
+
+test('the paths Start answers before the guards get their plain 404 and the security headers (#65)', async ({
+  baseURL,
+}) => {
+  // Node's fetch sends these as written: `//x` isn't a protocol-relative URL here.
+  for (const path of ['//x', '//notes', '/_serverFn/', '/_serverFn/x/..', '/%5FserverFn/', '/_serverFn//x']) {
+    const response = await fetch(`${baseURL}${path}`, { redirect: 'manual' })
+    expect(response.status, path).toBe(404)
+    expect(await response.text(), path).toBe('Not found\n')
+    expect(Object.fromEntries(response.headers), path).toMatchObject(BASELINE)
+  }
+})
+
+test("an unknown server function ID gets the internal envelope, not Start's error (#65)", async ({
+  baseURL,
+}) => {
+  const sameSite = { 'sec-fetch-site': 'same-origin', origin: baseURL!, 'content-type': 'application/json' }
+  const response = await fetch(`${baseURL}/_serverFn/not-a-real-id`, {
+    method: 'POST',
+    headers: sameSite,
+    body: '{}',
+  })
+  expect(response.status).toBe(500)
+  expect(Object.fromEntries(response.headers)).toMatchObject(BASELINE)
+  const body = await response.text()
+  expect(body).not.toContain('not-a-real-id')
+  expect(JSON.parse(body)).toEqual({
+    ok: false,
+    error: { code: 'internal', message: 'Something went wrong. Try again.' },
+  })
+})
+
 test('a cross-site call to a server function is blocked', async ({ request }) => {
   const response = await request.post('/_serverFn/anything', {
     headers: { 'sec-fetch-site': 'cross-site', origin: 'https://evil.example' },

@@ -49,4 +49,4 @@ Resend has a free plan with a daily and monthly sending limit. `[U]`, see https:
 - **403 from Resend:** the request had no `User-Agent`; the add-on sends one. Or the key lacks sending access. `[V]` for the first (the add-on's notes).
 - **"Domain not verified":** DNS hasn't spread yet, or a record was pasted into the wrong field. Copy each value exactly.
 - **`EMAIL_FROM` on another domain:** Resend refuses it. It must be on the verified domain.
-- **Agent tools:** no Resend agent prompt or CLI could be checked here, so the kit doesn't use one. `[U]`
+- **Agent tools** (Resend's docs and account MCP servers): [`../setup/resend.md`](../setup/resend.md).

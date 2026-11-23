@@ -12,6 +12,7 @@
  *   a token for `pr-1-app-test.evil.workers.dev` has that `azp`, not ours.
  *
  * One exception, `isNativeBearer`: a native app sends no `Origin`, so its token has no `azp`.
+ * It must carry our own claim instead (`app`, from the instance's session token claims).
  */
 
 import { bearerToken } from './http'
@@ -100,20 +101,39 @@ function unverifiedClaims(token: string): Record<string, unknown> | null {
   }
 }
 
+/** The custom session-token claim a native token must carry (Clerk: Sessions → Customize session token). */
+export const NATIVE_APP_CLAIM = 'app'
+
+/** The two variables that turn the native path on. Both checked in src/lib/env-schema.ts. */
+export interface NativeConfig {
+  CLERK_ALLOW_NATIVE_TOKENS?: string
+  CLERK_NATIVE_APP_CLAIM?: string
+}
+
+/** True when native tokens are allowed but no claim value is set: the native path stays off. */
+export function nativeClaimMissing(config: NativeConfig): boolean {
+  return config.CLERK_ALLOW_NATIVE_TOKENS === 'true' && !config.CLERK_NATIVE_APP_CLAIM
+}
+
 /**
- * True only for a native app's call (`CLERK_ALLOW_NATIVE_TOKENS` on): `Authorization: Bearer`
- * on `/api/v1`, with a token that has no `azp` claim at all. That one request is verified without
- * `authorizedParties`; signature, expiry and token type are still checked. Never the cookie (with
- * a header Clerk reads only the header), never a token that names an origin, even a wrong one.
+ * True only for a native app's call (`CLERK_ALLOW_NATIVE_TOKENS` on and `CLERK_NATIVE_APP_CLAIM`
+ * set): `Authorization: Bearer` on `/api/v1`, with a token that has no `azp` claim at all and an
+ * `app` claim equal to `CLERK_NATIVE_APP_CLAIM`. That one request is verified without
+ * `authorizedParties`; signature, expiry and token type are still checked, so the claim read here
+ * unverified is the one Clerk then verifies. Never the cookie (with a header Clerk reads only the
+ * header), never a token that names an origin, even a wrong one. Anything else falls back to the
+ * list, where a token with no `azp` is refused: the same 401 as no token.
  */
-export function isNativeBearer(request: Request, allowNative: boolean): boolean {
-  if (!allowNative || !isApiPath(new URL(request.url).pathname)) return false
+export function isNativeBearer(request: Request, config: NativeConfig): boolean {
+  const app = config.CLERK_NATIVE_APP_CLAIM
+  if (config.CLERK_ALLOW_NATIVE_TOKENS !== 'true' || !app) return false
+  if (!isApiPath(new URL(request.url).pathname)) return false
   // Belt and braces: Clerk reads the cookie when it doesn't take the header, and this path
   // turns the origin check off. Any Clerk session cookie and it's not a native call.
   if (hasClerkSessionCookie(request)) return false
   const token = bearerToken(request)
   const claims = token ? unverifiedClaims(token) : null
-  return claims !== null && !('azp' in claims)
+  return claims !== null && !('azp' in claims) && claims[NATIVE_APP_CLAIM] === app
 }
 
 const CLERK_SESSION_COOKIE = /^(__session|__client_uat)(_|$)/
@@ -124,14 +144,50 @@ function hasClerkSessionCookie(request: Request): boolean {
     .some((pair) => CLERK_SESSION_COOKIE.test(pair.trim().split('=')[0] ?? ''))
 }
 
+// Clerk reads its own query parameters even on an API call: a handshake token or nonce (a junk one
+// made a development instance throw, a 500), `__clerk_redirect_url`, `__clerk_db_jwt` and
+// `__clerk_synced` (a redirect or a handshake). `/api/v1` takes part in none of them.
+const isClerkParam = (name: string): boolean => name.toLowerCase().startsWith('__clerk')
+
+// Proxy headers Clerk builds its own URL from (`deriveUrlFromHeaders`, `forwardedProto`). On a
+// Worker `request.url` is the host the request reached; a client can send these with any value,
+// and Clerk would put that host in a handshake's `redirect_url` or a redirect's Location (#66).
+const FORWARDED_HEADERS = [
+  'x-forwarded-host',
+  'x-forwarded-proto',
+  'x-forwarded-port',
+  'cloudfront-forwarded-proto',
+  'forwarded',
+]
+
 /**
- * The request Clerk sees. On `/api/v1` only the header may sign in, so Clerk gets the URL,
- * method and headers without `Cookie`: a cookie can't authenticate an API call whatever the
- * `Authorization` header says. No body: Clerk never needs it and the route still reads it.
+ * The request Clerk sees. On every path, without the proxy headers above. On `/api/v1` only the
+ * header may sign in, so Clerk also gets no `Cookie` and the URL without any `__clerk*` query
+ * parameter: a cookie can't authenticate an API call whatever the `Authorization` header says,
+ * and Clerk's parameters in the query are a plain 401. No body: Clerk never needs it and the
+ * route still reads the original request, query and proxy headers included. A page with no proxy
+ * header gets the original request.
  */
 export function requestForClerk(request: Request): Request {
-  if (!isApiPath(new URL(request.url).pathname)) return request
+  const url = new URL(request.url)
+  const api = isApiPath(url.pathname)
+  const forwarded = FORWARDED_HEADERS.filter((name) => request.headers.has(name))
+  if (!api && forwarded.length === 0) return request
   const headers = new Headers(request.headers)
-  headers.delete('cookie')
-  return new Request(request.url, { method: request.method, headers })
+  for (const name of forwarded) headers.delete(name)
+  if (api) {
+    headers.delete('cookie')
+    const clerkParams = [...new Set([...url.searchParams.keys()].filter(isClerkParam))]
+    // Only when present: deleting re-encodes the whole query string.
+    for (const name of clerkParams) url.searchParams.delete(name)
+  }
+  return new Request(url, { method: request.method, headers })
+}
+
+/**
+ * True when Clerk answered an `/api/v1` call with a redirect (a handshake or a sign-in redirect).
+ * The API never redirects for auth: the caller gets the uniform 401 instead.
+ */
+export function isApiRedirect(request: Request, response: Response): boolean {
+  return isApiPath(new URL(request.url).pathname) && response.status >= 300 && response.status < 400
 }

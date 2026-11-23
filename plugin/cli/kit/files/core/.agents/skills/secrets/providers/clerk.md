@@ -9,6 +9,7 @@ Last checked: 2026-11-23. Official docs:
 - https://clerk.com/docs/guides/development/clerk-environment-variables
 - https://clerk.com/docs/guides/sessions/manual-jwt-verification
 - https://clerk.com/docs/guides/dashboard/dns-domains/subdomain-allowlist
+- https://clerk.com/docs/guides/sessions/customize-session-tokens and https://clerk.com/docs/guides/sessions/jwt-templates (shortcodes), read 2026-11-23 from `clerk/clerk-docs` main
 - Clerk's agent-setup prompt, `prompts/cli-setup.md` in `clerk/clerk-docs`
 - `clerk env pull` and the framework table in `clerk/cli` (`packages/cli-core/src/commands/env/README.md`, `src/lib/framework.ts`)
 - The TanStack Start quickstart (`docs/getting-started/quickstart.tanstack-react-start.mdx` in `clerk/clerk-docs`) and the SDK's env reader (`packages/tanstack-react-start/src/utils/env.ts` in `clerk/javascript`: `VITE_CLERK_PUBLISHABLE_KEY` first, then `CLERK_PUBLISHABLE_KEY`)
@@ -132,5 +133,21 @@ A development instance is capped at 100 users and shows a "Development" banner. 
 - **Users don't copy** from development to production. Production starts empty. `[V]`
 - **Social logins:** development uses Clerk's shared OAuth credentials. Production needs your own for each provider. `[V]`
 - **Which sites may use a sign-in (`authorizedParties`):** the TanStack Start pack sets it for you from `SITE_URL`, localhost and the test Worker's preview URLs, so there is no extra step. If the app also runs on another domain (a custom test domain, a second production domain), add it to `CLERK_AUTHORIZED_PARTIES` in that environment's `vars` in `wrangler.jsonc`: exact origins like `https://www.example.com`, comma-separated, no `*`. Production with Clerk keys won't start until `SITE_URL` (a GitHub variable on the `production` environment) or `CLERK_AUTHORIZED_PARTIES` is set. `[V]` in the pack's code and tests; `[U]` against a real Clerk instance.
-- **A mobile app (the monorepo-expo pack):** its tokens carry no origin, so `CLERK_ALLOW_NATIVE_TOKENS` is `"true"` in `apps/web/wrangler.jsonc` for every environment (the pack's setup does it). Use one Clerk application per product: another app's mobile users on the same Clerk instance could otherwise call this app's API. `[V]` in the pack's tests; `[U]` with a real phone.
+- **A mobile app (the monorepo-expo pack):** its tokens carry no origin, so `CLERK_ALLOW_NATIVE_TOKENS` is `"true"` in `apps/web/wrangler.jsonc` for every environment (the pack's setup does it), and such a token must also carry an `app` claim equal to `CLERK_NATIVE_APP_CLAIM` there. The person adds that claim in Clerk (below). Clerk's custom session claims are per instance: every token the instance issues carries them, so the claim can't tell two apps on one instance apart. Use one Clerk application per product: another app's mobile users on the same Clerk instance could otherwise call this app's API. The claim makes native sign-in a setting on both sides that fails closed: no claim, a different value, or no `CLERK_NATIVE_APP_CLAIM` is the same 401 as no token. `[V]` in the pack's tests and Clerk's docs; `[U]` with a real phone and a real instance.
+
+  ```text
+  Setup step for you · Add the app claim to Clerk's token · about 3 minutes
+
+  1. Open https://dashboard.clerk.com/~/sessions with the development instance selected.
+  2. Under "Customize session token", in the Claims editor, add this line inside the braces,
+     keeping any claims already there (a comma between them):
+     "app": "<the CLERK_NATIVE_APP_CLAIM value from apps/web/wrangler.jsonc>"
+  3. Click Save.
+  4. Switch to the production instance (the menu at the top) and do steps 1 to 3 again.
+
+  When it worked: signed in on the phone, the app's API calls succeed instead of "Sign in to continue".
+  Stuck? Clerk refreshes a token every 60 seconds: sign out and in again, or wait a minute.
+  ```
+
+  An agent can do it with Clerk's CLI instead, after the person's yes, per instance: `npx clerk@latest config pull --keys session` to see the claims there now, then `npx clerk@latest config patch --json '{"session":{"claims":{"app":"<value>"}}}'` with every claim already there included in `claims`. `[V]` the command in Clerk's docs; `[U]` whether patch merges or replaces the claims, so keep them all.
 - **Signed in on the site but every request says "Sign in to continue":** the site's address isn't in the list. The Worker log says `clerk_token_refused` (wrong origin) or `clerk_no_authorized_party` (no origin at all). Add the exact origin to `CLERK_AUTHORIZED_PARTIES`.

@@ -1,4 +1,6 @@
 import { generateKeyPairSync } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 
 import { createClerkClient } from '@clerk/backend'
 import { importPKCS8, SignJWT } from 'jose'
@@ -72,5 +74,25 @@ describe('parseBearer reads the Authorization header exactly as Clerk does', () 
   it('refuses every scheme Clerk ignores (where Clerk falls back to the cookie)', () => {
     for (const value of ['bearer abc', 'BEARER abc', 'Bearer  abc', 'Bearer\tabc', 'Bearer', 'Bearer ', ''])
       expect(parseBearer(value), JSON.stringify(value)).toBeNull()
+  })
+})
+
+// The test above is only as good as the @clerk/backend it imports: it must be the copy
+// @clerk/tanstack-react-start runs. The dev dependency is pinned by hand, so a Start upgrade that
+// moves its backend leaves the parity check testing an old parser until this fails.
+describe('the @clerk/backend this file tests is the one Clerk’s TanStack Start SDK uses', () => {
+  const version = (from: string) => {
+    const path = createRequire(from).resolve('@clerk/backend/package.json')
+    return (JSON.parse(readFileSync(path, 'utf8')) as { version: string }).version
+  }
+
+  it('the pinned dev dependency, the installed copy and Start’s copy are one version', () => {
+    const own = createRequire(import.meta.url)
+    const pkg = JSON.parse(readFileSync(own.resolve('../../package.json'), 'utf8')) as {
+      devDependencies: Record<string, string>
+    }
+    const startCopy = version(own.resolve('@clerk/tanstack-react-start/package.json'))
+    expect(pkg.devDependencies['@clerk/backend'], 'package.json devDependencies').toBe(startCopy)
+    expect(version(import.meta.url), 'the copy this file imports').toBe(startCopy)
   })
 })

@@ -41,7 +41,7 @@ When it worked: `pnpm exec wrangler hyperdrive list` shows the config, and the d
 ## Supabase CLI and agent skills
 
 - Local dev: `supabase start` (Docker) serves Postgres on `127.0.0.1:54322`, which the add-on's `localConnectionString` expects. `[V]` (the add-on's notes)
-- Supabase publishes agent skills: `npx skills add supabase/agent-skills`. They install into the repo by default. Offer them; install only on a yes. `[V]`
+- Supabase publishes agent skills, a plugin and an MCP server. Installing the CLI and offering them: [`../setup/supabase.md`](../setup/supabase.md). Install only on a yes.
 
 ## Free tier
 

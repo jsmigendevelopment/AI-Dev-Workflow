@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   authorizedParties,
   type BuildTarget,
+  isApiRedirect,
   isNativeBearer,
+  nativeClaimMissing,
   NO_PARTY,
   partiesConfigError,
   requestForClerk,
@@ -129,46 +131,65 @@ describe('isNativeBearer: a native app’s token (no Origin, so no azp), only wh
     ['eyJhbGciOiJSUzI1NiJ9', btoa(JSON.stringify(claims)).replace(/=+$/, ''), 'c2ln'].join('.')
   const call = (path: string, headers: Record<string, string>) =>
     new Request(`https://app.example.com${path}`, { headers })
+  const native = { sub: 'user_1', app: 'my-app' }
   const bearer = (claims: Record<string, unknown>, path = '/api/v1/notes') =>
     call(path, { authorization: `Bearer ${jwt(claims)}` })
+  const on = { CLERK_ALLOW_NATIVE_TOKENS: 'true', CLERK_NATIVE_APP_CLAIM: 'my-app' }
 
-  it('a bearer token with no azp on /api/v1, with CLERK_ALLOW_NATIVE_TOKENS on', () => {
-    expect(isNativeBearer(bearer({ sub: 'user_1' }), true)).toBe(true)
-    expect(isNativeBearer(bearer({ sub: 'user_1' }, '/api/v1'), true)).toBe(true)
+  it('a bearer token with no azp and our app claim on /api/v1, with native tokens on', () => {
+    expect(isNativeBearer(bearer(native), on)).toBe(true)
+    expect(isNativeBearer(bearer(native, '/api/v1'), on)).toBe(true)
   })
 
-  it('never with the opt-in off', () => {
-    expect(isNativeBearer(bearer({ sub: 'user_1' }), false)).toBe(false)
+  it('never without the app claim, with a wrong one, or with one that is not a string', () => {
+    expect(isNativeBearer(bearer({ sub: 'user_1' }), on)).toBe(false)
+    for (const app of ['other-app', 'MY-APP', 'my-app ', '', null, 1, true, ['my-app'], { app: 'my-app' }])
+      expect(isNativeBearer(bearer({ sub: 'user_1', app }), on), JSON.stringify(app)).toBe(false)
+  })
+
+  it('never with the opt-in off, or on with no claim value to check (fails closed)', () => {
+    expect(isNativeBearer(bearer(native), { CLERK_NATIVE_APP_CLAIM: 'my-app' })).toBe(false)
+    expect(isNativeBearer(bearer(native), { ...on, CLERK_ALLOW_NATIVE_TOKENS: 'false' })).toBe(false)
+    expect(isNativeBearer(bearer(native), { CLERK_ALLOW_NATIVE_TOKENS: 'true' })).toBe(false)
+    expect(isNativeBearer(bearer({ sub: 'user_1', app: '' }), { ...on, CLERK_NATIVE_APP_CLAIM: '' })).toBe(
+      false,
+    )
+  })
+
+  it('nativeClaimMissing: only native tokens on with no claim value', () => {
+    expect(nativeClaimMissing({ CLERK_ALLOW_NATIVE_TOKENS: 'true' })).toBe(true)
+    expect(nativeClaimMissing(on)).toBe(false)
+    expect(nativeClaimMissing({})).toBe(false)
   })
 
   it('never for a token that names an origin, even a wrong one, or an empty azp', () => {
-    expect(isNativeBearer(bearer({ sub: 'user_1', azp: 'https://evil.example' }), true)).toBe(false)
-    expect(isNativeBearer(bearer({ sub: 'user_1', azp: '' }), true)).toBe(false)
+    expect(isNativeBearer(bearer({ ...native, azp: 'https://evil.example' }), on)).toBe(false)
+    expect(isNativeBearer(bearer({ ...native, azp: '' }), on)).toBe(false)
   })
 
   it('never with a lowercase or otherwise inexact scheme (Clerk would read the cookie)', () => {
     for (const scheme of ['bearer', 'BEARER', 'Bearer '])
       expect(
-        isNativeBearer(call('/api/v1/notes', { authorization: `${scheme} ${jwt({ sub: 'u' })}` }), true),
+        isNativeBearer(call('/api/v1/notes', { authorization: `${scheme} ${jwt(native)}` }), on),
         scheme,
       ).toBe(false)
   })
 
   it('never while any Clerk session cookie is there, suffixed ones included', () => {
-    const authorization = `Bearer ${jwt({ sub: 'user_1' })}`
+    const authorization = `Bearer ${jwt(native)}`
     for (const cookie of ['__session=x', '__client_uat=1', 'a=1; __session_Abc12=x', '__client_uat_Abc12=0'])
-      expect(isNativeBearer(call('/api/v1/notes', { authorization, cookie }), true), cookie).toBe(false)
-    expect(isNativeBearer(call('/api/v1/notes', { authorization, cookie: 'theme=dark' }), true)).toBe(true)
+      expect(isNativeBearer(call('/api/v1/notes', { authorization, cookie }), on), cookie).toBe(false)
+    expect(isNativeBearer(call('/api/v1/notes', { authorization, cookie: 'theme=dark' }), on)).toBe(true)
   })
 
   it('never for the cookie, outside /api/v1, or a token it cannot read', () => {
-    const cookie = `__session=${jwt({ sub: 'user_1' })}; __client_uat=1`
-    expect(isNativeBearer(call('/api/v1/notes', { cookie }), true)).toBe(false)
-    expect(isNativeBearer(bearer({ sub: 'user_1' }, '/notes'), true)).toBe(false)
-    expect(isNativeBearer(bearer({ sub: 'user_1' }, '/_serverFn/x'), true)).toBe(false)
-    expect(isNativeBearer(bearer({ sub: 'user_1' }, '/api/v10'), true)).toBe(false)
+    const cookie = `__session=${jwt(native)}; __client_uat=1`
+    expect(isNativeBearer(call('/api/v1/notes', { cookie }), on)).toBe(false)
+    expect(isNativeBearer(bearer(native, '/notes'), on)).toBe(false)
+    expect(isNativeBearer(bearer(native, '/_serverFn/x'), on)).toBe(false)
+    expect(isNativeBearer(bearer(native, '/api/v10'), on)).toBe(false)
     for (const authorization of ['Bearer not-a-jwt', 'Bearer a.%%%.c', 'Bearer a.bnVsbA.c', 'Basic dXNlcg=='])
-      expect(isNativeBearer(call('/api/v1/notes', { authorization }), true), authorization).toBe(false)
+      expect(isNativeBearer(call('/api/v1/notes', { authorization }), on), authorization).toBe(false)
   })
 })
 
@@ -189,6 +210,36 @@ describe('requestForClerk: on /api/v1 Clerk never sees the cookie', () => {
     expect(forClerk.headers.get('x-test')).toBe('1')
     expect(original.bodyUsed).toBe(false)
     expect(original.headers.get('cookie')).toBe(headers.cookie)
+  })
+
+  it('drops every __clerk query parameter on /api/v1 and keeps the rest of the query', () => {
+    const clerk = [
+      '__clerk_handshake=junk',
+      '__clerk_handshake_nonce=n',
+      '__clerk_redirect_url=https%3A%2F%2Fevil.example',
+      '__clerk_db_jwt=dvb_x',
+      '__clerk_synced=false',
+      '__clerk_help=1',
+      '__CLERK_status=x',
+      '__clerk_synced=true',
+    ]
+    const request = new Request(`https://app.example.com/api/v1/notes?limit=5&${clerk.join('&')}&q=a+b`)
+    expect(requestForClerk(request).url).toBe('https://app.example.com/api/v1/notes?limit=5&q=a+b')
+    const plain = new Request('https://app.example.com/api/v1/notes?limit=5&q=%20x&clerk=1&_clerk=2')
+    expect(requestForClerk(plain).url).toBe(plain.url)
+    const page = new Request('https://app.example.com/notes?__clerk_handshake=junk')
+    expect(requestForClerk(page)).toBe(page)
+  })
+
+  it('isApiRedirect: any 3xx from Clerk on /api/v1, never a page or another status', () => {
+    const api = new Request('https://app.example.com/api/v1/notes')
+    for (const status of [301, 302, 303, 307, 308])
+      expect(isApiRedirect(api, new Response(null, { status })), String(status)).toBe(true)
+    for (const status of [200, 401, 404, 500])
+      expect(isApiRedirect(api, new Response(null, { status })), String(status)).toBe(false)
+    expect(
+      isApiRedirect(new Request('https://app.example.com/notes'), new Response(null, { status: 307 })),
+    ).toBe(false)
   })
 
   it('leaves pages and server functions alone: the cookie is how they sign in', () => {
