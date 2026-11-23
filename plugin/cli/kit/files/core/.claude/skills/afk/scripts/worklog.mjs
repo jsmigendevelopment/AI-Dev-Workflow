@@ -10,6 +10,9 @@
 //   node worklog.mjs log <event> [note]     event: session-start | session-end | back | afk | active
 //   node worklog.mjs active                 throttled heartbeat (prompt hook): at most every 5 min
 //   node worklog.mjs presence [afk <note> | back | announced]   read or set ~/.onrails/presence.json
+//        afk flags: --until <hard stop, ISO time> --merge "<what may merge>" --pings "<what pings>"
+//   node worklog.mjs presence --shared '<Presence row JSON>'   read local, then the sheet's copy
+//   node worklog.mjs presence sheet         the Presence tab's values, for the Google Sheets connector
 //   node worklog.mjs report [--days N]      hours per day for this project (default 7 days)
 //   node worklog.mjs report --all           every project
 //   node worklog.mjs pending [--mark]       entries not yet copied to the Google Sheet
@@ -83,18 +86,74 @@ function log(event, note) {
 // Presence is shared by every thread on this machine. Loops read it before each sweep.
 // Coming back from "away" records returnedAt, so /back can tell it was a real return
 // even though the prompt hook already flipped the status to "here".
-function readPresence() {
-  try { return JSON.parse(readFileSync(PRESENCE, "utf8")); } catch { return { status: "here" }; }
+// The only copy off this machine is the Presence tab of the [board] sheet, which the skills
+// write through the Google Sheets connector. Never the repo: presence is personal.
+function readLocal() {
+  try { return JSON.parse(readFileSync(PRESENCE, "utf8")); } catch { return null; }
 }
-function setPresence(status, note) {
+const readPresence = () => readLocal() || { status: "here" };
+
+// A machine label for the sheet: [presence] machine in the profile, else the hostname.
+function machine() {
+  for (const p of [join(projectRoot(), "docs", "profile.toml"), join(HOME_DIR, "profile.toml")]) {
+    const body = existsSync(p) ? readFileSync(p, "utf8").split(/^\[presence\]\s*$/m)[1]?.split(/^\[/m)[0] : undefined;
+    const label = body?.match(/^\s*machine\s*=\s*"([^"]+)"/m)?.[1];
+    if (label) return label;
+  }
+  return hostname();
+}
+
+// An away past its hard stop, or older than a day, counts as unknown: the session that set it may be dead.
+const STALE_MS = 24 * 3600e3;
+function isStale(p) {
+  const now = Date.now();
+  return p.status === "away" && ((p.until && Date.parse(p.until) < now) || now - Date.parse(p.since) > STALE_MS);
+}
+const view = (p) => (isStale(p) ? { ...p, status: "unknown", stale: true } : p);
+
+// `presence afk` flags; the words left over are the note (local only, never shared).
+function afkArgs(args) {
+  const out = { note: [], rules: {} };
+  for (let i = 0; i < args.length; i++) {
+    const [flag, value] = [args[i], args[i + 1]];
+    if (flag === "--until" && Date.parse(value)) { out.until = new Date(Date.parse(value)).toISOString(); i++; }
+    else if (flag === "--merge" || flag === "--pings") { out.rules[flag.slice(2)] = value; i++; }
+    else out.note.push(flag);
+  }
+  return { ...out, note: out.note.join(" ") };
+}
+
+function setPresence(status, afk = { note: "", rules: {} }) {
   const prev = readPresence();
   if (status === "here" && prev.status !== "away") return prev;
+  const since = new Date().toISOString();
   const next = status === "away"
-    ? { status, since: new Date().toISOString(), note: note || undefined, project: basename(projectRoot()) }
-    : { status, since: new Date().toISOString(), returnedAt: new Date().toISOString(), awayNote: prev.note, awaySince: prev.since };
+    ? { status, since, until: afk.until, rules: Object.keys(afk.rules).length ? afk.rules : undefined, machine: machine(), note: afk.note || undefined, project: basename(projectRoot()) }
+    : { status, since, returnedAt: since, machine: machine(), awayNote: prev.note, awaySince: prev.since };
   mkdirSync(HOME_DIR, { recursive: true });
   writeFileSync(PRESENCE, JSON.stringify(next) + "\n");
   return next;
+}
+
+// The Presence tab: one header row and one value row. Only status, times, machine and rules.
+const SHEET_HEADER = ["Status", "Since (UTC)", "Until (UTC)", "May merge", "Pings", "Machine"];
+function sheetValues(p) {
+  return { range: "Presence!A1:F2", valueInputOption: "RAW", values: [SHEET_HEADER, [p.status, p.since || "", p.until || "", p.rules?.merge || "", p.rules?.pings || "", p.machine || ""]] };
+}
+function fromRow(json) {
+  const row = JSON.parse(json);
+  const [status, since, until, merge, pings, mach] = Array.isArray(row[0]) ? row[row.length - 1] : row;
+  if (!status || !since) return null;
+  return { status, since, until: until || undefined, rules: merge || pings ? { merge, pings } : undefined, machine: mach || undefined };
+}
+
+// Local first. The sheet's copy wins only when there's no local file, or it's newer.
+function current(sharedJson) {
+  const local = readLocal();
+  let shared = null;
+  try { shared = sharedJson ? fromRow(sharedJson) : null; } catch { shared = null; }
+  if (shared && (!local || Date.parse(shared.since) > Date.parse(local.since || 0))) return { ...view(shared), source: "sheet" };
+  return { ...view(local || { status: "here" }), source: local ? "local" : "default" };
 }
 
 function readEntries(file) {
@@ -154,7 +213,7 @@ try {
   if (cmd === "log" && a1) log(a1, rest.join(" "));
   else if (cmd === "active") {
     // Prompt hook: the person is here. Clear an afk, and log at most every HEARTBEAT_MIN.
-    setPresence("here", "");
+    setPresence("here");
     const root = projectRoot();
     const cfg = settings(root);
     if (cfg.enabled) {
@@ -168,13 +227,17 @@ try {
   else if (cmd === "presence") {
     // A sandbox that can't write the home folder (Codex without ~/.onrails in
     // writable_roots) must not look like success: say so in the JSON.
+    if (a1 === "sheet") { console.log(JSON.stringify(sheetValues(readPresence()))); process.exit(0); }
     let saved = true;
     const write = (fn) => { try { fn(); } catch { saved = false; } };
-    if (a1 === "afk") write(() => { setPresence("away", rest.join(" ")); log("afk", rest.join(" ")); });
-    else if (a1 === "back") write(() => { setPresence("here", ""); log("back"); });
+    const wasStale = isStale(readPresence());
+    if (a1 === "afk") write(() => { const afk = afkArgs(rest); setPresence("away", afk); log("afk", afk.note); });
+    else if (a1 === "back") write(() => { setPresence("here"); log("back"); });
     else if (a1 === "announced") write(() => { const cur = readPresence(); cur.announced = true; writeFileSync(PRESENCE, JSON.stringify(cur) + "\n"); });
-    const p = readPresence();
+    const p = a1 === "--shared" ? current(rest[0]) : current();
     if (!saved) Object.assign(p, { saved: false, warning: `could not save ${PRESENCE} (a sandbox? allow writes to ${HOME_DIR})` });
+    // staleAway: /back cleared an away nobody ended on time, so say so in the report.
+    if (a1 === "back" && wasStale) p.staleAway = true;
     // justReturned: this person came back from an /afk in the last 10 minutes, so /back should tell the other threads.
     p.justReturned = p.status === "here" && !!p.returnedAt && !p.announced && Date.now() - Date.parse(p.returnedAt) < 10 * 60e3;
     console.log(JSON.stringify(p));

@@ -10,7 +10,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 ## The loop
 
 1. **Check presence and the automation level.**
-   - Read `~/.onrails/presence.json` (or run `node .agents/skills/afk/scripts/worklog.mjs presence`). If the status is `away`, follow the `afk` skill's unattended rules on this pass.
+   - Run `node .agents/skills/afk/scripts/worklog.mjs presence`. If the profile sets `[board] sheet` and you have the Google Sheets connector, read the Presence tab first and pass it with `--shared` (see "The Presence tab" in `board.md`). If the status is `away`, follow the `afk` skill's unattended rules on this pass, and its `rules` for what may merge and what pings. `unknown` (a stale away) means normal rules; add an ℹ️ FYI once.
    - Read "Automation level" in `docs/stack.md` (see the `automation` skill). If the loop is off (hands-on), run only when the person asked for this run, never merge, and open pull requests only if they said so.
 
    - **Can the next merge reach the test site?** Check, by name only, that the deploy's secrets exist (`gh secret list --env test`, and whatever `secrets` lists for the stack). If one is missing, don't wait until a deploy fails: raise a 🛑 blocker for the deploy now (the `ask` skill), with the `secrets` checklist as the next action and the time it takes. Keep building what doesn't need it.

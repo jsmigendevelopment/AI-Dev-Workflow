@@ -94,3 +94,19 @@ node .agents/skills/coordinate/scripts/board.mjs rows --github <tmp>/issues.json
 - **`ask`** in a thread that isn't the coordinator appends one row (`values.append`) instead of rewriting the tab. The next sweep replaces it.
 - **Local threads without the connector** write only `board.md`. The next thread that has the connector syncs it.
 - **Cloud threads without the home folder** rely on GitHub labels. The coordinator's render picks those up.
+
+## The Presence tab
+
+Presence is personal and covers every project, so it lives in one "Presence" tab of the `[board] sheet`, not per project. It is the only copy of `/afk` off the person's machine. Never put presence in a repo: no issue, file, commit or variable. Repos can be public.
+
+| A | B | C | D | E | F |
+|---|---|---|---|---|---|
+| Status | Since (UTC) | Until (UTC) | May merge | Pings | Machine |
+| `away`, `here` | when it was set | the hard stop, or blank | the `/afk` merge rule | the `/afk` ping rule | the machine label |
+
+Nothing else goes in it: no note, project or name. It isn't a project tab, so leave it out of `sheet-setup --tabs`.
+
+- **Write** (`afk`, `back`): run `node .agents/skills/afk/scripts/worklog.mjs presence sheet`. Write its `values` to its `range` (`values.update`, `RAW`). Create the tab first if it's missing. Can't write? Send an ℹ️ FYI (`notify.mjs --level fyi`) and carry on. It never blocks.
+- **Read** (`coordinate`, `back`): read `Presence!A1:F2` (`values.get`), then run `worklog.mjs presence --shared '<the values as JSON>'`. It picks the local file or the sheet, whichever is newer, says which in `source`, and turns a stale away into `unknown`.
+- **Stale:** an `away` past its Until, or set over 24 hours ago, counts as `unknown`. Follow normal rules, and mention it at `/back`.
+- **No sheet set up:** there's no shared copy. A cloud session won't know about an `/afk` from another machine. Say so once, when it matters.
