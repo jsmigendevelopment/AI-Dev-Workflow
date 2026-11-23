@@ -1,0 +1,23 @@
+{
+  "run": "2026-11-23-evals-recheck-2",
+  "created": "2026-11-23",
+  "question": "coarse-plan-rejected passed 6 of 9 runs so far, and every miss was the one check 'ran-the-checker'. The issues skill now also says to run check-plan.mjs before writing any issue. Does the scenario pass 6 of 6 with that change?",
+  "machine": "cloud-linux: Claude Code cloud container, Linux 6.18, Node 22.23.5, Claude Code 2.1.330, signed in with the owner's own login (no API key)",
+  "command": "six times:  node evals/run.mjs --model claude-haiku-5-5 --scenario coarse-plan-rejected,plan-thin-steps --results-dir research/agile-flow/runs/2026-11-23-evals-recheck-2/raw",
+  "cases": [ "coarse-plan-rejected:with", "coarse-plan-rejected:without", "plan-thin-steps:with", "plan-thin-steps:without" ],
+  "metrics": [
+    { "name": "checks_passed", "unit": "count", "how": "the scenario's checks that passed in this arm" },
+    { "name": "checks_total", "unit": "count", "how": "the scenario's checks" },
+    { "name": "scenario_pass", "unit": "flag", "how": "on the 'with' case only: 1 when the harness's verdict for the scenario is pass, 0 for fail or no-difference" },
+    { "name": "cost_usd", "unit": "usd", "how": "Claude Code's own estimate for the run, not a bill" },
+    { "name": "duration_s", "unit": "s", "how": "wall-clock time of the run" }
+  ],
+  "warmup": 0,
+  "iterations": 6,
+  "notes": [
+    "The rule, fixed here before the runs: if coarse-plan-rejected passes all 6, the 'ran-the-checker' check stays as it is. If it misses even once on that check, the check moves to the scenario's 'check by hand' list, and the dossier reports how often the checker was run. The other four checks stay either way.",
+    "plan-thin-steps is run too, because the issues and pyramid skills changed after its last runs.",
+    "The kit is this branch at the commit that adds this manifest. Same harness defaults: 12 turns, 240 seconds and 0.50 USD per run."
+  ],
+  "versions": { "claude-code": "2.1.330", "node": "22.23.5", "kit": "the commit that adds this manifest" }
+}

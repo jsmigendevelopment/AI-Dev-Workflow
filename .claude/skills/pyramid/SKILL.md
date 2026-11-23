@@ -55,7 +55,7 @@ pass 1  ████ ████ ████ ████ ████
 - **The mix is a guide:** about two thirds new, one third improving. The gate shifts it.
 - **The gate between layers** is the same as between passes (`references/pass-gate.md`). Plan one layer at a time.
 - **Launch** can happen at any layer. It's the person's call.
-- **After launch, half-built work still merges.** First cut it so every step is fine to show. If one isn't, build its parts and add the way in (the link or the button) in the last step. Only then use a flag, a switch in config: on in test, off in production, and removed once the feature is out. Turning it on in production is the person's call. Before launch, production shows "Coming soon", so nothing needs a flag.
+- **After launch, half-built work still merges.** First cut it so every step is fine to show. If one isn't, build its parts and add the way in (the link or the button) in the last step. Only then use a flag, a switch in config: on in test, off in production, and removed once the feature is out. Turning it on in production is the person's call. Before launch, production shows "Coming soon", so a step rarely needs one: merge it and let the person see it.
 
 ## Steps
 
