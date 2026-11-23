@@ -87,4 +87,4 @@ The rules: `guide/environments.md` in the kit. Local, test, preview and producti
 
 - Test URL: 
 - Preview per pull request: yes / no
-- Production: deployed by the person only. Production keys live only in the GitHub `production` environment, which waits for the person's approval (set up by `setup-github.mjs`).
+- Production: deployed by the person only. Production keys live only in the GitHub `production` environment, which waits for the person's approval (set up by `setup-github.mjs`). On GitHub Free with a private repo there are no environments: keys are `PRODUCTION_` repository secrets, with no required reviewer, and the gate is the manual run plus typing "deploy production".

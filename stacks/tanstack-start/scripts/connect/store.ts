@@ -3,7 +3,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
-import { filePath, type Folders, type Place, type Run } from './places.ts'
+import { filePath, type Folders, type Place, type Run, storedName } from './places.ts'
 import { fileProblem } from './repo.ts'
 
 /** A dotenv line that reads back as exactly `value`, or null when no quoting is safe. */
@@ -52,7 +52,8 @@ export function storeCommand(
 ): [string, string[]] {
   if (place.kind === 'wrangler') return ['wrangler', ['secret', 'put', name, '--env', place.env]]
   const where = place.env ? ['--env', place.env] : []
-  return ['gh', [place.secret ? 'secret' : 'variable', 'set', name, ...where, '-R', repo]]
+  const set = [place.secret ? 'secret' : 'variable', 'set', storedName(place, name), ...where]
+  return ['gh', [...set, '-R', repo]]
 }
 
 /** Stores the value. Returns null on success, or a one-line reason with the value scrubbed out. */

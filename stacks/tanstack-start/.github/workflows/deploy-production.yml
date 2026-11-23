@@ -1,5 +1,9 @@
-# Deploys main to production. Started by hand (Actions → deploy-production → Run workflow), and
-# the GitHub environment `production` waits for the person's approval before any step runs.
+# Deploys main to production. Started by hand (Actions → deploy-production → Run workflow), with
+# "deploy production" typed into the confirm box, and the GitHub environment `production` waits
+# for the person's approval before any step runs, where the plan allows a required reviewer.
+# GitHub Free, private repo: no environments, so no approval. setup-github sets the repository
+# variable SECRETS_MODE to "repository", and the job reads repository secrets and variables named
+# PRODUCTION_<name>. The manual start and the typed confirmation are then the only gate.
 # Order: build, take a D1 Time Travel bookmark (the backup), migrate, deploy, smoke. A failed smoke
 # puts the previous version back and prints the command that would restore the data. Restoring
 # data is never automatic: it is the person's call.
@@ -8,6 +12,11 @@
 name: deploy-production
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy production" to deploy main to production'
+        required: true
+        type: string
 concurrency:
   group: deploy-production
   cancel-in-progress: false
@@ -26,14 +35,23 @@ jobs:
     # Variables: SITE_URL (the production origin, baked into the build), APP_URL (optional: where
     # to smoke-test when workers.dev is off; never the custom domain with Bot Fight Mode on, whose challenge a browser test can fail).
     environment:
-      name: production
+      name: ${{ vars.SECRETS_MODE != 'repository' && 'production' || '' }}
       url: ${{ steps.url.outputs.url }}
     env:
       CLOUDFLARE_ENV: production
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ vars.SECRETS_MODE == 'repository' && secrets.PRODUCTION_CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.SECRETS_MODE == 'repository' && secrets.PRODUCTION_CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
       WRANGLER_SEND_METRICS: 'false'
     steps:
+      # Typed by the person when they start the run: an accidental or scripted start stops here.
+      - name: Confirmed by the person
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "deploy production" ]; then
+            echo "::error title=Not confirmed::Type \"deploy production\" in the confirm box to deploy. Nothing was changed."
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -43,7 +61,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
         env:
-          SITE_URL: ${{ vars.SITE_URL }}
+          SITE_URL: ${{ vars.SECRETS_MODE == 'repository' && vars.PRODUCTION_SITE_URL || vars.SITE_URL }}
       - name: Back up first (D1 Time Travel bookmark)
         id: bookmark
         run: |
@@ -67,7 +85,7 @@ jobs:
       - name: Find the URL
         id: url
         env:
-          APP_URL: ${{ vars.APP_URL }}
+          APP_URL: ${{ vars.SECRETS_MODE == 'repository' && vars.PRODUCTION_APP_URL || vars.APP_URL }}
         run: |
           # workers.dev first: it is outside the zone, so Bot Fight Mode never challenges the smoke test.
           url="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -n1)"
@@ -89,8 +107,8 @@ jobs:
         env:
           BASE_URL: ${{ steps.url.outputs.url }}
           LAUNCHED: ${{ steps.launch.outputs.launched }}
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          CF_ACCESS_CLIENT_ID: ${{ vars.SECRETS_MODE == 'repository' && secrets.PRODUCTION_CF_ACCESS_CLIENT_ID || secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ vars.SECRETS_MODE == 'repository' && secrets.PRODUCTION_CF_ACCESS_CLIENT_SECRET || secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           if [ "$LAUNCHED" = true ]; then pnpm test:deployed; else pnpm test:coming-soon; fi
       - name: Roll back to the previous version

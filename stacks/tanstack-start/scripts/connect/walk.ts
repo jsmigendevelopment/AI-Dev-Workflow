@@ -1,6 +1,6 @@
 // The interactive part: one provider at a time, its steps, the page, then each value it fills.
 // Every write needs its own yes, and production needs a separate yes before its value is asked.
-import { type Group, type Place } from './places.ts'
+import { type Group, type Place, storedName } from './places.ts'
 import { looksSecret, type Provider, type Section, shapeProblem, type VarSpec } from './providers.ts'
 import { store } from './store.ts'
 import { openUrl } from './terminal.ts'
@@ -68,7 +68,7 @@ async function askValue(ctx: Context, todo: Todo): Promise<string | null> {
 function saveQuestion(ctx: Context, todo: Todo, place: Place): string {
   const target =
     place.kind === 'github'
-      ? `${place.secret ? 'GitHub secret' : 'GitHub variable'} ${place.env ? `in env \`${place.env}\`` : 'at repository level'} of ${ctx.repo ?? '(unknown repository)'}`
+      ? `${place.secret ? 'GitHub secret' : 'GitHub variable'} ${place.prefix ? `${storedName(place, todo.name)} ` : ''}${place.env ? `in env \`${place.env}\`` : 'at repository level'} of ${ctx.repo ?? '(unknown repository)'}`
       : place.label
   const unsure = todo.unknown.includes(place)
     ? " (couldn't check whether it's already set; this may replace it)"

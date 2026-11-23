@@ -30,16 +30,18 @@ jobs:
     # GitHub environment `preview`: no branch rule, so pull request branches can use it. Its
     # secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (scripts/setup-cloudflare.mjs says how),
     # and the protection's CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET or SITE_PASSWORD.
+    # GitHub Free, private repo (repository variable SECRETS_MODE is "repository"): no
+    # environment, and the test values from repository secrets named TEST_<name>.
     environment:
-      name: preview
+      name: ${{ vars.SECRETS_MODE != 'repository' && 'preview' || '' }}
       url: ${{ steps.upload.outputs.url }}
     permissions:
       contents: read
       pull-requests: write # to post the comment
     env:
       CLOUDFLARE_ENV: test
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
       WRANGLER_SEND_METRICS: 'false'
       PR: ${{ github.event.pull_request.number }}
     steps:
@@ -84,9 +86,9 @@ jobs:
       - name: The preview answers
         env:
           URL: ${{ steps.upload.outputs.url }}
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          CF_ACCESS_CLIENT_ID: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_CF_ACCESS_CLIENT_ID || secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_CF_ACCESS_CLIENT_SECRET || secrets.CF_ACCESS_CLIENT_SECRET }}
+          SITE_PASSWORD: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_SITE_PASSWORD || secrets.SITE_PASSWORD }}
         run: |
           # With the protection's headers when it has some; never Authorization (/api/v1 uses it).
           args=()
