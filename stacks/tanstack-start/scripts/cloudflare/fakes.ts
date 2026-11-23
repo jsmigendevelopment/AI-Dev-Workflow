@@ -72,6 +72,12 @@ export interface World {
   ghSignedIn: boolean
   /** Secrets on the test Worker. */
   testSecrets: string[]
+  /** Workers deployed on the account, by name (`wrangler versions list --name`). */
+  deployed: string[]
+  /** The step of the first test deploy that fails: `pnpm build`, `d1 migrations` or `deploy`. */
+  failing?: string
+  /** `wrangler versions list` fails for another reason than a missing Worker. */
+  versionsBroken?: boolean
   /** Cloudflare One on the account; null: Zero Trust not set up. */
   access: {
     workers: { id: string; name: string }[]
@@ -97,6 +103,7 @@ export const freshWorld = (): World => ({
   queues: [],
   ghSignedIn: true,
   testSecrets: [],
+  deployed: [],
   access: null,
   zone: null,
 })
@@ -131,9 +138,11 @@ export function fakes(
   let ids = 0
   const ok = (stdout = '') => Promise.resolve({ status: 0, stdout, stderr: '' })
   const deps: Deps = {
-    async wrangler(args, input) {
+    async wrangler(args, input, extraEnv) {
       const cmd = args.join(' ')
-      calls.push(`wrangler ${cmd}${input === undefined ? '' : ' <stdin>'}`)
+      calls.push(`${prefix(extraEnv)}wrangler ${cmd}${input === undefined ? '' : ' <stdin>'}`)
+      const deploying = firstDeploy(args, extraEnv)
+      if (deploying) return deploying
       if (cmd === 'secret list --env test --format json')
         return ok(JSON.stringify(world.testSecrets.map((name) => ({ name, type: 'secret_text' }))))
       if (cmd === 'secret put SITE_PASSWORD --env test') {
@@ -156,9 +165,14 @@ export function fakes(
       if (args[0] === 'queues' && args[1] === 'create') return (world.queues.push(args[2]!), ok())
       throw new Error(`unexpected wrangler ${cmd}`)
     },
-    async run(cmd, args, input) {
-      calls.push(`${cmd} ${args.join(' ')}`)
+    async run(cmd, args, input, extraEnv) {
+      calls.push(`${prefix(extraEnv)}${cmd} ${args.join(' ')}`)
       if (input !== undefined) stdin.push(input)
+      if (cmd === 'pnpm' && args[0] === 'build') {
+        if (world.failing === 'pnpm build') return { status: 1, stdout: '', stderr: 'vite build failed' }
+        files['.wrangler/deploy/config.json'] = '{"configPath":"../../dist/server/wrangler.json"}'
+        return ok('✓ built')
+      }
       if (cmd === 'gh' && args[0] === 'auth')
         return { status: world.ghSignedIn ? 0 : 1, stdout: '', stderr: '' }
       if (cmd === 'gh' && args[0] === 'repo') return ok('ann/app\n')
@@ -224,6 +238,37 @@ export function fakes(
     env,
   }
   const stdin: string[] = []
+  const prefix = (e?: Record<string, string>) =>
+    Object.entries(e ?? {})
+      .map(([k, v]) => `${k}=${v} `)
+      .join('')
+  /** The first test deploy's commands: the check, the migrations and the deploy. */
+  function firstDeploy(args: string[], extraEnv?: Record<string, string>) {
+    const cmd = args.join(' ')
+    if (args[0] === 'versions' && args[1] === 'list') return versionsList(args[3]!)
+    if (!/^(d1 migrations|deploy)/.test(cmd)) return undefined
+    if (world.failing && cmd.startsWith(world.failing))
+      return { status: 1, stdout: '', stderr: `✘ [ERROR] ${world.failing} broke` }
+    return args[0] === 'deploy' ? deploy(extraEnv) : ok('✅ Applied 1 migration')
+  }
+  function versionsList(name: string) {
+    if (world.versionsBroken) return { status: 1, stdout: '', stderr: '✘ [ERROR] fetch failed' }
+    if (world.deployed.includes(name)) return ok(JSON.stringify([{ id: 'v1', number: 1 }]))
+    return {
+      status: 1,
+      stdout: '',
+      stderr: `✘ [ERROR] A request to the Cloudflare API (/accounts/acc_1/workers/scripts/${name}/versions) failed.\n\n  This Worker does not exist on your account. [code: 10007]`,
+    }
+  }
+  /** Deploys the Worker the build's flattened config names: env.test's, under CLOUDFLARE_ENV=test. */
+  function deploy(extraEnv?: Record<string, string>) {
+    const env = extraEnv?.CLOUDFLARE_ENV
+    const name = env ? `app-${env}` : 'app'
+    world.deployed.push(name)
+    if (world.access && !world.access.workers.some((w) => w.name === name))
+      world.access.workers.push({ id: `w_${env ?? 'local'}`, name })
+    return ok(`Uploaded ${name}\nDeployed ${name} triggers\n  https://${name}.ann.workers.dev\n`)
+  }
   function accountApi(method: string, path: string, body: unknown): ApiResult {
     const a = world.access
     const ok = (result: unknown) => ({ status: 200, body: { success: true, result } })

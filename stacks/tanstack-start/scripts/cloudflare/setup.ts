@@ -2,6 +2,7 @@
 // planning is unit-tested with fakes (setup.test.ts). Reads run in a dry run too; writes never do.
 // It never prints a token or secret value, except the test site's password, once, when it makes one.
 import type { Deps, Log, Options } from './deps.ts'
+import { firstTestDeploy } from './first-deploy.ts'
 import { productionProtection, protection } from './protection.ts'
 import {
   type Account,
@@ -119,7 +120,7 @@ async function addonResources(
   if (!buckets.length && !queues.length) log('No R2 buckets or queues declared (no add-on needs them).')
 }
 
-/** Step 4: the account id and the deploy token, for GitHub Actions. */
+/** Step 5: the account id and the deploy token, for GitHub Actions. */
 async function github(deps: Deps, options: Options, log: Log, chosen: Account) {
   log(`CLOUDFLARE_ACCOUNT_ID = ${chosen.id}   (not a secret, but stored as one by the workflows)`)
   const gh = await deps.run('gh', ['auth', 'status'])
@@ -144,7 +145,7 @@ async function github(deps: Deps, options: Options, log: Log, chosen: Account) {
   for (const line of DEPLOY_TOKEN_HELP) log(line)
 }
 
-/** Step 5: the app's own secrets, through the kit's push-secrets script. */
+/** Step 6: the app's own secrets, through the kit's push-secrets script. */
 async function secrets(deps: Deps, options: Options, log: Log) {
   const script = '.agents/skills/secrets/scripts/push-secrets.mjs'
   if (options.skipSecrets) return log('Skipped the app secrets (--skip-secrets).')
@@ -175,15 +176,18 @@ export async function setupCloudflare(options: Options, deps: Deps): Promise<num
     await databases(deps, options, log, resources)
     log('\n2. R2 buckets and queues')
     await addonResources(deps, options, log, resources)
-    log('\n3. GitHub Actions')
+    // Before the secrets: `wrangler secret put` on a missing Worker makes an empty placeholder.
+    log('\n3. The first test deploy')
+    const first = await firstTestDeploy(deps, options, log, resources.test)
+    log('\n4. GitHub Actions')
     await github(deps, options, log, chosen)
-    log('\n4. App secrets')
+    log('\n5. App secrets')
     await secrets(deps, options, log)
-    log('\n5. Zone security settings')
+    log('\n6. Zone security settings')
     await zone(deps, options, log, resources)
-    log('\n6. Protecting the test and preview URLs')
-    await protection(deps, options, log, resources, chosen)
-    log('\n7. Protecting production')
+    log('\n7. Protecting the test and preview URLs')
+    await protection(deps, options, log, resources, chosen, first === 'planned')
+    log('\n8. Protecting production')
     await productionProtection(deps, options, log, readResources(deps.readText('wrangler.jsonc')), chosen)
   } catch (error) {
     log(`\nStopped: ${error instanceof Error ? error.message : String(error)}`)

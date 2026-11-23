@@ -134,6 +134,8 @@ async function accessReady(
   chosen: Account,
   workerName: string,
   gh: boolean,
+  /** A dry run whose first test deploy would make the Worker: plan against its name. */
+  deployPlanned = false,
 ): Promise<Ready | null> {
   if (!deps.env.CLOUDFLARE_ACCESS_TOKEN) {
     for (const line of ACCESS_TOKEN_HELP) log(line)
@@ -158,10 +160,14 @@ async function accessReady(
   }
   const workers =
     results<{ id: string; name: string }[]>(await deps.api('GET', `${a}/workers/workers?per_page=100`)) ?? []
-  const worker = workers.find((w) => w.name === workerName)
+  let worker = workers.find((w) => w.name === workerName)
+  if (!worker && deployPlanned) {
+    log(`Access attaches to ${workerName} right after its first deploy (step 3), in the same run.`)
+    worker = { id: 'after-the-first-deploy', name: workerName }
+  }
   if (!worker) {
     log(
-      `The Worker ${workerName} is not deployed yet, so Access has nothing to attach to. Let its deploy run once, then run this again right after.`,
+      `The Worker ${workerName} is not deployed yet, so Access has nothing to attach to. Run this again without --no-first-deploy: it deploys the Coming soon page first and attaches Access right after.`,
     )
     return null
   }
@@ -206,13 +212,14 @@ function writeVars(
   deps.writeText('wrangler.jsonc', text)
 }
 
-/** Step 6: how the test Worker and its previews are protected. Records the choice in wrangler.jsonc. */
+/** Step 8: how the test Worker and its previews are protected. Records the choice in wrangler.jsonc. */
 export async function protection(
   deps: Deps,
   options: Options,
   log: Log,
   resources: Record<EnvName, EnvResources>,
   chosen: Account,
+  deployPlanned = false,
 ) {
   const current = resources.test.vars.SITE_PROTECTION ?? 'none'
   if (!options.protect) {
@@ -227,7 +234,7 @@ export async function protection(
   else if (options.protect === 'password') {
     if (!(await protectWithPassword(deps, options, log, gh))) vars = null
   } else {
-    const ready = await accessReady(deps, options, log, chosen, resources.test.worker, gh)
+    const ready = await accessReady(deps, options, log, chosen, resources.test.worker, gh, deployPlanned)
     vars = ready && (await applyAccess(ready, { kind: 'test', worker: ready.worker }, ['test', 'preview']))
   }
   if (!vars) return log(`  SITE_PROTECTION stays "${current}".`)
@@ -236,7 +243,7 @@ export async function protection(
     log('  The Access application stays: delete it in Zero Trust if the person no longer wants it.')
 }
 
-/** Step 7: Access in front of all of production or some paths. Only after the person's yes. */
+/** Step 9: Access in front of all of production or some paths. Only after the person's yes. */
 export async function productionProtection(
   deps: Deps,
   options: Options,

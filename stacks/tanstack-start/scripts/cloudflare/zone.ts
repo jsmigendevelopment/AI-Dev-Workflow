@@ -162,7 +162,7 @@ function wafSet(result: unknown): ZoneState['waf'] {
   return set?.id ? { id: set.id, rules: set.rules ?? [] } : null
 }
 
-/** Step 6: the free zone settings, when there is a zone and a zone token. */
+/** Step 7: the free zone settings, when there is a zone and a zone token. */
 export async function zone(deps: Deps, options: Options, log: Log, resources: Record<EnvName, EnvResources>) {
   const hosts = resources.production.hosts
   const candidates = options.zone
