@@ -1,0 +1,14 @@
+{
+  "name": "onrails-kit",
+  "private": true,
+  "description": "The onRails kit repo. The published CLI lives in cli/. This file only holds the eval scripts.",
+  "type": "module",
+  "scripts": {
+    "evals": "node evals/run.mjs",
+    "evals:dry": "node evals/run.mjs --dry-run",
+    "test:evals": "node --test \"evals/test/*.test.mjs\""
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

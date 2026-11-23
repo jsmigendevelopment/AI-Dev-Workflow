@@ -19,6 +19,9 @@ jobs:
         working-directory: cli
       - run: npm run bundle && npm test
         working-directory: cli
+      # The eval harness against a fake claude: no model, no key, no cost.
+      - run: npm run test:evals
+      - run: node evals/run.mjs --dry-run
       - run: npm run pack:check
         working-directory: cli
   plugin:
