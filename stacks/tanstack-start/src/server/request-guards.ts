@@ -6,7 +6,7 @@ import { problemResponse } from '@/lib/app-error'
 import { isLaunched, prelaunchResponse } from '@/lib/launch'
 import { logger } from '@/lib/logger'
 import { rateLimitKey } from '@/lib/rate-limit-key'
-import { checkBody, isApiPath, SCANNER_PATH } from '@/lib/request-limits'
+import { canonicalPath, checkBody, isApiPath, SCANNER_PATH } from '@/lib/request-limits'
 import {
   botChallengeOrigin,
   clerkHostFromKey,
@@ -27,7 +27,10 @@ import { serverEnv } from './env'
  * before Start parses a body or renders a page. In order:
  *
  * 1. validate the Worker's env (fails fast, names only);
- * 2. scanner paths (`/wp-login.php`, `/.env`) get a plain 404 with no render;
+ * 2. a path Start or the router would resolve to another one (`/api//v1`, `/%61pi/v1`,
+ *    `/%5FserverFn/x`, `/notes%20`: canonicalPath), server functions included, and scanner paths
+ *    (`/wp-login.php`, `/.env`) get a plain 404 with no render. Every later guard compares the
+ *    raw path, which is then the one Start routes;
  * 3. `SITE_PROTECTION` "access": on the paths Access protects (`ACCESS_PATHS`, default all, minus
  *    `OPEN_PATHS`), a valid Access JWT or the 401 envelope (src/lib/access-jwt.ts);
  * 4. not launched (`LAUNCHED` isn't "true"): the "Coming soon" page, robots `Disallow: /`, and
@@ -108,6 +111,7 @@ export const requestGuards = createMiddleware().server(async ({ request, next, h
   const finish = (response: Response, nonce?: string) =>
     withHeaders(response, responseHeaders(response, url, nonce))
 
+  if (canonicalPath(url.pathname) === null) return finish(plain404())
   if (handlerType === 'router' && SCANNER_PATH.test(url.pathname)) return finish(plain404())
   const noAccess = await checkAccess(request, url)
   if (noAccess) return finish(noAccess)

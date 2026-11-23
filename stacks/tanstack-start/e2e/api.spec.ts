@@ -1,4 +1,5 @@
 import { expect, gateHeaders, test } from './gate'
+import { API_LOOKALIKES } from './helpers'
 
 // The /api/v1 HTTP API, from outside: it fails closed without a valid bearer token, and the
 // request guards cover it like server functions. Also runs against deployed URLs (test:deployed).
@@ -85,4 +86,28 @@ test('the API is rate-limited per client, with the safe envelope', async ({ base
   expect(limited.status).toBe(429)
   expect(limited.headers.get('retry-after')).toBe('60')
   expect(await limited.json()).toMatchObject({ ok: false, error: { code: 'rate_limited' } })
+})
+
+const bigPost = (url: string) =>
+  fetch(url, {
+    method: 'POST',
+    redirect: 'manual',
+    headers: { ...gateHeaders(), 'content-type': 'application/json', authorization: 'Bearer x' },
+    body: JSON.stringify({ title: 'x'.repeat(65 * 1024) }),
+  })
+
+for (const path of API_LOOKALIKES) {
+  test(`${path} is a 404 or gets the API body cap`, async ({ baseURL }) => {
+    expect([404, 413]).toContain((await bigPost(`${baseURL}${path}`)).status)
+  })
+}
+
+test('look-alike API paths are a 404 or share the API rate limit', async ({ baseURL }) => {
+  test.skip(!!process.env.BASE_URL, 'needs a client address of its own')
+  const ip = `198.51.100.${Math.floor(Math.random() * 250) + 1}`
+  const call = (path: string) =>
+    fetch(`${baseURL}${path}`, { redirect: 'manual', headers: { ...gateHeaders(), 'cf-connecting-ip': ip } })
+  for (let i = 0; i < 21; i++) await Promise.all(Array.from({ length: 10 }, () => call('/api/v1/notes')))
+  expect((await call('/api/v1/notes')).status).toBe(429)
+  for (const path of API_LOOKALIKES) expect([404, 429], path).toContain((await call(path)).status)
 })

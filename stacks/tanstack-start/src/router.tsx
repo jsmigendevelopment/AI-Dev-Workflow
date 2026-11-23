@@ -45,6 +45,9 @@ export function getRouter() {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
+    // Match paths exactly as the path guards compare them (`isApiPath`, Access paths, OPEN_PATHS):
+    // with the default, `/API/v1/notes` reached the API route without its guards (#18).
+    caseSensitive: true,
     // Route code and data start loading on hover or focus, not on page load.
     defaultPreload: 'intent',
     ssr: { nonce: cspNonce() },

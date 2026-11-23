@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test'
 
-import { hydrated, recordCspViolations, ROUTES, watchProblems } from './helpers'
+import {
+  expectGuard404,
+  hydrated,
+  recordCspViolations,
+  RESOLVED_ELSEWHERE,
+  ROUTES,
+  watchProblems,
+} from './helpers'
 
 const BASELINE = {
   'strict-transport-security': 'max-age=31536000; includeSubDomains',
@@ -70,6 +77,23 @@ test('scanner paths get a plain 404 without a page render', async ({ request }) 
   const unknown = await request.get('/no-such-page')
   expect(unknown.status()).toBe(404)
   expect(unknown.headers()['content-type']).toContain('text/html')
+})
+
+for (const path of RESOLVED_ELSEWHERE) {
+  test(`${path} is the guards' plain 404`, async ({ request, baseURL }) => {
+    await expectGuard404(request, baseURL!, path)
+  })
+}
+
+test('escaped spaces and letters inside a path, and encoded query strings, still reach the app', async ({
+  request,
+}) => {
+  for (const path of ['/notes/a%20b', '/notes/caf%C3%A9', '/notes?q=a%20b%26c%3Dd%2F']) {
+    const response = await request.get(path)
+    expect(response.headers()['content-type'], path).toContain('text/html')
+    expect([200, 404], path).toContain(response.status())
+  }
+  expect((await request.get('/notes?q=a%20b%26c')).status()).toBe(200)
 })
 
 test('a cross-site call to a server function is blocked', async ({ request }) => {

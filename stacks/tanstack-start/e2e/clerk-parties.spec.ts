@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 import { bearer, sessionCookie, sessionToken, signedInAs, UNSIGNED } from './clerk-tokens'
+import { API_LOOKALIKES } from './helpers'
 
 // Clerk's authorizedParties (src/lib/authorized-parties.ts), end to end through clerkMiddleware,
 // on a local preview with a made-up Clerk instance (the `clerk` project in playwright.config.ts).
@@ -40,6 +41,20 @@ test('a valid session cookie never signs in to the API, whatever the Authorizati
     expect(response.status(), authorization ?? 'no header').toBe(401)
   }
   expect((await request.get('/', { headers: { cookie } })).status()).toBe(200)
+})
+
+test('a look-alike API path is a 404, or Clerk never sees the session cookie there', async ({
+  request,
+  baseURL,
+}) => {
+  const cookie = await sessionCookie(new URL(baseURL!).origin)
+  const none = await request.get('/api/v1/notes')
+  for (const path of API_LOOKALIKES) {
+    const response = await request.get(path, { headers: { cookie }, maxRedirects: 0 })
+    expect([404, 401], path).toContain(response.status())
+    if (response.status() === 401)
+      expect(response.headers()['x-clerk-auth-status'], path).toBe(none.headers()['x-clerk-auth-status'])
+  }
 })
 
 test('bearer: a spoofed X-Forwarded-Host never makes its origin a party', async ({ request }) => {
