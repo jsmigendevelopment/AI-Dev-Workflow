@@ -76,6 +76,11 @@ desktop = true                  # false: phone only
 # Kept in ~/.onrails/boards/, never in a repo.
 # dir = "G:/My Drive/onrails/boards"   # optional: a Google Drive desktop folder, so you can read it on your phone
 # sheet = "https://docs.google.com/spreadsheets/d/..."   # optional: a Google Sheet copy that cloud threads can update ("off": don't offer one)
+# The sheet's Presence tab is the only place /afk is shared beyond this machine. Without a sheet,
+# cloud sessions don't know you're away. Presence never goes in a repo.
+
+[presence]
+machine = ""                    # a label for this machine on the Presence tab, e.g. "laptop" (blank: its hostname)
 
 [workflow]
 grill_questions_per_topic = 10
