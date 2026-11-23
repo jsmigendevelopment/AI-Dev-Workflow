@@ -9,3 +9,4 @@ How onRails made its bigger decisions. These are the kit's history, not guides f
 | [Electron pack](electron-pack.md) | What the desktop pack must contain: Electron 45 with Forge 8 and Vite, Electron's full security checklist, windows and tabs, terminals and an optional local API. | 2026-11-22, fact-checked 2026-11-23 |
 | [Authorization](authorization.md) | A small Zanzibar-style engine of our own on D1 behind one typed `Authz` port, with no library for now. | 2026-11-23, fact-checked the same day |
 | [Plugin plan](plugin-plan.md) | Ship the kit as the `core@onrails` plugin with `/or:` commands that install the kit and hand off to the project's own skills. | 2026-11-23, built in issue #4 |
+| [Competitors](competitors.md) | Where onRails stands against GitHub Spec Kit, Superpowers, BMAD, OpenSpec, Task Master, Agent OS, Kiro and Conductor, and eight ideas worth taking. | 2026-11-23, **draft: not fact-checked yet** |
