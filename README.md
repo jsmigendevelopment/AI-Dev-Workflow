@@ -78,6 +78,8 @@ Then type `$idea` or `$join`.
 
 The package will be `onrails`, and the command will be `npx onrails init`. **It isn't published yet. Don't run it today.**
 
+Maintainers: [RELEASING.md](RELEASING.md) says how it gets published.
+
 Want the CLI now? Run it from a clone:
 
 ```bash
