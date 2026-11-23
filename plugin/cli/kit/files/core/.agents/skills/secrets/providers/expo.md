@@ -70,5 +70,5 @@ EAS has a free plan with a monthly build allowance. `[U]`, see https://expo.dev/
 - **`EAS project not configured`:** `init` wasn't run, so `extra.eas.projectId` is missing. `[V]`
 - **A secret in `EXPO_PUBLIC_*`:** it ships in the app. Never do it.
 - **Visibility:** EAS has plain text, sensitive and secret. Use secret only for values the build needs but nobody should read. These two are plain text. `[V]`
-- **The pack README says `eas env:create`.** Expo's current docs use `eas env:set`. Use `env:set`.
+- **`env:set`, not `env:create` or `env:update`.** In eas-cli 27.11.0 `env:set` creates or updates a variable; the other two still run but are deprecated. `[V]` (the package's `oclif.manifest.json`)
 - **Clerk production on mobile:** enable the Native API (see `clerk.md`).

@@ -38,6 +38,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
+- **The monorepo-expo pack says `eas env:set`, not the deprecated `eas env:create`,** in its README and `.env.example`, matching eas-cli 27.11.0, where `env:set` creates or updates a variable. The Expo provider file's trap note now says why (#15).
 - **Clerk tokens are checked against the app's own origins** (`authorizedParties`) in the TanStack Start pack, for the session cookie and `/api/v1` bearer tokens. The list comes from `SITE_URL`, localhost and the test Worker's previews, so there is no new setup step; `CLERK_AUTHORIZED_PARTIES` adds more. A token for another site, or with no `azp`, gets the same 401 as no token, and production with Clerk keys but no origin refuses to start. Native apps, whose tokens have no `azp`, opt in with `CLERK_ALLOW_NATIVE_TOKENS` (bearer on `/api/v1` only); the monorepo-expo pack turns it on. The refusal reason no longer reaches the page or the response headers. The `Authorization` header is parsed exactly as Clerk does (`bearer x` no longer counts), and on `/api/v1` the cookie never reaches Clerk (#12).
 - `.clerk/` (Clerk claim files and temporary keys) is git-ignored in both packs, and CI fails if anything under it is committed.
 - **The first pull request can merge now.** `setup-cloudflare` deploys the test Worker once, as the Coming soon page, so previews have a Worker to upload to. `--no-first-deploy` skips it. If the test Worker is missing, the `preview` job fails and names the fix (#3).
