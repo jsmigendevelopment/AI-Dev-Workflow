@@ -1,20 +1,26 @@
 <p align="center">
-  <img src="../assets/cheat-sheet.svg" alt="Cheat sheet: /idea, /join, /back, /afk" width="100%">
+  <img src="../assets/cheat-sheet.svg" alt="onRails cheat sheet: /idea, /join, /back, /afk" width="100%">
 </p>
 
 ## 💬 Commands
 
-| | Claude Code | Codex | Use it when | Or just say |
-|---|---|---|---|---|
-| 💡 | **`/idea`** | `$idea` | You have an idea for a new app | "I have an idea for an app" |
-| 🧭 | **`/join`** | `$join` | You're new to a repo that isn't set up yet | "Help me get set up in this repo" |
-| ☀️ | **`/back`** | `$back` | You're starting work, or back from a break | "I'm back" · "pick up where we left off" |
-| 🌙 | **`/afk`** | `$afk` | You're stepping away and want it to keep building | "brb" · "good night" |
+| | With the plugin | With the kit in the project | Codex | Use it when | Or just say |
+|---|---|---|---|---|---|
+| 💡 | **`/or:idea`** | **`/idea`** | `$idea` | You have an idea for a new app | "I have an idea for an app" |
+| 🧭 | **`/or:join`** | **`/join`** | `$join` | You're new to a repo that isn't set up yet | "Help me get set up in this repo" |
+| ☀️ | **`/or:back`** | **`/back`** | `$back` | You're starting work, or back from a break | "I'm back" · "pick up where we left off" |
+| 🌙 | **`/or:afk`** | **`/afk`** | `$afk` | You're stepping away and want it to keep building | "brb" · "good night" |
 
 > [!TIP]
 > **Typing the command always works.** The plain phrase usually does, on a strong model.
 
-**Got the plugin?** The commands show as `/or:idea`, `/or:join`, `/or:back`, `/or:afk`. Plain `/idea` works too. In a folder with the kit, it runs the project's copy. Install it once:
+**Which one do I type?**
+
+- **`/or:idea`** comes from the onRails plugin. It works in any folder, before the kit is there. The first time, it asks to install the kit into the folder. Then it hands off to the project's copy.
+- **`/idea`** is the project's own skill. It works once the kit is installed in the project, with or without the plugin.
+- With both, either one runs the project's copy. The project copy wins.
+
+Install the plugin once, in Claude Code:
 
 ```text
 /plugin marketplace add jsmigendevelopment/onRails

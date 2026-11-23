@@ -19,6 +19,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 ### Changed
 
 - **Bundle budgets (#7):** unchanged for `/` (145 KB gzip, measured 136.4) and `/notes` (170 KB, measured 143.9); new ones for a note's page (170 KB, measured 144.0) and the lazy chunks for the note forms (42 KB, measured 36.7) and the toaster (12 KB, measured 9.2). Start splits every route on its own: `autoCodeSplitting` isn't an option there, and the build shows one chunk per route.
+- **The README is rewritten under the name onRails** (#22): the plugin first, a run from idea to the test site, the guardrails, the packs and add-ons. It says plainly that `npx onrails` isn't published yet. The banner says onRails, and the cheat sheet shows `/or:idea` next to the project's `/idea`.
 
 ### Fixed
 
