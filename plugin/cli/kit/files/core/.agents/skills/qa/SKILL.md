@@ -22,7 +22,7 @@ You're independent. Don't read the builder's description. Work from the issue's 
 **Smoke** (after a merge):
 1. Open the **test environment** (the URL is in `AGENTS.md`), never production.
 2. Run the main flow from `docs/vision.md`, plus the merged issue's `agent` checks, and report them by ID.
-3. Pass: tell the person "ready to try", with what you tested and 1–3 screenshots. That's an ℹ️ FYI: `node .claude/hooks/notify.mjs --level fyi --title "Ready to try: <issue title>" --link <test URL>`. Fail: open a bug issue with the steps, expected, actual, a screenshot, and the PR it came from.
+3. Pass: tell the person "ready to try". Lead with the issue's try line, so they know what to do and what they'll see. Then what you tested, and 1–3 screenshots. That's an ℹ️ FYI: `node .claude/hooks/notify.mjs --level fyi --title "Ready to try: <issue title>" --message "<the try line>" --link <test URL>`. Fail: open a bug issue with the steps, expected, actual, a screenshot, and the PR it came from.
 
 ## Rules
 

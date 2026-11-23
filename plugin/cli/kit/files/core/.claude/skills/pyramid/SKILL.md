@@ -1,6 +1,6 @@
 ---
 name: pyramid
-description: Use when planning how to build an app or a big feature ("plan the build", "break this into milestones", "how should we slice this", "plan the next pass") - the CTO step. Plans slice 0 (the skeleton with CI and a test deploy), cuts the MVP into vertical tracer-bullet slices, stacks them into three passes (Works, Real, Ready) where each is narrower and deeper, outlines every pass but details only the current one, designs the schema and API from the approved wireframes, and re-plans at each pass gate.
+description: Use when planning how to build an app or a big feature, or checking how a plan is sliced ("plan the build", "break this into milestones", "how should we slice this", "plan the next pass", "is this plan thin enough") - the CTO step. Plans slice 0 (the skeleton with CI and a test deploy), cuts the MVP into vertical tracer-bullet slices, stacks them into three passes (Works, Real, Ready), cuts only the current pass into thin steps a person can try, checks the cut with a script, designs the schema and API from the approved wireframes, and re-plans at each pass gate.
 ---
 
 # Pyramid: see it working early, then make it great
@@ -13,7 +13,9 @@ The old way builds in layers: the whole schema, then the whole API, then the who
 
 **A pass is an improvement** to what's already there. Each pass makes its slices better than the last.
 
-It's standard agile: slices are vertical user stories, passes and layers are iterations, the gate is the review, retro and backlog refinement, and `features.md` is the backlog.
+**A slice is a column. A step is one thin cut of it.** A slice is one thing the app lets a person do: "the shared list". A step is the smallest change to a slice that a person can try: "add an item". Each pass cuts its slices into steps. One step is one issue and one pull request. Thin steps keep changes reaching the test site, so the person always has something new to try.
+
+It's standard agile: a step is a user story, a slice is the activity its stories belong to, passes and layers are iterations, the gate is the review, retro and backlog refinement, `features.md` is the backlog, and "Done means" in `docs/pyramid.md` is the definition of done.
 
 The MVP is not one slice and not one pass, so the slices **stack:**
 
@@ -49,10 +51,11 @@ pass 2      ████  ████  ████
 pass 1  ████ ████ ████ ████ ████
 ```
 
-- **Each layer has two parts:** new features, each coming in thin (it works end to end, with the floor), and **a pass on what's already there:** the core every layer, plus the earlier features that feedback or usage points to.
+- **Each layer has two parts:** new features, each coming in thin (it works end to end, with the floor), and **a pass on what's already there:** the core every layer, plus the earlier features that feedback or usage points to. Both parts are cut into steps, the same way.
 - **The mix is a guide:** about two thirds new, one third improving. The gate shifts it.
 - **The gate between layers** is the same as between passes (`references/pass-gate.md`). Plan one layer at a time.
 - **Launch** can happen at any layer. It's the person's call.
+- **After launch, half-built work still merges.** First cut it so every step is fine to show. If one isn't, build its parts and add the way in (the link or the button) in the last step. Only then use a flag, a switch in config: on in test, off in production, and removed once the feature is out. Turning it on in production is the person's call. Before launch, production shows "Coming soon", so nothing needs a flag.
 
 ## Steps
 
@@ -72,20 +75,36 @@ pass 1  ████ ████ ████ ████ ████
 2. **Seed data and test users.** Once the schema is designed (step 4), the first slice that adds a table also adds a seed script and **two test users**, so `qa` can always sign in and check that one user can't see another's data.
 3. **List the slices** from `docs/mvp.md`. One slice is one thing a user can do, end to end. Name the **core.** Keep only slices that pass "does the core work without it?". Not every app needs auth.
 4. **Design what the slices share.** Start from the approved screens and tokens in `docs/design.md` and `docs/wireframes/index.html`. No approval row in `docs/decisions.md`? Stop and run `wireframes` first. Apply the tokens to the UI kit's theme, then write the schema and the API contracts the screens need. A screen that must change goes back through `wireframes` for approval. Builders follow this design. They don't invent their own.
-5. **Order pass 1.** Slice 0 first, then the slice that proves the riskiest idea, usually the core.
-6. **Outline every pass.** For each: the milestone name, its slices, and one line per slice on what "better" means. **Detail only the current pass:** its slices in order of priority and dependency, and what each must do.
-7. **Write `docs/pyramid.md`** from the `idea` skill's template, with the current pass marked `building`. Then hand off to `issues` for that pass only. **Done when** every pass has an outline row and only the current pass has detail.
+5. **Outline every pass.** For each: the milestone name, its slices, and one line per slice on what "better" means.
+6. **Cut the current pass into steps,** and only the current pass. For each of its slices, list the smallest changes a person can try, and put each through the thin test below. Order them: slice 0 first, then the step that proves the riskiest idea, usually in the core. Fill in "After" only where one step truly needs another, so steps that don't can be built at the same time.
+7. **Write `docs/pyramid.md`** from the `idea` skill's template: the steps go in its steps table, and the current pass is marked `building`.
+8. **Check the cut:** `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md`. Fix an error by cutting again, not by rewording the row. **Done when** it prints 0 errors, every pass has an outline row, and only the current pass has steps. Then hand off to `issues` for that pass only.
+
+## The thin test
+
+A step passes when all four are true:
+
+1. **A person can try it.** Write the try line: what they do on the test site, and what they see. *"Type milk and press Enter: it shows at the top of the list."* Can't write one? It isn't a step. Fold it into the first step that shows something.
+2. **It cuts through every layer it needs:** the screen, the logic and the data together. "Set up the database" and "build the API" are layers, not steps.
+3. **It's small:** size 4 or under on the complexity scale in `issues`, which is one screen, form or rule on a module that exists. A 5 to 7 says why it can't be cut, and at most one step in three is that big.
+4. **It's one thing:** one path, one rule or one state. An "and" in its name means two steps.
+
+- **Count them.** Fewer than two steps per slice means you listed slices, not steps. Cut again.
+- **Ways to cut:** the plainest path first, then one rule at a time, one kind of data at a time, one state at a time (empty, error, loading), and the simple version before the nice one. `references/slicing.md` has each one with an example.
+- **One schema change per slice per pass.** A migration puts a step in the risky lane, and that lane can wait for the person. So a slice's first step adds its whole table as `docs/design.md` has it, and the steps after it use that table.
+- **An open question isn't a step.** Use `research`, or make the first step the thinnest one that would prove the idea wrong.
 
 ## Rules
 
-- Every slice in pass 1 ends with something a person can **try.** If they can't, it isn't a slice yet.
+- Every step, in every pass, ends with something a person can **try.** If they can't, it isn't a step yet.
 - Don't start pass 2 of anything until pass 1 of the core works.
 - A big feature with new screens: run `wireframes` for them and get the approval before you slice it.
-- Everything above the current pass is an outline. It gets detail only at its gate.
-- A pass ends at the pass gate: the person tries it, a fresh audit, cleanup, then a re-plan here. See the References table.
+- Everything above the current pass is an outline. It gets steps only at its gate.
+- A pass ends at the pass gate: a fresh audit and cleanup start at once, the person tries it, then a re-plan here. See the References table.
 
 ## References
 
 | File | Load when |
 |---|---|
+| `references/slicing.md` | Cutting a slice into steps, a step won't pass the thin test, or the plan checker fails. |
 | `references/pass-gate.md` | Every issue in the current pass is merged, or you're re-planning at a gate. |

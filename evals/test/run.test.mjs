@@ -41,7 +41,7 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 14 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 18 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
@@ -152,6 +152,42 @@ const items = [{ priceCents: 1000, qty: 2 }];
 test("AC-7-1: WHEN the code is SAVE10 THEN the total is 10% off", () => assert.equal(total(items, "SAVE10"), 1800));
 test("AC-7-2: WHEN the code is unknown THEN the total is the full price", () => assert.equal(total(items, "NOPE"), 2000));
 `;
+// A pass 1 cut into thin steps: nine rows, two or more per slice, a try line and a size on each.
+const THIN_PLAN = `# Tracer-bullet pyramid
+
+## Slices
+
+| Slice | Role | What a person can do after pass 1 |
+|---|---|---|
+| Shared list | core | Add items and tick them off |
+| Sign-in | support | Sign in and out |
+| Household | support | Share one list with the flat |
+| Cost split | support | See who owes whom |
+
+## Outline: every pass
+
+| Pass | Milestone | Slices | What "better" means, per slice | Status |
+|---|---|---|---|---|
+| 1 Works | pass-1 | every slice | thin and working | building |
+| 2 Real | pass-2 | core + supports | the core deep | outline |
+
+## Current pass: steps
+
+| # | Step | Slice | Try it | Size | After |
+|---|---|---|---|---|---|
+| 1 | The skeleton | slice 0 | Open the test URL: the starter page loads | 5 · sets up the app, CI and the test deploy | |
+| 2 | Sign in | Sign-in | Click Continue with Google: your name shows in the header | 3 | 1 |
+| 3 | Sign out | Sign-in | Click Sign out: /list sends you to the sign-in page | 2 | 2 |
+| 4 | Make a household | Household | Type a name and save: the household page shows you as its member | 4 | 2 |
+| 5 | Join from an invite link | Household | Open the link as a second user: both names show as members | 4 | 4 |
+| 6 | See the list | Shared list | Open /list: the seeded items show, newest first | 4 | 4 |
+| 7 | Add an item | Shared list | Type "milk" and press Enter: it shows at the top | 3 | 6 |
+| 8 | Tick an item off | Shared list | Click the box next to "milk": it is struck through | 2 | 6 |
+| 9 | Enter a spend | Cost split | Open /split, type 12.50 and save: it shows in this month's list | 4 | 4 |
+| 10 | See who owes whom | Cost split | Open /split with two spends: each flatmate's share shows | 3 | 9 |
+`;
+const COARSE_PLAN = "# Plan\n\n## Phase 1\n\n1. Set up the database schema\n2. Build the API\n3. Build the UI\n";
+
 const SCENARIO_PLANS = {
   "idea-grill": {
     with: { steps: [{ write: "kickoff/grill-log.md", content: "# Grill\n" }, { text: "1. Who uses it?\nRecommended: the four of you.\n2. How do you split today?\nRecommended: an app.\n3. Phones or laptops?\nRecommended: phones." }] },
@@ -172,6 +208,14 @@ const SCENARIO_PLANS = {
   "review-weakened-test": {
     with: { steps: [{ bash: "git diff main...feat/3-faster-rounding" }, { text: "Not ready to merge. Must fix: the 2.5 rounds to 2 test was removed, and the -2.5 assertion was loosened to assert.ok." }] },
     without: { steps: [{ write: "src/round.mjs", content: "export const roundHalfEven = Math.round;\n" }, { text: "Looks good to me. Ready to merge." }] },
+  },
+  "plan-thin-steps": {
+    with: { steps: [{ write: "docs/pyramid.md", content: THIN_PLAN }, { bash: "node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md" }, { text: "The plan is in docs/pyramid.md: 10 steps for pass 1, each with a try line." }] },
+    without: { steps: [{ write: "docs/pyramid.md", content: COARSE_PLAN }, { write: "src/db/schema.ts", content: "export {};\n" }, { text: "Planned, and I started on the schema." }] },
+  },
+  "coarse-plan-rejected": {
+    with: { steps: [{ bash: "node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md" }, { text: "Not ready. Steps 2 to 4 are cut by layer: the database, the API and the UI. Nobody can try step 2 or 3, so give every step a try line, and add steps for Household and Cost split." }] },
+    without: { steps: [{ write: "docs/pyramid.md", content: COARSE_PLAN }, { text: "Looks good to me. I tidied the file, go ahead and write the issues." }] },
   },
   "wireframe-gate": {
     with: { steps: [{ text: "The wireframes aren't approved yet. Do you approve docs/wireframes/index.html, or what would you change?" }] },

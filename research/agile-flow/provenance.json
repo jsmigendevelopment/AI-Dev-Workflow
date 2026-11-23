@@ -1,7 +1,10 @@
 {
   "schema": "research-provenance/1",
   "dossier": "agile-flow.md",
-  "stores": ["desk"],
+  "stores": [
+    "desk",
+    "measurements"
+  ],
   "roles": [
     {
       "role": "author",

@@ -30,8 +30,11 @@ When the two disagree, the more careful one wins. Full automation with a careful
 | Merges, normal lane | agents | agents | person |
 | Merges, risky lane | person | agents | person |
 | Opens pull requests | agents | agents | person |
+| In flight at once | 3 | 3 | 1 |
 | Overnight loop | off (`/afk` offers it) | on | off |
 | Ping level | decisions | blockers | decisions |
+
+**In flight at once** is how many issues may be claimed and not yet merged. A low number gets each one to the test site sooner. Raise it only when builders sit idle and the checks keep up.
 
 Ping levels: **decisions** pings blockers at once and batches decisions. **blockers** pings only blockers. **critical** pings only for production down or a live security hole. The `ask` skill has the details.
 
@@ -56,7 +59,7 @@ Ping levels: **decisions** pings blockers at once and batches decisions. **block
 
 | Skill | Uses it for |
 |---|---|
-| `coordinate` | Whether the loop runs, who merges each lane, and whether it opens pull requests. |
+| `coordinate` | Whether the loop runs, how many issues are in flight, who merges each lane, and whether it opens pull requests. |
 | `build` | Whether to open the pull request or stop at a pushed branch. |
 | `pr-review` | Whether the verdict says the person must look before merge. |
 | `issues` | Writing who merges into each issue's lane. |

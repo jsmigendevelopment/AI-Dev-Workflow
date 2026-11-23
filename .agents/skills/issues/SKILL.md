@@ -1,6 +1,6 @@
 ---
 name: issues
-description: Use to turn a plan, the current pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - each with WHEN/THEN acceptance checks that carry IDs, tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, a complexity score, priority and the skills to load, then a read-only consistency check. Runs on the everyday model from the CTO's plan.
+description: Use to turn a plan, the current pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - one issue per step, each with a try line, WHEN/THEN acceptance checks that carry IDs, tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, a complexity score, priority and the skills to load, then a read-only consistency check. Runs on the everyday model from the CTO's plan.
 ---
 
 # Issues: the contract between the plan and every agent after it
@@ -14,14 +14,14 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
 ## Steps
 
 1. **The current pass only.** One milestone per pass in `docs/pyramid.md` (or per feature, for a project that's already built). Write detailed issues for the pass marked `building`, or the next pass during its gate's re-plan. Asked for issues for a later pass? Refuse: it stays an outline until its gate has run (`pyramid`'s pass gate). Offer the gate if the current pass is done.
-2. **One issue per slice per pass.** Split anything a reviewer couldn't read in one sitting (about 400 changed lines) into sub-issues.
+2. **One issue per step:** each row of the steps table in `docs/pyramid.md`. Copy its try line into the issue's "Try it" section, word for word. A step that needs more than one issue is two steps: send it back to `pyramid` to cut. No steps table (a plan from before steps)? One issue per slice, and split anything a reviewer couldn't read in one sitting, about 400 changed lines.
 3. **Fill in every field** of `.github/ISSUE_TEMPLATE/slice.md` (copy it from this skill's `templates/` if it's missing).
 4. **Acceptance checks.** Write each one as `AC-<issue>-<n>: WHEN <situation> THEN <result>`, numbered from 1, one result each. The test that proves it carries the ID in its title. No number until the issue exists? Create it, then add the IDs with `gh issue edit`.
    - **`auto`:** becomes an automated test that CI runs on every pull request. Most checks should be `auto`.
    - **`agent`:** needs judgement (layout, flow, copy). A fresh `qa` agent checks it on the preview before merge. Write the steps to click and what you should see.
    - For anything a signed-in user owns, add one check that **a signed-out visitor and a second user can't read or delete it.**
    - **Unsure what the person wants?** Write `[NEEDS CLARIFICATION: <question>]` where the gap is, and ask it through `ask`. A marker blocks `status:ready`. Answered? Replace the marker with the answer.
-5. **Complexity.** Write `Complexity: <1–10> · <one-line reason>`. Score the hardest part, not the line count. **Above 7, split it** before it's ready.
+5. **Complexity.** Write `Complexity: <1–10> · <one-line reason>`. Score the hardest part, not the line count. **Aim for 4 or under.** At 5 to 7, the reason says why it can't be cut thinner. **Above 7, split it** before it's ready.
 
    | Score | Looks like |
    |---|---|
@@ -38,6 +38,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - `priority:p0` to `priority:p3`;
    - `pass:<n>`, one per pass in the outline;
    - `slice:core`, `slice:support`;
+   - `gate`, on an issue from a pass gate's audit, cleanup pick or feedback about what's built. The loop builds these while the gate runs;
    - `lane:tiny`, `lane:normal`, `lane:risky`;
    - `status:ready` once nothing blocks it: no `[NEEDS CLARIFICATION]` left, complexity 7 or under;
    - `status:in-progress` and `needs-human`, which `coordinate` sets later;
@@ -73,4 +74,4 @@ Write each issue as `docs/issues/NNN-short-title.md` from the same template, and
 
 ## From feedback or bugs
 
-One issue per point, in the person's words: "what I saw, what I want." For a bug: the steps, what was expected, what happened, a screenshot, and the PR that caused it if known. Tag it with the current pass, or the next one when it comes from a pass gate.
+One issue per point, in the person's words: "what I saw, what I want." For a bug: the steps, what was expected, what happened, a screenshot, and the PR that caused it if known. Its "Try it" line is how the person will see the fix. Tag it with the current pass. From a pass gate, tag it with the next pass and label it `gate`. A new idea is not an issue yet: add a row to `docs/features.md`, and the next re-plan places it.

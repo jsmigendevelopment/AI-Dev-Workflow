@@ -1,12 +1,17 @@
 ---
 name: Slice
-about: One vertical slice (or sub-slice) that an agent can build alone
+about: One step of a slice: the smallest change a person can try, built by one agent alone
 title: "[pass N] <slice>: <what a user can do after this>"
 ---
 
 ## Goal
 
 <!-- One or two sentences. What a user can do once this is merged. -->
+
+## Try it
+
+<!-- What the person does on the test site once this is merged, and what they see. One or two sentences.
+     From the step's row in docs/pyramid.md. No try line, no issue: it's part of another step. -->
 
 ## Why
 
@@ -15,7 +20,7 @@ title: "[pass N] <slice>: <what a user can do after this>"
 ## Pyramid
 
 - **Slice:** <!-- name --> · **Role:** core / support / insisted
-- **Pass:** 1 / 2 / 3
+- **Pass:** 1 / 2 / 3 · **Step:** <!-- its number in docs/pyramid.md -->
 
 ## Acceptance checks
 
@@ -57,7 +62,7 @@ title: "[pass N] <slice>: <what a user can do after this>"
 
 ## Routing
 
-**Complexity:** <!-- 1–10 · one-line reason. Above 7: split it. The scale is in the issues skill. -->
+**Complexity:** <!-- 1–10 · one-line reason. Aim for 4 or under. At 5 to 7, say why it can't be cut. Above 7: split it. The scale is in the issues skill. -->
 **Override:** <!-- Leave blank to use the routing table. -->
 
 **Priority:** p0 / p1 / p2 / p3

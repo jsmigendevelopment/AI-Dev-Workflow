@@ -19,6 +19,7 @@ You check one pass's issues against the plan. You didn't write them. **Read only
 8. **No `[NEEDS CLARIFICATION]`** is left on an issue labelled `status:ready`. List every open marker either way.
 9. **Every issue has** a `Complexity:` line of 7 or under, a fence, a lane, a priority and a `Skills:` line.
 10. **The pass fence:** no open issue sits in a later pass's milestone. In the MVP, no insisted slice is above pass 2, and a pass 4 has its row in `decisions.md`.
+11. **Thin steps:** run `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md` and report each error it prints. Every step in the table has one issue, and every issue has a "Try it" line that a person could follow on the test site. Name any issue that builds only a layer (the schema, the API or the screens alone), and any at complexity 5 to 7 whose reason doesn't say why it can't be cut.
 
 **Done when** every item above has a result for every issue in the pass.
 

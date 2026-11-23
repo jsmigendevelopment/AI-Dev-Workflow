@@ -1,0 +1,33 @@
+{
+  "run": "2026-11-23-plan-grain",
+  "created": "2026-11-23",
+  "question": "Given the same planning request on the same planned-but-unbuilt app, does the kit on this branch make a model cut pass 1 into more issues, each one something the person can try, than the kit on main (06b0b92) or no kit at all?",
+  "machine": "cloud-linux: Claude Code cloud container, Linux 6.18, Node 22.23.5, Claude Code 2.1.330, signed in with the owner's own login (no API key)",
+  "command": "node research/agile-flow/runs/2026-11-23-plan-grain/measure.mjs --model <model id> --n <runs per arm> --main-kit <a checkout of main at 06b0b92 with cli/kit bundled>",
+  "cases": [
+    "claude-haiku-5-5:no-kit", "claude-haiku-5-5:kit-main", "claude-haiku-5-5:kit-branch",
+    "claude-fable-5-2:no-kit", "claude-fable-5-2:kit-main", "claude-fable-5-2:kit-branch"
+  ],
+  "metrics": [
+    { "name": "units", "unit": "count", "how": "lines that start with '- ' under the '## Build order' heading the prompt asks for: the issues the plan would open for pass 1" },
+    { "name": "tryable_units", "unit": "count", "how": "of those lines, the ones whose text after ' :: ' is not empty and does not start with the word nothing" },
+    { "name": "steps_table", "unit": "flag", "how": "1 when the pyramid skill's check-plan.mjs finds a steps table in the plan, else 0" },
+    { "name": "checker_errors", "unit": "count", "how": "errors check-plan.mjs reports, when there is a steps table" },
+    { "name": "cost_usd", "unit": "usd", "how": "Claude Code's own estimate for the run, not a bill" },
+    { "name": "duration_s", "unit": "s", "how": "wall-clock time of the run" },
+    { "name": "turns", "unit": "count", "how": "num_turns in Claude Code's result event" }
+  ],
+  "warmup": 0,
+  "iterations": 5,
+  "notes": [
+    "Iterations: 5 per arm on claude-haiku-5-5, the model the kit's evals run on in CI. 3 per arm on claude-fable-5-2, the kit's planning tier, because each run costs more. If a model is skipped or cut short, the summary says so.",
+    "One prompt for every arm, in measure.mjs. It asks for the plan plus a '## Build order' list in a fixed form, so the count means the same thing in every arm.",
+    "The fixture is evals/lib/flatshare.mjs: four MVP slices, approved wireframes, and a profile and decision that say which model plans.",
+    "Limits per run: 20 turns, 420 seconds, a budget of 0.50 USD on Haiku and 2.00 USD on Fable (--budget).",
+    "A run that hits a limit but leaves a plan with a Build order still counts: the plan is what is measured. A run that leaves none is a failed row.",
+    "No warm-up: each run is a fresh session in a fresh temp folder.",
+    "The three arms of one iteration run at the same time. Iterations run one after another.",
+    "Effort is whatever Claude Code's headless default is for the model. The runs don't set it, and the result event doesn't report it."
+  ],
+  "versions": { "claude-code": "2.1.330", "node": "22.23.5", "kit-main": "06b0b92 (0.4.0)", "kit-branch": "this branch at the commit that adds this manifest (0.4.0 plus the changes in this pull request)" }
+}
