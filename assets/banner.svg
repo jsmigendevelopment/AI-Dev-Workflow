@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" font-family="Inter, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
-  <title>AI Dev Workflow</title>
+  <title>onRails</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#070b1a"/>
@@ -34,8 +34,8 @@
     <rect x="150" y="84" width="44" height="30" rx="5" fill="#312e81" stroke="#6366f1"/>
     <rect x="100" y="48" width="44" height="30" rx="5" fill="url(#ink)"/>
   </g>
-  <text x="72" y="150" fill="url(#ink)" font-size="72" font-weight="800" letter-spacing="-1.5">AI Dev Workflow</text>
-  <text x="74" y="208" fill="#e5e7eb" font-size="30" font-weight="600">Pitch. Grill. Slice. Ship. On repeat.</text>
-  <text x="74" y="256" fill="#9ca3af" font-size="20">Rules, skills and a build loop for Claude Code and Codex. One command to install.</text>
+  <text x="72" y="150" fill="url(#ink)" font-size="72" font-weight="800" letter-spacing="-1.5">onRails</text>
+  <text x="74" y="208" fill="#e5e7eb" font-size="30" font-weight="600">Put your AI on rails. Pitch. Grill. Slice. Ship.</text>
+  <text x="74" y="256" fill="#9ca3af" font-size="20">Rules, skills and a build loop for Claude Code and Codex. From a pitch to a deployed app.</text>
   <text x="74" y="306" fill="#6b7280" font-size="16">by jay · jsmigen.dev</text>
 </svg>
