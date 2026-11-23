@@ -244,17 +244,35 @@ The [`secrets`](.agents/skills/secrets/SKILL.md) skill lists each variable and w
 
 ## 📦 Stacks and add-ons
 
-The tech grill recommends a stack and shows alternatives. Take the picks or swap any of them. The default for a web app:
+The tech grill picks the stack with you. It shows its recommendation and the alternatives for each part, and you take them or swap any. For a web app, the recommendation is:
 
-| | Recommended | Alternatives |
+| Part | Recommended | Or |
 |---|---|---|
 | Framework | **TanStack Start** (React, TypeScript) | Next.js, React Router, SvelteKit |
-| UI | **shadcn/ui + Tailwind** | Mantine, Radix |
-| API | **Controller → service → repository**, with Zod | tRPC, GraphQL |
-| Data | **SQLite** (Cloudflare D1) with Drizzle | Supabase Postgres, Convex |
-| Auth | **Clerk** | Supabase Auth, Better Auth |
+| Look and feel | **shadcn/ui** components + **Tailwind** | Mantine, Radix |
+| Database | **SQLite** on Cloudflare D1, queried with **Drizzle** | Supabase Postgres, Convex |
+| Sign-in | **Clerk** | Supabase Auth, Better Auth |
 | Hosting | **Cloudflare Workers** | Netlify |
-| Tests | **Vitest + Playwright** | Jest |
+| Tests | **Vitest** for units, **Playwright** in a real browser | Jest |
+
+**How the server side talks to the app:**
+- **The web app** calls typed server functions, so there's no API layer to write by hand.
+- **Phones and other clients** get a versioned HTTP API at `/api/v1`, signed in with Clerk tokens.
+- **Every input** is checked with Zod schemas, on both paths.
+
+**When a feature needs it, the defaults are TanStack libraries:**
+- Query for server data;
+- Form;
+- Table;
+- Charts;
+- Markdown;
+- Highlight for code;
+- Virtual for long lists;
+- Hotkeys.
+
+Each one comes with a recipe. Nothing is installed until a feature needs it.
+
+**How the code is laid out:** one folder per feature. A request goes route → service → database, and features can't reach into each other. That's a rule lint enforces, not a stack choice. See [Guardrails](#-guardrails).
 
 A **stack pack** is that stack already working: configs, the folder skeleton, an example module through every layer, CI and the checks. At slice 0 the agent pulls it into your project. There are 5 packs: 2 ready, 3 stubs.
 
