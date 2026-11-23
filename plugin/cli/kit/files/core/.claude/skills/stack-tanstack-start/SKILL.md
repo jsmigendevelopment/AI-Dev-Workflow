@@ -281,6 +281,7 @@ The notes module is the worked example of each point below. The recipes are in R
 |---|---|
 | `references/cloudflare-agent-setup.md` | Slice 0, step 9: offering Cloudflare's agent tools. |
 | `references/tanstack/README.md` | Picking a recipe, or adding a new default library. |
+| `.agents/skills/secrets/setup/<vendor>.md` | Offering Drizzle's or shadcn/ui's agent tools, or an add-on's vendor tools (Stripe, Supabase, Sentry, Resend), or PostHog. The pack already has Drizzle, shadcn/ui and Tailwind. |
 | `references/tanstack/<name>.md` | An issue's `Recipes:` line names it. `start`, `router` and `query` also when a route, search param or server-data rule above is unclear. |
 
 ## Netlify

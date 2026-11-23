@@ -9,6 +9,7 @@ Error monitoring with Sentry: uncaught errors and the controllers' "unhandled" l
 | **Env vars** | Worker: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`. Build: `VITE_SENTRY_DSN`. CI: `SENTRY_AUTH_TOKEN` (secret), `SENTRY_ORG`, `SENTRY_PROJECT` |
 | **Packages** | `@sentry/cloudflare@11.13.0`, `@sentry/react@11.13.0`; dev: `@sentry/vite-plugin@11.13.0` |
 | **Issue** | `Skills: build, web-security` · lane `normal` (`risky` if the person's risk dial treats a new data processor as risky) |
+| **Vendor setup** | Sentry's agent handoff and CLI sign-in, the kit's way (the handoff code is a credential): `.agents/skills/secrets/setup/sentry.md`. Keys: `.agents/skills/secrets/providers/sentry.md` |
 
 ## What it adds
 

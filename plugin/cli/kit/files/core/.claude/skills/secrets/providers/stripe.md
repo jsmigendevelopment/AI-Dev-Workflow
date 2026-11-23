@@ -40,7 +40,7 @@ STRIPE_ALLOW_LIVE        only "true", only in production, only set by the person
 1. Make an account and stay in test mode (or a sandbox). Open the API keys page: https://dashboard.stripe.com/test/apikeys. Reveal the **Secret key** (or make a **restricted key**) and paste it into `.env.local` and `.env.test.local` as `STRIPE_SECRET_KEY`. Never into chat. `[U]`
 2. Sign in the Stripe CLI, in your own terminal: `[V]`
    ```bash
-   npx @stripe/cli login
+   pnpm dlx @stripe/cli@1.55.14 login
    ```
 3. Make the product and price: https://dashboard.stripe.com/test/products → add a product with a **recurring** price. Copy the price id (`price_...`) into `STRIPE_PRICE_ID`. `[U]`
 4. Turn on the customer portal: https://dashboard.stripe.com/test/settings/billing/portal. `[U]`
@@ -59,7 +59,7 @@ STRIPE_ALLOW_LIVE        only "true", only in production, only set by the person
    Copy its **Signing secret** (`whsec_...`) into `.env.test.local` as `STRIPE_WEBHOOK_SECRET`.
 6. Webhook for **local dev**: the CLI prints its own `whsec_` for `.env.local`: `[V]` (the add-on's notes)
    ```bash
-   npx @stripe/cli listen --forward-to localhost:3000/api/stripe/webhook
+   pnpm dlx @stripe/cli@1.55.14 listen --forward-to localhost:3000/api/stripe/webhook
    ```
 7. The agent pushes the test values, names only: `node .agents/skills/secrets/scripts/push-secrets.mjs --dry-run --wrangler --env test`.
 
@@ -74,5 +74,5 @@ No monthly fee; Stripe charges per payment. Test mode is free. `[U]`, see https:
 - **Webhook 400:** the signing secret is for a different endpoint. Each endpoint, and each `stripe listen`, has its own `whsec_`.
 - **Webhook can't reach the test site behind Cloudflare Access or the password page:** add `/api/stripe/webhook` to `OPEN_PATHS` and to the Access app's public paths (the add-on's step 8).
 - **"Billing isn't set up yet":** one of the three values is empty, or a live key was used without `STRIPE_ALLOW_LIVE`.
-- **Stripe's agent tools:** Stripe publishes a CLI (above). Stripe's MCP server and agent toolkit couldn't be checked here, so the kit doesn't use them. `[U]`
+- **Stripe's agent tools** (`stripe agent setup`, its plugin and MCP server, the implementation planner): [`../setup/stripe.md`](../setup/stripe.md).
 - Stripe's dashboard moves often (sandboxes, Workbench). If a link above lands somewhere else, follow Stripe's current docs at https://docs.stripe.com/keys and tell the agent so it opens an issue to fix this file.
