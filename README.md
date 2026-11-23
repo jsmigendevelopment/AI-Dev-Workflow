@@ -74,19 +74,17 @@ Then type `$idea` or `$join`.
 - **The project's copy wins.** Once the kit is in a folder, the commands run the project's skills. The plugin only gets you started.
 - **Cloud sessions don't load your personal plugins.** They use the repo's own skills, so nothing breaks.
 
-### From npm: not yet
+### From npm
 
-The package will be `onrails`, and the command will be `npx onrails init`. **It isn't published yet. Don't run it today.**
-
-Maintainers: [RELEASING.md](RELEASING.md) says how it gets published.
-
-Want the CLI now? Run it from a clone:
+In the folder you want onRails in, run:
 
 ```bash
-git clone --depth 1 https://github.com/jsmigendevelopment/onRails
-cd onRails/cli && npm run bundle
-node bin/cli.mjs init /path/to/your-app
+npx onrails init
 ```
+
+It installs the rules and skills, then offers to open Claude Code or Codex with `/idea` (or `/join` if the folder already has code). Your own files are never overwritten.
+
+Maintainers: [RELEASING.md](RELEASING.md) says how releases are published.
 
 | CLI command | What it does |
 |---|---|
