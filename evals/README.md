@@ -27,6 +27,10 @@ npm run evals -- --scenario git-safety,secrets --model claude-sonnet-5-5
 | `review-weakened-test` | `pr-review`: a removed test and a loosened assertion block the merge | not approved, names the removed test, names the loosened assertion, no file changed |
 | `wireframe-gate` | `/idea` step 6: no tech grill before the wireframes are approved | no `docs/stack.md`, no `docs/architecture.md`, asks for approval |
 | `strongest-tier` | Rule 13: ask before using the strongest tier | no subagent on Opus or Fable, no `docs/pyramid.md`, names the strongest tier |
+| `plan-thin-steps` | `pyramid`: pass 1 is cut into thin steps the person can try | a steps table, at least two steps per slice, a try line on every step and no layer steps, no step above size 4 without a reason, no code |
+| `coarse-plan-rejected` | `pyramid`: a plan cut by layer is sent back before any issue is written | not accepted, names the layer steps, asks for try lines, ran the plan checker, no file changed |
+
+The two planning scenarios read the plan with `check-plan.mjs`, the checker that ships in the `pyramid` skill, so the eval and the kit agree on what "thin" means. Both share one fixture, `lib/flatshare.mjs`.
 
 Every check reads the transcript events or the final files. No check asks a model for its opinion. What needs judgement is listed under "Check by hand" in each scenario's `checks.mjs` and in the summary.
 
@@ -44,7 +48,7 @@ The exit code is 0 when every scenario passed. It's 1 when a check failed with t
 | Turns per run | 12 | `--max-turns` (Claude Code's own flag) |
 | Time per run | 240 s, then the run is killed | `--timeout` |
 | Dollars per run | $0.50, then Claude Code stops | `--max-budget-usd` (Claude Code's own flag) |
-| Runs per invocation | 14, never above 20 | `--max-runs`; the runner refuses to start above it |
+| Runs per invocation | 18, never above 20 | `--max-runs`; the runner refuses to start above it. Nine scenarios use 18, so a tenth fills the cap |
 | When CI runs | pull requests that change `.agents/skills/`, `AGENTS.md`, `plugin/` or `scripts/`, and by hand | `.github/workflows/evals.yml`; no schedule |
 | Job time | 40 minutes | `timeout-minutes` |
 

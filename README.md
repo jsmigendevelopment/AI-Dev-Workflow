@@ -127,11 +127,11 @@ You plan once. Every step saves to files, so you can stop any time and `/or:back
 | 4 | **Wireframes + name** | Your strongest model draws every screen in the background: a clickable prototype in light and dark, plus sketches. It asks first. Meanwhile: 5–7 name ideas, `git init`, and a GitHub repo if you say yes. | `wireframes/index.html`, `design.md` |
 | 5 | **You approve the screens** | "What would you change?" until you say yes. Nothing technical starts before. | `decisions.md` |
 | 6 | **Tech grill** | Platform, stack, data, auth, environments, CI and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
-| 7 | **Plan** | Your strongest model outlines three passes, details the first, and designs the schema and API from your approved screens. It asks before it starts. | `pyramid.md`, `design.md` |
-| 8 | **Issues** | One per slice, for the current pass only. Each has WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
+| 7 | **Plan** | Your strongest model outlines three passes, cuts the first into thin steps you can each try, and designs the schema and API from your approved screens. A script checks the cut. It asks before it starts. | `pyramid.md`, `design.md` |
+| 8 | **Issues** | One per step, for the current pass only. Each has a line on what to try, WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
 | 9 | **Keys** | It lists every account and key the first deploy needs and walks you through them. About 10 minutes. | |
-| 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue. | `state.md`, one line per merge |
-| 11 | **Pass gate** | The loop stops after each pass. You try it, a fresh audit checks the code against the plan and the screens, some cleanup is picked, and the next pass is planned. | `pyramid.md` |
+| 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue, three in flight at most. | `state.md`, a line on what to try per merge |
+| 11 | **Pass gate** | The loop doesn't stop at the end of a pass. A fresh audit checks the code against the plan and the screens, and the loop builds the fixes and some cleanup. You try it whenever you can. The next pass is planned once you have. | `pyramid.md` |
 
 **What each pull request goes through:** build → CI → code review → QA on the preview → security review (risky changes only) → merge the exact commit that was checked → deploy to the test site → smoke test. A failed check goes back to a fresh builder. After two rejected rounds, the issue is parked and you're asked.
 
@@ -149,12 +149,13 @@ The old way builds the whole schema, then the whole API, then the whole UI. You 
 - **Slice 0** is the skeleton: the app runs, CI checks every pull request, and main deploys to test.
 - **The MVP is three passes:** Works (a thin tracer bullet through every slice), Real (the core goes deep), Ready (the core polished, plus speed, accessibility, SEO and the launch checklist).
 - **A pass is an improvement** to what's already there.
+- **Each pass is cut into thin steps.** A slice is one thing the app lets you do, like "the shared list". A step is the smallest change to it that you can try, like "add an item". One step is one issue and one pull request, so something new reaches the test site every few merges.
 - **Only what the core can't work without** goes in the MVP. Everything else comes after.
-- **A gate between passes:** you try it, a fresh audit, cleanup, a re-plan. Later passes stay an outline until then.
+- **A gate between passes:** a fresh audit and cleanup, which start at once, then you try it, then a re-plan. Later passes stay an outline until then.
 - **The end of pass 3 is "MVP complete" on the test site, not launch.** Going live is your call, whenever you choose.
 - **After the MVP, an hourglass:** the shape turns upside down and widens. Each layer adds new features, each in thin, plus a pass on what's already there, the core every time. Same gate between layers.
 
-**If you know agile, this is it.** A slice is a user story, sliced vertically. A pass or a layer is an iteration. The gate is the review, the retro and backlog refinement in one. `features.md` is the backlog. The kit just makes agents follow it.
+**If you know agile, this is it.** A step is a user story, sliced vertically. A slice is the activity its stories belong to. A pass or a layer is an iteration. The gate is the review, the retro and backlog refinement in one. `features.md` is the backlog. "Done means" in `pyramid.md` is the definition of done. Three in flight is the work-in-progress limit. The kit just makes agents follow it. → [The research behind it](research/agile-flow.md)
 
 → [The `pyramid` skill](.agents/skills/pyramid/SKILL.md)
 
@@ -240,7 +241,7 @@ The [`secrets`](.agents/skills/secrets/SKILL.md) skill lists each variable and w
 
 ### Tests that the skills change behaviour
 
-[`evals/`](evals/README.md) holds seven small scenarios, one per rule that matters most: the grill asks before it builds, no force push or push to main, keys never in chat or git, test first inside the fence, a reviewer catches a weakened test, the wireframe gate, and asking before the strongest model. Each runs in Claude Code twice, with the kit and without, and checks what the agent did from its transcript and files, never from another model's opinion. A scenario passes only if the kit made the difference. CI runs them on Claude Haiku 5.5 when a skill, `AGENTS.md`, the plugin or a script changes, for an estimated $0.20 a run. `npm run evals` runs them locally with your own login.
+[`evals/`](evals/README.md) holds nine small scenarios, one per rule that matters most: the grill asks before it builds, no force push or push to main, keys never in chat or git, test first inside the fence, a reviewer catches a weakened test, the wireframe gate, asking before the strongest model, a plan cut into thin steps you can try, and a plan cut by layer sent back. Each runs in Claude Code twice, with the kit and without, and checks what the agent did from its transcript and files, never from another model's opinion. A scenario passes only if the kit made the difference. CI runs them on Claude Haiku 5.5 when a skill, `AGENTS.md`, the plugin or a script changes, for an estimated $0.20 a run. `npm run evals` runs them locally with your own login.
 
 ### And the rest
 
@@ -248,6 +249,7 @@ The [`secrets`](.agents/skills/secrets/SKILL.md) skill lists each variable and w
 |---|---|
 | **No force pushes, no pushes to main** | Blocked in the tool: `.claude/settings.json` for Claude Code, `.codex/rules/git-safety.rules` for Codex. Codex rules match only the start of a command, so a `--force` typed after the branch name is left to rule 12 in `AGENTS.md`. |
 | **No silent waiting** | A rate-limited or blocked agent tells you what's blocked and when it resets, then keeps doing other work. |
+| **A few things at a time** | The loop keeps three issues in flight and finishes one before it starts a fourth. `flow.mjs` prints how many merged, how long one took and the longest gap with no merge. |
 | **Every session starts informed** | A hook gives the session the branch, the last commit and `docs/state.md` before you type. Local files only. |
 | **Pings at three levels** | 🛑 Blocker: now. ⏳ Decision: batched. ℹ️ FYI: never interrupts. A desktop notification, or your phone if you set `NTFY_TOPIC`. |
 
@@ -377,7 +379,7 @@ Using the strongest model on high effort for every job is slow and burns through
 | [Code style](guide/code-style.md) · [App conventions](guide/app-conventions.md) · [Testing](guide/testing.md) | The rules the builders follow, with the reason for each |
 | [Principles](guide/principles.md) · [Evidence](guide/evidence.md) | The 10 ideas behind the kit, and the tests behind them |
 | [Plugin plan](research/plugin-plan.md) | Why the plugin works the way it does |
-| [Research](research/README.md) | [Foundations](research/foundations.md) · [Platform packs](research/platform-packs.md) · [Electron](research/electron-pack.md) · [Authorization](research/authorization.md) |
+| [Research](research/README.md) | [Foundations](research/foundations.md) · [Platform packs](research/platform-packs.md) · [Electron](research/electron-pack.md) · [Authorization](research/authorization.md) · [Agile flow](research/agile-flow.md) |
 
 <details>
 <summary><b>What's in this repo</b></summary>
