@@ -49,3 +49,6 @@ apps/mobile/e2e/output
 .DS_Store
 *.log
 *.tsbuildinfo
+
+# Clerk CLI and SDK claim files and temporary keys. Never commit them.
+.clerk/

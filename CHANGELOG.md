@@ -15,6 +15,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
+- `.clerk/` (Clerk claim files and temporary keys) is git-ignored in both packs, and CI fails if anything under it is committed.
 - **The first pull request can merge now.** `setup-cloudflare` deploys the test Worker once, as the Coming soon page, so previews have a Worker to upload to. `--no-first-deploy` skips it. If the test Worker is missing, the `preview` job fails and names the fix (#3).
 
 ### Being built
