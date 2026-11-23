@@ -19,6 +19,22 @@ STRIPE_ALLOW_LIVE        only "true", only in production, only set by the person
 
 **Test vs live.** Local, test and previews use test keys (`sk_test_` or `rk_test_`). The add-on refuses a live key (`sk_live_`) unless `STRIPE_ALLOW_LIVE=true`. `[V]` (`stripeKeyAllowed` in the add-on). Live keys, the live webhook and `STRIPE_ALLOW_LIVE` are the person's own production step, after launch.
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "Stripe",
+  "order": 40,
+  "url": "https://dashboard.stripe.com/test/apikeys",
+  "steps": "## Walkthrough",
+  "vars": {
+    "STRIPE_SECRET_KEY": {"secret": true, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "shape": {"prefix": ["sk_test_", "rk_test_", "sk_live_", "rk_live_"]}},
+    "STRIPE_WEBHOOK_SECRET": {"secret": true, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "split": true, "url": "https://dashboard.stripe.com/test/webhooks", "shape": {"prefix": ["whsec_"]}},
+    "STRIPE_PRICE_ID": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "url": "https://dashboard.stripe.com/test/products", "shape": {"prefix": ["price_"]}}
+  }
+}
+```
+
 ## Walkthrough, test mode · about 10 minutes
 
 1. Make an account and stay in test mode (or a sandbox). Open the API keys page: https://dashboard.stripe.com/test/apikeys. Reveal the **Secret key** (or make a **restricted key**) and paste it into `.env.local` and `.env.test.local` as `STRIPE_SECRET_KEY`. Never into chat. `[U]`

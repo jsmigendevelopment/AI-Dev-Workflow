@@ -14,6 +14,21 @@ ACCESS_YANDEX_CLIENT_SECRET=
 
 You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare prints it).
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "Yandex sign-in for Cloudflare Access",
+  "order": 60,
+  "url": "https://oauth.yandex.com/client/new",
+  "steps": "## Walkthrough",
+  "vars": {
+    "ACCESS_YANDEX_CLIENT_ID": {"secret": false, "scope": ["local"], "to": [".env.cloudflare.local"]},
+    "ACCESS_YANDEX_CLIENT_SECRET": {"secret": true, "scope": ["local"], "to": [".env.cloudflare.local"]}
+  }
+}
+```
+
 ## Walkthrough · about 5 minutes
 
 1. Sign in to Yandex and open https://oauth.yandex.com/client/new (Cloudflare: **Open a new OAuth Application → New client**). Fill in the required fields. `[V]` steps, `[U]` the deep link.

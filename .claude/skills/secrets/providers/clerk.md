@@ -33,6 +33,22 @@ The mobile app (monorepo pack) reads `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`: the sa
 
 Production keys need a domain you own and can add DNS records to. They don't work on a host's shared domain such as `*.workers.dev`. `[V]` (Clerk names `*.vercel.app`; workers.dev is the same case.)
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "Clerk",
+  "order": 30,
+  "url": "https://dashboard.clerk.com/~/api-keys",
+  "steps": "## 1.",
+  "vars": {
+    "CLERK_PUBLISHABLE_KEY": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "shape": {"prefix": ["pk_test_", "pk_live_"]}},
+    "CLERK_SECRET_KEY": {"secret": true, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "shape": {"prefix": ["sk_test_", "sk_live_"]}},
+    "CLERK_JWT_KEY": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "shape": {"prefix": ["-----BEGIN PUBLIC KEY-----"]}}
+  }
+}
+```
+
 ## Clerk's CLI, and its agent prompt (reviewed copy)
 
 Clerk publishes a CLI and a setup prompt for agents. This is the part that fits this kit, checked against the sources above on 2026-11-23. `[V]` unless marked.

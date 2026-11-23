@@ -17,6 +17,23 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY   the same Clerk key as the web app (see clerk
 
 **No token is needed today.** The pack's CI builds without EAS, so `EXPO_TOKEN` isn't used. You need one only if you later run `eas` in CI. `[V]` (the pack's `ci.yml` has no EAS step)
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "Expo",
+  "order": 45,
+  "url": "https://expo.dev/",
+  "steps": "## Walkthrough",
+  "vars": {
+    "EXPO_PUBLIC_API_URL": {"secret": false, "scope": ["local"], "to": ["apps/mobile/.env"], "shape": {"prefix": ["http://", "https://"]}},
+    "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": {"secret": false, "scope": ["local"], "to": ["apps/mobile/.env"], "shape": {"prefix": ["pk_test_", "pk_live_"]}},
+    "E2E_API_URL": {"secret": false, "scope": ["test"], "to": ["github-repo"], "shape": {"prefix": ["https://"]}},
+    "E2E_CLERK_PUBLISHABLE_KEY": {"secret": false, "scope": ["test"], "to": ["github-repo"], "shape": {"prefix": ["pk_test_"]}}
+  }
+}
+```
+
 ## Walkthrough · about 10 minutes
 
 1. Make an Expo account: https://expo.dev/signup (`[U]` link). Then, in `apps/mobile`, in your own terminal:

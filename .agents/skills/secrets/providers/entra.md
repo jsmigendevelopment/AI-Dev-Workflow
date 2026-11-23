@@ -18,6 +18,22 @@ ACCESS_ENTRA_TENANT_ID=
 
 You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare prints it), and at least the **Application Developer** role in your tenant. `[V]`
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "Microsoft Entra ID sign-in for Cloudflare Access",
+  "order": 60,
+  "url": "https://entra.microsoft.com",
+  "steps": "## Walkthrough",
+  "vars": {
+    "ACCESS_ENTRA_CLIENT_ID": {"secret": false, "scope": ["local"], "to": [".env.cloudflare.local"]},
+    "ACCESS_ENTRA_CLIENT_SECRET": {"secret": true, "scope": ["local"], "to": [".env.cloudflare.local"]},
+    "ACCESS_ENTRA_TENANT_ID": {"secret": false, "scope": ["local"], "to": [".env.cloudflare.local"]}
+  }
+}
+```
+
 ## Walkthrough · about 15 minutes
 
 1. Open https://entra.microsoft.com → **Entra ID** → **App registrations** → **New registration**. Enter a **Name**. **Supported account types:** **Single tenant only**. **Redirect URI:** platform **Web**, then paste: `[V]`

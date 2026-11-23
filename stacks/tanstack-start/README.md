@@ -88,6 +88,7 @@ Names are kebab-case; a module name is plural (`todo-items`). A new page needs i
 | `pnpm new:*`            | the generators above; `pnpm routes:generate` rewrites the route tree on its own         |
 | `pnpm db:migrate:local` | apply migrations to the local D1                                                        |
 | `pnpm setup:cloudflare` | create the D1 databases, buckets and queues, wire CI, harden the zone (`--dry-run`)     |
+| `pnpm connect`          | the person sets the app's keys, one provider at a time, with hidden input (`--dry-run`) |
 
 ## On by default
 
@@ -170,7 +171,7 @@ Access puts a Cloudflare sign-in in front of the whole test Worker and its previ
 
 The password option makes a random `SITE_PASSWORD`, sets it on the test Worker and in GitHub, and shows it once; CI sends it as `x-site-password`. Paths that must stay open (a signed webhook) go in `src/lib/open-paths.ts`.
 
-The app's secrets per environment: `pnpm exec wrangler secret put CLERK_SECRET_KEY --env test` (and `--env production`), or the secrets skill.
+The app's secrets per environment: `pnpm connect` in your own terminal walks each provider, asks for each value with hidden input and stores it in `.env.local`, `wrangler secret put` and `gh secret set` (stdin only, a yes per destination, production asked separately). `pnpm connect clerk` does one provider; `pnpm connect --dry-run` shows what's set, by name. Or by hand: `pnpm exec wrangler secret put CLERK_SECRET_KEY --env test`.
 
 ## Deploys
 

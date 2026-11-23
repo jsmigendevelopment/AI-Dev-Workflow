@@ -24,6 +24,25 @@ How: the docs site was blocked here, so these were read from Cloudflare's public
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | `.env.local`, then the secrets script | site key no, secret yes |
 | `VITE_CF_BEACON_TOKEN` (analytics add-on) | GitHub variable in `test` and `production` | no |
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "Cloudflare",
+  "order": 10,
+  "url": "https://dash.cloudflare.com/profile/api-tokens",
+  "steps": "## 2.",
+  "vars": {
+    "CLOUDFLARE_API_TOKEN": {"secret": true, "scope": ["test", "preview", "production"], "to": ["github"], "shape": {"min": 30}},
+    "CLOUDFLARE_ZONE_TOKEN": {"secret": true, "scope": ["local"], "to": [".env.cloudflare.local"], "steps": "## 3.", "shape": {"min": 30}},
+    "CLOUDFLARE_ACCESS_TOKEN": {"secret": true, "scope": ["local"], "to": [".env.cloudflare.local"], "steps": "## 4.", "shape": {"min": 30}},
+    "TURNSTILE_SITE_KEY": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "split": true, "steps": "## 5.", "url": "https://dash.cloudflare.com/?to=/:account/turnstile", "shape": {"notInProduction": ["1x0000", "2x0000", "3x0000"]}},
+    "TURNSTILE_SECRET_KEY": {"secret": true, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "split": true, "steps": "## 5.", "url": "https://dash.cloudflare.com/?to=/:account/turnstile", "shape": {"notInProduction": ["1x0000", "2x0000", "3x0000"]}},
+    "VITE_CF_BEACON_TOKEN": {"secret": false, "scope": ["test", "production"], "to": ["github"], "steps": "## 6.", "url": "https://dash.cloudflare.com/?to=/:account/web-analytics"}
+  }
+}
+```
+
 ## 1. Account and login · about 3 minutes
 
 1. Sign up (skip if you have an account): https://dash.cloudflare.com/sign-up. Enter **Email** and **Password**, click **Create Account**, then click the link in the email. `[V]`
