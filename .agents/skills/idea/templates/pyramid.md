@@ -43,6 +43,10 @@ Pass 3 done = **MVP complete on the test site.** Not launch. Launch is the perso
 
 <!-- "Nice to have" review findings, audit findings and refactors not yet picked. Worst first. -->
 
-## After the MVP
+## After the MVP: the hourglass
 
-<!-- One row per feature from features.md: its own pyramid of 1 to 2 passes. -->
+<!-- One row per layer. Each layer: new features (each in thin) plus a pass on what's already there (the core every layer). Plan one layer at a time; the gate runs between layers. -->
+
+| Layer | New features | Pass on what's there | Gate |
+|---|---|---|---|
+| 1 |  | core |  |

@@ -11,6 +11,10 @@ This is CTO work. Run it on the strongest model at high effort (see `routing`). 
 
 The old way builds in layers: the whole schema, then the whole API, then the whole UI, and you see nothing until the end. **Tracer bullets** cut thin **vertical slices.** Each one goes all the way through (schema → API → UI), so after the first one you can use something real and steer.
 
+**A pass is an improvement** to what's already there. Each pass makes its slices better than the last.
+
+It's standard agile: slices are vertical user stories, passes and layers are iterations, the gate is the review, retro and backlog refinement, and `features.md` is the backlog.
+
 The MVP is not one slice and not one pass, so the slices **stack:**
 
 ```
@@ -29,7 +33,26 @@ pass 1  Works ████ ████  ████   ████ ███�
 Only the core, the supporting slices the core can't work without, and the floor (sign-in, who sees what, deleting personal data). Test each slice: **does the core work without it?** Yes? It's not in the MVP.
 
 - A non-core "must" the person insists on: ask once, plainly. Still a must? It goes in as a supporting slice with the role `insisted`, capped at pass 1 or 2. Record the decision.
-- Everything else in `docs/features.md` gets its own pyramid of 1 to 2 passes after the MVP, planned the same way.
+- Everything else in `docs/features.md` waits for the top half of the hourglass, below.
+
+## After the MVP: the hourglass
+
+Past "MVP complete" the shape turns upside down and gets wider: more features each layer.
+
+```
+layer 3   ████ ████ ████ ████ ████ ████     new features, each in thin · plus a pass on what's there
+layer 2     ████ ████ ████ ████
+layer 1        ████ core ████
+──────────────── MVP complete ────────────────
+pass 3            ████
+pass 2      ████  ████  ████
+pass 1  ████ ████ ████ ████ ████
+```
+
+- **Each layer has two parts:** new features, each coming in thin (it works end to end, with the floor), and **a pass on what's already there:** the core every layer, plus the earlier features that feedback or usage points to.
+- **The mix is a guide:** about two thirds new, one third improving. The gate shifts it.
+- **The gate between layers** is the same as between passes (`references/pass-gate.md`). Plan one layer at a time.
+- **Launch** can happen at any layer. It's the person's call.
 
 ## Steps
 

@@ -148,9 +148,13 @@ The old way builds the whole schema, then the whole API, then the whole UI. You 
 
 - **Slice 0** is the skeleton: the app runs, CI checks every pull request, and main deploys to test.
 - **The MVP is three passes:** Works (a thin tracer bullet through every slice), Real (the core goes deep), Ready (the core polished, plus speed, accessibility, SEO and the launch checklist).
-- **Only what the core can't work without** goes in. Other features get their own 1- to 2-pass pyramid after the MVP.
+- **A pass is an improvement** to what's already there.
+- **Only what the core can't work without** goes in the MVP. Everything else comes after.
 - **A gate between passes:** you try it, a fresh audit, cleanup, a re-plan. Later passes stay an outline until then.
 - **The end of pass 3 is "MVP complete" on the test site, not launch.** Going live is your call, whenever you choose.
+- **After the MVP, an hourglass:** the shape turns upside down and widens. Each layer adds new features, each in thin, plus a pass on what's already there, the core every time. Same gate between layers.
+
+**If you know agile, this is it.** A slice is a user story, sliced vertically. A pass or a layer is an iteration. The gate is the review, the retro and backlog refinement in one. `features.md` is the backlog. The kit just makes agents follow it.
 
 → [The `pyramid` skill](.agents/skills/pyramid/SKILL.md)
 
