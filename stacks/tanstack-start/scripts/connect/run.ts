@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { type Folders, groupsFor, type Place, statusReader } from './places.ts'
 import { parseProviders, type Provider, secretPrefixes } from './providers.ts'
 import { githubRepo } from './repo.ts'
+import { readSecretsMode, SECRETS_MODE_VARIABLE } from './secrets-mode.ts'
 import { runner } from './shell.ts'
 import { type Output, safeText, Stopped, terminal, type TtyInput } from './terminal.ts'
 import type { Context } from './types.ts'
@@ -52,6 +53,12 @@ export function neededNames(folders: Folders): Set<string> {
           names.add(m[1]!)
   }
   names.delete('GITHUB_TOKEN')
+  names.delete(SECRETS_MODE_VARIABLE) // setup-github's switch, not a value to ask for
+  // A workflow reads TEST_X or PRODUCTION_X in repository mode: those are X under another name.
+  for (const name of names) {
+    const base = name.replace(/^(?:TEST|PRODUCTION)_/, '')
+    if (base !== name && names.has(base)) names.delete(name)
+  }
   return names
 }
 
@@ -90,7 +97,7 @@ function planFor(ctx: Context, providers: Provider[], needed: Set<string> | null
     for (const [name, spec] of Object.entries(provider.vars)) {
       if (needed && !needed.has(name)) continue
       const words: string[] = []
-      for (const group of groupsFor(spec)) {
+      for (const group of groupsFor(spec, ctx.secretsMode)) {
         const unknown: Place[] = []
         const places = group.places.filter((place) => {
           const set = ctx.status.isSet(name, place)
@@ -161,6 +168,19 @@ async function walkAndReport(ctx: Context, plan: Array<{ provider: Provider; tod
   return failed.length ? 1 : 0
 }
 
+/** Which GitHub repository values go to, and under which names. */
+function sayGithub({ repo, secretsMode, say }: Context) {
+  say(
+    repo
+      ? `GitHub repository: ${repo} (from the origin remote).`
+      : "GitHub: the origin remote isn't on github.com, so GitHub values can't be set here.",
+  )
+  if (secretsMode === 'repository')
+    say(
+      'SECRETS_MODE is "repository" (GitHub Free, private repo): values go to repository secrets named TEST_<name> and PRODUCTION_<name>.',
+    )
+}
+
 /** The whole command. Returns the exit code. */
 export async function connect(args: string[], io: Io): Promise<number> {
   // Every line goes through safeText: provider files can't put escape sequences on the screen.
@@ -193,6 +213,7 @@ export async function connect(args: string[], io: Io): Promise<number> {
     folders,
     run,
     repo,
+    secretsMode: readSecretsMode(run, repo),
     secretPrefixes: secretPrefixes(providers),
     platform: io.platform,
     env: io.env,
@@ -202,11 +223,7 @@ export async function connect(args: string[], io: Io): Promise<number> {
     status: statusReader(folders, run, repo),
     result: { stored: [], skipped: [], failed: [] },
   }
-  say(
-    repo
-      ? `GitHub repository: ${repo} (from the origin remote).`
-      : "GitHub: the origin remote isn't on github.com, so GitHub values can't be set here.",
-  )
+  sayGithub(ctx)
   say('What is set, by name only (✓ set, ✗ missing, ? could not check):')
   const plan = planFor(ctx, picked.providers, picked.needed, opts.force)
   if (opts.dryRun) return (dryRunReport(ctx, plan), 0)

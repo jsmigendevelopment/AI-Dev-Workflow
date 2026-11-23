@@ -25,16 +25,18 @@ jobs:
     # CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and the test site's protection if any
     # (setup-cloudflare --protect): CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET for Cloudflare
     # Access, or SITE_PASSWORD for the password gate. Optional variable: APP_URL (a custom domain).
+    # GitHub Free, private repo: no environments. setup-github sets the repository variable
+    # SECRETS_MODE to "repository", and the job reads repository secrets named TEST_<name> instead.
     environment:
-      name: test
+      name: ${{ vars.SECRETS_MODE != 'repository' && 'test' || '' }}
       url: ${{ steps.url.outputs.url }}
     permissions:
       contents: read
       issues: write # to open an issue when the deploy is rolled back
     env:
       CLOUDFLARE_ENV: test # picks env.test in wrangler.jsonc, for the build and for wrangler
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
       WRANGLER_SEND_METRICS: 'false'
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +59,7 @@ jobs:
       - name: Find the URL
         id: url
         env:
-          APP_URL: ${{ vars.APP_URL }}
+          APP_URL: ${{ vars.SECRETS_MODE == 'repository' && vars.TEST_APP_URL || vars.APP_URL }}
         run: |
           url="${APP_URL:-$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -n1)}"
           if [ -z "$url" ]; then echo "No URL in the deploy output. Set the APP_URL variable."; exit 1; fi
@@ -67,9 +69,9 @@ jobs:
         env:
           BASE_URL: ${{ steps.url.outputs.url }}
           # Sent only to the test site, as headers (e2e/gate.ts). Empty when it is not protected.
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          CF_ACCESS_CLIENT_ID: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_CF_ACCESS_CLIENT_ID || secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_CF_ACCESS_CLIENT_SECRET || secrets.CF_ACCESS_CLIENT_SECRET }}
+          SITE_PASSWORD: ${{ vars.SECRETS_MODE == 'repository' && secrets.TEST_SITE_PASSWORD || secrets.SITE_PASSWORD }}
         run: pnpm test:deployed
       - name: Roll back to the previous version
         id: rollback

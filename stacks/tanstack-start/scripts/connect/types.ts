@@ -1,5 +1,6 @@
 // What the connect steps share while they run.
 import type { Folders, Run, statusReader } from './places.ts'
+import type { SecretsMode } from './secrets-mode.ts'
 import type { terminal } from './terminal.ts'
 
 export interface Context {
@@ -9,6 +10,8 @@ export interface Context {
   secretPrefixes: string[]
   /** owner/repo from origin; every gh call is pinned to it. */
   repo: string | null
+  /** Where GitHub values go: environments, or prefixed repository secrets (GitHub Free, private). */
+  secretsMode: SecretsMode
   platform: NodeJS.Platform
   env: Record<string, string | undefined>
   now: Date

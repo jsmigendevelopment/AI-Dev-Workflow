@@ -87,7 +87,7 @@ When it worked: `gh secret list --env test` shows each name with a date, and the
 
 ## Why / if it goes wrong
 
-- **Free plan, private repo:** you can't store per-environment secrets. Options: make the repo public; upgrade; or use repository secrets (`gh secret set NAME` with no `--env`), which every workflow can read, so test and production would share keys. Ask the person; don't pick for them.
+- **Free plan, private repo:** you can't store per-environment secrets. Options: make the repo public; upgrade; or the pack's repository mode, which `setup-github` turns on (repository variable `SECRETS_MODE=repository`): the workflows read repository secrets named `TEST_<name>` and `PRODUCTION_<name>`, and `pnpm connect` and `push-secrets` write those names, for example `gh secret set PRODUCTION_CLOUDFLARE_API_TOKEN`. Test and production keep separate values, but no required reviewer on production, no main-only rule, and every workflow on every branch can read the `PRODUCTION_` secrets. Ask the person; don't pick for them.
 - **A secret is empty in the run:** it was set as a repository secret but the job reads the environment one, or the other way round. Check with `gh secret list` and `gh secret list --env <name>`.
 - **Environment names aren't case sensitive** but must match the workflow: `test`, `production`, `preview`.
 - **Values from forks:** pull requests from forks get no secrets. Previews of fork PRs won't deploy. That's on purpose.

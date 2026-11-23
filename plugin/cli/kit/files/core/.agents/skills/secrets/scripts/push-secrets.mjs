@@ -5,6 +5,9 @@
 //   .env.test.local         values for the "test" environment
 //   .env.production.local   values for the "production" environment
 // Usage: node push-secrets.mjs [--dry-run] [--wrangler] [--env test|production]
+// GitHub Free has no environments on a private repo. There setup-github sets the repository
+// variable SECRETS_MODE to "repository", and this pushes repository secrets and variables named
+// TEST_<name> and PRODUCTION_<name> instead: the names the pack's workflows read in that mode.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
@@ -12,6 +15,23 @@ const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
 const WRANGLER = args.includes("--wrangler");
 const only = args.includes("--env") ? args[args.indexOf("--env") + 1] : null;
+
+// "repository" only when the repository variable says so. A read that fails keeps environments.
+function secretsMode() {
+  try {
+    const out = execFileSync("gh", ["variable", "get", "SECRETS_MODE"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return out.trim() === "repository" ? "repository" : "environment";
+  } catch {
+    return "environment";
+  }
+}
+
+/** The GitHub name and where it goes: an environment, or a prefixed repository name. */
+function githubTarget(name, env, mode) {
+  if (mode !== "repository") return { name, where: ["--env", env], label: `env ${env}` };
+  const prefixed = `${env === "production" ? "PRODUCTION" : "TEST"}_${name}`;
+  return { name: prefixed, where: [], label: `repository as ${prefixed}` };
+}
 
 function parseEnv(file) {
   const out = {};
@@ -50,6 +70,8 @@ if (!Object.keys(meta).length) {
 }
 
 const envs = ["test", "production"].filter((e) => !only || e === only);
+const mode = secretsMode();
+if (mode === "repository") console.log("SECRETS_MODE is \"repository\" (GitHub Free, private repo): GitHub values go to TEST_ and PRODUCTION_ repository names.");
 let failed = 0;
 for (const env of envs) {
   const file = `.env.${env}.local`;
@@ -59,11 +81,12 @@ for (const env of envs) {
     if (!m.scope.includes(env)) continue;
     const value = values[name];
     if (!value) { console.log(`${env}: ${name} is empty in ${file}, skipped`); continue; }
+    const gh = githubTarget(name, env, mode);
     const targets = m.secret
-      ? [["gh", ["secret", "set", name, "--env", env]], ...(WRANGLER ? [["npx", ["wrangler", "secret", "put", name, "--env", env]]] : [])]
-      : [["gh", ["variable", "set", name, "--env", env, "--body", value]]];
+      ? [["gh", ["secret", "set", gh.name, ...gh.where]], ...(WRANGLER ? [["npx", ["wrangler", "secret", "put", name, "--env", env]]] : [])]
+      : [["gh", ["variable", "set", gh.name, ...gh.where, "--body", value]]];
     for (const [cmd, cmdArgs] of targets) {
-      const where = cmd === "gh" ? (m.secret ? "GitHub secret" : "GitHub variable") : "Cloudflare secret";
+      const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})` : "Cloudflare secret";
       if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); continue; }
       try {
         execFileSync(cmd, cmdArgs, { input: m.secret ? value : undefined, stdio: ["pipe", "ignore", "pipe"] });

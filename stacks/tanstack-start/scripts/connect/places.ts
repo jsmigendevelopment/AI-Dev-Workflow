@@ -5,11 +5,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import type { Scope, VarSpec } from './providers.ts'
+import { repositoryPrefix, type SecretsMode } from './secrets-mode.ts'
 
 export type Place =
   | { kind: 'file'; path: string; label: string }
   | { kind: 'wrangler'; env: 'test' | 'production'; label: string }
-  | { kind: 'github'; env: string | null; secret: boolean; label: string }
+  | { kind: 'github'; env: string | null; secret: boolean; label: string; prefix?: string }
 
 /** One value the person types, and every place it goes. Production is always its own group. */
 export interface Group {
@@ -32,7 +33,28 @@ export interface Folders {
 export const filePath = (folders: Folders, to: string) =>
   to.includes('/') ? join(folders.root, to) : join(folders.app, to)
 
-function placesIn(spec: VarSpec, scopes: Scope[]): Place[] {
+/** The name a value is stored under: TEST_ or PRODUCTION_ first for a repository-mode secret. */
+export const storedName = (place: Place, name: string) =>
+  place.kind === 'github' && place.prefix ? `${place.prefix}${name}` : name
+
+/** GitHub places for one variable: an environment each, or one prefixed repository name each. */
+function githubPlaces(spec: VarSpec, has: (s: Scope) => boolean, mode: SecretsMode): Place[] {
+  const kind = spec.secret ? 'secret' : 'variable'
+  const envs = (['test', 'preview', 'production'] as const).filter(has)
+  if (mode === 'environment')
+    return envs.map((env) => ({ kind: 'github', env, secret: spec.secret, label: `GitHub ${env} (${kind})` }))
+  // Previews read test's names, so test and preview are one place.
+  const prefixes = [...new Set(envs.map(repositoryPrefix))]
+  return prefixes.map((prefix) => ({
+    kind: 'github',
+    env: null,
+    prefix,
+    secret: spec.secret,
+    label: `GitHub repository ${prefix}* (${kind})`,
+  }))
+}
+
+function placesIn(spec: VarSpec, scopes: Scope[], mode: SecretsMode): Place[] {
   const places: Place[] = []
   const has = (s: Scope) => scopes.includes(s) && spec.scope.includes(s)
   const kind = spec.secret ? 'secret' : 'variable'
@@ -42,9 +64,7 @@ function placesIn(spec: VarSpec, scopes: Scope[]): Place[] {
       if (has('production'))
         places.push({ kind: 'wrangler', env: 'production', label: 'Cloudflare production' })
     } else if (to === 'github') {
-      for (const env of ['test', 'preview', 'production'] as const)
-        if (has(env))
-          places.push({ kind: 'github', env, secret: spec.secret, label: `GitHub ${env} (${kind})` })
+      places.push(...githubPlaces(spec, has, mode))
     } else if (to === 'github-repo') {
       if (has('test'))
         places.push({ kind: 'github', env: null, secret: spec.secret, label: `GitHub repository (${kind})` })
@@ -56,20 +76,20 @@ function placesIn(spec: VarSpec, scopes: Scope[]): Place[] {
 }
 
 function devName(spec: VarSpec): Group['name'] {
-  const local = placesIn(spec, ['local']).length > 0
-  const test = placesIn(spec, ['test', 'preview']).length > 0
+  const local = placesIn(spec, ['local'], 'environment').length > 0
+  const test = placesIn(spec, ['test', 'preview'], 'environment').length > 0
   return local && test ? 'local and test' : local ? 'local' : 'test'
 }
 
 /** The values to ask for: local and test share one unless `split`; production is separate. */
-export function groupsFor(spec: VarSpec): Group[] {
+export function groupsFor(spec: VarSpec, mode: SecretsMode = 'environment'): Group[] {
   const groups: Group[] = spec.split
     ? [
-        { name: 'local', places: placesIn(spec, ['local']) },
-        { name: 'test', places: placesIn(spec, ['test', 'preview']) },
+        { name: 'local', places: placesIn(spec, ['local'], mode) },
+        { name: 'test', places: placesIn(spec, ['test', 'preview'], mode) },
       ]
-    : [{ name: devName(spec), places: placesIn(spec, ['local', 'test', 'preview']) }]
-  groups.push({ name: 'production', places: placesIn(spec, ['production']) })
+    : [{ name: devName(spec), places: placesIn(spec, ['local', 'test', 'preview'], mode) }]
+  groups.push({ name: 'production', places: placesIn(spec, ['production'], mode) })
   return groups.filter((g) => g.places.length > 0)
 }
 
@@ -133,7 +153,7 @@ export function statusReader(folders: Folders, run: Run, repo: string | null) {
   }
   return {
     /** true: set, false: missing, undefined: couldn't check. */
-    isSet: (name: string, place: Place) => names(place)?.has(name),
+    isSet: (name: string, place: Place) => names(place)?.has(storedName(place, name)),
     /** Forget a place's names after writing to it. */
     forget: (place: Place) => cache.delete(placeKey(place)),
   }

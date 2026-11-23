@@ -53,6 +53,11 @@ fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ cmd, argv, stdin, ghRep
 const state = fs.existsSync(process.env.FAKE_STATE) ? JSON.parse(fs.readFileSync(process.env.FAKE_STATE, 'utf8')) : {}
 const env = argv.includes('--env') ? argv[argv.indexOf('--env') + 1] : 'repo'
 const key = cmd + ':' + argv[0] + ':' + env
+if (argv[1] === 'get') {
+  if (!process.env.FAKE_SECRETS_MODE) { process.stderr.write('variable not found\\n'); process.exit(1) }
+  process.stdout.write(process.env.FAKE_SECRETS_MODE + '\\n')
+  process.exit(0)
+}
 if (argv[1] === 'list') {
   if (process.env.FAKE_LIST_FAIL === cmd) process.exit(1)
   process.stdout.write(JSON.stringify((state[key] || []).map((name) => ({ name }))))

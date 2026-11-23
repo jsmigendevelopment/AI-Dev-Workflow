@@ -8,6 +8,9 @@
 // (~/.ai-dev-workflow/, its name before the rename, works too),
 // else it asks. Each step says which plan it needs. Steps your plan doesn't allow are skipped with the reason.
 //   Free:        Dependabot on every repo. Rules, environments and secret scanning on public repos only.
+//                A free private repo gets the repository variable SECRETS_MODE=repository instead:
+//                the pack's workflows then read repository secrets named TEST_<name> and
+//                PRODUCTION_<name>. Lost: a required reviewer and the main-only rule on production.
 //   Team:        adds rules on main, environments, deployment branches and environment secrets on
 //                private repos (also draft PRs, code owners and required reviewers on pull requests).
 //                A personal account's Pro plan gets the same steps here: pass --plan team.
@@ -174,6 +177,16 @@ await step("production: waits for your approval", ENTERPRISE, () =>
   }),
 );
 
+// 7. GitHub Free, private repo: no environments, so the workflows read prefixed repository
+//    secrets. The variable is the switch the workflows, connect and push-secrets all read.
+const REPOSITORY_SECRETS = { min: "free", label: "GitHub Free, private repo only" };
+if (!PUBLIC && PLAN === "free") {
+  await step("secrets mode: repository (TEST_ and PRODUCTION_ names)", REPOSITORY_SECRETS, () => {
+    run(["variable", "set", "SECRETS_MODE", "--body", "repository", "--repo", repo]);
+    return "SECRETS_MODE=repository";
+  });
+}
+
 const w1 = Math.max(...results.map((r) => r[1].length));
 const w2 = Math.max(...results.map((r) => r[2].length));
 console.log(`${"status".padEnd(9)} ${"step".padEnd(w1)}  ${"needs".padEnd(w2)}  note`);
@@ -186,6 +199,10 @@ if (!PUBLIC) {
     free: [
       "No rules on main, environments or secret scanning on a free private repo.",
       "Builders open normal pull requests (no drafts), and the kit's blocked git commands guard main.",
+      "Secrets are repository secrets named TEST_<name> and PRODUCTION_<name> (SECRETS_MODE=repository).",
+      "What that loses: production has no required reviewer and no main-only rule, and every workflow",
+      "on every branch can read the PRODUCTION_ secrets. The gate is the manual Run workflow plus typing",
+      "\"deploy production\" in its confirm box. Give write access only to people you trust with production.",
       "Team adds rules and environments; Enterprise also adds the production approval. A public repo gets all of it free.",
     ],
     team: [
@@ -197,4 +214,9 @@ if (!PUBLIC) {
   };
   console.log(`\nThis repo is ${visibility}, on the ${PLAN} plan:\n${notes[PLAN].map((l) => `  ${l}`).join("\n")}`);
 }
-if (!DRY) console.log("\nNext: put production keys in the production environment's secrets, never in the repo.");
+if (!DRY)
+  console.log(
+    !PUBLIC && PLAN === "free"
+      ? "\nNext: put production keys in the PRODUCTION_ repository secrets (pnpm connect or push-secrets), never in the repo."
+      : "\nNext: put production keys in the production environment's secrets, never in the repo.",
+  );
