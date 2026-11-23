@@ -13,6 +13,8 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
    - Read `~/.ai-dev-workflow/presence.json` (or run `node .agents/skills/afk/scripts/worklog.mjs presence`). If the status is `away`, follow the `afk` skill's unattended rules on this pass.
    - Read "Automation level" in `docs/stack.md` (see the `automation` skill). If the loop is off (hands-on), run only when the person asked for this run, never merge, and open pull requests only if they said so.
 
+   - **Can the next merge reach the test site?** Check, by name only, that the deploy's secrets exist (`gh secret list --env test`, and whatever `secrets` lists for the stack). If one is missing, don't wait until a deploy fails: raise a 🛑 blocker for the deploy now (the `ask` skill), with the `secrets` checklist as the next action and the time it takes. Keep building what doesn't need it.
+
 2. **Pick work.** From `status:ready` issues:
    - skip anything whose dependencies aren't merged;
    - skip anything claimed, unless the claim is **stale**: older than 2 hours with no new commit on its branch. That's a ⏳ decision (the `ask` skill): ask before you retake it, and keep going on other work.

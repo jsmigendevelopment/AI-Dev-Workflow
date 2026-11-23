@@ -62,7 +62,9 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
    - Keep it short. Long generated instruction files cost more and don't help.
    - Show the person the diff before you commit.
 
-8. **Hand off.** In under 10 lines: what you learned, what surprised you, and the three things you'd fix or build first. Then ask what they want to work on, and open `issues` for it.
+8. **Keys and accounts.** Before any building, open `secrets`: check which keys the test deploy needs and which are missing (by name only), and offer to wire the missing ones now. Missing ones go to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the deploy.
+
+9. **Hand off.** In under 10 lines: what you learned, what surprised you, and the three things you'd fix or build first. Then ask what they want to work on, and open `issues` for it.
 
 ## Done when
 

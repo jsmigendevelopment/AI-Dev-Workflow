@@ -1,7 +1,10 @@
-// The ways a person can sign in through Cloudflare Access (`--logins`), and the setup steps for
-// each. Sources (cloudflare-docs, 2026-11-22): src/content/docs/cloudflare-one/integrations/
-// identity-providers/{google,github,facebook-login,linkedin,yandex,entra-id,generic-oidc,
-// one-time-pin}.mdx; the identity provider `type` enum in cloudflare/api-schemas openapi.json.
+// The ways a person can sign in through Cloudflare Access (`--logins`), and the setup step for
+// each. The click-by-click steps live in one place, the secrets skill's provider files
+// (.agents/skills/secrets/providers/<file>.md, each dated and checked against the provider's docs);
+// this prints only what those files can't know: the team domain and the exact URLs to paste.
+// Sources (cloudflare-docs, 2026-11-22): src/content/docs/cloudflare-one/integrations/
+// identity-providers/{generic-oidc,one-time-pin}.mdx; the identity provider `type` enum in
+// cloudflare/api-schemas openapi.json.
 //
 // Each provider's OAuth client is the person's own. Its id and secret come only from
 // .env.cloudflare.local (git-ignored) or the shell, never from a CLI argument, never printed.
@@ -25,8 +28,14 @@ const oauth = (name: string) => (get: (n: string) => string) => ({
   client_secret: get(`ACCESS_${name}_CLIENT_SECRET`),
 })
 const callback = (team: string) => `https://${team}/cdn-cgi/access/callback`
-const paste = (name: string, id: string, secret: string) =>
-  `Paste them into .env.cloudflare.local (git-ignored), never into chat: ACCESS_${name}_CLIENT_ID=<the ${id}> and ACCESS_${name}_CLIENT_SECRET=<the ${secret}>.`
+const PROVIDER_DIR = '.agents/skills/secrets/providers'
+/** The steps for a login with a provider file: the file, the URLs to paste, where the values go. */
+const guided = (file: string, needs: string[]) => (team: string) => [
+  `Open ${PROVIDER_DIR}/${file} and follow its walkthrough (the agent re-checks it against the provider's docs first).`,
+  `Where it says <team>.cloudflareaccess.com, your team domain is ${team}. Origin or homepage URL: https://${team}`,
+  `Callback or redirect URL: ${callback(team)}`,
+  `Paste the values into .env.cloudflare.local (git-ignored), never into chat: ${needs.join(', ')}.`,
+]
 
 export const LOGINS = {
   google: {
@@ -34,15 +43,7 @@ export const LOGINS = {
     label: 'Google (recommended: any Google account)',
     needs: ids('GOOGLE'),
     minutes: 5,
-    steps: (team) => [
-      'Open https://console.cloud.google.com/projectcreate and create a project (any name).',
-      'Open https://console.cloud.google.com/auth/overview, click Get started, enter an app name and your email, pick External, then Create.',
-      'Open https://console.cloud.google.com/auth/clients and click Create client. Application type: Web application.',
-      `Authorized JavaScript origins: https://${team}`,
-      `Authorized redirect URIs: ${callback(team)}`,
-      'Click Create, then copy the Client ID and the Client secret.',
-      paste('GOOGLE', 'Client ID', 'Client secret'),
-    ],
+    steps: guided('google-oauth.md', ids('GOOGLE')),
     config: oauth('GOOGLE'),
   },
   github: {
@@ -50,14 +51,7 @@ export const LOGINS = {
     label: 'GitHub (any GitHub account; can also allow a whole GitHub org)',
     needs: ids('GITHUB'),
     minutes: 3,
-    steps: (team) => [
-      'Open https://github.com/settings/applications/new (an OAuth app, not a GitHub App).',
-      `Application name: your app's name. Homepage URL: https://${team}`,
-      `Authorization callback URL: ${callback(team)}`,
-      'Click Register application, copy the Client ID, then click Generate a new client secret and copy it.',
-      paste('GITHUB', 'Client ID', 'client secret'),
-      'After setup, open Zero Trust → Integrations → Identity providers → GitHub → Finish setup, and click Authorize (it reads orgs and emails).',
-    ],
+    steps: guided('github-oauth.md', ids('GITHUB')),
     config: oauth('GITHUB'),
   },
   facebook: {
@@ -65,12 +59,7 @@ export const LOGINS = {
     label: 'Facebook',
     needs: ids('FACEBOOK'),
     minutes: 10,
-    steps: (team) => [
-      'Open https://developers.facebook.com/apps/creation/ and create an app with the use case "Authenticate and request data from users with Facebook Login".',
-      'Open App settings → Basic and copy the App ID and App secret.',
-      `Open Use cases → Facebook Login → Settings. Use Strict Mode for redirect URIs: Yes. Valid OAuth Redirect URIs: ${callback(team)}. Save.`,
-      paste('FACEBOOK', 'App ID', 'App secret'),
-    ],
+    steps: guided('facebook.md', ids('FACEBOOK')),
     config: oauth('FACEBOOK'),
   },
   linkedin: {
@@ -78,13 +67,7 @@ export const LOGINS = {
     label: 'LinkedIn',
     needs: ids('LINKEDIN'),
     minutes: 10,
-    steps: (team) => [
-      'Open https://www.linkedin.com/developers/apps/new and create an app (it needs a LinkedIn Page and a logo).',
-      'In the Products tab, click Request access next to "Sign In with LinkedIn using OpenID Connect".',
-      `In the Auth tab, under Authorized redirect URLs for your app, add ${callback(team)}`,
-      'In the Auth tab, copy the Client ID and the Primary Client Secret.',
-      paste('LINKEDIN', 'Client ID', 'Client Secret'),
-    ],
+    steps: guided('linkedin.md', ids('LINKEDIN')),
     config: oauth('LINKEDIN'),
   },
   yandex: {
@@ -92,13 +75,7 @@ export const LOGINS = {
     label: 'Yandex',
     needs: ids('YANDEX'),
     minutes: 5,
-    steps: (team) => [
-      'Open https://oauth.yandex.com/client/new and create a client for Web services.',
-      'Under Yandex ID API, tick Access to email address, Access to user avatar, and Access to username, first name and surname, gender.',
-      `Redirect URI: ${callback(team)}. Click Create app.`,
-      'Copy the ClientID and the Client secret.',
-      paste('YANDEX', 'ClientID', 'Client secret'),
-    ],
+    steps: guided('yandex.md', ids('YANDEX')),
     config: oauth('YANDEX'),
   },
   entra: {
@@ -106,13 +83,7 @@ export const LOGINS = {
     label: 'Microsoft Entra ID (work accounts)',
     needs: [...ids('ENTRA'), 'ACCESS_ENTRA_TENANT_ID'],
     minutes: 15,
-    steps: (team) => [
-      `Open https://entra.microsoft.com, then Applications → App registrations → New registration. Redirect URI: Web, ${callback(team)}`,
-      'Copy the Application (client) ID and the Directory (tenant) ID from its Overview.',
-      'Open Certificates & secrets → New client secret, and copy its Value (shown once). Note its expiry date: sign-in stops when it expires.',
-      'Open API permissions → Add a permission → Microsoft Graph → Delegated: email, offline_access, openid, profile, User.Read. Click Grant admin consent.',
-      'Paste into .env.cloudflare.local, never into chat: ACCESS_ENTRA_CLIENT_ID, ACCESS_ENTRA_CLIENT_SECRET and ACCESS_ENTRA_TENANT_ID.',
-    ],
+    steps: guided('entra.md', [...ids('ENTRA'), 'ACCESS_ENTRA_TENANT_ID']),
     config: (get) => ({ ...oauth('ENTRA')(get), directory_id: get('ACCESS_ENTRA_TENANT_ID') }),
   },
   oidc: {
