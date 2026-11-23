@@ -34,7 +34,7 @@ How should onRails plan and run a build so that small changes the person can try
 
 **The main reason:** on main, a pass has about as many issues as the MVP has slices [c60 · read], and the loop stops dead at each gate [c64 · read]. Standard agile does neither. Stories are split until several fit in an iteration [c55 · read], and the review never blocks the next iteration [c12, c13 · read].
 
-**Measured here:** {{MEASURED_SUMMARY}}
+**Measured here:** on the same planning request, the plan for pass 1 held a median of 12 steps the person could try with this branch's kit, against 5 with the kit on main, on a small model (5 runs each) [c146 · measured]. On the kit's planning model it was 14 against 8 (3 runs each) [c147 · measured]. Every plan from this branch passed the checker. (The eval runs were still going when this copy was checked.)
 
 ## Options compared
 
@@ -49,7 +49,7 @@ How should onRails plan and run a build so that small changes the person can try
 
 ## Evidence
 
-Read in full or skimmed, run, and what is only opinion: `agile-flow/sources.csv` says which for each of its {{NSOURCES}} sources. Three helpers gathered the quotes. The author re-fetched 44 of the quotes the conclusions lean on from 20 pages: 42 matched word for word, one differed only in spacing, and one had been reworded on the page and is quoted here as it reads now.
+Read in full or skimmed, run, and what is only opinion: `agile-flow/sources.csv` says which for each of its 264 sources. Three helpers gathered the quotes. The author re-fetched 44 of the quotes the conclusions lean on from 20 pages: 42 matched word for word, one differed only in spacing, and one had been reworded on the page and is quoted here as it reads now.
 
 ### 1. Agile, at the source
 
@@ -170,7 +170,28 @@ Read in full or skimmed, run, and what is only opinion: `agile-flow/sources.csv`
 
 **Measured here.**
 
-{{MEASURED_SECTION}}
+**The plan-grain run** (`agile-flow/runs/2026-11-23-plan-grain/`). One planning request, on one planned-but-unbuilt app with four MVP slices, run three ways: with no kit, with the kit on main, and with the kit on this branch. The prompt asks for the plan and a "Build order" list: one line per issue for pass 1, each saying what the person could try once it's merged, or "nothing".
+
+| Model | Arm | Runs | Issues in pass 1, median | Of those, try-able, median | Try-able of all | Passed the plan checker |
+|---|---|---|---|---|---|---|
+| claude-haiku-5-5 | no kit | 5 | 8 | 5 | 31 of 40 | no steps table |
+| claude-haiku-5-5 | kit on main | 5 | 7 | 5 | 26 of 35 | no steps table |
+| claude-haiku-5-5 | **this branch** | 5 | **12** | **12** | 62 of 62 | 5 of 5 |
+| claude-fable-5-2 | no kit | 3 | 8 | 8 | 23 of 23 | no steps table |
+| claude-fable-5-2 | kit on main | 3 | 9 | 8 | 25 of 28 | no steps table |
+| claude-fable-5-2 | **this branch** | 3 | **14** | **14** | 42 of 42 | 3 of 3 |
+
+ [c145, c146, c147 · measured]
+
+- **The change shows on both models.** Against the kit on main, every branch run has more try-able steps than every main run.
+- **The kit on main did not beat no kit** on this count. On the small model it planned a median of 7 issues against 8 with no kit [c145 · measured]. That fits H6: its wording asks for one issue per slice.
+- **What the other plans' "nothing to try" lines are:** set-up and layers, such as "Schema and first migration", "Users table" and "Vitest and Playwright wired". That is in the run's raw plans.
+- **The strong model needs less help.** With no kit, every unit it planned had something to try [c147 · measured]. The kit's gain there is a finer cut.
+- **Limits.** One app and one prompt. 5 and 3 runs per arm, with no significance test. "Try-able" is the planner's own claim: nobody built these plans. Part of the gap is naming, because the new kit tells the planner to give the skeleton a try line where the other arms wrote "nothing". And more steps is only a means: whether they merge with less waiting was not measured.
+
+**The eval run.** (Still going when this copy was checked. Filled in when it ends.)
+
+**Pilots and tests.** Before either manifest, three draft evals were tried once each. Two became the scenarios above. The third, for the gate, passed its checks with the kit but ran into the harness's 12-turn limit, and without the kit the model also audited the code. It was dropped, so the rolling gate has no behaviour test. In the second pilot the model with no kit also turned the layer plan down: models seem to spot a cut by layer more easily than they avoid making one **[inferred]**, from one run [c148 · anecdote]. The checker itself is tested on hand-made plans [c149 · read].
 
 ### 5. CI/CD that supports this
 
@@ -256,7 +277,7 @@ The sixteen hypotheses in `agile-flow/hypotheses.md`, written before the first s
 
 ## Fact-check
 
-{{FACT_CHECK}}
+(Not done yet.)
 
 ## Provenance
 

@@ -7,7 +7,7 @@ c5,XP sizes a story at 1 to 3 ideal weeks and a task at 1 to 3 ideal days. Bigge
 c6,"XP velocity: an iteration takes in as many stories as the last one finished, and the person who does a task estimates it because people differ.",read-in-source,s16;s18,2026-11-23
 c7,XP's stated reason for a sustainable pace is tiredness and morale.,read-in-source,s17,2026-11-23
 c8,"XP: when an iteration slips, finish the most important tasks instead of holding several unfinished ones.",read-in-source,s10;s17,2026-11-23
-c9,"Beck's own text for the Ten-Minute Build, Weekly Cycle, Quarterly Cycle and Slack was not found online. Only the second edition's contents page lists them.",summary-only,s27;s260,2026-11-23
+c9,"Beck's own text for the Ten-Minute Build, Weekly Cycle, Quarterly Cycle and Slack was not found online. Only the second edition's contents page lists them.",summary-only,s27;s261,2026-11-23
 c10,The Scrum Guide on scrumguides.org is still the November 2020 edition on 2026-11-23.,read-in-source,s1;s2,2026-11-23
 c11,Scrum: a Sprint is a fixed length of one month or less. The guide's reason for shorter Sprints is more learning cycles and a smaller risk window.,read-in-source,s1,2026-11-23
 c12,Scrum: a new Sprint starts immediately after the previous one ends.,read-in-source,s1,2026-11-23
@@ -101,7 +101,7 @@ c99,"Anthropic's guide for Fable 5.2, from its own tests: with a written 'no dri
 c100,"Claude Code's docs: a rule that has to hold every time belongs in a hook, a deny rule or a managed setting, not in an instruction file.",vendor-claim,s98,2026-11-23
 c101,"Claude Code's docs: a fresh reviewer helps because it hasn't seen the reasoning, while handing the same task to a subagent doesn't make the answer better.",vendor-claim,s98,2026-11-23
 c102,"Anthropic's harness author found a standalone evaluator easier to make sceptical than a builder judging its own work, and gave each grading criterion a hard threshold.",anecdote,s97,2026-11-23
-c103,"No controlled sweep of step size for coding agents, and no measured study of a plan critic for coding agents, was found in 1 search each.",summary-only,s256;s257,2026-11-23
+c103,"No controlled sweep of step size for coding agents, and no measured study of a plan critic for coding agents, was found in 1 search each.",summary-only,s257;s258,2026-11-23
 c104,"DORA 2024: each 25% rise in AI adoption went with an estimated 1.5% lower delivery throughput and 7.2% lower delivery stability. Growing batch size is offered as a hypothesis, not a finding.",measured,s41,2026-11-23
 c105,"DORA 2025: AI adoption now goes with higher delivery throughput, and still with higher instability.",measured,s39,2026-11-23
 c106,DORA 2025 found 'with a high degree of certainty' that AI's benefits depend on working in small batches. It also found AI's gain in individual effectiveness is slightly smaller in teams that work in small batches.,measured,s39,2026-11-23
@@ -113,7 +113,7 @@ c111,"Measured at Google over about 9 million reviews: the median change is 24 l
 c112,"Measured at Microsoft: the more files in a change, the lower the share of review comments that were useful.",measured,s146,2026-11-23
 c113,"A study of 845,316 open-source pull requests found no relationship between pull request size and time to merge. Only the abstract was read.",measured,s221,2026-11-23
 c114,"One 2026 preprint found an LLM reviewer's F1 fell from 0.657 on diffs under 10 lines to 0.043 on diffs over 150 lines. The small diffs were mostly synthetic, so the result is confounded.",measured,s150,2026-11-23
-c115,"The '200 to 400 lines' review limit comes from SmartBear, a vendor, summarising its own 2006 Cisco study. The book behind it was not obtained.",vendor-claim,s147;s263,2026-11-23
+c115,"The '200 to 400 lines' review limit comes from SmartBear, a vendor, summarising its own 2006 Cisco study. The book behind it was not obtained.",vendor-claim,s147;s264,2026-11-23
 c116,Google's rule for review speed: one business day is the longest a review request should wait for a response.,read-in-source,s220,2026-11-23
 c117,DORA 2023: teams with faster code reviews have 50% higher software delivery performance.,measured,s169,2026-11-23
 c118,"OpenAI's harness-engineering team: once agents wrote the code, human QA capacity became the bottleneck. Its 3.5 merged pull requests per engineer per day came with reviews that weren't required.",vendor-claim,s117,2026-11-23
@@ -122,14 +122,14 @@ c120,"Cursor: under lock-based coordination, twenty agents slowed to the through
 c121,"Linear, one team's report: as agents sped up coding, CI became the bottleneck.",anecdote,s142,2026-11-23
 c122,"OpenAI's harness-engineering team runs few blocking merge gates, on the argument that when agent throughput far exceeds human attention, 'corrections are cheap, and waiting is expensive'.",vendor-claim,s117,2026-11-23
 c123,"Anthropic measured agents using about 4 times the tokens of a chat and multi-agent systems about 15 times, in its research product.",measured,s104,2026-11-23
-c124,"No measured figure for how many agents one person can supervise, and no controlled study of CI wait in agent loops, was found in 1 search each.",summary-only,s258;s259,2026-11-23
+c124,"No measured figure for how many agents one person can supervise, and no controlled study of CI wait in agent loops, was found in 1 search each.",summary-only,s259;s260,2026-11-23
 c125,"Hammant: a short-lived branch should last a couple of days at most, and time waiting for review counts.",read-in-source,s155,2026-11-23
 c126,"Hammant: one developer, or one developer and that developer's coding agents, is one unit, and a unit should have only one short-lived branch in flight.",read-in-source,s155,2026-11-23
 c127,"Hammant's site now covers coding agents: branches can be created faster than they can be safely reviewed and merged, so keep each agent's change small and integrate them one at a time.",read-in-source,s155,2026-11-23
 c128,Hodgson: release toggles let unfinished code ship as latent code and should not last much longer than a week or two. Toggles are inventory with a carrying cost.,read-in-source,s171,2026-11-23
 c129,"Fowler: release flags 'should be your last choice'. First break the feature into small releasable parts, then build the back end and add the user-interface entry point last (a keystone interface), and only then use a flag.",read-in-source,s172;s173,2026-11-23
 c130,Humble's principle 'decouple deployment and release': separate the technical decision to deploy from the business decision to launch. Dark launching and feature toggles are the two patterns he names.,read-in-source,s34,2026-11-23
-c131,"No DORA page that says 'decouple deployment from release', and no primary source that names time between merges as a flow metric, was found.",summary-only,s262;s261,2026-11-23
+c131,"No DORA page that says 'decouple deployment from release', and no primary source that names time between merges as a flow metric, was found.",summary-only,s263;s262,2026-11-23
 c132,Cloudflare renamed Workers preview URLs to Version URLs and says 'Do not use Version URLs for branch or pull request testing'.,read-in-source,s199;s196;s254,2026-11-23
 c133,"Cloudflare launched Worker Previews on 2026-09-22: one environment per branch, made with `wrangler preview`. D1, KV and R2 are shared between previews unless each is bound to a separate resource.",read-in-source,s197;s201;s198,2026-11-23
 c134,"Cloudflare has a feature-flag service, Flagship, in public beta since 2026-05-26 with no published pricing. It works through OpenFeature, a CNCF incubating project.",read-in-source,s187;s188;s189;s185,2026-11-23
@@ -143,3 +143,8 @@ c141,"DORA's security page: make security part of daily work, automate it in the
 c142,"Self-planning code generation (2023): writing a short plan from a few examples first gave up to 25.4% relative gain in Pass@1 over direct generation, on function-level benchmarks. Only the abstract was read.",measured,s125,2026-11-23
 c143,"XP: each iteration ends with tested, working software shown to the customers, and whether it goes live is their decision.",read-in-source,s11,2026-11-23
 c144,The Kanban Guide counts as work in progress any item between a started point and a finished point of the workflow.,read-in-source,s5,2026-11-23
+c145,"Plan-grain run, claude-haiku-5-5, 5 runs per arm: the plan for pass 1 listed a median of 8 issues with no kit (5, 12, 8, 8, 7), 7 with the kit on main (8, 6, 7, 6, 8) and 12 with the kit on this branch (12, 13, 11, 15, 11).",measured,run:2026-11-23-plan-grain,2026-11-23
+c146,"Plan-grain run, claude-haiku-5-5: the issues the plan itself said the person could try were a median of 5 with no kit (31 of 40 in all), 5 with the kit on main (26 of 35) and 12 on this branch (62 of 62). All 5 branch plans had a steps table and passed check-plan.mjs with 0 errors.",measured,run:2026-11-23-plan-grain,2026-11-23
+c147,"Plan-grain run, claude-fable-5-2, 3 runs per arm: a median of 8 issues with no kit (9, 6, 8; all 23 try-able), 9 with the kit on main (9, 10, 9; 25 of 28 try-able) and 14 on this branch (14, 12, 16; all 42 try-able, and 0 checker errors in all 3).",measured,run:2026-11-23-plan-grain,2026-11-23
+c148,"Pilots, one run each on claude-haiku-5-5, before any manifest: a third eval for the gate passed all 5 of its checks with the kit but hit the harness's 12-turn limit, and without the kit the model also audited the code and filed the missing step. Without the kit the model also turned down the plan cut by layer.",anecdote,s256,2026-11-23
+c149,"This branch's tests for check-plan.mjs hold a hand-made thin plan that passes and plans that fail for a layer step, a missing try line, a developer's check as a try line, a size with no reason, too few steps, and a slice with no step in pass 1. 13 tests for the checker and 5 for flow.mjs pass.",read-in-source,s255,2026-11-23
