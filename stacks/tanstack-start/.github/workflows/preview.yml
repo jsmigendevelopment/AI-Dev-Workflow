@@ -1,0 +1,106 @@
+# A preview of every pull request: a new version of the TEST Worker under its own alias
+# (https://pr-<number>-<test worker>.<subdomain>.workers.dev), posted as one PR comment that is
+# updated on each push. It is uploaded, not deployed: the test environment's live version does not
+# change. Previews use the test D1 database and test secrets, never production's.
+# Skipped for forks (no secrets), Dependabot and pull requests labelled `lane:tiny`.
+# A protected test Worker protects its previews too (setup-cloudflare --protect): people sign in
+# (Cloudflare Access) or type the password; agents send the headers in e2e/gate.ts.
+name: preview
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true # only the newest push of a pull request matters
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  preview:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]' &&
+      !contains(github.event.pull_request.labels.*.name, 'lane:tiny')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # GitHub environment `preview`: no branch rule, so pull request branches can use it. Its
+    # secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (scripts/setup-cloudflare.mjs says how),
+    # and the protection's CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET or SITE_PASSWORD.
+    environment:
+      name: preview
+      url: ${{ steps.upload.outputs.url }}
+    permissions:
+      contents: read
+      pull-requests: write # to post the comment
+    env:
+      CLOUDFLARE_ENV: test
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # to see whether this pull request adds a migration
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Upload a preview version
+        id: upload
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          pnpm exec wrangler versions upload --preview-alias "pr-${PR}" --message "PR #${PR} ${SHA::7}" | tee upload.log
+          url=$(grep -oE 'Alias URL: https://[^ ]+' upload.log | head -n1 | sed 's/^Alias URL: //')
+          [ -n "$url" ] || url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' upload.log | head -n1)
+          if [ -z "$url" ]; then echo "No preview URL in the upload output."; exit 1; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: The preview answers
+        env:
+          URL: ${{ steps.upload.outputs.url }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: |
+          # With the protection's headers when it has some; never Authorization (/api/v1 uses it).
+          args=()
+          if [ -n "$CF_ACCESS_CLIENT_ID" ]; then
+            args+=(-H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}")
+          fi
+          if [ -n "$SITE_PASSWORD" ]; then args+=(-H "x-site-password: ${SITE_PASSWORD}"); fi
+          for _ in 1 2 3 4 5 6; do
+            status=$(curl -s -o /dev/null -w '%{http_code}' "${args[@]}" "$URL/") || status=000
+            if [ "$status" = 200 ]; then exit 0; fi
+            sleep 10
+          done
+          echo "::warning::The preview answered ${status}, not 200. With protection on, check its secrets in the preview environment."
+          exit 1
+      - name: Post or update the preview comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.upload.outputs.url }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          marker='<!-- preview-url -->'
+          body="${marker}
+          **Preview:** ${URL}
+          Commit ${SHA::7}. Runs on the **test** database and test keys."
+          if [ -n "$(git diff --name-only "$BASE"...HEAD -- migrations)" ]; then
+            body="${body}
+          This pull request adds a migration. Previews never migrate the shared test database, so
+          pages that need the new schema fail here until it is merged."
+          fi
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"${marker}\"))) | .id" | head -n1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${id}" -f body="$body" > /dev/null
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -f body="$body" > /dev/null
+          fi

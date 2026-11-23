@@ -10,6 +10,8 @@ const SRC = ".agents/skills";
 const DEST = ".claude/skills";
 const ISSUE_SRC = join(SRC, "issues", "templates", "slice.md");
 const ISSUE_DEST = ".github/ISSUE_TEMPLATE/slice.md";
+// The people-facing guides ship inside the build skill, so every project has them.
+const GUIDES = ["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]);
 
 function files(dir) {
   if (!existsSync(dir)) return [];
@@ -20,6 +22,7 @@ function files(dir) {
 }
 
 if (process.argv.includes("--check")) {
+  const guideProblems = GUIDES.filter(([from, to]) => !existsSync(to) || !readFileSync(from).equals(readFileSync(to))).map(([from, to]) => `differs: ${to} (master: ${from})`);
   const a = files(SRC).map((f) => relative(SRC, f)).sort();
   const b = files(DEST).map((f) => relative(DEST, f)).sort();
   const problems = [];
@@ -30,12 +33,17 @@ if (process.argv.includes("--check")) {
     else if (!readFileSync(join(SRC, f)).equals(readFileSync(join(DEST, f)))) problems.push(`differs: ${f}`);
   }
   if (!existsSync(ISSUE_DEST) || !readFileSync(ISSUE_SRC).equals(readFileSync(ISSUE_DEST))) problems.push(`differs: ${ISSUE_DEST} (master: ${ISSUE_SRC})`);
+  problems.push(...guideProblems);
   if (problems.length) {
     console.error(problems.join("\n") + "\n\nRun: node scripts/sync-skills.mjs");
     process.exit(1);
   }
   console.log(`skills in sync (${a.length} files)`);
 } else {
+  for (const [from, to] of GUIDES) {
+    mkdirSync(dirname(to), { recursive: true });
+    copyFileSync(from, to);
+  }
   rmSync(DEST, { recursive: true, force: true });
   cpSync(SRC, DEST, { recursive: true });
   mkdirSync(dirname(ISSUE_DEST), { recursive: true });

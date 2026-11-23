@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 572" width="960" height="572" font-family="Inter, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <title>Choose your path: start a new app, join a repo, or add the kit to a repo that has its own agent files</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#070b1a"/>
+      <stop offset="1" stop-color="#17133a"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="rail" gradientUnits="userSpaceOnUse" x1="180" y1="0" x2="780" y2="0">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.9" cy="0.05" r="0.6">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="960" height="572" rx="20" fill="url(#bg)"/>
+  <rect width="960" height="572" rx="20" fill="url(#glow)"/>
+  <text x="40" y="58" fill="url(#ink)" font-size="32" font-weight="800" letter-spacing="-0.6">Choose your path</text>
+  <text x="41" y="86" fill="#9ca3af" font-size="15">Run one install command. Then type one command to your agent.</text>
+
+  <!-- Start a new app -->
+  <g>
+    <rect x="40" y="112" width="280" height="290" rx="16" fill="#111735" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="60" y="144" fill="#60a5fa" font-size="11.5" font-weight="700" letter-spacing="1.2">NEW APP</text>
+    <text x="60" y="178" fill="#ffffff" font-size="20" font-weight="700">Start a new app</text>
+    <text x="60" y="203" fill="#9ca3af" font-size="14">You have an empty folder</text>
+    <text x="60" y="222" fill="#9ca3af" font-size="14">and an idea.</text>
+    <rect x="56" y="240" width="248" height="40" rx="9" fill="#0a0f24" stroke="#26305a"/>
+    <circle cx="77" cy="260" r="10.5" fill="#60a5fa"/>
+    <text x="77" y="264.2" fill="#0a0f24" font-size="12" font-weight="800" text-anchor="middle">1</text>
+    <text x="96" y="264.8" fill="#e5e7eb" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">npx ai-dev-workflow init</text>
+    <text x="60" y="299" fill="#9ca3af" font-size="12.5">adds the rules and skills</text>
+    <rect x="56" y="316" width="248" height="40" rx="9" fill="#0a0f24" stroke="#26305a"/>
+    <circle cx="77" cy="336" r="10.5" fill="#60a5fa"/>
+    <text x="77" y="340.2" fill="#0a0f24" font-size="12" font-weight="800" text-anchor="middle">2</text>
+    <text x="96" y="341.5" fill="#ffffff" font-size="16" font-weight="700" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">/idea</text>
+    <text x="292" y="340.5" fill="#9ca3af" font-size="12.5" text-anchor="end">Codex: <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#cbd5e1">$idea</tspan></text>
+    <text x="60" y="378" fill="#cbd5e1" font-size="13">pitch → grill → plan → issues</text>
+  </g>
+  <!-- Join a repo -->
+  <g>
+    <rect x="340" y="112" width="280" height="290" rx="16" fill="#111735" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="360" y="144" fill="#818cf8" font-size="11.5" font-weight="700" letter-spacing="1.2">EXISTING REPO</text>
+    <text x="360" y="178" fill="#ffffff" font-size="20" font-weight="700">Join a repo</text>
+    <text x="360" y="203" fill="#9ca3af" font-size="14">The code is there, but no</text>
+    <text x="360" y="222" fill="#9ca3af" font-size="14">agent rules or docs yet.</text>
+    <rect x="356" y="240" width="248" height="40" rx="9" fill="#0a0f24" stroke="#26305a"/>
+    <circle cx="377" cy="260" r="10.5" fill="#818cf8"/>
+    <text x="377" y="264.2" fill="#0a0f24" font-size="12" font-weight="800" text-anchor="middle">1</text>
+    <text x="396" y="264.8" fill="#e5e7eb" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">npx ai-dev-workflow init</text>
+    <text x="360" y="299" fill="#9ca3af" font-size="12.5">adds the rules and skills</text>
+    <rect x="356" y="316" width="248" height="40" rx="9" fill="#0a0f24" stroke="#26305a"/>
+    <circle cx="377" cy="336" r="10.5" fill="#818cf8"/>
+    <text x="377" y="340.2" fill="#0a0f24" font-size="12" font-weight="800" text-anchor="middle">2</text>
+    <text x="396" y="341.5" fill="#ffffff" font-size="16" font-weight="700" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">/join</text>
+    <text x="592" y="340.5" fill="#9ca3af" font-size="12.5" text-anchor="end">Codex: <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#cbd5e1">$join</tspan></text>
+    <text x="360" y="378" fill="#cbd5e1" font-size="13">map → run → grill → docs</text>
+  </g>
+  <!-- Add it to your setup -->
+  <g>
+    <rect x="640" y="112" width="280" height="290" rx="16" fill="#111735" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="660" y="144" fill="#a78bfa" font-size="11.5" font-weight="700" letter-spacing="1.2">HAS AGENT FILES</text>
+    <rect x="784" y="100" width="116" height="24" rx="12" fill="#141033" stroke="#a78bfa" stroke-dasharray="4 3"/>
+    <text x="842" y="116" fill="#ddd6fe" font-size="11.5" font-weight="600" text-anchor="middle">being improved</text>
+    <text x="660" y="178" fill="#ffffff" font-size="20" font-weight="700">Add it to your setup</text>
+    <text x="660" y="203" fill="#9ca3af" font-size="14">The repo has its own</text>
+    <text x="660" y="222" fill="#9ca3af" font-size="14">AGENTS.md or skills.</text>
+    <rect x="656" y="240" width="248" height="40" rx="9" fill="#0a0f24" stroke="#26305a"/>
+    <circle cx="677" cy="260" r="10.5" fill="#a78bfa"/>
+    <text x="677" y="264.2" fill="#0a0f24" font-size="12" font-weight="800" text-anchor="middle">1</text>
+    <text x="696" y="264.8" fill="#e5e7eb" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">npx ai-dev-workflow init</text>
+    <text x="660" y="299" fill="#9ca3af" font-size="12.5">keeps every file of yours</text>
+    <rect x="656" y="316" width="248" height="40" rx="9" fill="#0a0f24" stroke="#26305a"/>
+    <circle cx="677" cy="336" r="10.5" fill="#a78bfa"/>
+    <text x="677" y="340.2" fill="#0a0f24" font-size="12" font-weight="800" text-anchor="middle">2</text>
+    <text x="696" y="341.5" fill="#ffffff" font-size="16" font-weight="700" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">/join</text>
+    <text x="892" y="340.5" fill="#9ca3af" font-size="12.5" text-anchor="end">Codex: <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#cbd5e1">$join</tspan></text>
+    <text x="660" y="378" fill="#cbd5e1" font-size="13">merges the two AGENTS.md files</text>
+  </g>
+
+  <!-- all three paths lead to the loop -->
+  <g fill="none" stroke="url(#rail)" stroke-width="1.5" stroke-linecap="round">
+    <path d="M180 402 V416 Q180 426 190 426 H770 Q780 426 780 416 V402"/>
+    <path d="M480 402 V442"/>
+  </g>
+  <path d="M474 439 L480 448 L486 439 Z" fill="#818cf8"/>
+
+  <rect x="40" y="450" width="880" height="86" rx="16" fill="#111735" stroke="url(#ink)" stroke-width="1.5"/>
+  <text x="62" y="482" fill="#93c5fd" font-size="11.5" font-weight="700" letter-spacing="1.2">THEN, ON EVERY PATH</text>
+  <text x="62" y="510" fill="#ffffff" font-size="19" font-weight="700">Agents build it in a loop</text>
+  <text x="352" y="486" fill="#cbd5e1" font-size="14">build → CI → code review → QA → merge → smoke test → you try it</text>
+  <text x="352" y="512" fill="#9ca3af" font-size="14"><tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#ffffff" font-weight="700">/back</tspan> when you start work  ·  <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#ffffff" font-weight="700">/afk</tspan> when you step away</text>
+</svg>

@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+/* Design tokens. Uniwind picks the light or dark block from the system setting. */
+@layer theme {
+  :root {
+    @variant light {
+      --color-background: #ffffff;
+      --color-foreground: #0a0a0a;
+      --color-muted: #6b7280;
+      --color-border: #e5e7eb;
+      --color-primary: #1d4ed8;
+      --color-primary-foreground: #ffffff;
+      --color-danger: #b91c1c;
+    }
+
+    @variant dark {
+      --color-background: #0a0a0a;
+      --color-foreground: #fafafa;
+      --color-muted: #9ca3af;
+      --color-border: #27272a;
+      --color-primary: #60a5fa;
+      --color-primary-foreground: #0a0a0a;
+      --color-danger: #f87171;
+    }
+  }
+}

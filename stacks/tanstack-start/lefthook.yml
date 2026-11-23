@@ -1,0 +1,13 @@
+# Git hooks, installed by `pnpm install` (lefthook's install script; skipped in CI).
+# pre-commit formats and lints the staged files only, and re-stages what it fixed.
+# CI runs the full `pnpm lint` anyway, so `git commit --no-verify` never ships unlinted code.
+pre-commit:
+  jobs:
+    - name: format
+      glob: '*.{ts,tsx,js,cjs,mjs,json,jsonc,css,md,yml,yaml}'
+      run: pnpm exec prettier --write --ignore-unknown {staged_files}
+      stage_fixed: true
+    - name: lint
+      glob: '*.{ts,tsx,js,cjs,mjs}'
+      run: pnpm exec eslint --max-warnings=0 --fix {staged_files}
+      stage_fixed: true

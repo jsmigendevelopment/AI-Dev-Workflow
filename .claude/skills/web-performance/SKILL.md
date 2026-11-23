@@ -9,7 +9,7 @@ Keep pages fast by setting limits early, enforcing them in CI, and trusting only
 
 ## Rules
 
-1. **Set budgets before you optimize, and fail the build on them.** Cap the compressed initial JS per page (the entry plus everything the HTML preloads or imports statically), measured from the built output. Give each big lazy feature (editor, map, chart) its own budget. Run Lighthouse CI on mobile for LCP, CLS and TBT as a second, separate budget.
+1. **Set budgets before you optimize, and fail the build on them.** Cap the compressed initial JS per page (the entry plus everything the HTML preloads or imports statically), measured from the built output. Give each big lazy feature (editor, map, chart) its own budget. Run Lighthouse CI on mobile for LCP, CLS and TBT as a second, separate budget, against a server that compresses like production. For server-rendered apps, budget what each page's HTML actually loads. The third-party audit is now called `third-parties-insight` (checked 2026-11).
 2. **Put the first screen in the HTML.** Prerender or server-render every page so the largest element (ideally text) and everything above the fold arrive in the HTML. Serve static HTML from the CDN where you can.
 3. **Order the head on purpose.** Charset, viewport, any tiny inline theme script, CSS, the LCP image preload, one or two font preloads, then module preloads. Analytics load with `defer`.
 4. **Find what is in the bundle before you cut.** Attribute every initial chunk and name the biggest offender with its size. Barrel files (`index.ts` that re-exports everything) often drag a whole feature into the entry; import from the file itself or lazy-load the view.

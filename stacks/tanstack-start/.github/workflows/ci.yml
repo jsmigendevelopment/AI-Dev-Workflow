@@ -4,6 +4,13 @@ on:
   pull_request:
   push:
     branches: [main]
+# A new push to the same branch or pull request cancels the run it makes stale.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# Read-only token by default; no job here needs to write.
+permissions:
+  contents: read
 jobs:
   checks:
     runs-on: ubuntu-latest
@@ -27,8 +34,24 @@ jobs:
             exit 1
           fi
       - run: pnpm build
+      - run: pnpm check:budgets # initial JS, route JS, CSS and lazy-chunk budgets (gzip)
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
+      - run: pnpm test:e2e # smoke, security headers and limits, SEO, axe on every route
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: No high or critical advisories
+        run: pnpm audit --audit-level=high
+      - name: Licences on the allow-list
+        run: pnpm check:licenses
 
   secrets:
     runs-on: ubuntu-latest

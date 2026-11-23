@@ -5,6 +5,7 @@ export const ERROR_STATUS = {
   forbidden: 403,
   not_found: 404,
   conflict: 409,
+  too_large: 413,
   rate_limited: 429,
   internal: 500,
   unavailable: 503,
@@ -45,3 +46,14 @@ export const unauthenticated = (): ApiResult<never> => ({
   ok: false,
   error: { code: 'unauthenticated', message: 'Sign in to continue.' },
 })
+
+/** A failure as a real HTTP response: for guards that answer before a server function runs. */
+export function problemResponse(
+  code: ErrorCode,
+  message: string,
+  headers: Record<string, string> = {},
+  status: number = ERROR_STATUS[code],
+): Response {
+  const body: ApiResult<never> = { ok: false, error: { code, message } }
+  return Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } })
+}

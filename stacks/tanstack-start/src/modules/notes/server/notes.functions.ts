@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { asActor, withActor } from '@/server/auth'
 import { notesApi } from '@/server/composition'
+import { asHuman, withHumanCheck } from '@/server/turnstile'
 import type { CreateNoteInput, DeleteNoteInput, ListNotesInput, RenameNoteInput } from '../types'
 
 // The route table: method, auth middleware, a typed pass-through validator, one controller call.
@@ -13,10 +14,13 @@ export const listNotes = createServerFn({ method: 'GET' })
   .validator((data: ListNotesInput): unknown => data)
   .handler(({ data, context }) => asActor(context.actor, (actor) => notesApi().list(actor, data)))
 
+// The public-facing write: Turnstile-checked when TURNSTILE_* keys are set, a pass-through when not.
 export const createNote = createServerFn({ method: 'POST' })
-  .middleware([withActor])
+  .middleware([withActor, withHumanCheck])
   .validator((data: CreateNoteInput): unknown => data)
-  .handler(({ data, context }) => asActor(context.actor, (actor) => notesApi().create(actor, data)))
+  .handler(({ data, context }) =>
+    asActor(context.actor, (actor) => asHuman(context.human, () => notesApi().create(actor, data))),
+  )
 
 export const renameNote = createServerFn({ method: 'POST' })
   .middleware([withActor])

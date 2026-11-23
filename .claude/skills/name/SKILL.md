@@ -21,7 +21,11 @@ Naming waits until now because you can't name something before you know what it 
 
 4. **Make it a git repo now.** Run `git init` in this folder if it isn't one already. Add a `.gitignore` that covers `.env*`, secrets and build output. Move `kickoff/` into `docs/`, then make the first commit.
 
-5. **Connect GitHub.** The person creates the GitHub repo (don't create it yourself unless they say to). Then add it as the remote and push. Once CI exists (slice 0), set up GitHub for them with `scripts/setup-github.mjs` from this skill (see `pyramid` step 1).
+5. **Create the GitHub repo for them.** Ask: *"Create a private repo `<owner>/<name>` and push to it?"* (the owner comes from `docs/profile.toml` or the question in step 3). On a yes, run:
+   ```bash
+   gh repo create <owner>/<name> --private --source . --remote origin --push
+   ```
+   Use `--public` if they chose public. If `gh` isn't signed in, ask them to run `gh auth login` first. If they'd rather create it themselves, wait for the URL, then add it as the remote and push. Once CI exists (slice 0), set up GitHub for them with `scripts/setup-github.mjs` from this skill (see `pyramid` step 1).
    - If they'd rather wait, carry on locally. Issues are written as files until there's a remote (see `issues`).
 
 6. **Record** the name, visibility, licence and remote in `docs/decisions.md`.

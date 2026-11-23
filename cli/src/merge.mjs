@@ -8,16 +8,36 @@ export function ensureAgentsImport(text) {
   return `${text}${sep}@AGENTS.md${eol}`;
 }
 
-// .claude/settings.json: keep everything of theirs, add the kit's permissions.deny rules.
-// Returns null if nothing changes. Throws if their file isn't valid JSON.
+// .claude/settings.json: keep everything of theirs, add the kit's permissions.deny and
+// permissions.allow rules and the kit's hooks (an event's hook group is added only if
+// none of its commands is already there). Returns null if nothing changes.
+// Throws if their file isn't valid JSON.
 export function mergeDeny(theirsText, kitText) {
   const theirs = JSON.parse(theirsText);
-  const kitDeny = JSON.parse(kitText)?.permissions?.deny ?? [];
+  const kit = JSON.parse(kitText) ?? {};
   if (typeof theirs !== "object" || theirs === null || Array.isArray(theirs)) throw new Error("not a JSON object");
-  const permissions = theirs.permissions ?? {};
-  const deny = Array.isArray(permissions.deny) ? permissions.deny : [];
-  const added = kitDeny.filter((rule) => !deny.includes(rule));
+  const added = [];
+  const permissions = { ...(theirs.permissions ?? {}) };
+  for (const key of ["deny", "allow"]) {
+    const mine = Array.isArray(permissions[key]) ? permissions[key] : [];
+    const extra = (kit.permissions?.[key] ?? []).filter((rule) => !mine.includes(rule));
+    if (extra.length) {
+      permissions[key] = [...mine, ...extra];
+      added.push(...extra);
+    }
+  }
+  const hooks = { ...(theirs.hooks ?? {}) };
+  for (const [event, groups] of Object.entries(kit.hooks ?? {})) {
+    const existing = Array.isArray(hooks[event]) ? hooks[event] : [];
+    const have = new Set(existing.flatMap((g) => (g.hooks ?? []).map((h) => h.command)));
+    const fresh = groups.filter((g) => !(g.hooks ?? []).some((h) => have.has(h.command)));
+    if (fresh.length) {
+      hooks[event] = [...existing, ...fresh];
+      added.push(`hook ${event}`);
+    }
+  }
   if (!added.length) return null;
-  theirs.permissions = { ...permissions, deny: [...deny, ...added] };
+  theirs.permissions = permissions;
+  if (Object.keys(hooks).length) theirs.hooks = hooks;
   return { text: JSON.stringify(theirs, null, 2) + "\n", added };
 }

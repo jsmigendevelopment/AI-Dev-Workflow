@@ -13,7 +13,7 @@ Make every public page describe itself in the HTML the server sends, with one ca
 2. **One site-URL source.** A single validated setting feeds canonicals, `og:url`, the sitemap and `robots.txt`. Never hard-code the domain in several places.
 3. **One URL form.** Pick trailing slash or not, and enforce it at the host, in links and in the sitemap. Internal links and canonicals point straight at the final URL, with no redirect chains. No second public host serves the same pages.
 4. **One `pageHead()` helper for every route.** Each page passes its own unique title and description. Dev, test and styleguide pages are `noindex` and stay out of the sitemap.
-5. **Generate the sitemap, robots.txt, share images and favicons at build time.** Never generate them per request. The sitemap lists only indexable pages with absolute canonical URLs; `robots.txt` has an absolute `Sitemap:` line.
+5. **Generate the sitemap, robots.txt, share images and favicons at build time.** Never generate them per request. The sitemap lists only indexable pages with absolute canonical URLs; `robots.txt` has an absolute `Sitemap:` line. To opt out of AI training without hiding from search, add the `__usage_ai-training` token next to the crawler rules (checked 2026-11).
 6. **Lint metadata in the build.** Fail on a missing title, description or canonical, or a duplicate title. Warn on a duplicate description.
 7. **Unknown URLs return a real 404 status,** never a 200 "not found" page and never a 5xx.
 8. **Share images are 1200 by 630 PNGs** with `og:image:width`, `og:image:height` and `og:image:alt`, plus `twitter:card` set to `summary_large_image`. Compress them.

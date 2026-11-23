@@ -1,0 +1,42 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "globalDependencies": ["tsconfig.base.json", ".prettierrc.json"],
+  "tasks": {
+    "lint": {
+      "inputs": ["$TURBO_DEFAULT$", "!dist/**", "!.expo/**"]
+    },
+    "//#lint:workspace": {
+      "inputs": [
+        "eslint.workspace.config.js",
+        "scripts/check-workspace-deps.js",
+        "apps/*/package.json",
+        "packages/*/package.json",
+        "apps/*/src/**",
+        "packages/*/src/**"
+      ]
+    },
+    "typecheck": {
+      "inputs": ["$TURBO_DEFAULT$", "!dist/**"],
+      "outputs": ["worker-configuration.d.ts"]
+    },
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$", "!dist/**"],
+      "outputs": ["coverage/**"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!dist/**", "!coverage/**"],
+      "outputs": ["dist/**"],
+      "env": ["EXPO_PUBLIC_*", "SITE_URL", "VITE_*"]
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

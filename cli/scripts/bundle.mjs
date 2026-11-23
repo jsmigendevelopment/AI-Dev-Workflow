@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Copies the kit from the repo (the folder above cli/) into cli/kit/, with a manifest.
 // Runs before every npm pack / npm publish, so each CLI version carries one kit version.
-import { readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hash, readJson, toNative, walk, writeFile } from "../src/files.mjs";
+import { parseAddon } from "../src/addon-doc.mjs";
 import { storedName } from "../src/kit.mjs";
 
 const CLI = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,9 +18,11 @@ const CORE = [
   ".agents/skills",
   ".claude/skills",
   ".claude/settings.json",
+  ".claude/hooks",
   ".codex/config.toml",
+  ".codex/hooks.json",
   ".codex/rules",
-  ".github/ISSUE_TEMPLATE",
+  ".github/ISSUE_TEMPLATE/slice.md",
 ];
 
 // Never bundled: installs, build output, local state, test output, secrets, OS junk.
@@ -64,17 +67,35 @@ function nextSteps(name, files) {
   return steps;
 }
 
+// An add-on folder is stacks/<pack>-addons/<addon>/ with ADDON.md and files/ (project paths).
+function bundleAddons(dir, outDir) {
+  const addons = {};
+  for (const name of readdirSync(dir).sort()) {
+    const root = join(dir, name);
+    if (!statSync(root).isDirectory()) continue;
+    const doc = readFileSync(join(root, "ADDON.md"), "utf8");
+    const files = collect(join(root, "files"), walk(join(root, "files"), skip));
+    addons[name] = { ...parseAddon(doc), files: store(files, join(outDir, name)) };
+  }
+  return addons;
+}
+
 const version = readJson(join(CLI, "package.json")).version;
 rmSync(OUT, { recursive: true, force: true });
 
 const core = store(collect(REPO, CORE), join(OUT, "files", "core"));
 const packs = {};
+const addons = {};
 const stackNames = readdirSync(join(REPO, "stacks")).filter((n) => statSync(join(REPO, "stacks", n)).isDirectory());
 for (const name of stackNames.sort()) {
+  if (name.endsWith("-addons")) continue;
   const files = collect(join(REPO, "stacks", name), walk(join(REPO, "stacks", name), skip));
   packs[name] = { files: store(files, join(OUT, "files", "stacks", name)), next: nextSteps(name, files) };
+  const addonDir = join(REPO, "stacks", `${name}-addons`);
+  if (existsSync(addonDir)) addons[name] = bundleAddons(addonDir, join(OUT, "files", "addons", name));
 }
 
-writeFile(join(OUT, "manifest.json"), JSON.stringify({ kitVersion: version, core, packs }, null, 2) + "\n");
+writeFile(join(OUT, "manifest.json"), JSON.stringify({ kitVersion: version, core, packs, addons }, null, 2) + "\n");
 const packCount = Object.values(packs).reduce((n, p) => n + Object.keys(p.files).length, 0);
-console.log(`bundled kit v${version}: ${Object.keys(core).length} core files, ${Object.keys(packs).length} pack(s) with ${packCount} files -> cli/kit/`);
+const addonCount = Object.values(addons).reduce((n, a) => n + Object.keys(a).length, 0);
+console.log(`bundled kit v${version}: ${Object.keys(core).length} core files, ${Object.keys(packs).length} pack(s) with ${packCount} files, ${addonCount} add-on(s) -> cli/kit/`);

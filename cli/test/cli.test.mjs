@@ -10,7 +10,7 @@ const run = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding:
 test("--version prints the package version", () => {
   const r = run("--version");
   assert.equal(r.status, 0);
-  assert.equal(r.stdout.trim(), "0.3.0");
+  assert.equal(r.stdout.trim(), "0.4.0");
 });
 
 test("--help and no arguments print usage", () => {
@@ -30,4 +30,22 @@ test("init through the binary installs the kit", () => {
   const r = run("init", dir);
   assert.equal(r.status, 0, r.stderr);
   assert.ok(exists(dir, ".ai-dev-workflow.json"));
+});
+
+test("profile and doctor --fix through the binary, with a temp home and piped answers", () => {
+  const home = tmp();
+  const env = { ...process.env, HOME: home, USERPROFILE: home };
+  const show = spawnSync(process.execPath, [CLI, "profile", "show"], { encoding: "utf8", env });
+  assert.equal(show.status, 1);
+  const made = spawnSync(process.execPath, [CLI, "profile", "init"], { encoding: "utf8", env, input: "octo\nteam\n" });
+  assert.equal(made.status, 0, made.stderr);
+  assert.ok(exists(home, ".ai-dev-workflow/profile.toml"));
+  const shown = spawnSync(process.execPath, [CLI, "profile", "show"], { encoding: "utf8", env });
+  assert.match(shown.stdout, /github_owner = "octo"/);
+  assert.match(shown.stdout, /github_plan = "team"/);
+
+  const dry = run("doctor", tmp(), "--fix", "--dry-run");
+  assert.ok(dry.status === 0 || dry.status === 1, dry.stderr);
+  assert.match(dry.stdout, /Fix plan \(dry run|Nothing doctor can fix/);
+  assert.equal(run("profile", "nope").status, 2);
 });

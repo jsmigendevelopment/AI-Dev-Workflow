@@ -1,0 +1,13 @@
+{
+  // Uses only fetch, so it runs on React Native, in a browser, in Electron and in Node 22.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "verbatimModuleSyntax": true,
+    "types": []
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,43 @@
+packages:
+  - apps/*
+  - packages/*
+
+# One version of each tool shared by the workspaces. Use `catalog:` in a package.json.
+# React is deliberately NOT here: apps/web pins its own React, apps/mobile uses the one
+# Expo SDK 58 expects (19.3.0). pnpm's isolated installs keep the two apart, so shared
+# packages must never depend on React (see README, "React versions").
+catalog:
+  '@eslint/js': 10.0.1
+  '@tanstack/react-query': 5.108.3
+  eslint: 10.15.0
+  eslint-import-resolver-typescript: 4.4.5
+  eslint-plugin-boundaries: 7.4.4
+  eslint-plugin-react-hooks: 7.1.1
+  globals: 17.14.0
+  prettier: 3.10.1
+  typescript: 6.0.3
+  typescript-eslint: 8.73.0
+  vitest: 5.1.1
+  zod: 4.6.7
+
+# Never set `nodeLinker: hoisted`: it turns off the "undeclared import fails to resolve"
+# protection for the whole repo and lets two React copies meet. Expo supports isolated
+# installs from SDK 54.
+
+# Packages allowed to run install scripts (merge apps/web's list in here when you add it).
+# esbuild and unrs-resolver ship native binaries; workerd is the web app's local Workers runtime.
+# lefthook is off: its git hook would install from apps/web, not the repo root.
+# Off: @parcel/watcher (Jest's optional watcher, prebuilt), browser-tabs-lock and core-js
+# (postinstall banners).
+allowBuilds:
+  '@parcel/watcher': false
+  browser-tabs-lock: false
+  core-js: false
+  esbuild: true
+  lefthook: false
+  unrs-resolver: true
+  workerd: true
+
+minimumReleaseAgeExclude:
+  - '@tanstack/query-core@5.108.3'
+  - '@tanstack/react-query@5.108.3'

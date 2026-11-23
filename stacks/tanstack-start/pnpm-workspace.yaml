@@ -1,7 +1,9 @@
 # Packages allowed to run install scripts. workerd is the local Workers runtime
-# (wrangler dev, local D1); esbuild ships a native binary.
+# (wrangler dev, local D1); esbuild ships a native binary; lefthook installs the git
+# pre-commit hook (lefthook.yml) and skips itself outside a git repo and in CI.
 allowBuilds:
   esbuild: true
+  lefthook: true
   workerd: true
 minimumReleaseAgeExclude:
   - '@tanstack/query-core@5.108.3'

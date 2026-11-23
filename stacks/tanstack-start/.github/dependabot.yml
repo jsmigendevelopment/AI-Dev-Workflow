@@ -1,0 +1,41 @@
+# Dependabot version updates: one grouped pull request per ecosystem per week, so upgrades arrive
+# as small reviewed batches. Security updates are separate and immediate (repo settings).
+# The cooldown skips releases younger than a week, matching pnpm's minimum release age.
+version: 2
+updates:
+  - package-ecosystem: npm # covers pnpm and pnpm-lock.yaml
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      # Workers runtime pieces move together (the Vite plugin pins its own wrangler).
+      cloudflare:
+        patterns: ['wrangler', '@cloudflare/*']
+      tanstack:
+        patterns: ['@tanstack/*']
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      dev-tools:
+        dependency-type: development
+        update-types: [minor, patch]
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+    ignore:
+      # TypeScript 7 waits for typescript-eslint support (see the stack skill's gotchas).
+      - dependency-name: typescript
+        versions: ['>=7']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']

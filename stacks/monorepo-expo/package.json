@@ -1,0 +1,28 @@
+{
+  "name": "monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "check": "turbo run lint lint:workspace typecheck test build",
+    "lint": "turbo run lint lint:workspace",
+    "lint:workspace": "eslint -c eslint.workspace.config.js --max-warnings=0 apps packages && node scripts/check-workspace-deps.js",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e --filter=./apps/web",
+    "test:e2e:mobile": "turbo run test:e2e --filter=./apps/mobile",
+    "build": "turbo run build",
+    "boundaries:report": "turbo boundaries"
+  },
+  "devDependencies": {
+    "eslint": "catalog:",
+    "eslint-import-resolver-typescript": "catalog:",
+    "eslint-plugin-boundaries": "catalog:",
+    "turbo": "2.11.13",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
+  }
+}
