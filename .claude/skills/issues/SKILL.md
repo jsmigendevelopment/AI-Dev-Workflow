@@ -28,10 +28,17 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - `slice:core`, `slice:support`;
    - `lane:tiny`, `lane:normal`, `lane:risky`;
    - `status:ready` once nothing blocks it;
-   - `status:in-progress` and `needs-human`, which `coordinate` sets later.
+   - `status:in-progress` and `needs-human`, which `coordinate` sets later;
+   - `human-approved`, which only the person adds, to a pull request that changes the agents' rules.
 7. **Dependencies both ways:** "Depends on #N" here, and "Blocks #M" on the other one.
 8. **Modules touched,** and whether the issue is **decoupled.** That's how `coordinate` knows what can run in parallel.
-9. **Skills line:** `build`, plus at most two more, named exactly. A skill named in the issue gets loaded. One that's only installed may not be.
+9. **Skills line:** `build`, plus at most two more, named exactly. A skill named in the issue gets loaded. One that's only installed may not be. Pick the know-how the work needs:
+   - `stack-<name>` for the project's stack;
+   - `a11y` for any new screen or form;
+   - `web-security` for public endpoints, forms and anything user-supplied;
+   - `web-performance` for heavy pages, media or 3D;
+   - `seo` for public pages;
+   - `dependencies` when adding a library.
 
 ## No GitHub yet?
 

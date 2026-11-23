@@ -37,7 +37,23 @@ It's the workflow I use to run several apps at once alongside a full-time contra
 
 ## ⚡ Quick start
 
-**1. Copy the kit into your project folder,** new or existing.
+**1. Get the kit into your project folder,** new or existing.
+
+**The quickest way** (Node 22+), in your project folder:
+
+```bash
+npx ai-dev-workflow init
+```
+
+It never overwrites your files. Later, `npx ai-dev-workflow@latest update` brings in new kit versions, `npx ai-dev-workflow doctor` checks your setup, and `npx ai-dev-workflow add tanstack-start` drops in a stack pack.
+
+Or open Claude Code or Codex in the folder and paste this:
+
+```text
+Install the AI-Dev-Workflow kit from https://github.com/jsmigendevelopment/AI-Dev-Workflow into this folder: copy AGENTS.md, CLAUDE.md, .agents/, .claude/, .codex/ and .github/ISSUE_TEMPLATE/. Don't overwrite an existing AGENTS.md or CLAUDE.md; show me what you'd merge instead. Then tell me which command to type next.
+```
+
+Or copy it yourself:
 
 macOS / Linux:
 
@@ -50,7 +66,7 @@ cp /tmp/ai-dev-workflow/AGENTS.md /tmp/ai-dev-workflow/CLAUDE.md .
 ```
 
 ```bash
-cp -r /tmp/ai-dev-workflow/.agents /tmp/ai-dev-workflow/.claude .
+cp -r /tmp/ai-dev-workflow/.agents /tmp/ai-dev-workflow/.claude /tmp/ai-dev-workflow/.codex .
 ```
 
 ```bash
@@ -68,7 +84,7 @@ Copy-Item "$env:TEMP\ai-dev-workflow\AGENTS.md", "$env:TEMP\ai-dev-workflow\CLAU
 ```
 
 ```powershell
-Copy-Item -Recurse "$env:TEMP\ai-dev-workflow\.agents", "$env:TEMP\ai-dev-workflow\.claude" .
+Copy-Item -Recurse "$env:TEMP\ai-dev-workflow\.agents", "$env:TEMP\ai-dev-workflow\.claude", "$env:TEMP\ai-dev-workflow\.codex" .
 ```
 
 ```powershell
@@ -78,6 +94,7 @@ New-Item -ItemType Directory -Force .github | Out-Null; Copy-Item -Recurse "$env
 > [!NOTE]
 > **Your repo already has an `AGENTS.md`?** Copy this one in as `AGENTS.kit.md` instead, and `/join` merges the two.
 > **Already have a `CLAUDE.md`?** Keep yours and add the line `@AGENTS.md` to it.
+> **Using Codex?** Mark the project as trusted when Codex asks. Its project settings and safety rules in `.codex/` only load for trusted projects.
 
 > [!WARNING]
 > **Joining a repo you didn't write?** Before you open an agent in it, look over its `.claude/`, `.codex/` and editor settings and its git hooks. Those load as soon as the agent starts.
@@ -205,6 +222,17 @@ A skill loads reliably when the request names it. In testing, skills nobody ment
 | [`pr-security`](.agents/skills/pr-security/SKILL.md) | The gate for risky changes, against your security policy |
 | [`qa`](.agents/skills/qa/SKILL.md) | Clicks through the change on the preview, then smoke-tests after merge |
 
+### Know-how: named in issues when the work needs them
+
+| Skill | Covers |
+|---|---|
+| [`web-performance`](.agents/skills/web-performance/SKILL.md) | Core Web Vitals, budgets, images, fonts, code splitting |
+| [`web-security`](.agents/skills/web-security/SKILL.md) | Bots, spam, abuse, rate limits, headers, trust boundaries |
+| [`seo`](.agents/skills/seo/SKILL.md) | Titles, meta, share images, sitemaps, structured data |
+| [`a11y`](.agents/skills/a11y/SKILL.md) | WCAG 2.2 AA, keyboard, contrast, forms, axe in Playwright |
+| [`dependencies`](.agents/skills/dependencies/SKILL.md) | Picking libraries: maintained, licensed right, pinned |
+| [`stack-tanstack-start`](.agents/skills/stack-tanstack-start/SKILL.md) | Applies the TanStack Start pack and its conventions |
+
 ---
 
 ## 🧱 The default stack (recommended, never forced)
@@ -215,14 +243,48 @@ The tech grill recommends these for a web app and shows alternatives for each. T
 |---|---|---|
 | Framework | **TanStack Start** (React + TypeScript) | Fast, typed, and not tied to one host |
 | UI | **shadcn/ui + Tailwind** | Without a kit, AI invents its own components |
-| Structure | **Feature modules**, Bulletproof React style | Features don't tangle. Any one can be lifted into its own service later. |
+| Structure | **Module-based feature folders** (`src/modules/<feature>/`) | A feature's UI, hooks, server code and schemas live together. Any module can be lifted into its own service later. |
 | API | **Controller → service → repository** | Easy to test, easy to swap parts in |
 | Boundary check | **eslint-plugin-boundaries** in CI | The architecture holds because a check enforces it, not because a prompt asks |
 | Data | **SQLite**, or Supabase Postgres when you need it | Free, simple, self-hostable |
 | Auth | **Clerk** | Don't build auth. Buy it. |
+| Domain + hosting | **Cloudflare** (Workers, and buy the domain there) · Netlify as the alternative | Generous free tier, at-cost domains |
 | Tests | **Vitest + Playwright** | Unit tests for logic, a real browser for flows |
 
 **Build vs buy, always in this order:** open source → a SaaS with a free tier → build it yourself.
+
+### 📦 Stack packs
+
+A stack pack is that stack, already set up and working: configs, the folder skeleton, an example module through every layer, CI and the check contract. At slice 0 the agent pulls it into your project, so every app starts the same way.
+
+| Pack | What's in it |
+|---|---|
+| [`tanstack-start`](stacks/tanstack-start/) | TanStack Start · shadcn/ui + Tailwind · Drizzle on D1 · Clerk · Vitest + Playwright · Cloudflare Workers |
+
+No pack for your stack? The agent sets up the same things by hand and offers to save it as a new pack.
+
+### ✅ The check contract
+
+Every project, whatever the stack, has the same commands: `check`, `lint`, `typecheck`, `test`, `test:e2e`, `build`. The skills, CI and the loop only ever call those, so the workflow works on any stack.
+
+### 🔒 Guardrails
+
+- **CI on every pull request:** the checks, a secret scan, and a guard that blocks changes to the agents' own rules until you label them `human-approved`.
+- **No force pushes, no pushing to main:** blocked at the tool level, which works on free private repos too, where GitHub won't protect branches.
+  - Claude Code: `.claude/settings.json` blocks every forced push and every push to main.
+  - Codex: `.codex/rules/git-safety.rules` blocks `git push --force …`, `-f`, `--force-with-lease` and pushes to main. Codex rules only match the start of a command, so a `--force` typed after the branch name is caught by the `AGENTS.md` rule instead.
+- **GitHub setup, done for you:** at slice 0 the agent runs `setup-github.mjs --dry-run`, shows you the list, and asks before applying it. It turns on whatever your plan allows and says what it skipped:
+
+  | Sets up | Free plan | GitHub Team |
+  |---|---|---|
+  | The workflow's labels, Dependabot alerts and security-fix PRs | ✅ | ✅ |
+  | Rules on main: PR only, no force push, green checks required | public repos | ✅ |
+  | `test` and `production` environments. Production deploys only from main and waits for your approval. | public repos | ✅ |
+  | Secret scanning and push protection | public repos | add-on for private |
+  | Draft PRs until checks pass | public repos | ✅ |
+
+  Code owners and required reviewers only help with teammates: GitHub won't let you approve your own PR.
+- **No silent waiting:** when an agent is rate-limited or blocked, it tells you right away, keeps doing other work, and resumes after the reset.
 
 ---
 
@@ -245,11 +307,15 @@ The tech grill recommends these for a web app and shows alternatives for each. T
 ```
 AGENTS.md                  ← rules every agent follows, every session (Codex + Claude)
 CLAUDE.md                  ← one line: @AGENTS.md
+.claude/settings.json      ← Claude Code: blocks force pushes and pushes to main
+.codex/                    ← Codex: project settings and command rules
 .agents/skills/            ← the skills, master copy (Codex reads this)
 .claude/skills/            ← same skills (Claude Code reads this)
 .github/ISSUE_TEMPLATE/    ← the slice issue template
+stacks/                    ← stack packs (ready-made starters), pulled in at slice 0
 guide/                     ← cheat sheet, principles, evidence (for people)
 assets/                    ← diagrams
+cli/                       ← the npx ai-dev-workflow command (init, update, doctor, add)
 scripts/sync-skills.mjs    ← keeps the copies identical
 ```
 

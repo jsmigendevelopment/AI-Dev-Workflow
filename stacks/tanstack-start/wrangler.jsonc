@@ -1,0 +1,22 @@
+// Edit this file, never the generated dist/server/wrangler.json.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "app",
+  "compatibility_date": "2026-11-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "app",
+      // Placeholder. Run `pnpm exec wrangler d1 create app` and paste the id it prints.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  // Production on your own domain (wrangler creates the DNS record and certificate):
+  // "routes": [{ "pattern": "app.example.com", "custom_domain": true }],
+  // "workers_dev": false,
+  // "preview_urls": true
+}

@@ -14,13 +14,13 @@ The platform comes first, because everything else depends on it.
 1. **Platform(s):** web, iOS, Android, desktop, CLI. Decide from the main flow and the users, not from habit.
 2. **Framework and language.**
 3. **UI kit and styling.** Always pick one. Without one, the AI invents its own components and the UI drifts.
-4. **Architecture and folders:** a modular monolith with feature modules (see `templates/architecture.md` in the `idea` skill).
+4. **Architecture and folders:** a modular monolith with feature modules in a module-based folder structure (see `templates/architecture.md` in the `idea` skill).
 5. **API pattern:** controller → service → repository/client, with one composition root. Also pick the wire style.
 6. **Data:** the database, how the schema is migrated, and backups.
 7. **Auth:** buy it, don't build it.
 8. **Environments:** **test** and **production**, plus a **preview per pull request** if the host offers one. Merging to main auto-deploys to test.
    - **Agents get test credentials only.** Production keys and settings stay with the person.
-9. **CI:** every pull request runs install, lint, typecheck, unit tests, the boundary check, build and end-to-end tests. Start from `templates/ci.yml` in the `idea` skill.
+9. **CI and the check contract:** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). CI runs them on every pull request, plus a secret scan and the agent-file guard. Start from `templates/ci.yml` in the `idea` skill.
 10. **Build vs buy** for every other need: open source first, then a free-tier SaaS, then build it.
 11. **Repo and risk dial:** confirm visibility and licence, and pick the risk dial in `stack.md`.
 
@@ -30,18 +30,26 @@ The platform comes first, because everything else depends on it.
 |---|---|---|
 | Framework | TanStack Start (React, TypeScript) | React Router (framework mode), SvelteKit |
 | UI | shadcn/ui + Tailwind CSS | Mantine, Radix + your own CSS |
-| Structure | Feature modules, Bulletproof React style | By layer (only for tiny apps) |
+| Structure | Module-based feature folders (`src/modules/<feature>/`) | By layer (only for tiny apps) |
 | API | Controller → service → repository, schema validation (Zod) | tRPC, GraphQL |
 | Boundary check | `eslint-plugin-boundaries` or `dependency-cruiser`, run with lint | A custom script |
 | Database | SQLite (self-hosted, or Cloudflare D1) | Supabase Postgres when SQLite isn't enough; Convex for heavy real-time multi-user |
 | Queries | Drizzle | Kysely, Prisma |
 | Auth | Clerk (free tier) | Supabase Auth, Better Auth (self-hosted) |
-| Hosting | Cloudflare Workers | A small VPS with Docker + Caddy, Fly.io, Netlify |
+| Domain | Buy it on Cloudflare (at-cost pricing, DNS included) | Your existing registrar, with DNS moved to Cloudflare |
+| Hosting | Cloudflare Workers | Netlify |
 | Tests | Vitest + Playwright | Jest |
 
 If the person picks a database, make it a real decision. Switching engines after launch means a new SQL dialect and a data migration.
 
 For other platforms there's no fixed default. Recommend the mainstream choice, since a niche stack takes more correction rounds with an AI. Anything crucial and unclear goes to `research`.
+
+## Stack packs
+
+A stack pack is a ready-made starter for one stack: configs, the folder skeleton, an example module, CI and the check contract, already working. Look for a skill named `stack-<name>` (for example `stack-tanstack-start`).
+
+- **A pack exists for the pick:** say so, and slice 0 applies it (see `pyramid`).
+- **No pack:** slice 0 sets up the same things by hand, following the check contract and `architecture.md`. Afterwards, offer to save the result as a new pack.
 
 ## Write it down
 

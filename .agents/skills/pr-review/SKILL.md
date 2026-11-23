@@ -21,7 +21,7 @@ You did not write this code. Judge only the **issue, the diff and the check resu
    - the screens match `docs/design.md`.
 5. **Readable:** clear names, small files, one job each.
 6. **Bugs:** edge cases, errors, empty states, off-by-one errors, races.
-7. **Instruction files:** if the diff touches `AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/` or `.github/`, say so. That needs the person.
+7. **Instruction files:** if the diff touches `AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/`, `.codex/` or `.github/`, say so. That needs the person.
 
 ## Verdict
 

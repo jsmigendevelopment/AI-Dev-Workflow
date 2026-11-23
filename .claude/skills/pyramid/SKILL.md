@@ -27,7 +27,16 @@ pass 1    ████   ████   ████   ████   ███�
 
 ## Steps
 
-1. **Slice 0, the skeleton.** Before any feature: the app runs, CI runs every check on every pull request (start from `templates/ci.yml` in the `idea` skill), the boundary check is on, main deploys to test, and there's a preview per pull request if the host offers one. Record the test URL in `AGENTS.md`.
+1. **Slice 0, the skeleton.** Before any feature:
+   - If there's a stack pack for the chosen stack (a `stack-<name>` skill), open it and apply it. For the default web stack that's `stack-tanstack-start`. Otherwise set up the same things by hand.
+   - The app runs, and every command in the check contract works.
+   - CI runs on every pull request: checks, secret scan and agent-file guard (start from `templates/ci.yml` in the `idea` skill).
+   - Main deploys to test, and there's a preview per pull request if the host offers one. Record the test URL in `AGENTS.md`.
+   - **Set up GitHub for the person:**
+     1. If `gh auth status` fails, ask them to run `gh auth login` and wait.
+     2. Run `node .agents/skills/name/scripts/setup-github.mjs --dry-run` and show them the list.
+     3. Say in one line what it does (labels, Dependabot, secret scanning, rules on main, a production environment that waits for them) and ask: *"Set this up now?"*
+     4. On a yes, run it without `--dry-run` and show the results, including anything skipped because of their plan.
 2. **List the slices** from `docs/mvp.md`. One slice is one thing a user can do, end to end. Name the **core.** Not every app needs auth.
 3. **Design what the slices share.** In `docs/design.md`: the schema, the API contracts, and a wireframe and layout for every screen in pass 1. Plain text or ASCII wireframes are fine. Builders follow this design. They don't invent their own.
 4. **Order pass 1.** Slice 0 first, then the slice that proves the riskiest idea, usually the core.
