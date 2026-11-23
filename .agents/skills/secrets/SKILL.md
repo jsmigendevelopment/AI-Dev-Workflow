@@ -24,7 +24,7 @@ When a step adds a service, it adds its variables here in this format.
 
 ## Steps
 
-**When:** right after the issues are written, before the build starts (`idea` step 9 and `join`), so the first deploy is never stuck waiting on a key. Don't wait to be asked.
+**When:** right after the issues are written, before the build starts (`idea` step 11 and `join`), so the first deploy is never stuck waiting on a key. Don't wait to be asked.
 
 1. **List what's needed.** Read `.env.example` and show a table of the name, what it's for, where to get it, which environments, and whether it's secret. Mention any accounts to create first (for example Cloudflare, Clerk, Stripe).
 

@@ -13,8 +13,11 @@ About 10 questions per topic, fewer if answers come fast. Move on after three ro
 - [ ] 3. Features (the person's ideas first)
 - [ ] 4. The floor
 - [ ] 5. The MVP
-- [ ] 6. Confirm
+- [ ] 6. Look and feel
+- [ ] 7. Confirm
+- [ ] Wireframes started (background)
 - [ ] Intermission: name and repo
+- [ ] Wireframes approved
 - [ ] Tech grill
 
 <!-- Existing project or a big feature: use these instead.
