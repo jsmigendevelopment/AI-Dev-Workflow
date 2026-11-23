@@ -2,9 +2,10 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadKit } from "./kit.mjs";
+import { copyProfileIfMissing } from "./profile.mjs";
 import { apply, plan, readProjectManifest, report } from "./sync.mjs";
 
-export function init(dir = ".", { kitDir, log = console.log } = {}) {
+export function init(dir = ".", { kitDir, home, log = console.log } = {}) {
   const projectDir = resolve(dir);
   const kit = loadKit(kitDir);
   const existing = readProjectManifest(projectDir);
@@ -17,6 +18,7 @@ export function init(dir = ".", { kitDir, log = console.log } = {}) {
   log(`Installing the AI-Dev-Workflow kit v${kit.version} into ${projectDir}`);
   report(actions, log, ["merge", "kit-new"]);
   apply(projectDir, kit, actions);
+  if (copyProfileIfMissing(projectDir, { home })) log("  copied your profile to docs/profile.toml");
   log("");
   log(nextSteps(actions).join("\n"));
   return 0;

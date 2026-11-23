@@ -1,0 +1,15 @@
+// Codespaces and Dev Containers: Node 22, pnpm (the version in package.json, through corepack)
+// and Playwright's Chromium with its system libraries, so `pnpm check` and `pnpm test:e2e` run
+// as soon as the container is up.
+{
+  "name": "app",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "forwardPorts": [3000],
+  "portsAttributes": { "3000": { "label": "dev server", "onAutoForward": "notify" } },
+  "postCreateCommand": "corepack enable && corepack install && pnpm install --frozen-lockfile && pnpm exec playwright install --with-deps chromium",
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "bradlc.vscode-tailwindcss"]
+    }
+  }
+}

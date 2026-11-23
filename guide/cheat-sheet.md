@@ -2,7 +2,7 @@
   <img src="../assets/cheat-sheet.svg" alt="Cheat sheet: /idea, /join, /back, /afk" width="100%">
 </p>
 
-## ⌨️ Commands
+## 💬 Commands
 
 | | Claude Code | Codex | Use it when | Or just say |
 |---|---|---|---|---|
@@ -13,6 +13,29 @@
 
 > [!TIP]
 > **Typing the command always works.** The plain phrase usually does, on a strong model.
+
+**Adding the kit to an app you already have?** → [Step by step](add-to-existing-app.md)
+
+---
+
+## 🔧 Advanced: run one step yourself
+
+You rarely need these. The four commands call them for you.
+
+| Claude Code | Codex | Use it when |
+|---|---|---|
+| `/grill` | `$grill` | You want to be interviewed before a big feature, without a full kickoff |
+| `/research` | `$research` | A decision is crucial, unclear and costly to undo. It asks first: it uses your strongest model. |
+| `/pyramid` | `$pyramid` | You want to plan, or re-plan, the slices, passes and milestones. It asks first too. |
+| `/issues` | `$issues` | You have a plan, feedback or a bug to turn into issues |
+| `/coordinate` | `$coordinate` | You want the build loop to start on the ready issues |
+| `/build N` | `$build N` | You want issue N built, and nothing else |
+| `/pr-review N` | `$pr-review N` | You want a fresh review of pull request N |
+| `/pr-security N` | `$pr-security N` | Pull request N touches auth, secrets, personal data or money |
+| `/qa` | `$qa` | You want a change checked in a real browser, on the preview or the test site |
+| `/secrets` | `$secrets` | The app needs API keys or env vars wired up |
+| `/stack` | `$stack` | You want to pick the tech, or change a pick |
+| `/automation` | `$automation` | You want agents to do more or less on their own. Or say "switch to recommended". |
 
 ---
 
@@ -51,7 +74,7 @@
 
 ---
 
-## 🎚 Risk dial and lanes
+## 🚦 Risk dial and lanes
 
 | Dial | Who merges | Pick it when |
 |---|---|---|
@@ -66,6 +89,35 @@
 | **risky** | Normal · security review · the person | Auth, secrets, personal data, money, migrations, new dependencies |
 
 🛑 **Always waits for a person, whatever the dial:** production, secrets, deleting or migrating real data, and spending money.
+
+---
+
+## 🎚️ Automation level
+
+The risk dial is how careful each merge is. The automation level is how much agents do without you. The more careful one wins. Asked first in `/idea` and `/join`. Change it with `/automation`.
+
+| Level | Agents do | You do |
+|---|---|---|
+| **Recommended** | Loop, build, review, merge tiny and normal, deploy to test | Approve risky and schema changes, answer decisions, try it |
+| **Full** | Everything, risky too, plus overnight. Never the always-stop list. | Answer blockers |
+| **Hands-on** | Plan, write issues, build one issue when asked | Open and merge every pull request |
+| **Custom** | You set each switch | |
+
+---
+
+## 🔔 Needs you
+
+| Level | When | Ping |
+|---|---|---|
+| 🛑 **Blocker** | Always-stop list, unclear MVP core, critical security finding, production down, nothing else can move | Now |
+| ⏳ **Decision** | Schema or API gate, taste, scope or money, review cap hit, unclear issue, stale claim | Batched, at most every 30 min |
+| ℹ️ **FYI** | Ready to try, usage, rate limit and reset | Never. On the board and at `/back`. |
+
+- Away (`/afk`)? Only production down or a security hole pings.
+- Quiet hours and the batch window are in your profile under `[notify]`. Phone pings: set `NTFY_TOPIC`.
+- **The board:** `~/.ai-dev-workflow/boards/<project>.md`, or a Google Sheet with `[board] sheet`. Keep it open instead of watching threads.
+
+→ [Pings, the board and automation](staying-in-the-loop.md)
 
 ---
 

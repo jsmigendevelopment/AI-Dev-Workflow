@@ -1,0 +1,13 @@
+{
+  // Platform-free: no DOM, no React Native, no Node. Runs in a Worker, a browser and on a phone.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "verbatimModuleSyntax": true,
+    "types": []
+  },
+  "include": ["src"]
+}

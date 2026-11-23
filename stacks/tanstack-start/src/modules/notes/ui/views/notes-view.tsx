@@ -8,6 +8,15 @@ import { NoteCreateForm } from '../components/note-create-form'
 import { NoteItem } from '../components/note-item'
 
 export function NotesView() {
+  return (
+    <section className="flex flex-col gap-6">
+      <h1 className="text-3xl font-semibold tracking-tight">Notes</h1>
+      <NotesBody />
+    </section>
+  )
+}
+
+function NotesBody() {
   const list = useNotesList()
 
   if (list.isPending) return <p className="text-muted-foreground">Loading notes…</p>

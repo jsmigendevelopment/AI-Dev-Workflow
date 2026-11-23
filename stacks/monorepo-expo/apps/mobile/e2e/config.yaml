@@ -1,0 +1,6 @@
+# `maestro test e2e` runs every flow here. CI runs only the smoke flow unless the signed-in
+# secrets are set (see the mobile-e2e jobs in .github/workflows/ci.yml).
+flows:
+  - '*.yaml'
+excludeTags:
+  - signed-in

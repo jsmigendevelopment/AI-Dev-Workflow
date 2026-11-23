@@ -1,5 +1,6 @@
 import { infiniteQueryOptions, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { call } from '@/lib/api-call'
+import { TURNSTILE_HEADER } from '@/lib/turnstile'
 import { createNote, deleteNote, listNotes, renameNote } from '../server/notes.functions'
 import type { CreateNoteInput, DeleteNoteInput, RenameNoteInput } from '../types'
 
@@ -31,8 +32,11 @@ function useNotesMutation<I, O>(send: (input: I) => Promise<O>) {
   })
 }
 
+/** `humanToken` is the Turnstile token from `useTurnstile()`, sent as a header (absent when off). */
 export const useCreateNote = () =>
-  useNotesMutation((data: CreateNoteInput) => call(() => createNote({ data })))
+  useNotesMutation(({ humanToken, ...data }: CreateNoteInput & { humanToken?: string | undefined }) =>
+    call(() => createNote({ data, headers: humanToken ? { [TURNSTILE_HEADER]: humanToken } : undefined })),
+  )
 export const useRenameNote = () =>
   useNotesMutation((data: RenameNoteInput) => call(() => renameNote({ data })))
 export const useDeleteNote = () =>

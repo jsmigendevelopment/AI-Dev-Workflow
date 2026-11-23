@@ -1,0 +1,31 @@
+# Signed in: add a note, see it, delete it. Needs a preview build with Clerk keys and a test
+# user. Clerk's hosted sign-in runs in a browser tab Maestro can drive; the email code step
+# uses Clerk's test mode (an address with "+clerk_test" and the code 424242).
+# The hosted page's labels below were not checked against a device: adjust them on the first run.
+# Run: maestro test -e EMAIL=you+clerk_test@example.com e2e/notes.yaml
+appId: com.example.app
+tags:
+  - signed-in
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Sign in'
+- extendedWaitUntil:
+    visible: 'Email address'
+    timeout: 30000
+- tapOn: 'Email address'
+- inputText: ${EMAIL}
+- tapOn: 'Continue'
+- extendedWaitUntil:
+    visible: 'Check your email'
+    timeout: 30000
+- inputText: '424242'
+- extendedWaitUntil:
+    visible: 'New note'
+    timeout: 30000
+- tapOn: 'New note'
+- inputText: 'Maestro note'
+- tapOn: 'Add note'
+- assertVisible: 'Maestro note'
+- tapOn: 'Delete Maestro note'
+- assertNotVisible: 'Maestro note'

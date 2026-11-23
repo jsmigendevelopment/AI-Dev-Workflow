@@ -1,0 +1,35 @@
+# Headers for static files (the assets layer answers these without running the Worker).
+# The /* block must equal SECURITY_HEADERS in src/lib/security-headers.ts: a unit test checks it.
+# Never set the same header in two matching rules: Cloudflare joins them with a comma.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()
+  Cross-Origin-Opener-Policy: same-origin
+  Content-Security-Policy: object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+
+# Hashed build output: the name changes when the content does, so cache it for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Icons and the share image keep their names: cache a day. One rule per file, so no file matches
+# two Cache-Control rules (Vite puts imported images under /assets/).
+/og.png
+  Cache-Control: public, max-age=86400
+/favicon.ico
+  Cache-Control: public, max-age=86400
+/favicon.svg
+  Cache-Control: public, max-age=86400
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400
+/icon-192.png
+  Cache-Control: public, max-age=86400
+/icon-512.png
+  Cache-Control: public, max-age=86400
+/site.webmanifest
+  Cache-Control: public, max-age=86400
+
+# Preview and workers.dev copies of the site stay out of search.
+https://:version.:account.workers.dev/*
+  X-Robots-Tag: noindex

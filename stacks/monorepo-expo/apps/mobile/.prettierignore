@@ -1,0 +1,8 @@
+node_modules
+dist
+.expo
+ios
+android
+coverage
+e2e/output
+src/uniwind-types.d.ts

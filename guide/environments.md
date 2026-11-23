@@ -1,0 +1,104 @@
+# Environments and environment variables
+
+Where each setting and secret lives, how to add one, how to rotate one, and how a new teammate gets set up. The `secrets` skill runs the steps. This page has the rules and the reasons. Rule 16 in [app-conventions.md](app-conventions.md) is the short version.
+
+The examples name the default stack (Cloudflare Workers, GitHub Actions). Another host keeps the rule and swaps the tool.
+
+## 1. Four environments
+
+| Environment | What it is | Who deploys | Keys |
+|---|---|---|---|
+| **local** | the app on a developer's machine | the developer | test or sandbox keys, in their own `.env.local` |
+| **test** | the shared test site. Merging to main deploys it | CI | test keys, in the host and the GitHub `test` environment |
+| **preview** | one short-lived copy per pull request, if the host offers it | CI | the test environment's values |
+| **production** | the real app with real users | the person only | production keys, only in the host and the GitHub `production` environment |
+
+**Agents get test keys only.** Production keys and settings stay with the person (the always-stop list in `AGENTS.md`).
+
+**Why:** a preview or test site that can reach production data turns a bad pull request into a real incident. Separate keys keep a mistake inside the test world.
+
+## 2. Each developer has their own `.env.local`
+
+- Copy `.env.example` to `.env.local` and fill it with your own test keys.
+- It's git-ignored. Never commit it, never share it, never paste it in chat.
+- Agents never open it. They refer to a variable by name only (rule 9 in `AGENTS.md`).
+
+**Why:** a shared `.env` file gets passed around in chat and email, and nobody knows who has it. Your own file with your own test keys can be thrown away.
+
+## 3. Settings that aren't secret go in committed config
+
+A setting that's safe to read in public (an app name, a feature flag's default, a public URL, a Clerk publishable key) goes in committed config, per environment: for example `vars` under each `env` in `wrangler.jsonc`.
+
+**Why:** committed config shows up in review, has history, and is the same for everyone. A setting kept only in a dashboard changes with no record.
+
+## 4. Secrets live only in secret stores
+
+- **The host's secret store:** `npx wrangler secret put NAME --env test`.
+- **GitHub environment secrets,** for CI: `gh secret set NAME --env test`.
+- Never in the repo, a committed config file, a log, an error message or the client bundle.
+- A secret never gets a `VITE_` prefix. That prefix ships it to every browser.
+
+**Why:** a secret in git stays in the history forever, even after you delete the line.
+
+## 5. One typed, validated env schema
+
+- `lib/env.ts` reads every variable through one Zod schema at startup. Nothing else reads `process.env` or the Worker's `env` directly.
+- A missing or malformed variable fails startup with a message that **names the variable, never its value:** `Missing env: CLERK_SECRET_KEY`.
+- The schema marks each variable as secret or public, and as server-only or client-safe.
+
+**Why:** an app that starts with a missing key fails later, in front of a user, with a confusing error. Failing at startup with the name is a one-minute fix.
+
+## 6. `.env.example` lists every variable
+
+Every variable is in `.env.example` with no value, under one comment line in the format the `secrets` skill uses:
+
+```bash
+# Clerk secret key · get it: https://dashboard.clerk.com → API keys · scope: local,test,production · secret: yes
+CLERK_SECRET_KEY=
+```
+
+`scope` lists `local`, `test` and `production`. Previews use the test values.
+
+## 7. Adding a variable
+
+One pull request does all of it:
+1. the line in `.env.example`, in the format above;
+2. the entry in `lib/env.ts`;
+3. the docs: `docs/stack.md` if it's a new service, and the module's doc if it uses it;
+4. for a setting that isn't secret, the value in committed config for each environment.
+
+Then the `secrets` skill sets the values. A test checks that `.env.example` and the schema list the same names.
+
+**Why:** a variable added in only one of those places breaks the next deploy, or the next teammate's first run.
+
+## 8. Rotating a key
+
+Do this when a key may have leaked, when someone with access leaves, or on the service's schedule.
+
+1. Make a new key in the service's dashboard. Keep the old one working.
+2. Set the new value in each place it lives: `.env.local`, `npx wrangler secret put NAME --env <env>`, `gh secret set NAME --env <env>`. Test first, then production.
+3. Deploy test and check it works. The person deploys production.
+4. Revoke the old key in the dashboard.
+5. Write the date and the reason in `docs/decisions.md`. Never the value.
+
+A leaked production key is a 🛑 blocker through the `ask` skill. The person does steps 1, 2 and 4 for production.
+
+**Why:** making the new key before revoking the old one means no downtime. Revoking last means the leak stops for good.
+
+## 9. Onboarding a new teammate
+
+1. Give them access to the GitHub repo and the test accounts of each service (Cloudflare, Clerk, and the rest in `docs/stack.md`). Not production, unless the person decides so.
+2. They clone the repo, install, and copy `.env.example` to `.env.local`.
+3. They run the `secrets` skill. It lists each variable with where to get it.
+4. They start the app. A missing variable fails with its name, so they know what's left.
+5. They read `AGENTS.md` and `docs/state.md`.
+
+**Why:** a first day spent hunting for keys is a lost day. The list plus the schema make it an hour.
+
+## 10. How agents ask the person for a value
+
+- **Always through the `secrets` skill's checklist,** never in chat. The agent names the variable, says where to get it, and says which file or command takes it. The person types the value into the file or a prompt that hides it.
+- Each step uses the "Setup step for you" format from the `ask` skill: numbered steps, the exact link, the exact text to copy, what you'll see when it worked, and how long it takes.
+- The agent never asks the person to paste a value in chat. If they do anyway, the agent says so, doesn't repeat it, and asks them to rotate that key (rule 8).
+
+**Why:** a value in chat is stored in the chat log, outside every secret store, and can't be taken back.

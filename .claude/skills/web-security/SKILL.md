@@ -30,7 +30,7 @@ Make every request a stranger can send cheap to refuse, strictly checked, and un
 - Static asset requests are free; anything that runs the Worker is counted. A WAF or rate-limiting rule block is the only rejection that is not billed, so put certain rejections there and keep the rule text in the repo. (checked 2026-11)
 - Setting AI "Training" to Block also blocks major search crawlers. Use Allow or Disallow and keep `robots.txt` as the policy. Leave Bot Fight Mode off on a byte-budgeted site; it injects a script into every page. (checked 2026-11)
 - `*.workers.dev` and preview URLs sit outside your zone's rules and share production bindings. Give previews their own Worker and data, add `X-Robots-Tag: noindex` there, and gate side effects on the hostname.
-- Send security headers from both `_headers` and the Worker: HSTS (no `preload` on a subdomain), `nosniff`, a strict `Referrer-Policy`, a tight `Permissions-Policy`, and a CSP with `object-src 'none'; base-uri 'none'; frame-ancestors 'none'`.
+- Send security headers from both `_headers` and the Worker: HSTS (no `preload` on a subdomain), `nosniff`, a strict `Referrer-Policy`, a tight `Permissions-Policy`, and a CSP with `object-src 'none'; base-uri 'none'; frame-ancestors 'none'`. Use a per-response nonce for pages rendered on the server, and hashes for prerendered pages.
 
 ## Accounts and CI
 

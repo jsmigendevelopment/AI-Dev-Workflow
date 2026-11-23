@@ -1,0 +1,228 @@
+# Runs on every pull request and on main. Uses the check contract in the root package.json,
+# which Turborepo runs across apps/* and packages/*.
+# Replaces apps/web/.github/workflows/ci.yml (GitHub only reads workflows at the repo root).
+name: ci
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mobile_e2e:
+        description: 'Run Maestro on a simulator or emulator (costs runner minutes)'
+        type: choice
+        options: [none, android, ios, both]
+        default: none
+# A new push to the same branch or pull request cancels the run it makes stale.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# Read-only token by default; no job here needs to write.
+permissions:
+  contents: read
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  EXPO_NO_TELEMETRY: 1
+
+jobs:
+  checks:
+    # lint (with both boundary checks), typecheck, unit tests and builds for every workspace.
+    # Mobile's build is `expo export` (the JS bundle for iOS and Android), not a store binary.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # reads the version from packageManager
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - name: Package boundaries (turbo boundaries, experimental, report only)
+        continue-on-error: true
+        run: pnpm boundaries:report
+      - name: Web migrations match the tables
+        working-directory: apps/web
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain migrations)" ]; then
+            echo "A table changed without a migration. Run pnpm db:generate in apps/web and commit the result."
+            git status --porcelain migrations
+            exit 1
+          fi
+
+  web-e2e:
+    # The web pack's browser checks: budgets, then Playwright (smoke, security, SEO, axe).
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=./apps/web
+      - run: pnpm --filter ./apps/web check:budgets
+      - run: pnpm --filter ./apps/web exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: No high or critical advisories (every workspace)
+        run: pnpm audit --audit-level=high
+      - name: Licences on the allow-list (every workspace)
+        run: pnpm --filter ./apps/web check:licenses
+
+  # Mobile end-to-end: Maestro on an emulator or simulator. Opt-in, because it is slow and
+  # (on private repos) costs money: add the `e2e:mobile` label to a pull request, or run the
+  # workflow by hand and pick a platform. Builds a release binary without EAS or signing.
+  # Not run by the kit's authors yet: expect to tune the first run (README, "Mobile e2e").
+  mobile-e2e-android:
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'e2e:mobile') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.mobile_e2e == 'android' || inputs.mobile_e2e == 'both'))
+    runs-on: ubuntu-latest # Linux rate; about 20 to 30 minutes with the native build
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: pnpm install --frozen-lockfile
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Build a release APK
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.E2E_API_URL }}
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.E2E_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          pnpm exec expo prebuild --platform android --no-install
+          cd android && ./gradlew assembleRelease --no-daemon
+      - name: Install Maestro
+        env:
+          MAESTRO_VERSION: 2.12.1
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Run the flows on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          script: |
+            adb install apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+            cd apps/mobile && maestro test e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-android
+          path: |
+            apps/mobile/e2e/output
+            ~/.maestro/tests
+
+  mobile-e2e-ios:
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'e2e:mobile') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.mobile_e2e == 'ios' || inputs.mobile_e2e == 'both'))
+    runs-on: macos-latest # about ten times the Linux rate per minute on private repos
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build for the simulator (no signing)
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.E2E_API_URL }}
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.E2E_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          pnpm exec expo prebuild --platform ios
+          # App.xcworkspace and the App scheme come from "name" in app.json: rename them with it.
+          xcodebuild -workspace ios/App.xcworkspace -scheme App -configuration Release \
+            -sdk iphonesimulator -derivedDataPath build CODE_SIGNING_ALLOWED=NO | tail -n 50
+      - name: Install Maestro
+        env:
+          MAESTRO_VERSION: 2.12.1
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Run the flows on a simulator
+        working-directory: apps/mobile
+        run: |
+          device=$(xcrun simctl list devices available | grep -m1 -o 'iPhone [^(]*' | sed 's/ *$//')
+          xcrun simctl boot "$device"
+          xcrun simctl install booted "$(find build/Build/Products -name '*.app' -maxdepth 2 | head -n 1)"
+          maestro test e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-ios
+          path: |
+            apps/mobile/e2e/output
+            ~/.maestro/tests
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for committed secrets
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.18.4 detect --no-git --source /repo --redact
+
+  agent-files:
+    # A pull request that changes the agents' own rules needs the person.
+    # They add the `human-approved` label after reading the diff.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Agent rule files need a human
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE"...HEAD | grep -E '^(AGENTS\.md|CLAUDE\.md|\.agents/|\.claude/|\.github/)' || true)
+          if [ -n "$changed" ] && ! echo ",$LABELS," | grep -q ",human-approved,"; then
+            echo "These files change the agents' rules and need the human-approved label:"
+            echo "$changed"
+            exit 1
+          fi

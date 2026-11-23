@@ -11,6 +11,18 @@ Run the steps in order. Don't write app code before step 8 unless the person say
 
 ## Steps
 
+0. **Load the person's profile.** If `~/.ai-dev-workflow/profile.toml` exists and this project has no `docs/profile.toml`, copy it in (create `docs/`). If neither exists, offer once to make one from `templates/profile.toml`: *"Want a personal profile so I stop asking the same questions every app?"* Everything in the profile is a default you confirm, not a question you ask.
+   - **Then ask the first question: the automation level** (see `automation`). Show this table first, and say in one line each how it differs from the risk dial (asked later, in the tech grill): *the automation level is how much agents do without you; the risk dial is how careful each merge is.*
+
+   | Level | Agents do | You do |
+   |---|---|---|
+   | **Recommended** (default) | Run the loop. Build, review and merge small and normal changes. Deploy to test. | Approve risky changes and schema changes. Answer batched questions. Try the app. |
+   | **Full automation** | Everything, risky changes too, plus overnight. Never the always-stop list. | Answer blockers only. |
+   | **Hands-on** | Plan, write issues, build one issue when you ask. | Open and merge every pull request. |
+   | **Custom** | You set each switch. | |
+
+   - The profile's `[defaults] automation` is the suggested pick. Write the answer to `kickoff/decisions.md`. `stack` copies it into the "Automation level" section of `docs/stack.md` in step 5.
+
 1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter.
 
 2. **Product grill.** Open `grill` and run its product topics. Until the repo exists, the notes live in a local `kickoff/` folder: `grill-log.md`, `decisions.md`, `features.md` and `vision.md`, each started from this skill's `templates/`.
@@ -20,7 +32,7 @@ Run the steps in order. Don't write app code before step 8 unless the person say
 
 4. **Intermission: name it and make the repo.** Open `name`. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
 
-5. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial. It's short. Crucial unknowns go to `research` first. It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
+5. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. Crucial unknowns go to `research` first. It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
 
 6. **Fill in the project facts** at the bottom of `AGENTS.md`.
 

@@ -1,7 +1,9 @@
 // The kit bundled inside this package (cli/kit/, made by scripts/bundle.mjs).
 // kit/manifest.json lists every file as a "/" path with its sha256:
-//   { kitVersion, core: { path: sha }, packs: { name: { files: { path: sha }, next: [..] } } }
-// Files live under kit/files/core/<path> and kit/files/stacks/<pack>/<path>.
+//   { kitVersion, core: { path: sha }, packs: { name: { files: { path: sha }, next: [..] } },
+//     addons: { pack: { addon: { summary, apply, files: { path: sha } } } } }
+// Files live under kit/files/core/<path>, kit/files/stacks/<pack>/<path> and
+// kit/files/addons/<pack>/<addon>/<path>.
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -30,7 +32,10 @@ export function loadKit(kitDir = DEFAULT_KIT_DIR) {
     version: manifest.kitVersion,
     core: manifest.core,
     packs: manifest.packs,
+    addons: manifest.addons ?? {},
     readCore: (path) => readFileSync(toNative(join(kitDir, "files", "core"), storedName(path))),
     readPack: (pack, path) => readFileSync(toNative(join(kitDir, "files", "stacks", pack), storedName(path))),
+    readAddon: (pack, addon, path) =>
+      readFileSync(toNative(join(kitDir, "files", "addons", pack, addon), storedName(path))),
   };
 }

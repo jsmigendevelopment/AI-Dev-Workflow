@@ -6,10 +6,13 @@ The handoff note between sessions. Keep it under 30 lines. Overwrite it, don't a
 - **Phase:** grill / planning / building pass N / polishing
 - **Last done:** 
 - **In flight:** issues being built or reviewed right now
-- **Waiting on the person:** 
 - **Next up:** 
 - **Coordinators active:** who or what might be working on this repo besides you
 - **Gotchas:** anything the next session must know
+
+## Waiting on you
+
+<!-- most important first, one line each (the ask skill): 🛑 #16 · test deploy key missing · since 08:31 -->
 
 ## /afk (only while the person is away)
 

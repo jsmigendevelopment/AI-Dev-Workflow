@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotesRouteImport } from './routes/notes'
+import { Route as ApiV1NotesRouteImport } from './routes/api/v1/notes'
+import { Route as ApiV1NotesIdRouteImport } from './routes/api/v1/notes_.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +24,49 @@ const NotesRoute = NotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1NotesRoute = ApiV1NotesRouteImport.update({
+  id: '/api/v1/notes',
+  path: '/api/v1/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1NotesIdRoute = ApiV1NotesIdRouteImport.update({
+  id: '/api/v1/notes_/$id',
+  path: '/api/v1/notes/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/notes': typeof NotesRoute
+  '/api/v1/notes': typeof ApiV1NotesRoute
+  '/api/v1/notes/$id': typeof ApiV1NotesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/notes': typeof NotesRoute
+  '/api/v1/notes': typeof ApiV1NotesRoute
+  '/api/v1/notes/$id': typeof ApiV1NotesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/notes': typeof NotesRoute
+  '/api/v1/notes': typeof ApiV1NotesRoute
+  '/api/v1/notes_/$id': typeof ApiV1NotesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/notes'
+  fullPaths: '/' | '/notes' | '/api/v1/notes' | '/api/v1/notes/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/notes'
-  id: '__root__' | '/' | '/notes'
+  to: '/' | '/notes' | '/api/v1/notes' | '/api/v1/notes/$id'
+  id: '__root__' | '/' | '/notes' | '/api/v1/notes' | '/api/v1/notes_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NotesRoute: typeof NotesRoute
+  ApiV1NotesRoute: typeof ApiV1NotesRoute
+  ApiV1NotesIdRoute: typeof ApiV1NotesIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +85,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/notes': {
+      id: '/api/v1/notes'
+      path: '/api/v1/notes'
+      fullPath: '/api/v1/notes'
+      preLoaderRoute: typeof ApiV1NotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/notes_/$id': {
+      id: '/api/v1/notes_/$id'
+      path: '/api/v1/notes/$id'
+      fullPath: '/api/v1/notes/$id'
+      preLoaderRoute: typeof ApiV1NotesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NotesRoute: NotesRoute,
+  ApiV1NotesRoute: ApiV1NotesRoute,
+  ApiV1NotesIdRoute: ApiV1NotesIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

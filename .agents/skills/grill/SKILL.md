@@ -16,6 +16,12 @@ AI fills every gap with a guess. The grill finds the gaps first. A missed decisi
 - **Confirm with a choice, never "is that right?"** For example: "Do you mean anyone with the link can see it, or only people you invite?" Or show a filled-in example and ask what's wrong with it.
 - **No flattery.** If part of the idea is weak, say so and say why.
 
+## Profile and presets
+
+- **Profile:** if `docs/profile.toml` exists, its answers are defaults. Confirm them in one round ("Your profile says private repo, move-fast, Clerk, Cloudflare. Keep all?") instead of asking each one.
+- **Preset:** in the first topic, ask which preset the idea is closest to (see `presets/README.md` in the `idea` skill), with your pick first. The profile's `preset` is the default. Load it, confirm its "Preloaded" answers in one round, and ask its "Still ask" questions in the right topics.
+- What the person says always beats the profile and the preset.
+
 ## Topics and budgets
 
 Work topic by topic. **Each topic has a soft budget of about 10 questions:** fewer if answers come fast, a few more if the topic is the heart of the app. **Move on early** after three rounds with nothing new, or two "don't know" answers in a row. When the person doesn't know, record a mainstream default as an assumption.

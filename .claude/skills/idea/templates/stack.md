@@ -13,6 +13,19 @@ Picked in the tech grill. Every choice says whether it was the recommended defau
 | Hosting and deploy |  |  |  |  |
 | Environments (test, prod) |  |  |  |  |
 | Testing |  |  |  |  |
+| Client state | local first, then the URL, then Zustand |  |  |  |
+| Server data, forms, tables | TanStack Query, TanStack Form, TanStack Table |  |  |  |
+| ORM | Drizzle |  |  |  |
+| ID strategy | UUIDv7 / ULID, made on the server |  |  |  |
+| Instant format | ISO 8601 UTC / epoch milliseconds |  |  |  |
+| Date and time library | Temporal, else date-fns + @date-fns/tz (until research confirms) |  |  |  |
+| Money columns | `*_cents` / `amount_minor`, plus `currency` |  |  |  |
+| Rounding | half-even for splitting and tax |  |  |  |
+| Languages | English only (`copy.ts`) / many (i18next, until research confirms) |  |  |  |
+| Access control | owner only / ReBAC behind `check()` (built-in engine, until research confirms) |  |  |  |
+| Logs | Workers Logs + Logpush (until research confirms) |  |  |  |
+| Analytics |  |  |  |  |
+| OpenAPI generator | zod-openapi (until research confirms) |  |  |  |
 | Other SaaS / libraries |  |  |  |  |
 
 ## Build vs buy
@@ -38,7 +51,27 @@ How carefully changes are gated. Pick one.
 
 Whatever the dial, the **always-stop list** in `AGENTS.md` still applies: production, secrets, real data and money always wait for the person.
 
+## Automation level
+
+How much agents do without the person (the `automation` skill). The risk dial above is how careful each merge is. When they disagree, the more careful one wins. Change it any time with `/automation`.
+
+- **Level:** recommended  <!-- recommended | full | hands-on | custom -->
+- **Loop:** on  <!-- on | off -->
+- **Merges, tiny lane:** agents  <!-- agents | person -->
+- **Merges, normal lane:** agents
+- **Merges, risky lane:** person
+- **Opens pull requests:** agents
+- **Overnight loop:** off  <!-- on | off; /afk offers it when off -->
+- **Ping level:** decisions  <!-- decisions | blockers | critical; read by notify.mjs -->
+
+## Logs
+
+- Where they go: 
+- How long they're kept: 
+
 ## Environments
+
+The rules: `guide/environments.md` in the kit. Local, test, preview and production. Every variable is in `.env.example` and `lib/env.ts`.
 
 - Test URL: 
 - Preview per pull request: yes / no

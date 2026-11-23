@@ -17,7 +17,7 @@ test("doctor after init checks the kit and the skills mirror", () => {
   const log = logger();
   const code = doctor(dir, { log });
   assert.ok(code === 0 || code === 1);
-  assert.match(log.text(), /✓ Kit v0\.3\.0 installed/);
+  assert.match(log.text(), /✓ Kit v0\.4\.0 installed/);
   assert.match(log.text(), /✓ AGENTS\.md present/);
   assert.match(log.text(), /✓ \.agents\/skills and \.claude\/skills match/);
   assert.match(log.text(), /– No docs\/state\.md yet/);

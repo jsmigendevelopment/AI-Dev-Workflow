@@ -1,4 +1,13 @@
 // Edit this file, never the generated dist/server/wrangler.json.
+//
+// Three places the Worker runs, each with its own Worker name and its own D1 database:
+// - local dev and tests: the top level (`pnpm dev`, `pnpm test`, `pnpm test:e2e`), local D1 only;
+// - `test`: deployed on every push to main, and every pull request preview runs on it;
+// - `production`: deployed by hand, after the person approves.
+// Pick one at build time: `CLOUDFLARE_ENV=test pnpm build`, then `wrangler deploy` (the build
+// writes the flattened config; `--env` must match or be left out). Bindings (`d1_databases`,
+// `ratelimits`, `r2_buckets`, `queues`, `vars`) are NOT inherited: each environment lists its own.
+// `scripts/setup-cloudflare.mjs` creates the databases and writes their ids here.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "app",
@@ -6,17 +15,76 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
   "observability": { "enabled": true },
+  // The Worker answers these before the static files, so a not-launched environment can say
+  // `Disallow: /` (src/lib/launch.ts). Inherited by every environment.
+  "assets": { "run_worker_first": ["/robots.txt", "/sitemap.xml", "/llms.txt"] },
+  // LAUNCHED: "true" serves the app, "false" the "Coming soon" page. SITE_PROTECTION: how the
+  // test Worker and its previews are protected ("access", "password" or "none"; setup-cloudflare
+  // records the person's choice). Vars are not inherited: each environment lists its own.
+  "vars": { "LAUNCHED": "true", "SITE_PROTECTION": "none" },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "app",
-      // Placeholder. Run `pnpm exec wrangler d1 create app` and paste the id it prints.
+      // Local only: `pnpm db:migrate:local` and the tests use this database under .wrangler/.
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations",
     },
   ],
-  // Production on your own domain (wrangler creates the DNS record and certificate):
-  // "routes": [{ "pattern": "app.example.com", "custom_domain": true }],
-  // "workers_dev": false,
-  // "preview_urls": true
+  // Server function and /api/v1 calls per client (IPv4 address or IPv6 /64) per minute, checked in
+  // src/server/request-guards.ts before any body is read. Approximate and per location: a burst
+  // guard, not a quota. namespace_id is any positive integer unique in the account.
+  "ratelimits": [
+    { "name": "RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 100, "period": 60 } },
+    // Wrong answers to the password gate (src/lib/site-gate.ts), per client.
+    { "name": "PASSWORD_LIMITER", "namespace_id": "1004", "simple": { "limit": 10, "period": 60 } },
+  ],
+  "env": {
+    "test": {
+      "name": "app-test",
+      // The test Worker lives on workers.dev, and pull request previews are aliases of it
+      // (`wrangler versions upload --preview-alias pr-<n>`), so they share the test database.
+      "workers_dev": true,
+      "preview_urls": true,
+      // SITE_PROTECTION: setup-cloudflare writes the person's choice here.
+      "vars": { "LAUNCHED": "true", "SITE_PROTECTION": "none" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "app-test",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "ratelimits": [
+        { "name": "RATE_LIMITER", "namespace_id": "1002", "simple": { "limit": 100, "period": 60 } },
+        { "name": "PASSWORD_LIMITER", "namespace_id": "1005", "simple": { "limit": 10, "period": 60 } },
+      ],
+    },
+    "production": {
+      "name": "app-production",
+      // Keep workers.dev on: the production smoke test runs there, outside the zone, so it never
+      // meets a Bot Fight Mode challenge. It is noindex (src/lib/site-url.ts).
+      "workers_dev": true,
+      // Version and preview URLs of production would use production data: never.
+      "preview_urls": false,
+      // Not launched: every request gets the "Coming soon" page. Going live means "true" here and a
+      // production deploy, and only the person decides that (AGENTS.md, always-stop list).
+      "vars": { "LAUNCHED": "false", "SITE_PROTECTION": "none" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "app-production",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "ratelimits": [
+        { "name": "RATE_LIMITER", "namespace_id": "1003", "simple": { "limit": 100, "period": 60 } },
+        { "name": "PASSWORD_LIMITER", "namespace_id": "1006", "simple": { "limit": 10, "period": 60 } },
+      ],
+      // Your own domain (wrangler creates the DNS record and certificate):
+      // "routes": [{ "pattern": "app.example.com", "custom_domain": true }],
+    },
+  },
 }

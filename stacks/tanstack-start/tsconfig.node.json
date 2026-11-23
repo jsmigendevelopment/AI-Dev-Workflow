@@ -1,9 +1,11 @@
 {
-  // Tests, e2e and config files: these run in Node, so they get Node types.
+  // Tests, e2e, scripts and config files: these run in Node, so they get Node types.
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    // Node runs scripts/*.ts directly (type stripping), which needs explicit .ts extensions.
+    "allowImportingTsExtensions": true
   },
-  "include": ["src", "e2e", "worker-configuration.d.ts", "*.config.ts"],
+  "include": ["src", "e2e", "scripts", "worker-configuration.d.ts", "*.config.ts"],
   "exclude": []
 }

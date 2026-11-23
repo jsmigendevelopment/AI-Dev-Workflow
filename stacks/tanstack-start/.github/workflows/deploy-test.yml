@@ -1,0 +1,92 @@
+# Deploys main to the test environment, then checks it in a real browser.
+# Every merged pull request lands here. If the smoke fails, the previous version is put back and
+# an issue is opened for the person. CI already ran the full check on this commit before merge.
+name: deploy-test
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+# One deploy at a time, in order. A newer push waits; it never cancels a deploy half-way.
+concurrency:
+  group: deploy-test
+  cancel-in-progress: false
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash # -eo pipefail: a failed command fails its step, even piped into tee
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # GitHub environment `test` (setup-github.mjs creates it, main only). Its secrets:
+    # CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and the test site's protection if any
+    # (setup-cloudflare --protect): CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET for Cloudflare
+    # Access, or SITE_PASSWORD for the password gate. Optional variable: APP_URL (a custom domain).
+    environment:
+      name: test
+      url: ${{ steps.url.outputs.url }}
+    permissions:
+      contents: read
+      issues: write # to open an issue when the deploy is rolled back
+    env:
+      CLOUDFLARE_ENV: test # picks env.test in wrangler.jsonc, for the build and for wrangler
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # No SITE_URL here: the test site is sent noindex everywhere.
+      - run: pnpm build
+      # `-c wrangler.jsonc`: D1 commands read the source config, not the build's flattened copy.
+      - name: Apply D1 migrations to test
+        run: pnpm exec wrangler d1 migrations apply DB --remote -c wrangler.jsonc
+      - name: Deploy
+        id: deploy
+        env:
+          SHA: ${{ github.sha }}
+        run: pnpm exec wrangler deploy --message "main ${SHA::7}" | tee deploy.log
+      - name: Find the URL
+        id: url
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          url="${APP_URL:-$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -n1)}"
+          if [ -z "$url" ]; then echo "No URL in the deploy output. Set the APP_URL variable."; exit 1; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Smoke and a11y against the deployed URL
+        env:
+          BASE_URL: ${{ steps.url.outputs.url }}
+          # Sent only to the test site, as headers (e2e/gate.ts). Empty when it is not protected.
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: pnpm test:deployed
+      - name: Roll back to the previous version
+        id: rollback
+        if: failure() && steps.deploy.outcome == 'success'
+        env:
+          SHA: ${{ github.sha }}
+        run: pnpm exec wrangler rollback --yes --message "smoke failed on ${SHA::7}"
+      - name: Open an issue for the person
+        if: failure() && steps.deploy.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ROLLED_BACK: ${{ steps.rollback.outcome }}
+          SHA: ${{ github.sha }}
+        run: |
+          body="The smoke test failed on the test environment after deploying ${SHA}.
+          Rollback: ${ROLLED_BACK} (success means the previous version is serving again).
+          Migrations stay applied: a rollback puts back code, never data.
+          Run: ${RUN_URL}"
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Test deploy rolled back (${SHA::7})" \
+            --body "$body" --label needs-human ||
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "Test deploy rolled back (${SHA::7})" --body "$body"

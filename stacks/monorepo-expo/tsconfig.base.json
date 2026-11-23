@@ -1,0 +1,13 @@
+{
+  // Strictness shared by every workspace. Each workspace extends this and adds its own
+  // module, lib and types settings.
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  }
+}

@@ -12,7 +12,7 @@ test("init into an empty folder installs the kit and a manifest", () => {
     ".github/ISSUE_TEMPLATE/slice.md"]) assert.ok(exists(dir, path), path);
   assert.ok(!exists(dir, "stacks"), "stack packs are not installed by init");
   const manifest = JSON.parse(read(dir, ".ai-dev-workflow.json"));
-  assert.equal(manifest.kitVersion, "0.3.0");
+  assert.equal(manifest.kitVersion, "0.4.0");
   assert.match(manifest.files["AGENTS.md"], /^[0-9a-f]{64}$/);
   assert.ok(!(".ai-dev-workflow.json" in manifest.files));
   assert.match(log.text(), /\/idea/);
@@ -45,7 +45,9 @@ test("init keeps existing AGENTS.md, CLAUDE.md, settings.json and config.toml", 
 
   const settings = JSON.parse(read(dir, ".claude/settings.json"));
   assert.equal(settings.model, "opus");
-  assert.deepEqual(settings.permissions.allow, ["Read"]);
+  assert.equal(settings.permissions.allow[0], "Read"); // theirs kept, first
+  assert.ok(settings.permissions.allow.includes("Bash(node .claude/hooks/notify.mjs:*)")); // the kit's added
+  assert.ok(settings.hooks?.SessionStart, "the kit's hooks are merged in");
   assert.equal(settings.permissions.deny[0], "Bash(rm:*)");
   assert.equal(settings.permissions.deny.filter((r) => r === "Bash(git push -f:*)").length, 1, "deduped");
   assert.ok(settings.permissions.deny.includes("Bash(git push --force:*)"));
@@ -69,4 +71,35 @@ test("init leaves a CLAUDE.md that already imports AGENTS.md alone", () => {
   put(dir, "CLAUDE.md", "@AGENTS.md\n\nMore notes.\n");
   init(dir, { log: logger() });
   assert.equal(read(dir, "CLAUDE.md"), "@AGENTS.md\n\nMore notes.\n");
+});
+
+test("init installs the Codex hooks, wired to the same scripts as the Claude Code hooks", () => {
+  const dir = tmp();
+  init(dir, { log: logger() });
+  const codex = JSON.parse(read(dir, ".codex/hooks.json")).hooks;
+  const claude = JSON.parse(read(dir, ".claude/settings.json")).hooks;
+  const scripts = (groups) => groups.flatMap((g) => g.hooks).map((h) => h.command.match(/\/(\.[^"]+\.mjs)"?(.*)$/).slice(1).join("").trim());
+  // Codex has no Notification event: PermissionRequest and Stop take its place.
+  for (const [claudeEvent, codexEvents] of [["SessionStart", ["SessionStart"]], ["UserPromptSubmit", ["UserPromptSubmit"]],
+    ["SessionEnd", ["SessionEnd"]], ["Notification", ["PermissionRequest", "Stop"]]]) {
+    for (const event of codexEvents) assert.deepEqual(scripts(codex[event]), scripts(claude[claudeEvent]), event);
+  }
+  for (const handler of Object.values(codex).flat().flatMap((g) => g.hooks)) {
+    assert.equal(handler.type, "command");
+    const script = handler.command.match(/\/(\.[^"]+\.mjs)/)[1];
+    assert.ok(exists(dir, script), script);
+    assert.match(handler.command, /git rev-parse --show-toplevel/, "finds the repo root from a subfolder");
+    assert.ok(handler.commandWindows.startsWith(`node ${script}`), "cmd.exe gets a command without sh syntax");
+  }
+  assert.ok(codex.SessionEnd[0].hooks[0].timeout <= 3, "Codex caps SessionEnd hooks at 3 seconds");
+  assert.match(read(dir, ".codex/config.toml"), /^writable_roots = \["~\/\.ai-dev-workflow"\]$/m);
+  assert.ok(".codex/hooks.json" in JSON.parse(read(dir, ".ai-dev-workflow.json")).files);
+});
+
+test("init keeps an existing .codex/hooks.json and offers the kit's as .kit-new", () => {
+  const dir = tmp();
+  put(dir, ".codex/hooks.json", '{"hooks":{}}\n');
+  init(dir, { log: logger() });
+  assert.equal(read(dir, ".codex/hooks.json"), '{"hooks":{}}\n');
+  assert.match(read(dir, ".codex/hooks.json.kit-new"), /session-start\.mjs/);
 });

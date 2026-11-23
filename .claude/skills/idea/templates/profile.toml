@@ -1,0 +1,71 @@
+# Your personal AI-Dev-Workflow profile.
+# Only things that stay the same from app to app. No secrets: this file is copied into projects.
+#
+# Keep your copy at ~/.ai-dev-workflow/profile.toml. /idea copies it into a new project
+# as docs/profile.toml, and the grill confirms these as defaults instead of asking.
+# Delete any line you'd rather be asked about every time.
+
+[me]
+name = ""                       # how agents address you and credit you
+github_owner = ""               # account or organisation new repos go under
+github_plan = "free"            # free | team (decides what setup-github can turn on)
+naming_style = ""               # e.g. "one lowercase word + one capitalised word, festival themed"
+
+[defaults]
+repo_visibility = "private"     # private | public
+licence = "none"                # none | MIT | ...
+risk_dial = "move-fast"         # move-fast | careful | strict
+automation = "recommended"      # recommended | full | hands-on | custom (how much agents do without you; the /automation skill)
+package_manager = "pnpm"
+preset = ""                     # a preset from the idea skill's presets/ folder, e.g. "saas"
+
+[web]
+framework = "TanStack Start"
+ui = "shadcn/ui + Tailwind"
+database = "Cloudflare D1 (SQLite)"
+database_when_outgrown = "Supabase Postgres"
+auth = "Clerk"
+hosting = "Cloudflare Workers"
+payments = "Stripe"
+email = "Resend"
+errors = "Sentry"
+analytics = "Cloudflare Web Analytics"
+file_storage = "Cloudflare R2"
+prefer = "Cloudflare for anything it offers free"
+avoid = []                      # tools you never want recommended
+
+[routing]
+# Your models per tier. Leave a tier empty if you don't have it.
+strongest = ""                  # e.g. "Claude Fable 5.2"
+everyday = ""                   # e.g. "Claude Opus 5.5"
+creative = ""                   # e.g. "ChatGPT, top model"
+second_opinion = ""             # another vendor's model for risky reviews
+ask_before_strongest = true     # ask before starting anything on the strongest tier
+
+[worklog]
+# Track your work hours from session starts and ends, /back and /afk.
+# Kept in ~/.ai-dev-workflow/worklog/, never in a repo.
+# Report with: node .agents/skills/afk/scripts/worklog.mjs report
+enabled = false
+mode = "explicit"          # explicit: your first prompt starts the clock, /afk stops it | activity: a quiet gap stops it
+away_after_minutes = 60   # activity mode only: no prompt in any thread for this long counts as away
+# dir = "G:/My Drive/ai-dev-workflow/worklog"   # optional: a Google Drive desktop folder, so it syncs
+# sheet = "https://docs.google.com/spreadsheets/d/..."   # optional: cloud sessions append here via the Google Sheets connector
+
+[notify]
+# When and how agents ping you (the ask skill). Desktop, plus your phone if NTFY_TOPIC is set.
+ping = "decisions"              # decisions: blockers now, decisions batched | blockers: blockers only | critical: production down or a security hole only
+batch_minutes = 30              # decisions ping at most this often
+quiet_hours = ""                # e.g. "22:00-07:00", local time. Only critical pings get through.
+desktop = true                  # false: phone only
+
+[board]
+# One page per project with what needs you, what's being built and what merged today.
+# Kept in ~/.ai-dev-workflow/boards/, never in a repo.
+# dir = "G:/My Drive/ai-dev-workflow/boards"   # optional: a Google Drive desktop folder, so you can read it on your phone
+# sheet = "https://docs.google.com/spreadsheets/d/..."   # optional: a Google Sheet copy that cloud threads can update ("off": don't offer one)
+
+[workflow]
+grill_questions_per_topic = 10
+afk_hard_stop_hours = 10
+browser_check = "playwright, then my own browser"   # or "playwright only"

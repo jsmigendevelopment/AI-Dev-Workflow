@@ -1,0 +1,10 @@
+# A fresh install with no signed-in user lands on sign-in. Runs against any build, with or
+# without Clerk keys, so it is the smoke test for every CI run.
+appId: com.example.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: 'Sign in to see your notes'
+    timeout: 30000
+- takeScreenshot: e2e/output/signed-out

@@ -23,7 +23,10 @@ const files = [
   { category: 'service', pattern: 'src/modules/*/server/*.service.ts' },
   { category: 'server-functions', pattern: 'src/modules/*/server/*.functions.ts' },
   { category: 'adapter', pattern: 'src/modules/*/server/*.{repository.drizzle,table}.ts' },
-  { category: 'server-internal', pattern: 'src/modules/*/server/*.{controller,service,repository,table}.ts' },
+  {
+    category: 'server-internal',
+    pattern: 'src/modules/*/server/*.{controller,service,repository,table,http}.ts',
+  },
   { category: 'server-internal', pattern: 'src/modules/*/server/*.repository.{drizzle,memory}.ts' },
   { category: 'client', pattern: 'src/modules/*/{ui,hooks}/**' },
   { category: 'test', pattern: '**/*.test.ts' },
@@ -51,6 +54,7 @@ export default tseslint.config(
       'node_modules',
       'playwright-report',
       'test-results',
+      '.lighthouseci',
       'src/routeTree.gen.ts',
       'worker-configuration.d.ts',
     ],
@@ -127,7 +131,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.ts', 'e2e/**', '*.config.{ts,js}'],
+    files: ['**/*.test.ts', 'e2e/**', 'scripts/**', '*.config.{ts,js}'],
     languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ['*.cjs'],
+    languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } },
   },
 )

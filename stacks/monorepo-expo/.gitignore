@@ -1,0 +1,51 @@
+# dependencies
+node_modules
+
+# Turborepo
+.turbo
+
+# build output
+dist
+.output
+.vite
+.tanstack
+
+# Expo and React Native
+.expo
+web-build
+expo-env.d.ts
+.metro-health-check*
+# generated native folders: `npx expo prebuild` writes them, EAS builds them in the cloud
+apps/mobile/ios
+apps/mobile/android
+# signing material never goes in git (EAS keeps the credentials)
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.keystore
+*.pem
+
+# Cloudflare local state and generated types
+.wrangler
+worker-configuration.d.ts
+
+# secrets: keep the names in .env.example, never the values
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
+# test output
+coverage
+test-results
+playwright-report
+blob-report
+apps/mobile/e2e/output
+
+# editors and OS
+.DS_Store
+*.log
+*.tsbuildinfo
