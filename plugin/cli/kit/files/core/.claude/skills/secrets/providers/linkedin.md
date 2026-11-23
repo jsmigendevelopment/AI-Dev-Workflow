@@ -1,0 +1,37 @@
+# LinkedIn sign-in for Cloudflare Access
+
+Last checked: 2026-11-23. Official docs:
+- https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/linkedin/
+
+How: read from Cloudflare's public docs repo (`cloudflare/cloudflare-docs`, commit of 2026-11-22). LinkedIn's own docs (learn.microsoft.com/linkedin) were blocked here and their docs repo wasn't reachable, so the LinkedIn steps are as Cloudflare documents them. `[V]` = matches that source. `[U]` = not checked.
+
+**What it's for.** A "Sign in with LinkedIn" button on the Access page. Fills, in `.env.cloudflare.local` (git-ignored):
+
+```text
+ACCESS_LINKEDIN_CLIENT_ID=
+ACCESS_LINKEDIN_CLIENT_SECRET=
+```
+
+You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare prints it). You also need a **LinkedIn Page** (a company page) and a logo image.
+
+## Walkthrough · about 10 minutes
+
+1. Open https://www.linkedin.com/developers/apps/new. Enter an **App name**, pick a **LinkedIn Page** (or **Create a new LinkedIn page**), **Upload a logo**, agree to the **API Terms of Use**, then **Create app**. `[V]` steps, `[U]` the deep link.
+2. **Products** tab: click **Request Access** next to **Sign In with LinkedIn using OpenID Connect**. `[V]`
+3. **Auth** tab → **OAuth 2.0 settings**: click the pencil next to **Authorized redirect URLs for your app** and add: `[V]`
+   ```text
+   https://<team>.cloudflareaccess.com/cdn-cgi/access/callback
+   ```
+4. **Auth** tab: copy the **Client ID** and **Client Secret** into `.env.cloudflare.local`. Never into chat. `[V]`
+
+When it worked: setup-cloudflare says `exists  LinkedIn login`, and **Test** in **Zero Trust → Integrations → Identity providers** signs you in. `[V]`
+
+## Free tier
+
+Free. `[U]`, not checked on LinkedIn's site.
+
+## Why / if it goes wrong
+
+- **No LinkedIn Page:** the app can't be made without one. Make a page first.
+- **Sign-in fails with a scope error:** the OpenID Connect product wasn't granted yet. Check the **Products** tab.
+- **Redirect error:** the URL in step 3 isn't exact.

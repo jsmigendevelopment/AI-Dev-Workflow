@@ -153,6 +153,7 @@ describe('test and preview protection', () => {
       'Setup step for you · a Google sign-in for Cloudflare Access · about 5 minutes',
     )
     expect(output()).toContain('https://ann.cloudflareaccess.com/cdn-cgi/access/callback')
+    expect(output()).toContain('.agents/skills/secrets/providers/google-oauth.md')
     expect(output()).toContain('Missing: ACCESS_GOOGLE_CLIENT_ID, ACCESS_GOOGLE_CLIENT_SECRET')
     expect(readResources(files['wrangler.jsonc']!).test.vars.SITE_PROTECTION).toBe('none')
   })

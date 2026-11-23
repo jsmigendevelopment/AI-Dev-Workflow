@@ -41,9 +41,16 @@ Run the steps in order. Don't write app code before step 8 unless the person say
 
 8. **Write the issues.** Everyday model, medium effort. Open `issues`.
 
-9. **Hand off.** Write `docs/state.md` from `templates/state.md`. Then tell the person, in under 10 lines:
+9. **Keys and accounts, before any building.** Open `secrets` now, not when a deploy is stuck. Nothing reaches the test site until these exist, so ask while the person is still here:
+   - List every account and key the first test deploy needs (for the default stack: a Cloudflare login and a Clerk app), plus the ones later slices add, marked "later".
+   - Say it plainly: *"The test site can't go live until these are set. It takes about 10 minutes. Want to do it now?"*
+   - Wire them through the `secrets` checklist. Values never go in the chat.
+   - If they say later: write each missing one to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the first deploy, and say building will continue but nothing will be visible on the test site until then.
+
+10. **Hand off.** Write `docs/state.md` from `templates/state.md`. Then tell the person, in under 10 lines:
    - what's planned;
    - which issue goes first;
+   - **when they'll first see something on the test site** (usually right after slice 0 merges), and what still has to happen before then;
    - whether to start the build loop now (`coordinate`) or build one issue at a time.
 
 ## Done when
