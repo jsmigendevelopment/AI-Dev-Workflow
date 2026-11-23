@@ -352,7 +352,7 @@ Using the strongest model on high effort for every job is slow and burns through
 > [!NOTE]
 > 🚧 **Being improved.** Today `/join` merges only the two `AGENTS.md` files. You compare each `.onrails-new` and `config.onrails.toml` copy by hand, keep what you want, and delete the copy.
 
-→ [Step by step, and how to review it as one pull request](guide/add-to-existing-app.md). The CLI isn't on npm yet, so use `/or:join`, or run the CLI from a clone.
+→ [Step by step, and how to review it as one pull request](guide/add-to-existing-app.md). Use `/or:join`, or run `npx onrails init` in the repo first.
 
 ---
 
