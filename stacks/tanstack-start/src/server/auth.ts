@@ -3,7 +3,7 @@ import { createMiddleware, createServerOnlyFn } from '@tanstack/react-start'
 
 import type { Actor } from '@/lib/actor'
 import { type ApiResult, unauthenticated } from '@/lib/app-error'
-import { authorizedParties, NO_PARTY } from '@/lib/authorized-parties'
+import { authorizedParties, isNativeBearer, NO_PARTY } from '@/lib/authorized-parties'
 import { BUILD_TARGET } from '@/lib/build-target'
 import { bearerToken } from '@/lib/http'
 import { logger } from '@/lib/logger'
@@ -45,28 +45,60 @@ const partiesFor = createServerOnlyFn((request: Request): string[] => {
   return parties
 })
 
-// Clerk adds why a token was refused (and, for a wrong `azp`, the allowed origins) as response
-// headers. Every refusal must look the same from outside: the reason goes to the log instead.
+// Clerk says why a token was refused (and, for a wrong `azp`, every allowed origin) in response
+// headers, on a handshake redirect too, and in the page's `__clerk_init_state.__clerk_debug`.
+// Every refusal must look the same from outside: the reason goes to the log instead.
 const DEBUG_HEADERS = ['x-clerk-auth-reason', 'x-clerk-auth-message']
 
 function withoutDebugHeaders(response: Response): void {
   const reason = response.headers.get('x-clerk-auth-reason')
   if (reason === 'token-invalid-authorized-parties') logger.warn('clerk_token_refused', { reason })
+  // Mutable: Clerk has just appended its own headers to this same object.
   for (const name of DEBUG_HEADERS) response.headers.delete(name)
 }
+
+interface ClerkContext {
+  clerkInitialState?: { __internal_clerk_state?: { __clerk_debug?: Record<string, unknown> } }
+}
+
+function withoutDebugState(context: unknown): void {
+  const debug = (context as ClerkContext | undefined)?.clerkInitialState?.__internal_clerk_state
+    ?.__clerk_debug
+  if (debug) {
+    delete debug.reason
+    delete debug.message
+  }
+}
+
+const clerkOptions = createServerOnlyFn((request: Request) => {
+  const keys = clerkKeys()
+  if (!keys) return undefined
+  // A native app's token has no `azp`: verified without the list, only where the app opted in.
+  if (isNativeBearer(request, serverEnv().CLERK_ALLOW_NATIVE_TOKENS === 'true')) return keys
+  return { ...keys, authorizedParties: partiesFor(request) }
+})
 
 /**
  * Request middleware: runs Clerk when it's configured, and steps aside when it isn't. Clerk
  * checks the token's `azp` against `authorizedParties`; a token without `azp` is refused too.
  */
 export const authMiddleware = createMiddleware().server(async (args) => {
-  const keys = clerkKeys()
-  const options = keys ? { ...keys, authorizedParties: partiesFor(args.request) } : undefined
+  const options = clerkOptions(args.request)
   const run = options ? clerkMiddleware(options).options.server : undefined
   if (!run) return args.next()
-  const result = await run(args)
-  withoutDebugHeaders(result instanceof Response ? result : result.response)
-  return result
+  const next: typeof args.next = (opts) => {
+    withoutDebugState(opts?.context)
+    return args.next(opts)
+  }
+  try {
+    const result = await run({ ...args, next })
+    withoutDebugHeaders(result instanceof Response ? result : result.response)
+    return result
+  } catch (thrown) {
+    // Clerk throws its handshake redirect (a 307) as a Response.
+    if (thrown instanceof Response) withoutDebugHeaders(thrown)
+    throw thrown
+  }
 })
 
 /** Function middleware: puts the verified actor (or null) on the server function's context. */

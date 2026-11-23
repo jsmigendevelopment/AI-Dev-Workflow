@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { authorizedParties, type BuildTarget, NO_PARTY, partiesConfigError } from './authorized-parties'
+import {
+  authorizedParties,
+  type BuildTarget,
+  isNativeBearer,
+  NO_PARTY,
+  partiesConfigError,
+} from './authorized-parties'
 
 const local: BuildTarget = { deployEnv: 'local', testWorker: '', siteUrl: '' }
 const test: BuildTarget = { deployEnv: 'test', testWorker: 'app-test', siteUrl: '' }
@@ -114,5 +120,38 @@ describe('partiesConfigError: fails closed at startup when production has no ori
     expect(partiesConfigError(keys, test)).toBeNull()
     expect(partiesConfigError(keys, local)).toBeNull()
     expect(partiesConfigError({}, { ...production, siteUrl: '' })).toBeNull()
+  })
+})
+
+describe('isNativeBearer: a native app’s token (no Origin, so no azp), only where opted in', () => {
+  const jwt = (claims: Record<string, unknown>) =>
+    ['eyJhbGciOiJSUzI1NiJ9', btoa(JSON.stringify(claims)).replace(/=+$/, ''), 'c2ln'].join('.')
+  const call = (path: string, headers: Record<string, string>) =>
+    new Request(`https://app.example.com${path}`, { headers })
+  const bearer = (claims: Record<string, unknown>, path = '/api/v1/notes') =>
+    call(path, { authorization: `Bearer ${jwt(claims)}` })
+
+  it('a bearer token with no azp on /api/v1, with CLERK_ALLOW_NATIVE_TOKENS on', () => {
+    expect(isNativeBearer(bearer({ sub: 'user_1' }), true)).toBe(true)
+    expect(isNativeBearer(bearer({ sub: 'user_1' }, '/api/v1'), true)).toBe(true)
+  })
+
+  it('never with the opt-in off', () => {
+    expect(isNativeBearer(bearer({ sub: 'user_1' }), false)).toBe(false)
+  })
+
+  it('never for a token that names an origin, even a wrong one, or an empty azp', () => {
+    expect(isNativeBearer(bearer({ sub: 'user_1', azp: 'https://evil.example' }), true)).toBe(false)
+    expect(isNativeBearer(bearer({ sub: 'user_1', azp: '' }), true)).toBe(false)
+  })
+
+  it('never for the cookie, outside /api/v1, or a token it cannot read', () => {
+    const cookie = `__session=${jwt({ sub: 'user_1' })}; __client_uat=1`
+    expect(isNativeBearer(call('/api/v1/notes', { cookie }), true)).toBe(false)
+    expect(isNativeBearer(bearer({ sub: 'user_1' }, '/notes'), true)).toBe(false)
+    expect(isNativeBearer(bearer({ sub: 'user_1' }, '/_serverFn/x'), true)).toBe(false)
+    expect(isNativeBearer(bearer({ sub: 'user_1' }, '/api/v10'), true)).toBe(false)
+    for (const authorization of ['Bearer not-a-jwt', 'Bearer a.%%%.c', 'Bearer a.bnVsbA.c', 'Basic dXNlcg=='])
+      expect(isNativeBearer(call('/api/v1/notes', { authorization }), true), authorization).toBe(false)
   })
 })

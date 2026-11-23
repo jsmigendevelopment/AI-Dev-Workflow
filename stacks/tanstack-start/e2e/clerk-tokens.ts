@@ -1,5 +1,6 @@
 import { generateKeyPairSync } from 'node:crypto'
 
+import { type APIRequestContext, expect } from '@playwright/test'
 import { importPKCS8, SignJWT } from 'jose'
 
 /**
@@ -44,4 +45,26 @@ export async function sessionToken(azp: string | undefined): Promise<{ token: st
     .setExpirationTime(iat + 300)
     .sign(key)
   return { token, iat }
+}
+
+/** `GET /api/v1/notes` with a session token for `azp` as the bearer. */
+export const bearer = async (request: APIRequestContext, azp: string | undefined) => {
+  const { token } = await sessionToken(azp)
+  return request.get('/api/v1/notes', { headers: { authorization: `Bearer ${token}` } })
+}
+
+// The session cookie as Clerk's browser SDK sets it on a development instance. The page's
+// server-rendered Clerk state says who Clerk let in.
+export const signedInAs = async (request: APIRequestContext, azp: string | undefined) => {
+  const { token, iat } = await sessionToken(azp)
+  const cookie = `__session=${token}; __client_uat=${iat}; __clerk_db_jwt=dvb_e2e`
+  const response = await request.get('/', { headers: { cookie } })
+  expect(response.status()).toBe(200)
+  for (const header of ['x-clerk-auth-reason', 'x-clerk-auth-message'])
+    expect(response.headers()[header], header).toBeUndefined()
+  const html = await response.text()
+  // Clerk writes the refusal reason, and every allowed origin, into the page state by default.
+  expect(html).not.toContain('token-invalid')
+  expect(html).not.toContain('Expected')
+  return /"userId":(null|"[^"]*")/.exec(html)?.[1]
 }

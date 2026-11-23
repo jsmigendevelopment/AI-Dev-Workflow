@@ -49,6 +49,12 @@ export const runtimeEnvSchema = z
           'must be exact origins like https://app.example.com,https://www.example.com',
         ),
     ),
+    /**
+     * "true" lets a native app's bearer token on `/api/v1` through without `azp` (it sends no
+     * Origin). Off by default; the monorepo-expo pack turns it on. Needs one Clerk instance per
+     * product: any other native app on the same instance could use its tokens here.
+     */
+    CLERK_ALLOW_NATIVE_TOKENS: optional(z.enum(['true', 'false'], { error: 'must be "true" or "false"' })),
     TURNSTILE_SITE_KEY: optional(z.string().regex(/^[\w-]{10,}$/, 'is not a Turnstile site key')),
     TURNSTILE_SECRET_KEY: optional(z.string().regex(/^[\w-]{10,}$/, 'is not a Turnstile secret key')),
     /**
