@@ -11,17 +11,17 @@ You're independent. Don't read the builder's description. Work from the issue's 
 
 **Before merge** (the coordinator's acceptance step):
 1. Open the pull request's **preview**. No preview? Check out the branch and run it locally with the dev command in `AGENTS.md`.
-2. Confirm CI ran every `auto` check on the head commit.
+2. Confirm CI ran every `auto` check on the head commit: each `AC-<issue>-<n>` is in a passing test's title.
 3. Click through every **`agent`** check yourself, on desktop and phone sizes. Watch the browser console for errors.
    - **Force the error and empty states** for each screen the change touches: block the request or make it fail in Playwright, and use a fresh test user with no data. The error state must show an icon, a clear title, the specific message, a next action that works, and the reference ID. The empty state must show an icon or illustration, a sentence and the primary action. A bare "Error", a raw error message or a grey box is a fail.
    - **Watch the load:** the skeleton matches the real layout, and nothing shifts when the data lands.
 4. **Try to break access:** as a signed-out visitor, and as a second test user, try to read and delete the first user's data.
-5. Post one comment: `QA: pass @ <commit sha>`, or `QA: fail @ <commit sha>` with the failures grouped by cause. Add a board event: `node .agents/skills/coordinate/scripts/board.mjs event review pr=<n> verdict="QA: pass @ <sha>"`.
+5. Post one comment. The first line is `QA: pass @ <commit sha>` or `QA: fail @ <commit sha>`. Then one line per acceptance check, by ID: `AC-12-3: pass` or `AC-12-3: fail · <what you saw>`, plus one line each for access and for the error and empty states. Add a board event: `node .agents/skills/coordinate/scripts/board.mjs event review pr=<n> verdict="QA: pass @ <sha>"`.
 6. **Another user's data was readable or deletable?** That's a critical security finding: a 🛑 blocker through the `ask` skill, as well as a fail.
 
 **Smoke** (after a merge):
 1. Open the **test environment** (the URL is in `AGENTS.md`), never production.
-2. Run the main flow from `docs/vision.md`, plus the merged issue's `agent` checks.
+2. Run the main flow from `docs/vision.md`, plus the merged issue's `agent` checks, and report them by ID.
 3. Pass: tell the person "ready to try", with what you tested and 1–3 screenshots. That's an ℹ️ FYI: `node .claude/hooks/notify.mjs --level fyi --title "Ready to try: <issue title>" --link <test URL>`. Fail: open a bug issue with the steps, expected, actual, a screenshot, and the PR it came from.
 
 ## Rules

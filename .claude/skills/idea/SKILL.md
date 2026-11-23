@@ -40,7 +40,7 @@ Run the steps in order. Don't write app code before step 8 unless the person say
 7. **Plan the build.** This is CTO work: the strongest model, high effort (see `routing`). Open `pyramid`. It plans slice 0 (the skeleton), the passes and the milestones, and calls for the schema, API and wireframe design. It writes `docs/pyramid.md` and `docs/design.md`.
    - If you're not on the strongest model, stop. Update `docs/state.md` and tell the person: "Start a new session on your strongest model and type `/back` to plan the build."
 
-8. **Write the issues.** Everyday model, medium effort. Open `issues`.
+8. **Write the issues.** Everyday model, medium effort. Open `issues`, and run its consistency check on pass 1 (its last step). Gaps become issues or questions for the person before step 10.
 
 9. **Keys and accounts, before any building.** Open `secrets` now, not when a deploy is stuck. Nothing reaches the test site until these exist, so ask while the person is still here:
    - List every account and key the first test deploy needs (for the default stack: a Cloudflare login and a Clerk app), plus the ones later slices add, marked "later".
@@ -57,5 +57,5 @@ Run the steps in order. Don't write app code before step 8 unless the person say
 ## Done when
 
 - `docs/` holds the vision, features, MVP, decisions, stack, architecture, security policy, design, pyramid and state.
-- Every MVP issue has acceptance checks, a fence, dependencies, risk flags, a lane, a priority and a `Skills:` line.
+- Every MVP issue has WHEN/THEN acceptance checks with IDs, a fence, dependencies, risk flags, a lane, a complexity score, a priority and a `Skills:` line, and the consistency check found no open gap.
 - The person has seen the plan and said go.

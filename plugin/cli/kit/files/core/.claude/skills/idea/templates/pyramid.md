@@ -19,7 +19,7 @@
 
 | Pass | Slices in it | Goal of the pass | Builder |
 |---|---|---|---|
-| 1 | slice 0, then every MVP slice | thin and working end to end | everyday model, low effort |
+| 1 | slice 0, then every MVP slice | thin and working end to end | everyday model, effort by complexity |
 | 2 | core + key supports | deeper and sturdier | everyday model, medium effort |
 | 3 | core only | the best it can be | everyday model, medium effort |
 

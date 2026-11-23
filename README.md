@@ -127,7 +127,7 @@ You plan once. Every step saves to files, so you can stop any time and `/or:back
 | 4 | **Name + repo** | 5–7 name ideas, `git init`, and a GitHub repo if you say yes. | |
 | 5 | **Tech grill** | Platform, stack, data, auth, environments, CI and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
 | 6 | **Plan** | Your strongest model plans the slices and designs the schema, API and wireframes. It asks before it starts. | `pyramid.md`, `design.md` |
-| 7 | **Issues** | One per slice. Each has acceptance checks, an out-of-scope fence, dependencies, risk flags and a lane. | GitHub issues |
+| 7 | **Issues** | One per slice. Each has WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
 | 8 | **Keys** | It lists every account and key the first deploy needs and walks you through them. About 10 minutes. | |
 | 9 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue. | `state.md`, one line per merge |
 | 10 | **You try it** | You get "ready to try" with what was tested and screenshots. Each point of feedback becomes a new issue. | |
@@ -310,8 +310,7 @@ Using the strongest model on high effort for every job is slow and burns through
 | Grill and planning chat | Everyday · medium | Claude Opus 5.5 |
 | **CTO work:** research, the pyramid, schema, API design, wireframes | **Strongest · high** | Claude Fable 5.2 |
 | Writing issues from the plan | Everyday · medium | Claude Opus 5.5 |
-| Building the first pass | Everyday · low | Claude Opus 5.5 |
-| Building later passes | Everyday · medium | Claude Opus 5.5 |
+| Building an issue | Everyday · low at complexity 1–4, medium at 5–7 or from pass 2 | Claude Opus 5.5 |
 | Code review | Everyday · never below the builder | Claude Opus 5.5 |
 | Security review (risky changes only) | Everyday · one step above review | Claude Opus 5.5, plus a second vendor's model when it touches personal data or money |
 | Browser checks | Everyday · low | Claude Opus 5.5 |
