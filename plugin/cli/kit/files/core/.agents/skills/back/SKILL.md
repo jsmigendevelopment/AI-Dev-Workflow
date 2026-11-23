@@ -1,6 +1,6 @@
 ---
 name: back
-description: Use when the person starts or returns to work in a repo that uses this workflow ("I'm back", "back", "good morning", "start of day", "new session", "pick up where we left off", "what's going on", "what happened overnight") - in a fresh thread or an old one. Rebuilds the picture from the repo and GitHub, reports what changed since /afk sized to the time away, checks who else is working, resumes a paused kickoff, and asks how to triage.
+description: Use when the person starts or returns to work in a repo that uses this workflow ("I'm back", "back", "good morning", "start of day", "new session", "pick up where we left off", "what's going on", "what happened overnight") - in a fresh thread or an old one. Rebuilds the picture from the repo and GitHub, reports what changed since /afk sized to the time away, checks who else is working, resumes a paused kickoff, runs a short retro after a long run, and asks how to triage.
 ---
 
 # /back: pick up where things left off
@@ -36,13 +36,35 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
    - **Still running.**
    - **Anyone else** who touched the repo.
 
-7. **Triage.** Offer three options with your pick first:
+7. **Retro, after a long run.** The person was away for the night or longer, or the loop merged or parked 5 or more issues since the last retro? Run the retro below, unless the `/afk` section in `docs/state.md` already has one for this run. Then show its findings in the report.
+
+8. **Triage.** Offer three options with your pick first:
    - try the three riskiest merges first (usually the right pick);
    - clear the `needs-human` list;
    - start or keep running `coordinate`.
 
    On full automation and the app now has real users? Suggest switching to Recommended (the `automation` skill).
 
-8. **Feedback becomes issues.** As the person tries things, open `issues` and write one issue per point. Don't fix things inline unless they're tiny.
+9. **Feedback becomes issues.** As the person tries things, open `issues` and write one issue per point. Don't fix things inline unless they're tiny.
 
-9. **Before the session ends,** update `docs/state.md`. Overwrite it, keep it under 30 lines, and leave it so a brand-new session could take over.
+10. **Before the session ends,** update `docs/state.md`. Overwrite it, keep it under 30 lines, and leave it so a brand-new session could take over.
+
+## Retro
+
+A short look back, so the next run goes better. `/afk` runs it at the hard stop too.
+
+1. **Read the record, not your memory:** the board, `docs/state.md`, the merged and parked issues, failed checks, rejected reviews and `needs-human` items since the last retro.
+2. **Ask three questions:**
+   - **What went wrong?** A failed check, a rejected review, a parked issue, a bug that reached test.
+   - **What was slow?** An issue that took many rounds, a long hunt for a file or a fact, a wait on a limit.
+   - **What did the person do by hand?** A setup step, a fix, a command, an answer the docs should have had.
+3. **Keep at most 5 findings,** worst first. Each one names where it happened: an issue, a pull request or a commit. Drop any you can't point to. A finding is not a feature request.
+4. **Pick the fix that fails loudly.** A mistake a tool could catch gets a check (a lint rule, a test, a CI step), not a new line in `AGENTS.md`. A missing fact gets a pointer from a file the agent already reads.
+5. **Each finding becomes an issue:**
+   - **A problem in this app** (its code, tests, docs, CI or setup): open an issue here with the `issues` skill. Don't add `status:ready`. The person picks it.
+   - **A flaw in the kit itself** (a skill step that's wrong or missing, a script, a hook, a template): draft an issue for the kit's repo, `jsmigendevelopment/onRails`. Title, what happened, where in the run, and the fix you suggest. Leave out app code, secrets and private names. Put the draft under "Retro" in `docs/state.md` and show it to the person. **Never file it there without their yes.** On a yes: `gh issue create --repo jsmigendevelopment/onRails`.
+6. **Write it down.** Add a "Retro" section to `docs/state.md`: the date, one line per finding with its issue link or "draft for the kit". **Done when** every finding has an issue or a draft, and the section is written.
+
+---
+
+The retro is based on Matt Pocock's [retro](https://github.com/mattpocock/skills/tree/main/skills/engineering/retro) (MIT).

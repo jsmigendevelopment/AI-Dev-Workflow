@@ -1,7 +1,7 @@
 // The plugin's manifests, checked without Claude Code or Codex (CI has neither signed in).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../src/files.mjs";
 
@@ -34,4 +34,9 @@ test("the plugin ships the four entry skills and a CLI that can run init", () =>
   assert.deepEqual(readdirSync(repo("plugin/skills")).sort(), ["afk", "back", "idea", "join"]);
   assert.ok(existsSync(repo("plugin/cli/bin/cli.mjs")));
   assert.equal(readJson(repo("plugin/cli/kit/manifest.json")).kitVersion, version);
+});
+
+test("the plugin's CLI ships NOTICE next to LICENSE, the same as the repo's", () => {
+  assert.equal(readFileSync(repo("plugin/cli/NOTICE"), "utf8"), readFileSync(repo("NOTICE"), "utf8"));
+  assert.ok(existsSync(repo("plugin/cli/LICENSE")));
 });

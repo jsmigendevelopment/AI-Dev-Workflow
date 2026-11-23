@@ -71,8 +71,8 @@ When a step names a skill, open it. If it doesn't load by name, read `.agents/sk
 
 Called by those, by issues and by the loop:
 - `grill`, `name`, `stack`, `secrets`, `research`, `pyramid`, `issues`, `routing`;
-- `coordinate`, `build`, `pr-review`, `pr-security`, `qa`, `ask`, `automation`;
-- `web-performance`, `web-security`, `seo`, `a11y`, `dependencies`;
+- `coordinate`, `build`, `diagnose`, `pr-review`, `pr-security`, `qa`, `ask`, `automation`;
+- `web-performance`, `web-security`, `seo`, `a11y`, `dependencies`, `writing-for-agents`;
 - stack packs: `stack-<name>` (for example `stack-tanstack-start`).
 
 An issue's `Skills:` line names at most three. Load them.

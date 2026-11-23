@@ -1,6 +1,6 @@
 ---
 name: afk
-description: Use when the person is stepping away and wants the build loop to keep going ("afk", "brb", "taking a break", "going to lunch", "signing off", "good night", "keep building while I sleep") - asks how long, checks usage and asks what to do at a limit, sets safe unattended rules, writes the state note first, sets a watchdog and a hard stop, and keeps the loop running until the person is /back.
+description: Use when the person is stepping away and wants the build loop to keep going ("afk", "brb", "taking a break", "going to lunch", "signing off", "good night", "keep building while I sleep") - asks how long, checks usage and asks what to do at a limit, sets safe unattended rules, writes the state note first, sets a watchdog and a hard stop, keeps the loop running until the person is /back, and ends with a short retro.
 ---
 
 <!-- Made by scripts/sync-skills.mjs from .agents/skills/afk/SKILL.md and scripts/plugin-handoff.md. Edit those, then run it. -->

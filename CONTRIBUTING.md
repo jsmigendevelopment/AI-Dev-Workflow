@@ -60,6 +60,8 @@ Every file a person or an agent reads follows the same voice:
 - **No hype.** No "powerful", "seamless", "blazing fast" or "revolutionary". Show a number or say nothing.
 - **Facts get a source and a date.** A version or a price you checked says when.
 
+Writing or editing a skill or `AGENTS.md`? Follow the [`writing-for-agents`](.agents/skills/writing-for-agents/SKILL.md) skill: descriptions that trigger, steps with a clear "done when", and when to make a skill or a reference file.
+
 ## What the kit doesn't do
 
 - **TanStack Start is the default; Next.js is a supported alternative.** Keep TanStack Start and Cloudflare as the recommended picks, and list Next.js as an option where it fits. Don't add links that push one host.

@@ -46,6 +46,7 @@ You rarely need these. The four commands call them for you.
 | `/issues` | `$issues` | You have a plan, feedback or a bug to turn into issues |
 | `/coordinate` | `$coordinate` | You want the build loop to start on the ready issues |
 | `/build N` | `$build N` | You want issue N built, and nothing else |
+| `/diagnose` | `$diagnose` | Something is broken, failing or slow and nobody knows why. Or say "debug this". |
 | `/pr-review N` | `$pr-review N` | You want a fresh review of pull request N |
 | `/pr-security N` | `$pr-security N` | Pull request N touches auth, secrets, personal data or money |
 | `/qa` | `$qa` | You want a change checked in a real browser, on the preview or the test site |
