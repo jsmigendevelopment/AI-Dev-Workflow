@@ -34,7 +34,7 @@ onRails is a kit you add to a project. It tells the agent what to do, and it che
 | Part | What it is | When it applies |
 |---|---|---|
 | [`AGENTS.md`](AGENTS.md) | 13 standing rules, the code rules and a stop-and-ask list | Every session |
-| 28 skills | Step-by-step instructions, one job each | When a request names the skill |
+| 29 skills | Step-by-step instructions, one job each | When a request names the skill |
 | Guardrails | CI checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
 
 - **Rules and conventions keep it on track.** It asks instead of guessing. Lint and CI fail the build when the code breaks a rule.
@@ -102,19 +102,19 @@ The plugin's copy of the CLI carries the rules and skills only. The stack packs 
 
 | | Plugin | Kit in the project | Codex | Type it when | What it does |
 |---|---|---|---|---|---|
-| 💡 | **`/or:idea`** | [`/idea`](.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app | Pitch → grill → MVP → name → tech → plan → issues |
+| 💡 | **`/or:idea`** | [`/idea`](.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app | Pitch → grill → MVP → wireframes + name → you approve → tech → plan → issues |
 | 🧭 | **`/or:join`** | [`/join`](.agents/skills/join/SKILL.md) | `$join` | You're new to a repo that isn't set up | Map the repo → run it → grill you → write `AGENTS.md` and `docs/` |
 | ☀️ | **`/or:back`** | [`/back`](.agents/skills/back/SKILL.md) | `$back` | You start work, or come back | What changed → who else is working → what to do first |
 | 🌙 | **`/or:afk`** | [`/afk`](.agents/skills/afk/SKILL.md) | `$afk` | You step away | How long? → usage check → safe rules → keeps building until a hard stop |
 
-That's all you type. The other 24 skills are called for you. Want to run one step yourself? → [Cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself)
+That's all you type. The other 25 skills are called for you. Want to run one step yourself? → [Cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself)
 
 ---
 
 ## 🔁 What a run looks like
 
 <p align="center">
-  <img src="assets/how-it-works.svg" alt="How it works. Plan, once per project: pitch, product grill, MVP, name and repo, tech grill, CTO plan, issues. Build loop: coordinate, build, CI and code review, QA on the preview, security review for risky changes, merge and deploy to test, smoke test, then the next issue. A failed check goes back to Build. You try it, and your feedback becomes new issues." width="100%">
+  <img src="assets/how-it-works.svg" alt="How it works. Plan, once per project: pitch, product grill, MVP, wireframes while naming the repo, tech grill, CTO plan, issues. Build loop: coordinate, build, CI and code review, QA on the preview, security review for risky changes, merge and deploy to test, smoke test, then the next issue. A failed check goes back to Build. You try it, and your feedback becomes new issues." width="100%">
 </p>
 
 You plan once. Every step saves to files, so you can stop any time and `/or:back` picks up where you stopped.
@@ -122,15 +122,16 @@ You plan once. Every step saves to files, so you can stop any time and `/or:back
 | # | Step | What happens | Saved to `docs/` |
 |---|---|---|---|
 | 1 | **Pitch** | You describe the idea in your own words. It plays it back in 3–5 lines and says what's weak. | |
-| 2 | **Product grill** | Six topics. Three questions a round, each with a recommended answer. It covers what people forget. | `vision.md`, `features.md`, `decisions.md` |
+| 2 | **Product grill** | Seven topics. Three questions a round, each with a recommended answer. It covers what people forget. | `vision.md`, `features.md`, `decisions.md` |
 | 3 | **MVP** | The one core piece that makes the app stand out. You pick it. It's never a default. | `mvp.md` |
-| 4 | **Name + repo** | 5–7 name ideas, `git init`, and a GitHub repo if you say yes. | |
-| 5 | **Tech grill** | Platform, stack, data, auth, environments, CI and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
-| 6 | **Plan** | Your strongest model plans the slices and designs the schema, API and wireframes. It asks before it starts. | `pyramid.md`, `design.md` |
-| 7 | **Issues** | One per slice. Each has WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
-| 8 | **Keys** | It lists every account and key the first deploy needs and walks you through them. About 10 minutes. | |
-| 9 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue. | `state.md`, one line per merge |
-| 10 | **You try it** | You get "ready to try" with what was tested and screenshots. Each point of feedback becomes a new issue. | |
+| 4 | **Wireframes + name** | Your strongest model draws every screen in the background: a clickable prototype in light and dark, plus sketches. It asks first. Meanwhile: 5–7 name ideas, `git init`, and a GitHub repo if you say yes. | `wireframes/index.html`, `design.md` |
+| 5 | **You approve the screens** | "What would you change?" until you say yes. Nothing technical starts before. | `decisions.md` |
+| 6 | **Tech grill** | Platform, stack, data, auth, environments, CI and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
+| 7 | **Plan** | Your strongest model plans the slices and designs the schema and API from your approved screens. It asks before it starts. | `pyramid.md`, `design.md` |
+| 8 | **Issues** | One per slice. Each has WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
+| 9 | **Keys** | It lists every account and key the first deploy needs and walks you through them. About 10 minutes. | |
+| 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue. | `state.md`, one line per merge |
+| 11 | **You try it** | You get "ready to try" with what was tested and screenshots. Each point of feedback becomes a new issue. | |
 
 **What each pull request goes through:** build → CI → code review → QA on the preview → security review (risky changes only) → merge the exact commit that was checked → deploy to the test site → smoke test. A failed check goes back to a fresh builder. After two rejected rounds, the issue is parked and you're asked.
 
@@ -374,7 +375,7 @@ Using the strongest model on high effort for every job is slow and burns through
 ```
 AGENTS.md                  ← rules every agent follows, every session (Codex + Claude)
 CLAUDE.md                  ← one line: @AGENTS.md
-.agents/skills/            ← the 28 skills, master copy (Codex reads this)
+.agents/skills/            ← the 29 skills, master copy (Codex reads this)
 .claude/skills/            ← the same skills (Claude Code reads this)
 .claude/settings.json      ← Claude Code: blocked git commands and hooks
 .claude/hooks/             ← the session-start and notify hooks
@@ -393,7 +394,7 @@ scripts/sync-skills.mjs    ← keeps the skill copies identical, and makes plugi
 | Skills | |
 |---|---|
 | **You type** (4) | `idea` · `join` · `back` · `afk` |
-| **Planning** (8) | `grill` · `name` · `stack` · `secrets` · `research` · `pyramid` · `issues` · `routing` |
+| **Planning** (9) | `grill` · `wireframes` · `name` · `stack` · `secrets` · `research` · `pyramid` · `issues` · `routing` |
 | **The loop** (8) | `coordinate` · `build` · `diagnose` · `pr-review` · `pr-security` · `qa` · `ask` · `automation` |
 | **Know-how**, named in issues (6) | `web-performance` · `web-security` · `seo` · `a11y` · `dependencies` · `writing-for-agents` |
 | **Stack packs** (2) | `stack-tanstack-start` · `stack-monorepo-expo` |

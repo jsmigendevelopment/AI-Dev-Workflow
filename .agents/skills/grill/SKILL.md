@@ -45,7 +45,7 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
    - How should the words sound: friendly, plain, formal, funny?
    - Anything to avoid: colours, styles, or a competitor's look?
 
-   Then sum it up in three lines. If they want visuals, offer a mood board or logo ideas on the creative tier (see `routing`). Write the answers to "Look and feel" in `design.md`. The CTO step turns them into theme tokens and wireframes. A profile's `[design]` answers are defaults to confirm, not skip.
+   Then sum it up in three lines. If they want visuals, offer a mood board or logo ideas on the creative tier (see `routing`). Write the answers to "Look and feel" in `design.md`. `wireframes` turns them into theme tokens and screens. A profile's `[design]` answers are defaults to confirm, not skip.
 7. **Confirm:** show back the vision, the main flow, the features, the MVP and the look and feel, and ask what's wrong with them.
 
 ### Existing-project topics (`/join`, or a big feature)

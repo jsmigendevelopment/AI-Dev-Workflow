@@ -70,7 +70,7 @@ When a step names a skill, open it. If it doesn't load by name, read `.agents/sk
 | `/automation` | Changing how much agents do on their own |
 
 Called by those, by issues and by the loop:
-- `grill`, `name`, `stack`, `secrets`, `research`, `pyramid`, `issues`, `routing`;
+- `grill`, `wireframes`, `name`, `stack`, `secrets`, `research`, `pyramid`, `issues`, `routing`;
 - `coordinate`, `build`, `diagnose`, `pr-review`, `pr-security`, `qa`, `ask`, `automation`;
 - `web-performance`, `web-security`, `seo`, `a11y`, `dependencies`, `writing-for-agents`;
 - stack packs: `stack-<name>` (for example `stack-tanstack-start`).

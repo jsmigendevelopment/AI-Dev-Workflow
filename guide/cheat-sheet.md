@@ -42,6 +42,7 @@ You rarely need these. The four commands call them for you.
 |---|---|---|
 | `/grill` | `$grill` | You want to be interviewed before a big feature, without a full kickoff |
 | `/research` | `$research` | A decision is crucial, unclear and costly to undo. It asks first: it uses your strongest model. |
+| `/wireframes` | `$wireframes` | You want to see, or change, the screens before they're built. It asks first: it uses your strongest model. |
 | `/pyramid` | `$pyramid` | You want to plan, or re-plan, the slices, passes and milestones. It asks first too. |
 | `/issues` | `$issues` | You have a plan, feedback or a bug to turn into issues |
 | `/coordinate` | `$coordinate` | You want the build loop to start on the ready issues |

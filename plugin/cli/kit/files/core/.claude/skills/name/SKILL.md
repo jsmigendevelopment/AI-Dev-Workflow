@@ -19,7 +19,7 @@ Naming waits until now because you can't name something before you know what it 
    - Personal account or an organisation?
    - Does your school or employer have rules about where code lives?
 
-4. **Make it a git repo now.** Run `git init` in this folder if it isn't one already. Add a `.gitignore` that covers `.env*`, secrets and build output. Move `kickoff/` into `docs/`, then make the first commit.
+4. **Make it a git repo now.** Run `git init` in this folder if it isn't one already. Add a `.gitignore` that covers `.env*`, secrets and build output. Move `kickoff/` into `docs/` (wireframes still drawing? Wait for them first), then make the first commit.
 
 5. **Create the GitHub repo for them.** Ask: *"Create a private repo `<owner>/<name>` and push to it?"* (the owner comes from `docs/profile.toml` or the question in step 3). On a yes, run:
    ```bash
@@ -30,4 +30,4 @@ Naming waits until now because you can't name something before you know what it 
 
 6. **Record** the name, visibility, licence and remote in `docs/decisions.md`.
 
-Then go back to `/idea` step 5 and open `stack`.
+Then go back to `/idea` step 6: approve the wireframes.

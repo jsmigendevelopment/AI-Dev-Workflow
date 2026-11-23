@@ -68,7 +68,7 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
 
 9. **Keys and accounts.** Before any building, open `secrets`: check which keys the test deploy needs and which are missing (by name only), and offer to wire the missing ones now, or, if `package.json` has a `connect` script, let the person run `pnpm connect` in their own terminal (`pnpm connect --dry-run` shows what's set, by name). Missing ones go to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the deploy.
 
-10. **Hand off.** In under 10 lines: what you learned, what surprised you, and the three things you'd fix or build first. Then ask what they want to work on, and open `issues` for it.
+10. **Hand off.** In under 10 lines: what you learned, what surprised you, and the three things you'd fix or build first. Then ask what they want to work on, and open `issues` for it. New screens? Run `wireframes` and get the approval first.
 
 ## Done when
 

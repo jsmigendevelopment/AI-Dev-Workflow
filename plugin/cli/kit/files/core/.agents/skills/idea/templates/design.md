@@ -1,10 +1,10 @@
 # Design
 
-Written by the CTO step (`pyramid`). Builders follow it, and don't invent their own.
+Look and feel from `grill`; theme tokens and screens from `wireframes`, approved by the person; schema and API from `pyramid`. Builders follow it, and don't invent their own.
 
 ## Look and feel
 
-From the grill, in the person's words where it matters. The CTO step turns this into tokens; builders use only the tokens.
+From the grill, in the person's words where it matters. `wireframes` turns this into tokens; builders use only the tokens.
 
 | | |
 |---|---|
@@ -16,7 +16,7 @@ From the grill, in the person's words where it matters. The CTO step turns this 
 | Voice of the copy | |
 | Avoid | |
 
-**Theme tokens** (filled in by the CTO step): colours (contrast checked in light and dark), radius, font families, type scale, spacing, motion.
+**Theme tokens** (filled in by `wireframes`): colours (contrast checked in light and dark), radius, font families, type scale, spacing, motion.
 
 ## Schema
 
@@ -34,7 +34,7 @@ table_name
 
 ## Screens
 
-One wireframe per screen in pass 1. ASCII is fine.
+Every screen in the main flow, plus the core screen's empty, error and loading states. ASCII is fine. The clickable prototype is `wireframes/index.html`. A change goes back through approval.
 
 ### <Screen name>
 

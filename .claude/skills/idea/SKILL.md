@@ -1,11 +1,11 @@
 ---
 name: idea
-description: Use when the person has an idea for a new app, product or tool ("I have an idea for an app", "new project", "let's build X", "start a new app"). Runs the whole kickoff in order - pitch, product grill by topic, the MVP, naming and repo, tech grill, the tracer-bullet pyramid, then issues - and hands off to the build loop.
+description: Use when the person has an idea for a new app, product or tool ("I have an idea for an app", "new project", "let's build X", "start a new app"). Runs the whole kickoff in order - pitch, product grill by topic, the MVP, wireframes drawn while naming the repo, wireframe approval, tech grill, the tracer-bullet pyramid, then issues - and hands off to the build loop.
 ---
 
 # /idea: from idea to a planned repo
 
-Run the steps in order. Don't write app code before step 8 unless the person says so. Save to files after every step, so a break or a new session loses nothing.
+Run the steps in order. Don't write app code before step 10 unless the person says so. Save to files after every step, so a break or a new session loses nothing.
 
 **Each step names the skill to open.** Open it before the step, even if you think you know what it says. If your tool doesn't load it by name, read `../<skill>/SKILL.md` from this folder.
 
@@ -21,7 +21,7 @@ Run the steps in order. Don't write app code before step 8 unless the person say
    | **Hands-on** | Plan, write issues, build one issue when you ask. | Open and merge every pull request. |
    | **Custom** | You set each switch. | |
 
-   - The profile's `[defaults] automation` is the suggested pick. Write the answer to `kickoff/decisions.md`. `stack` copies it into the "Automation level" section of `docs/stack.md` in step 5.
+   - The profile's `[defaults] automation` is the suggested pick. Write the answer to `kickoff/decisions.md`. `stack` copies it into the "Automation level" section of `docs/stack.md` in step 7.
 
 1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter.
 
@@ -29,26 +29,30 @@ Run the steps in order. Don't write app code before step 8 unless the person say
    - After the first two topics, the grill starts a competitor scan in the background. It writes `kickoff/research/competitors.md` and is ready by the MVP topic.
    - If the person needs a break, save and stop. `/back` resumes from the grill log.
 
-3. **Find the MVP.** This is the last topic of the grill: **the one core piece that makes this app stand out,** made as good as possible, plus only the thin supporting slices it needs. **The core is never filled in with a default.** If the person won't choose, stop here and say so. Write `kickoff/mvp.md` from `templates/mvp.md`.
+3. **Find the MVP.** This is the grill's MVP topic: **the one core piece that makes this app stand out,** made as good as possible, plus only the thin supporting slices it needs. **The core is never filled in with a default.** If the person won't choose, stop here and say so. Write `kickoff/mvp.md` from `templates/mvp.md`.
 
-4. **Intermission: name it and make the repo.** Open `name`. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
+4. **Start the wireframes.** Once the person confirms the product grill, start `wireframes` in the background: the strongest tier, high effort (see `routing`). Ask first unless the profile says not to. No way to run it in the background? Draw them after step 5.
 
-5. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. Crucial unknowns go to `research` first. It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
+5. **Intermission: name it and make the repo,** while the wireframes draw. Open `name`. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
 
-6. **Fill in the project facts** at the bottom of `AGENTS.md`.
+6. **Approve the wireframes.** Show them and revise until the person says yes (`wireframes` steps 6 to 8). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row.
 
-7. **Plan the build.** This is CTO work: the strongest model, high effort (see `routing`). Open `pyramid`. It plans slice 0 (the skeleton), the passes and the milestones, and calls for the schema, API and wireframe design. It writes `docs/pyramid.md` and `docs/design.md`.
+7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. Crucial unknowns go to `research` first. It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
+
+8. **Fill in the project facts** at the bottom of `AGENTS.md`.
+
+9. **Plan the build.** This is CTO work: the strongest model, high effort (see `routing`). Open `pyramid`. It plans slice 0 (the skeleton), the passes and the milestones, and designs the schema and API from the approved wireframes. It writes `docs/pyramid.md` and `docs/design.md`.
    - If you're not on the strongest model, stop. Update `docs/state.md` and tell the person: "Start a new session on your strongest model and type `/back` to plan the build."
 
-8. **Write the issues.** Everyday model, medium effort. Open `issues`, and run its consistency check on pass 1 (its last step). Gaps become issues or questions for the person before step 10.
+10. **Write the issues.** Everyday model, medium effort. Open `issues`, and run its consistency check on pass 1 (its last step). Gaps become issues or questions for the person before step 12.
 
-9. **Keys and accounts, before any building.** Open `secrets` now, not when a deploy is stuck. Nothing reaches the test site until these exist, so ask while the person is still here:
+11. **Keys and accounts, before any building.** Open `secrets` now, not when a deploy is stuck. Nothing reaches the test site until these exist, so ask while the person is still here:
    - List every account and key the first test deploy needs (for the default stack: a Cloudflare login and a Clerk app), plus the ones later slices add, marked "later".
    - Say it plainly: *"The test site can't go live until these are set. It takes about 10 minutes. Want to do it now?"*
    - Wire them through the `secrets` checklist. Values never go in the chat. If they'll do it themselves, that's `pnpm connect` in their own terminal, about 10 minutes; check the result by name with `pnpm connect --dry-run`.
    - If they say later: write each missing one to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the first deploy, and say building will continue but nothing will be visible on the test site until then.
 
-10. **Hand off.** Write `docs/state.md` from `templates/state.md`. Then tell the person, in under 10 lines:
+12. **Hand off.** Write `docs/state.md` from `templates/state.md`. Then tell the person, in under 10 lines:
    - what's planned;
    - which issue goes first;
    - **when they'll first see something on the test site** (usually right after slice 0 merges), and what still has to happen before then;
@@ -56,6 +60,7 @@ Run the steps in order. Don't write app code before step 8 unless the person say
 
 ## Done when
 
-- `docs/` holds the vision, features, MVP, decisions, stack, architecture, security policy, design, pyramid and state.
+- `docs/` holds the vision, features, MVP, decisions, stack, architecture, security policy, design, wireframes, pyramid and state.
+- `docs/decisions.md` has a "Wireframes approved" row whose hash matches `docs/wireframes/index.html`.
 - Every MVP issue has WHEN/THEN acceptance checks with IDs, a fence, dependencies, risk flags, a lane, a complexity score, a priority and a `Skills:` line, and the consistency check found no open gap.
 - The person has seen the plan and said go.

@@ -29,7 +29,7 @@ Effort is a second dial on every model: **low**, **medium** or **high**.
 | The live thread you talk to all day (coordinator) | Everyday · **low**. Medium once the app is in good shape. Speed matters more than depth here. |
 | Grill and planning chat | Everyday · medium |
 | Competitor scan (background, during the grill) | Everyday · medium. Broad searching, not design, so it doesn't ask first. |
-| **CTO:** research, the pyramid and milestones, schema, API design, wireframes and UI layout | **Strongest · high** |
+| **CTO:** research, the pyramid and milestones, schema, API design, wireframes (`wireframes`, in the background during naming) | **Strongest · high** |
 | Writing issues from the CTO's plan | Everyday · medium |
 | Art and visual concepts | Creative |
 | Building an issue | Everyday. Effort from its `Complexity:` line: 1–4 **low**, 5–7 medium. Pass 2+ starts at medium. Never the strongest tier without asking. |
