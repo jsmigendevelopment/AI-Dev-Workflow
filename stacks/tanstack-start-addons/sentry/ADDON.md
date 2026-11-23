@@ -12,7 +12,7 @@ Error monitoring with Sentry: uncaught errors and the controllers' "unhandled" l
 
 ## What it adds
 
-- `src/server.ts`: a custom Worker entry. Start's handler wrapped in `Sentry.withSentry`, with `captureConsoleIntegration` for `console.error`, so the `respond()` helper's `unhandled` log (and the request guards' `server function failed` and `api route failed`) becomes an event without changing it. The pack's request middleware (`src/start.ts`: request guards, CSRF, Clerk) runs inside `handler.fetch`, so the security headers, the nonce CSP, the body caps, the rate limit and the `/api/v1` guards all still apply. Never answer a request in `src/server.ts` before `handler.fetch`: that would skip all of them.
+- `src/server.ts`: the pack's Worker entry (it answers `//x` and an empty server function ID with `beforeStart`, then calls Start's handler), wrapped in `Sentry.withSentry`, with `captureConsoleIntegration` for `console.error`, so the `respond()` helper's `unhandled` log (and the request guards' `server function failed` and `api route failed`) becomes an event without changing it. The pack's request middleware (`src/start.ts`: request guards, CSRF, Clerk) runs inside `handler.fetch`, so the security headers, the nonce CSP, the body caps, the rate limit and the `/api/v1` guards all still apply. Never answer a request in `src/server.ts` before `handler.fetch` except through `beforeStart`: that would skip all of them.
 - `src/client.tsx`: Start's default browser entry plus `Sentry.init` and React 19's error hooks. Initialised only when `VITE_SENTRY_DSN` was set at build time.
 - `src/lib/monitoring.ts` and its test: one options function for both sides, and `sentryIngestOrigin(dsn)` for the CSP. No DSN means `enabled: false`. Errors only (`tracesSampleRate: 0`). `beforeSend` drops cookies, auth and webhook-signature headers, request bodies, query strings, IP addresses and emails.
 
@@ -21,6 +21,7 @@ With no DSN the app builds, tests pass and nothing is sent.
 ## Apply
 
 1. Copy `files/` into the project root. The CLI does this step: `npx onrails add tanstack-start/sentry`.
+   The pack already has a `src/server.ts` (the Worker entry, calling `beforeStart` before Start's handler). Replace it with this one (`--force` for that file); it keeps that call.
    The pack already has a `src/client.tsx` (Start's entry plus an `onCaughtError` that doesn't report an `AppError` a section's boundary showed). Replace it with this one (`--force` for that file), then keep that rule so expected errors (signed out, not found) don't become Sentry events:
    ```tsx
    const report = Sentry.reactErrorHandler()
@@ -37,7 +38,7 @@ With no DSN the app builds, tests pass and nothing is sent.
    pnpm add @sentry/cloudflare@11.13.0 @sentry/react@11.13.0
    pnpm add -D @sentry/vite-plugin@11.13.0
    ```
-3. `wrangler.jsonc`: point the Worker at the new entry.
+3. `wrangler.jsonc`: the Worker's entry stays the pack's (`main` is already this).
    ```jsonc
    "main": "src/server.ts",
    ```

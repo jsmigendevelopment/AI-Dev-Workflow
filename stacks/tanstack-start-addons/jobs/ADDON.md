@@ -22,7 +22,7 @@ Background jobs and schedules: a Cloudflare Queue that this same Worker produces
   - `server/jobs.schedule.ts`: cron string → job types. Ids include the scheduled time, so a double firing dedupes.
   - Tests: service (idempotency, release on failure, busy and stale takeover), consumer (double delivery, retry and backoff, poison messages), repository contract against memory **and local D1**, and the schedule (every cron in `wrangler.jsonc` has a row, and the other way round).
 - `src/server/job-queue.ts`: the Queues producer adapter. `src/server/jobs.ts`: `onQueue` and `onScheduled`.
-- `src/server.ts`: a custom Worker entry exporting `fetch`, `queue` and `scheduled`.
+- `src/server.ts`: the Worker entry, exporting `fetch` (the pack's `beforeStart`, then Start's handler), `queue` and `scheduled`.
 
 Handlers must still be safe to run again if they fail part-way: the ledger stops a second *successful* run, not a half-finished one. Pass the job id to a provider as its idempotency key (Stripe and Resend both accept one).
 
@@ -31,7 +31,8 @@ With no keys this needs nothing: queues and crons run in local dev too.
 ## Apply
 
 1. Copy `files/` into the project root. The CLI does this step: `npx onrails add tanstack-start/jobs`.
-2. `wrangler.jsonc`: set the entry, then add the queue and the cron at the top level, before `"env"` (local dev uses these).
+   The pack already has a `src/server.ts` (the Worker entry, calling `beforeStart` before Start's handler). Replace it with this one (`--force` for that file); it keeps that call.
+2. `wrangler.jsonc`: check the entry (the pack already sets it), then add the queue and the cron at the top level, before `"env"` (local dev uses these).
    ```jsonc
    "main": "src/server.ts",
    ```
@@ -92,7 +93,7 @@ To enqueue from a feature: give its service a `queue: JobQueue` dependency (`job
 
 ### With the `sentry` add-on
 
-Both own `src/server.ts`. Keep one file that wraps all three handlers. Start's request middleware (the pack's request guards, CSRF and Clerk) runs inside `handler.fetch`, so headers, limits and the `/api/v1` guards are unchanged; queue and cron handlers never pass through it (they aren't HTTP):
+Both own `src/server.ts`. Keep one file that wraps all three handlers, with the pack's `beforeStart` first in `fetch`. Start's request middleware (the pack's request guards, CSRF and Clerk) runs inside `handler.fetch`, so headers, limits and the `/api/v1` guards are unchanged; queue and cron handlers never pass through it (they aren't HTTP):
 
 ```ts
 import * as Sentry from '@sentry/cloudflare'
@@ -100,6 +101,7 @@ import handler from '@tanstack/react-start/server-entry'
 import type { Job } from '@/lib/jobs'
 import { sentryOptions } from '@/lib/monitoring'
 import { onQueue, onScheduled } from '@/server/jobs'
+import { beforeStart } from '@/server/request-guards'
 
 export default Sentry.withSentry(
   (env: Cloudflare.Env) => ({
@@ -107,7 +109,7 @@ export default Sentry.withSentry(
     integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
   }),
   {
-    fetch: (request) => handler.fetch(request),
+    fetch: (request) => beforeStart(request) ?? handler.fetch(request),
     queue: onQueue,
     scheduled: onScheduled,
   } satisfies ExportedHandler<Cloudflare.Env, Job>,

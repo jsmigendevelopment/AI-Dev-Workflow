@@ -82,6 +82,14 @@ describe('canonical paths', () => {
   it('keeps every path a browser sends, inner spaces, encoded slashes and non-ASCII included', () => {
     for (const p of KEPT) expect(canonicalPath(p), p).toBe(p)
   })
+
+  it('routes lowercase escapes as the uppercase path Start routes, and still refuses the rest (#65)', () => {
+    expect(canonicalPath('/notes/caf%c3%a9')).toBe('/notes/caf%C3%A9')
+    expect(canonicalPath('/notes/caf%C3%a9')).toBe('/notes/caf%C3%A9')
+    expect(canonicalPath('/a%2fb')).toBe('/a%2fb')
+    for (const p of ['/%5fserverFn/x', '/a%7eb', '/notes%0a', '/a%7fb', '/notes/caf%c3%a9%20'])
+      expect(canonicalPath(p), p).toBeNull()
+  })
 })
 
 describe('scanner paths', () => {
