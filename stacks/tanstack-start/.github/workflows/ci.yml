@@ -93,6 +93,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Scan for committed secrets
         run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.18.4 detect --no-git --source /repo --redact
+      - name: No Clerk claim files or keys are committed
+        run: |
+          if [ -n "$(git ls-files -- .clerk '**/.clerk/**')" ]; then
+            echo "::error::Files under .clerk/ are committed. They hold Clerk claim files and keys. Remove them with 'git rm -r --cached .clerk', keep .clerk/ in .gitignore, and rotate the keys if the repo was ever pushed."
+            exit 1
+          fi
 
   agent-files:
     # A pull request that changes the agents' own rules needs the person.

@@ -28,3 +28,6 @@ coverage
 # editors and OS
 .DS_Store
 *.log
+
+# Clerk CLI and SDK claim files and temporary keys. Never commit them.
+.clerk/
