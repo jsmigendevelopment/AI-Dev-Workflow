@@ -1,10 +1,12 @@
 import { QueryClient } from '@tanstack/react-query'
 import { createRouter } from '@tanstack/react-router'
-import { getGlobalStartContext } from '@tanstack/react-start'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
+import { getGlobalStartContext } from '@tanstack/react-start'
+
 import { ErrorState } from '@/components/error-state'
 import { NotFound } from '@/components/not-found'
 import type { AppError } from '@/lib/app-error'
+
 import { routeTree } from './routeTree.gen'
 
 // Zod probes for eval support with `Function('')` on its first parse. The CSP forbids eval, so

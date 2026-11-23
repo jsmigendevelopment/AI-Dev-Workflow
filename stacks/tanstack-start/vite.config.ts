@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
+
 import { buildEnvSchema, parseEnv } from './src/lib/env-schema.ts'
 import { llmsTxt, robotsTxt, securityTxt, sitemapXml } from './src/lib/seo-files.ts'
 import { DEFAULT_SITE_URL, INDEXABLE_PAGES, SITE } from './src/lib/site.ts'

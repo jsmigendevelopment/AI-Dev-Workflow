@@ -1,5 +1,7 @@
 import * as z from 'zod'
-import { AppError, type ApiResult } from './app-error'
+
+import { type ApiResult, AppError } from './app-error'
+import { logger } from './logger'
 
 /**
  * The controller's whole job, once: parse the raw input, run one service call, map the outcome
@@ -21,7 +23,7 @@ export async function respond<S extends z.ZodType, T>(
     return { ok: true, data: await run(parsed.data) }
   } catch (error) {
     if (error instanceof AppError) return { ok: false, error: error.toProblem() }
-    console.error('unhandled', error) // the stack stays in the Worker log
+    logger.error('request_unhandled', { error }) // the stack stays in the Worker log
     return { ok: false, error: { code: 'internal', message: 'Something went wrong. Try again.' } }
   }
 }

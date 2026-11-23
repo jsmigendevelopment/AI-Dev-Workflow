@@ -1,10 +1,16 @@
 import { Button } from '@/components/ui/button'
+import { AppError } from '@/lib/app-error'
 
-/** For failures with no better screen. Shows a safe message, never the raw error. */
+/**
+ * For failures with no better screen. Shows a safe message, never the raw error: an `error` that
+ * is an AppError shows its own message (written for users); anything else shows the default.
+ */
 export function ErrorState({
-  message = 'Something went wrong.',
+  error,
+  message = error instanceof AppError ? error.message : 'Something went wrong.',
   onRetry,
 }: {
+  error?: unknown
   message?: string
   onRetry?: () => void
 }) {

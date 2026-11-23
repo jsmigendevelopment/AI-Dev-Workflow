@@ -22,8 +22,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint # ESLint with the module boundary check, then Prettier
+      - run: pnpm lint # type-aware ESLint (code style, module boundaries), then Prettier
       - run: pnpm typecheck
+      - run: pnpm knip # unused files, exports and dependencies
+      - run: pnpm dupes # duplicated code (jscpd; tests ignored)
+      - run: pnpm check:migrations # no dropped or renamed columns, NOT NULL without a default, float money
       - run: pnpm test # service, controller and repository tests (local D1)
       - name: Migrations match the tables
         run: |
@@ -37,6 +40,37 @@ jobs:
       - run: pnpm check:budgets # initial JS, route JS, CSS and lazy-chunk budgets (gzip)
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e # smoke, security headers and limits, SEO, axe on every route
+
+  visual:
+    # Screenshot tests: every page in both themes, desktop and phone, against the committed baselines
+    # in e2e/visual.spec.ts-snapshots/. Runs in Playwright's own image, so fonts and rendering match
+    # the place the baselines were made. A diff fails; the report shows expected, actual and diff.
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.65.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:visual
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diff
+          path: test-results/
+          retention-days: 7
+
+  semgrep:
+    # Semgrep's free community rules for TypeScript and React (no account, no token, no upload).
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep:1.185.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep community rules
+        run: semgrep scan --config p/typescript --config p/react --error --metrics=off --exclude e2e
 
   supply-chain:
     runs-on: ubuntu-latest

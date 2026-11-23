@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { bearerToken, envelopeResponse, methodNotAllowed, queryObject, readJson } from './http'
 
 const withAuth = (value?: string) =>

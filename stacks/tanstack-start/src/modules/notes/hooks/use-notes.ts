@@ -1,6 +1,8 @@
 import { infiniteQueryOptions, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+
 import { call } from '@/lib/api-call'
 import { TURNSTILE_HEADER } from '@/lib/turnstile'
+
 import { createNote, deleteNote, listNotes, renameNote } from '../server/notes.functions'
 import type { CreateNoteInput, DeleteNoteInput, RenameNoteInput } from '../types'
 

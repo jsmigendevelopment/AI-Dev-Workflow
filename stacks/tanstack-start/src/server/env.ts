@@ -1,6 +1,7 @@
 import { createServerOnlyFn } from '@tanstack/react-start'
 import { env } from 'cloudflare:workers'
-import { parseEnv, runtimeEnvSchema, type RuntimeEnv } from '@/lib/env-schema'
+
+import { parseEnv, type RuntimeEnv, runtimeEnvSchema } from '@/lib/env-schema'
 
 let cached: RuntimeEnv | undefined
 
@@ -21,6 +22,9 @@ export const serverEnv = createServerOnlyFn((): RuntimeEnv => {
       LAUNCHED: env.LAUNCHED,
       SITE_PROTECTION: env.SITE_PROTECTION,
       SITE_PASSWORD: env.SITE_PASSWORD,
+      ACCESS_TEAM_DOMAIN: env.ACCESS_TEAM_DOMAIN,
+      ACCESS_AUD: env.ACCESS_AUD,
+      ACCESS_PATHS: env.ACCESS_PATHS,
     },
     'Worker',
   )

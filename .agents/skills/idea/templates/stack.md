@@ -12,6 +12,9 @@ Picked in the tech grill. Every choice says whether it was the recommended defau
 | Auth |  |  |  |  |
 | Hosting and deploy |  |  |  |  |
 | Environments (test, prod) |  |  |  |  |
+| Test site and preview login | Cloudflare Access with Google / GitHub / Facebook / LinkedIn / Yandex / emailed code; password page; none |  |  |  |
+| Who's allowed in | emails / an email domain / a GitHub org |  |  |  |
+| Production behind a login | nothing / chosen paths (`/admin`) / the whole app |  |  |  |
 | Testing |  |  |  |  |
 | Client state | local first, then the URL, then Zustand |  |  |  |
 | Server data, forms, tables | TanStack Query, TanStack Form, TanStack Table |  |  |  |

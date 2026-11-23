@@ -20,7 +20,8 @@ The pack is `stacks/monorepo-expo/` in this kit: pnpm 12 workspaces and Turborep
 4. `pnpm install`, `pnpm check`. Both must pass before you change anything. Commit the new `pnpm-lock.yaml` (the pack ships none: it can't know `apps/web` in advance; CI installs with `--frozen-lockfile`).
 5. Prove the boundaries once: add `import '../../../web/src/lib/page'` to a file in `apps/mobile/src/lib/`, see `pnpm lint` fail, delete it.
 6. Fill in "Commands that work here" in `AGENTS.md` from the README's Commands table. Ask the person for the test and production web URLs (they become `EXPO_PUBLIC_API_URL` per EAS environment). Clerk, the Expo account, store accounts and every EAS command stay with the person.
-7. The web pack needs `/api/v1` server routes before the mobile app shows data. That is its own issue: the contract is in `packages/contracts/src/routes.ts` and the README's API table.
+7. This skill doesn't set up Cloudflare itself: `apps/web` does, in the web pack's slice 0. When you get there, its step 9 offers Cloudflare's agent tools (`stack-tanstack-start/references/cloudflare-agent-setup.md`). Offer them once for the whole repo, after a yes, never per workspace.
+8. The web pack needs `/api/v1` server routes before the mobile app shows data. That is its own issue: the contract is in `packages/contracts/src/routes.ts` and the README's API table.
 
 ## Check contract
 

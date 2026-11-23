@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { isOpenPath, OPEN_PATHS } from './open-paths'
 import {
   constantTimeEqual,
@@ -126,7 +127,7 @@ describe('the password gate', () => {
     expect(blocked.headers.get('retry-after')).toBe('60')
     const header = (await call('/', { headers: { [GATE_HEADER]: 'nope' } }, 'router', limiter))!
     expect(header.status).toBe(429)
-    expect(((await header.json()) as { error: { code: string } }).error.code).toBe('rate_limited')
+    expect((await header.json<{ error: { code: string } }>()).error.code).toBe('rate_limited')
   })
 
   it('refuses a login posted from another site', async () => {

@@ -21,9 +21,10 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID. Variables: SITE_URL (the production
-    # origin, baked into the build), APP_URL (optional: where to smoke-test when workers.dev is
-    # off; never the custom domain with Bot Fight Mode on, whose challenge a browser test can fail).
+    # Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and with Access in front of production
+    # (setup-cloudflare --protect-production) CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET.
+    # Variables: SITE_URL (the production origin, baked into the build), APP_URL (optional: where
+    # to smoke-test when workers.dev is off; never the custom domain with Bot Fight Mode on, whose challenge a browser test can fail).
     environment:
       name: production
       url: ${{ steps.url.outputs.url }}
@@ -88,6 +89,8 @@ jobs:
         env:
           BASE_URL: ${{ steps.url.outputs.url }}
           LAUNCHED: ${{ steps.launch.outputs.launched }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           if [ "$LAUNCHED" = true ]; then pnpm test:deployed; else pnpm test:coming-soon; fi
       - name: Roll back to the previous version

@@ -3,7 +3,8 @@ import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useNotesList } from '../../hooks/use-notes'
+import { useNotesList } from '@/modules/notes/hooks/use-notes'
+
 import { NoteCreateForm } from '../components/note-create-form'
 import { NoteItem } from '../components/note-item'
 

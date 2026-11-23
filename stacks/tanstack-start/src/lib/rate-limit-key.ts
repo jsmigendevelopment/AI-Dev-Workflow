@@ -10,7 +10,9 @@ export function rateLimitKey(address: string | null | undefined): string {
   const left = head ? head.split(':') : []
   const right = tail ? tail.split(':') : []
   const groups =
-    tail === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill('0'), ...right]
+    tail === undefined
+      ? left
+      : [...left, ...Array<string>(8 - left.length - right.length).fill('0'), ...right]
   return `${groups
     .slice(0, 4)
     .map((g) => g.toLowerCase().replace(/^0+(?=.)/, ''))

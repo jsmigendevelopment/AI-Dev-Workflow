@@ -1,5 +1,6 @@
 import type { Actor } from '@/lib/actor'
 import { respond } from '@/lib/respond'
+
 import { createNoteInput, deleteNoteInput, listNotesInput, renameNoteInput } from '../schemas'
 import type { NotesService } from './notes.service'
 

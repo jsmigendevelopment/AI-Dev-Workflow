@@ -3,6 +3,7 @@
 //   has(name)                 is a command on PATH? (a file lookup, no shell)
 //   probe(cmd, args, {cwd})   run a read-only check: { ok, out (first line), all } or null
 //   exec(argv, {cwd})         run a fix the person said yes to, output shown live: true/false
+//   spawnInteractive(argv, {cwd})  hand the terminal to an agent session: its exit code
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -42,6 +43,13 @@ export function realSystem() {
       if (r.error || r.status === null) return null;
       const all = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
       return { ok: r.status === 0, out: all.split(/\r?\n/)[0] ?? "", all };
+    },
+    // Hand the terminal to an interactive program (an agent session) and wait for it to end.
+    spawnInteractive(argv, { cwd } = {}) {
+      const [cmd, args] = platform === "win32" ? windowsArgv(argv) : [argv[0], argv.slice(1)];
+      const r = spawnSync(cmd, args, { cwd, stdio: "inherit" });
+      if (r.error) throw new Error(`Could not start ${argv[0]}: ${r.error.message}`);
+      return r.status ?? 1;
     },
     exec(argv, { cwd } = {}) {
       const [cmd, args] = platform === "win32" ? windowsArgv(argv) : [argv[0], argv.slice(1)];

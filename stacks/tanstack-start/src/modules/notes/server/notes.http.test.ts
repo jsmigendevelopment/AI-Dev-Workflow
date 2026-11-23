@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+
 import type { Actor } from '@/lib/actor'
 import type { ApiProblem } from '@/lib/app-error'
+
 import { notesController } from './notes.controller'
 import { notesHttp } from './notes.http'
 import { memoryNotesRepository } from './notes.repository.memory'
@@ -37,7 +39,7 @@ interface Body {
   data: { id: string; title: string; items: { title: string }[]; nextCursor: string | null }
   error: ApiProblem
 }
-const body = async (response: Response) => (await response.json()) as Body
+const body = async (response: Response) => response.json<Body>()
 const read = async (response: Response) => ({ status: response.status, body: await body(response) })
 
 describe('/api/v1/notes contract', () => {
@@ -155,9 +157,10 @@ describe('/api/v1/notes contract', () => {
 
   it('answers a crash with 500 and the safe envelope, never the cause', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const service = {
+    const service: NotesService = {
+      ...createNotesService({ repo: memoryNotesRepository(), now: () => 0, newId: () => 'x' }),
       list: () => Promise.reject(new Error('D1_ERROR: no such table')),
-    } as unknown as NotesService
+    }
     const http = notesHttp(notesController(service), async () => ann)
     expect(await read(await http.list(new Request(BASE)))).toEqual({
       status: 500,

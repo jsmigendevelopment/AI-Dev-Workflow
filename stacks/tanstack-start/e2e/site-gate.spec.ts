@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+
 import { E2E_PASSWORD, hydrated } from './helpers'
 
 // The password gate (setup-cloudflare --protect password), on a local preview of the same build

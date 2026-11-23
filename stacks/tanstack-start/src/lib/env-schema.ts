@@ -41,13 +41,31 @@ export const runtimeEnvSchema = z
      * Unset counts as not launched, so a missing var never opens the app.
      */
     LAUNCHED: optional(z.enum(['true', 'false'], { error: 'must be "true" or "false"' })),
-    /** How the test Worker and its previews are protected (setup-cloudflare records it). */
+    /**
+     * How this environment is protected (setup-cloudflare records it): the test Worker and its
+     * previews, or production with --protect-production.
+     */
     SITE_PROTECTION: optional(
       z.enum(['access', 'password', 'none'], { error: 'must be "access", "password" or "none"' }),
     ),
     /** The password gate's secret, made by setup-cloudflare. Random, at least 24 URL-safe characters. */
     SITE_PASSWORD: optional(
       z.string().regex(/^[\w-]{24,}$/, 'must be at least 24 random URL-safe characters'),
+    ),
+    /** Cloudflare Access: `https://<team>.cloudflareaccess.com`, the JWT's issuer (setup-cloudflare). */
+    ACCESS_TEAM_DOMAIN: optional(
+      z
+        .string()
+        .regex(
+          /^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/,
+          'must be https://<team>.cloudflareaccess.com',
+        ),
+    ),
+    /** Cloudflare Access: the application's audience (AUD) tag, the JWT's `aud` (setup-cloudflare). */
+    ACCESS_AUD: optional(z.string().regex(/^[0-9a-f]{32,64}$/, 'must be the Access app’s AUD tag (hex)')),
+    /** Cloudflare Access: paths that need the JWT, comma-separated ("/admin/*,/ops/*"). Unset: all. */
+    ACCESS_PATHS: optional(
+      z.string().regex(/^\/[\w\-./]*\*?(,\/[\w\-./]*\*?)*$/, 'must be paths like /admin/*,/ops/*'),
     ),
   })
   .superRefine((env, ctx) => {
@@ -61,6 +79,15 @@ export const runtimeEnvSchema = z
         path: ['SITE_PASSWORD'],
         message: 'is missing (SITE_PROTECTION is "password"; run setup-cloudflare --protect password)',
       })
+    // Fails closed: "access" without the values to check the JWT is a broken config, not "off".
+    if (env.SITE_PROTECTION === 'access')
+      for (const name of ['ACCESS_TEAM_DOMAIN', 'ACCESS_AUD'] as const)
+        if (!env[name])
+          ctx.addIssue({
+            code: 'custom',
+            path: [name],
+            message: 'is missing (SITE_PROTECTION is "access"; run setup-cloudflare --protect access)',
+          })
     if (env.CLERK_JWT_KEY && !env.CLERK_SECRET_KEY)
       ctx.addIssue({ code: 'custom', path: ['CLERK_JWT_KEY'], message: 'needs CLERK_SECRET_KEY too' })
     for (const [a, b] of pairs) {
@@ -75,7 +102,6 @@ export const runtimeEnvSchema = z
     }
   })
 
-export type BuildEnv = z.output<typeof buildEnvSchema>
 export type RuntimeEnv = z.output<typeof runtimeEnvSchema>
 
 /** Names and rules only. A Zod message never carries the value, and this never adds one. */

@@ -6,9 +6,14 @@
 // Options: --account <id> (several accounts), --zone <example.com> (default: the production
 // routes' domain), --bot-fight-mode (recommended once the custom domain exists), --managed-robots,
 // --skip-secrets, and the person's choice for the test and preview URLs:
-//   --protect access --access-email <their email>   Cloudflare Access (recommended)
+//   --protect access [--logins google,github,...]    Cloudflare Access (recommended), plus who:
+//     --allow-emails a@x.com,b@y.com | --allow-domain company.com | --allow-github-org <org>
 //   --protect password [--new-password]             a password page in the app
 //   --protect none
+// and, only after the person's yes (production is on the always-stop list):
+//   --protect-production all | /admin/*,/ops/*  [--production-ok on the real run]
+// Login client ids and secrets (ACCESS_GOOGLE_CLIENT_ID, ACCESS_GOOGLE_CLIENT_SECRET, ...) come
+// only from the shell or .env.cloudflare.local, never from an argument.
 // Run it again any time: it skips what exists.
 //
 // It needs `wrangler login` (the person runs it); for zone settings, a zone token in
@@ -17,6 +22,7 @@
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+
 import { setupCloudflare } from './cloudflare/setup.ts'
 
 const args = process.argv.slice(2)
@@ -45,11 +51,12 @@ const env = {
   WRANGLER_SEND_METRICS: 'false',
 }
 
-// Child processes never see either token.
+// Child processes never see the tokens or a login's client secret.
 function run(cmd, cmdArgs, input) {
   const childEnv = { ...env }
   delete childEnv.CLOUDFLARE_ZONE_TOKEN
   delete childEnv.CLOUDFLARE_ACCESS_TOKEN
+  for (const name of Object.keys(childEnv)) if (name.startsWith('ACCESS_')) delete childEnv[name]
   const result = spawnSync(cmd, cmdArgs, { input, encoding: 'utf8', env: childEnv })
   return Promise.resolve({
     status: result.status ?? 1,
@@ -70,6 +77,12 @@ async function api(method, path, body) {
   return { status: response.status, body: await response.json().catch(() => null) }
 }
 
+const list = (name) =>
+  value(name)
+    ?.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
 const protect = value('--protect')
 if (protect !== undefined && !['access', 'password', 'none'].includes(protect)) {
   console.log('--protect takes access, password or none.')
@@ -87,12 +100,19 @@ const code = await setupCloudflare(
     protect: value('--protect'),
     accessEmail: value('--access-email'),
     newPassword: args.includes('--new-password'),
+    logins: value('--logins'),
+    allowEmails: list('--allow-emails'),
+    allowDomains: list('--allow-domain'),
+    allowGithubOrg: value('--allow-github-org'),
+    protectProduction: value('--protect-production'),
+    productionOk: args.includes('--production-ok'),
   },
   {
     wrangler: (a, input) => run('pnpm', ['exec', 'wrangler', ...a], input),
     run,
     api,
     randomSecret: () => randomBytes(24).toString('base64url'),
+    secret: (name) => (name.startsWith('ACCESS_') ? localToken(name) : undefined),
     readText: (p) => readFileSync(p, 'utf8'),
     writeText: (p, t) => writeFileSync(p, t),
     exists: existsSync,

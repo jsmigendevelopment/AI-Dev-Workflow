@@ -10,6 +10,10 @@ declare namespace Cloudflare {
     TURNSTILE_SECRET_KEY?: string
     // The password gate (test and previews only), set by setup-cloudflare --protect password.
     SITE_PASSWORD?: string
+    // Cloudflare Access (SITE_PROTECTION "access"): vars that setup-cloudflare writes per environment.
+    ACCESS_TEAM_DOMAIN?: string
+    ACCESS_AUD?: string
+    ACCESS_PATHS?: string
   }
 }
 

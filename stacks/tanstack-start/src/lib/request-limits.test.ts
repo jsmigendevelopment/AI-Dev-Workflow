@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { rateLimitKey } from './rate-limit-key'
 import { checkBody, isApiPath, MAX_BODY_BYTES, SCANNER_PATH } from './request-limits'
 

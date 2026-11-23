@@ -1,4 +1,5 @@
 import { Moon, Sun } from 'lucide-react'
+
 import { THEME_TOGGLE_ATTRIBUTE, toggleThemeFromClick } from '@/lib/theme'
 
 /** Works before hydration: the inline theme script handles the click (see src/lib/theme.ts). */

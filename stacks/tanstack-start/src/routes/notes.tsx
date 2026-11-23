@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+
 import { pageHead } from '@/lib/seo'
 import { notesQueries } from '@/modules/notes/hooks/use-notes'
 import { NotesView } from '@/modules/notes/ui/views/notes-view'

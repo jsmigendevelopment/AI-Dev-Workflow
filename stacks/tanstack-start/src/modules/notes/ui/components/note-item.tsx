@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { type FormEvent, useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useDeleteNote, useRenameNote } from '../../hooks/use-notes'
-import type { NoteDto } from '../../types'
+import { useDeleteNote, useRenameNote } from '@/modules/notes/hooks/use-notes'
+import type { NoteDto } from '@/modules/notes/types'
 
 export function NoteItem({ note }: { note: NoteDto }) {
   const rename = useRenameNote()

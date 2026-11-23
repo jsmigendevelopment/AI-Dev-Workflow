@@ -1,4 +1,4 @@
-import { test as base, expect } from '@playwright/test'
+import { expect, test as base } from '@playwright/test'
 
 /**
  * The deployed test site and its previews can be protected (setup-cloudflare --protect). CI then

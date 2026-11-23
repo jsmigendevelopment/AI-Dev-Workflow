@@ -2,6 +2,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+
 import { AuthProvider } from '@/components/auth-provider'
 import { NotFound } from '@/components/not-found'
 import { RouteFocus } from '@/components/route-focus'

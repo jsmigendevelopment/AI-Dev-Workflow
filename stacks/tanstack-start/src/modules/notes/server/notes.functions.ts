@@ -1,7 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
+
 import { asActor, withActor } from '@/server/auth'
 import { notesApi } from '@/server/composition'
 import { asHuman, withHumanCheck } from '@/server/turnstile'
+
 import type { CreateNoteInput, DeleteNoteInput, ListNotesInput, RenameNoteInput } from '../types'
 
 // The route table: method, auth middleware, a typed pass-through validator, one controller call.

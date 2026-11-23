@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 // ai-dev-workflow (alias: adw): install and update the AI-Dev-Workflow kit in a project.
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { addPack, listAddons, listPacks } from "../src/add.mjs";
 import { doctor } from "../src/doctor.mjs";
 import { doctorFix } from "../src/fix.mjs";
+import { initGlobal } from "../src/global.mjs";
 import { init } from "../src/init.mjs";
 import { profileCopy, profileInit, profileShow } from "../src/profile.mjs";
 import { terminalAsk } from "../src/prompt.mjs";
+import { entryCommand, offerStart } from "../src/start.mjs";
+import { realSystem } from "../src/system.mjs";
 import { update } from "../src/update.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -14,7 +18,11 @@ const { version } = JSON.parse(readFileSync(new URL("../package.json", import.me
 const HELP = `ai-dev-workflow ${version}: install and update the AI-Dev-Workflow kit
 
 Usage:
-  npx ai-dev-workflow init [dir]                  install the kit (default: this folder)
+  npx ai-dev-workflow init [dir] [--start | --no-start]
+                                                  install the kit (default: this folder), then offer
+                                                  to start Claude Code or Codex there with /idea or /join
+  npx ai-dev-workflow init --global               copy idea, join, back and afk to ~/.claude/skills
+                                                  and ~/.agents/skills (never overwrites)
   npx ai-dev-workflow update [dir] [--dry-run]    update to the kit in this CLI version
   npx ai-dev-workflow doctor [dir]                check your tools and the kit
   npx ai-dev-workflow doctor [dir] --fix [--yes] [--dry-run]
@@ -34,7 +42,8 @@ Your own files are never overwritten: the kit's copy goes next to yours as <file
 async function main(argv) {
   const flags = new Set(argv.filter((a) => a.startsWith("-")));
   const [command, ...args] = argv.filter((a) => !a.startsWith("-"));
-  const known = new Set(["--dry-run", "--force", "--list", "--list-addons", "--fix", "--yes", "-y", "--help", "-h", "--version", "-v"]);
+  const known = new Set(["--dry-run", "--force", "--list", "--list-addons", "--fix", "--yes", "-y", "--help", "-h", "--version", "-v",
+    "--start", "--no-start", "--global"]);
   const unknown = [...flags].filter((f) => !known.has(f));
   if (unknown.length) return fail(`Unknown option: ${unknown.join(" ")}`);
 
@@ -43,7 +52,10 @@ async function main(argv) {
 
   const yes = flags.has("--yes") || flags.has("-y");
   switch (command) {
-    case "init": return init(args[0]);
+    case "init":
+      if (flags.has("--global")) return initGlobal();
+      if (flags.has("--start") && flags.has("--no-start")) return fail("Use --start or --no-start, not both.");
+      return initAndStart(args[0], flags.has("--start") ? true : flags.has("--no-start") ? false : undefined);
     case "update": return update(args[0], { dryRun: flags.has("--dry-run") });
     case "doctor":
       if (!flags.has("--fix")) return doctor(args[0]);
@@ -66,6 +78,16 @@ function profile([sub, dir], yes) {
   if (sub === "show") return profileShow();
   if (sub === "copy") return withAsk((ask) => profileCopy(dir, { ask, yes }));
   return fail(`Unknown profile command: ${sub ?? ""} (use init, show or copy)`);
+}
+
+// Install, then offer a fresh agent session. It asks only on a real terminal outside CI.
+async function initAndStart(dir = ".", start) {
+  const cmd = entryCommand(resolve(dir));
+  const code = init(dir, { entry: cmd });
+  if (code !== 0) return code;
+  const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI);
+  console.log("");
+  return withAsk((ask) => offerStart(resolve(dir), cmd, { start, sys: realSystem(), ask, interactive }));
 }
 
 async function withAsk(fn) {

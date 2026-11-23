@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
+
 import { describe, expect, it } from 'vitest'
-import { stripJsonc } from '../../scripts/cloudflare/setup'
-import { comingSoonPage, isLaunched, prelaunchResponse, PRELAUNCH_ROBOTS } from './launch'
-import { seoFileResponse, SEO_ROUTES } from './seo-routes'
+
+import { stripJsonc } from '../../scripts/cloudflare/wrangler-config'
+import { comingSoonPage, isLaunched, PRELAUNCH_ROBOTS, prelaunchResponse } from './launch'
+import { SEO_ROUTES, seoFileResponse } from './seo-routes'
 import { SITE } from './site'
 
 const at = (path: string, method = 'GET') => {

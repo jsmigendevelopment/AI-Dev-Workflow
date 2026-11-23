@@ -1,4 +1,5 @@
 import { createSerializationAdapter } from '@tanstack/react-router'
+
 import { AppError, type ErrorCode } from './app-error'
 
 /**

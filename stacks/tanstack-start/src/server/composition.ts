@@ -1,9 +1,11 @@
 import { env } from 'cloudflare:workers'
+
 import { createDb } from '@/db/client'
 import { notesController } from '@/modules/notes/server/notes.controller'
 import { notesHttp as notesHttpController } from '@/modules/notes/server/notes.http'
 import { drizzleNotesRepository } from '@/modules/notes/server/notes.repository.drizzle'
 import { createNotesService } from '@/modules/notes/server/notes.service'
+
 import { bearerActor } from './auth'
 
 /**

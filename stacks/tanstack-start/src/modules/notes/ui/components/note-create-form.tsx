@@ -1,9 +1,10 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { type FormEvent, useEffect, useId, useRef, useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTurnstile } from '@/hooks/use-turnstile'
-import { useCreateNote } from '../../hooks/use-notes'
-import { createNoteInput } from '../../schemas'
+import { useCreateNote } from '@/modules/notes/hooks/use-notes'
+import { createNoteInput } from '@/modules/notes/schemas'
 
 /**
  * The form error pattern: a visible label, the same schema as the server, and on a failed submit
@@ -56,7 +57,7 @@ export function NoteCreateForm() {
   return (
     <form
       ref={formRef}
-      onSubmit={submit}
+      onSubmit={(event) => void submit(event)}
       onFocus={() => void turnstile.prepare().catch(() => undefined)}
       className="flex flex-col gap-2"
     >

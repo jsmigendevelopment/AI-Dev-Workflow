@@ -19,6 +19,19 @@ The platform comes first, because everything else depends on it.
 6. **Data:** the database, how the schema is migrated, and backups.
 7. **Auth:** buy it, don't build it.
 8. **Environments:** **test** and **production**, plus a **preview per pull request** if the host offers one. Merging to main auto-deploys to test.
+   - **Who can open the test site and previews?** Ask in plain words: "Should the test site need a login, so strangers and search engines can't see it?" Recommend **Cloudflare Access** (that's a login wall in front of the app, like Google IAP). Then ask how people sign in, and offer every personal-account option, recommendation first:
+
+     | Sign in with | Good for |
+     |---|---|
+     | **Google** (recommended) | Almost everyone has one |
+     | GitHub | Developers. Can allow a whole GitHub org. |
+     | Facebook | Non-technical testers |
+     | LinkedIn | Business testers |
+     | Yandex | Testers in Russia and nearby |
+     | An emailed one-time code | No setup at all. Always kept as the fallback. |
+
+     They can pick more than one. Then ask who's allowed: a list of emails, a whole email domain, or a GitHub org. Each provider except the emailed code needs a login app the person creates once ("Setup step for you" in `ask`). Other choices: a password page in the app, or no protection.
+   - **Anything in production behind a login?** For example `/admin`, or the whole app for an internal tool. Production changes are on the always-stop list: show the dry run, then ask.
    - **Agents get test credentials only.** Production keys and settings stay with the person.
 9. **CI and the check contract:** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). CI runs them on every pull request, plus a secret scan and the agent-file guard. Lint enforces the code rules a tool can check: no `any` or unexplained `eslint-disable`, no `console.log`, file and function size, unused exports, import order and kebab-case names. Start from `templates/ci.yml` in the `idea` skill.
 10. **Build vs buy** for every other need: open source first, then a free-tier SaaS, then build it.

@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+
 import { useAuthEnabled } from '@/hooks/use-public-config'
 
 const ClerkControls = lazy(() => import('./clerk').then((m) => ({ default: m.ClerkControls })))

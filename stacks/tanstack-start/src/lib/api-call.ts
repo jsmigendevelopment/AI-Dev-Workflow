@@ -1,4 +1,4 @@
-import { AppError, ERROR_STATUS, type ApiProblem, type ApiResult } from './app-error'
+import { type ApiProblem, type ApiResult, AppError, ERROR_STATUS } from './app-error'
 
 const isProblem = (value: unknown): value is ApiProblem =>
   typeof value === 'object' &&

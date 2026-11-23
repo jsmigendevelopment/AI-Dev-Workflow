@@ -1,4 +1,5 @@
 import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
+
 import { appErrorAdapter } from '@/lib/app-error-adapter'
 import { authMiddleware } from '@/server/auth'
 import { requestGuards } from '@/server/request-guards'

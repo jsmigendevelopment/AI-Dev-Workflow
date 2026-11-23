@@ -1,4 +1,5 @@
-import { expect, test, type APIRequestContext } from '@playwright/test'
+import { type APIRequestContext, expect, test } from '@playwright/test'
+
 import { hydrated } from './helpers'
 
 // What crawlers get: the server HTML, read without running any script.
@@ -26,7 +27,8 @@ test('the home page has its metadata, share tags and JSON-LD in the server HTML'
   expect(home.robots).toBeUndefined()
   expect(home.html).toContain('<meta name="twitter:card" content="summary_large_image"')
   const ld = /<script type="application\/ld\+json"[^>]*>([^<]*)<\/script>/.exec(home.html)![1]!
-  expect(JSON.parse(ld)['@graph'][0]['@type']).toBe('WebSite')
+  const graph = (JSON.parse(ld) as { '@graph': Array<{ '@type': string }> })['@graph']
+  expect(graph[0]?.['@type']).toBe('WebSite')
 })
 
 test('app pages and the 404 page are noindex', async ({ request }) => {
@@ -59,7 +61,7 @@ test('the icon set and share image are served', async ({ request }) => {
     expect(response.status(), path).toBe(200)
     expect(response.headers()['content-type'], path).toContain(type)
   }
-  const manifest = await (await request.get('/site.webmanifest')).json()
+  const manifest = (await (await request.get('/site.webmanifest')).json()) as { icons: unknown[] }
   expect(manifest.icons).toHaveLength(2)
 })
 

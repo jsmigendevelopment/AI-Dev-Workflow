@@ -40,7 +40,22 @@ A setting that's safe to read in public (an app name, a feature flag's default, 
 
 **Why:** a secret in git stays in the history forever, even after you delete the line.
 
-## 5. One typed, validated env schema
+**Setup-only secrets** stay on the machine that runs the setup. The tokens a setup script needs, and the OAuth client secrets for a sign-in page such as Cloudflare Access (`ACCESS_GOOGLE_CLIENT_SECRET` and the like), go in a git-ignored file such as `.env.cloudflare.local` or the shell. Never a command-line argument: those show up in shell history and in the process list. The script sends the value to the one service that needs it and never prints it.
+
+**Why:** the app never needs these at runtime. Keeping them out of the host and out of CI means one less place they can leak.
+
+## 5. Who can open each environment
+
+| Environment | Default | Option |
+|---|---|---|
+| **test** and **preview** | open, but `noindex` | Cloudflare Access (a sign-in page: Google, GitHub and others, or a one-time PIN by email) or a password page. The person picks at setup |
+| **production** | open to everyone (a "Coming soon" page until launch) | Access in front of all of it (an internal tool) or of some paths (`/admin/*`). A production change: dry run, then the person's yes |
+
+With Access on, the app also checks Access's signed token on every protected request, and refuses anything without a valid one. CI gets in with its own service token, stored per GitHub environment.
+
+**Why:** a test site with real-looking data, or an admin page, should not be one leaked link away from anyone. Checking the token in the app too means a mistake in the Access settings fails closed, not open.
+
+## 6. One typed, validated env schema
 
 - `lib/env.ts` reads every variable through one Zod schema at startup. Nothing else reads `process.env` or the Worker's `env` directly.
 - A missing or malformed variable fails startup with a message that **names the variable, never its value:** `Missing env: CLERK_SECRET_KEY`.
@@ -48,7 +63,7 @@ A setting that's safe to read in public (an app name, a feature flag's default, 
 
 **Why:** an app that starts with a missing key fails later, in front of a user, with a confusing error. Failing at startup with the name is a one-minute fix.
 
-## 6. `.env.example` lists every variable
+## 7. `.env.example` lists every variable
 
 Every variable is in `.env.example` with no value, under one comment line in the format the `secrets` skill uses:
 
@@ -59,7 +74,7 @@ CLERK_SECRET_KEY=
 
 `scope` lists `local`, `test` and `production`. Previews use the test values.
 
-## 7. Adding a variable
+## 8. Adding a variable
 
 One pull request does all of it:
 1. the line in `.env.example`, in the format above;
@@ -71,7 +86,7 @@ Then the `secrets` skill sets the values. A test checks that `.env.example` and 
 
 **Why:** a variable added in only one of those places breaks the next deploy, or the next teammate's first run.
 
-## 8. Rotating a key
+## 9. Rotating a key
 
 Do this when a key may have leaked, when someone with access leaves, or on the service's schedule.
 
@@ -85,7 +100,7 @@ A leaked production key is a 🛑 blocker through the `ask` skill. The person do
 
 **Why:** making the new key before revoking the old one means no downtime. Revoking last means the leak stops for good.
 
-## 9. Onboarding a new teammate
+## 10. Onboarding a new teammate
 
 1. Give them access to the GitHub repo and the test accounts of each service (Cloudflare, Clerk, and the rest in `docs/stack.md`). Not production, unless the person decides so.
 2. They clone the repo, install, and copy `.env.example` to `.env.local`.
@@ -95,10 +110,10 @@ A leaked production key is a 🛑 blocker through the `ask` skill. The person do
 
 **Why:** a first day spent hunting for keys is a lost day. The list plus the schema make it an hour.
 
-## 10. How agents ask the person for a value
+## 11. How agents ask the person for a value
 
 - **Always through the `secrets` skill's checklist,** never in chat. The agent names the variable, says where to get it, and says which file or command takes it. The person types the value into the file or a prompt that hides it.
 - Each step uses the "Setup step for you" format from the `ask` skill: numbered steps, the exact link, the exact text to copy, what you'll see when it worked, and how long it takes.
-- The agent never asks the person to paste a value in chat. If they do anyway, the agent says so, doesn't repeat it, and asks them to rotate that key (rule 8).
+- The agent never asks the person to paste a value in chat. If they do anyway, the agent says so, doesn't repeat it, and asks them to rotate that key (rule 9).
 
 **Why:** a value in chat is stored in the chat log, outside every secret store, and can't be taken back.

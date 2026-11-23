@@ -21,6 +21,17 @@ With no DSN the app builds, tests pass and nothing is sent.
 ## Apply
 
 1. Copy `files/` into the project root. The CLI does this step: `npx ai-dev-workflow add tanstack-start/sentry`.
+   The pack already has a `src/client.tsx` (Start's entry plus an `onCaughtError` that doesn't report an `AppError` a section's boundary showed). Replace it with this one (`--force` for that file), then keep that rule so expected errors (signed out, not found) don't become Sentry events:
+   ```tsx
+   const report = Sentry.reactErrorHandler()
+   /** An AppError a section's boundary showed is expected: not an incident. */
+   function onCaughtError(error: unknown, info: ErrorInfo) {
+     if (!(error instanceof AppError)) report(error, info)
+   }
+   // in hydrateRoot's options:
+   { onUncaughtError: report, onCaughtError, onRecoverableError: report }
+   ```
+   with `import { AppError } from '@/lib/app-error'` and `type ErrorInfo` from `react`.
 2. Install:
    ```sh
    pnpm add @sentry/cloudflare@11.13.0 @sentry/react@11.13.0
@@ -103,7 +114,8 @@ With no DSN the app builds, tests pass and nothing is sent.
    ```
    With no DSN at build time the list is empty, so the CSP (and the "ships with none" unit test) are unchanged. Never widen `connect-src` to `https://*.sentry.io`.
 10. Keys stay with the person: they create the Sentry project, set `SENTRY_DSN` with `pnpm exec wrangler secret put SENTRY_DSN --env test` and `--env production` (the `vars` from step 4 name the environment), and add the CI secret and variables.
-11. `pnpm check`.
+11. `pnpm exec eslint --fix . && pnpm format`: the pack's lint sorts imports, including the ones this add-on added.
+12. `pnpm check`.
 
 ### With the `jobs` add-on
 

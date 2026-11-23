@@ -5,8 +5,6 @@ import { brotliCompressSync, constants, gzipSync } from 'node:zlib'
 
 /** Static imports between built chunks (`import "./a.js"`, `import { x } from "./b.js"`). */
 const STATIC_IMPORT = /\bimport\s*(?:[\w*{}\s,$]+?\s*from\s*)?["'](\.{1,2}\/[^"']+\.js)["']/g
-/** Dynamic imports (`import("./c.js")`): lazy chunks, not part of the initial load. */
-const DYNAMIC_IMPORT = /\bimport\(\s*["'`](\.{1,2}\/[^"'`]+\.js)["'`]\s*\)/g
 
 /** Chunk file names (relative to the assets folder; all chunks share one folder) in `source`. */
 function collect(pattern: RegExp, source: string): string[] {
@@ -20,10 +18,6 @@ function collect(pattern: RegExp, source: string): string[] {
 
 export function staticImports(source: string): string[] {
   return collect(STATIC_IMPORT, source)
-}
-
-export function dynamicImports(source: string): string[] {
-  return collect(DYNAMIC_IMPORT, source)
 }
 
 /**

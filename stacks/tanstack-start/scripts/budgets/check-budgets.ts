@@ -10,8 +10,10 @@
 // Budgets are gzip bytes, set a little above the last measurement so growth fails loudly. Lower
 // them when the app shrinks. Raise one only with a reason in the pull request.
 import { spawn } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+
+import type { Compressed } from './bundle-graph.ts'
 import {
   compressedSize,
   htmlEntryChunks,
@@ -20,7 +22,6 @@ import {
   staticClosure,
   sumSizes,
 } from './bundle-graph.ts'
-import type { Compressed } from './bundle-graph.ts'
 
 // --- budgets (gzip bytes) --------------------------------------------------------------------
 /**
