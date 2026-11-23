@@ -382,6 +382,20 @@ Fixes and clearer words are always welcome. The kit is small on purpose, so a ne
 
 Found a security problem? Don't open a public issue. → [SECURITY.md](SECURITY.md)
 
+## 🙏 Credits
+
+onRails stands on other people's ideas.
+
+| Who | What onRails took |
+|---|---|
+| **Matt Pocock** ([his video](https://www.youtube.com/watch?v=4DhcSPkEbwI)) | The "grill me" interview, and the push to do test-driven development with AI |
+| **Andy Hunt and Dave Thomas,** [*The Pragmatic Programmer*](https://pragprog.com/titles/tpp20/) | Tracer bullets: thin slices that run end to end, the idea behind the pyramid |
+| **Kent Beck,** *Test-Driven Development: By Example* | Write the failing test first |
+| **[Code with Antonio](https://www.youtube.com/@codewithantonio)** | Feature modules with views, sections and components |
+| **[Ruby on Rails](https://rubyonrails.org/)** | Conventions over configuration, generators, and the name |
+| **Google's [Zanzibar paper](https://www.usenix.org/conference/atc19/presentation/pang)** | Permissions by relationship |
+| **TanStack, Clerk and Cloudflare** | Their own agent prompts, quoted and dated in the recipes and walkthroughs |
+
 ## 📜 Licence
 
 [MIT](LICENSE). Use it, change it, ship with it.
