@@ -302,14 +302,22 @@ The 7 **add-ons** are optional pieces for the `tanstack-start` pack. The tech gr
 
 ## 🧠 Model routing
 
-The strongest model on high effort for every job is slow and burns your limits. The cheapest model for every job ships junk. So each job gets a tier and an effort.
+Using the strongest model on high effort for every job is slow and burns through your usage. Using the cheapest model for every job ships junk. So each job gets a **model tier** (which model) and an **effort** (how hard it thinks).
 
-| Tier | Jobs |
-|---|---|
-| **Strongest** · high effort | The planning jobs: research, the pyramid, schema, API, wireframes |
-| **Everyday** · low or medium effort | Talking, grilling, writing issues, building, reviewing, browser checks |
-| **Creative** | Art, visuals, names |
-| **Second opinion** | A second reviewer when a risky change touches personal data or money |
+| Job | Tier · effort | Example model |
+|---|---|---|
+| The thread you talk to all day (the loop) | Everyday · low | Claude Opus 5.5 |
+| Grill and planning chat | Everyday · medium | Claude Opus 5.5 |
+| **CTO work:** research, the pyramid, schema, API design, wireframes | **Strongest · high** | Claude Fable 5.2 |
+| Writing issues from the plan | Everyday · medium | Claude Opus 5.5 |
+| Building the first pass | Everyday · low | Claude Opus 5.5 |
+| Building later passes | Everyday · medium | Claude Opus 5.5 |
+| Code review | Everyday · never below the builder | Claude Opus 5.5 |
+| Security review (risky changes only) | Everyday · one step above review | Claude Opus 5.5, plus a second vendor's model when it touches personal data or money |
+| Browser checks | Everyday · low | Claude Opus 5.5 |
+| Art, visuals, names | Creative | ChatGPT |
+
+<sub>The example models were checked in 2026-11. Swap in your own: the tiers are what matter.</sub>
 
 - **It asks before it uses the strongest tier.** You can turn the question off in your profile.
 - **Start low.** Go up one step only after a failed check or a rejected review.
