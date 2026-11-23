@@ -9,6 +9,7 @@ Transactional email through Resend: an `EmailSender` port, a Resend adapter over
 | **Env vars** | `RESEND_API_KEY` (secret), `EMAIL_FROM` (a sender on a verified domain) |
 | **Packages** | none (Resend's REST API over `fetch`) |
 | **Issue** | `Skills: build, web-security` · lane `risky` (email to outside addresses can be abused to mail strangers, and it costs money past the free tier) |
+| **Vendor setup** | Resend's docs and account MCP servers, the kit's way: `.agents/skills/secrets/setup/resend.md`. Keys and the domain: `.agents/skills/secrets/providers/resend.md` |
 
 ## What it adds
 

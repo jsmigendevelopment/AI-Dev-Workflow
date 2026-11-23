@@ -9,6 +9,7 @@ Cloudflare Web Analytics: page views, referrers and Core Web Vitals with no cook
 | **Env vars** | `VITE_CF_BEACON_TOKEN` (build time; public, it ends up in the HTML) |
 | **Packages** | none |
 | **Issue** | `Skills: build, web-performance` · lane `tiny` |
+| **Vendor setup** | none for this add-on. Picked PostHog instead? Follow `.agents/skills/secrets/setup/posthog.md` |
 
 ## What it adds
 
