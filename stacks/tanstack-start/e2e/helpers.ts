@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { type APIRequestContext, expect, type Page } from '@playwright/test'
 
 /** The password-gate preview's password (playwright.config.ts). A fixed test value, not a secret. */
 export const E2E_PASSWORD = 'e2e-only-Password-not-a-secret-0123'
@@ -12,6 +12,41 @@ export const E2E_ACCESS = {
   ACCESS_TEAM_DOMAIN: 'https://e2e-only.cloudflareaccess.com',
   ACCESS_AUD: '0123456789abcdef'.repeat(4),
   ACCESS_PATHS: '/notes,/api/v1/*,/_serverFn/*',
+}
+
+/**
+ * Paths a router could take for `/api/v1/notes` while the path guards don't (#18): other case,
+ * an empty segment, a trailing slash, an escaped letter or digit. Each must be a 404 or get
+ * every guard.
+ */
+export const API_LOOKALIKES = [
+  '/API/v1/notes',
+  '/api/V1/notes',
+  '/api//v1/notes',
+  '/api/v1/notes/',
+  '/%61pi/v1/notes',
+  '/api/v%31/notes',
+] as const
+
+/**
+ * Paths Start resolves to another one than the raw path the guards compare (#18): an escaped
+ * server function base, a trailing escaped space or tab. Each gets the guards' plain 404.
+ */
+export const RESOLVED_ELSEWHERE = [
+  '/%5FserverFn/00000000',
+  '/_server%46n/00000000',
+  '/notes%20',
+  '/notes%20%20',
+  '/notes%09',
+  '/api/v1/notes%20',
+] as const
+
+/** The guards' plain 404, before Access, CSRF or a server function runs. */
+export async function expectGuard404(request: APIRequestContext, baseURL: string, path: string) {
+  const sameOrigin = { origin: new URL(baseURL).origin, 'sec-fetch-site': 'same-origin' }
+  const response = await request.get(path, { headers: sameOrigin, maxRedirects: 0 })
+  expect(response.status()).toBe(404)
+  expect(await response.text()).toBe('Not found\n')
 }
 
 /** Every route a visitor can open. The 404 page is a route too; a note's page uses a made-up id. */

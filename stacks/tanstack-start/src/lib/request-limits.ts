@@ -1,3 +1,5 @@
+import { getNormalizedURL } from '@tanstack/react-router/ssr/server'
+
 import { problemResponse } from './app-error'
 
 /**
@@ -14,6 +16,25 @@ export const SCANNER_PATH =
  */
 export const isApiPath = (pathname: string): boolean =>
   pathname.startsWith('/api/v1/') || pathname === '/api/v1'
+
+// Anywhere for a control character; a space only at the end, where URL parsing drops it.
+const ESCAPED_SPACE_OR_CONTROL = /%(?:[01][0-9a-f]|7f)|%20$/i
+
+/**
+ * The pathname every path guard compares (`isApiPath`, Access paths, `OPEN_PATHS`, the launch and
+ * password gates), or null when Start or the router would resolve the raw path to another one:
+ * an empty segment (`/api//v1`), an escaped control character, a trailing escaped space
+ * (`/notes%20` loses it), or anything `getNormalizedURL` decodes. That is the function Start uses
+ * to pick the route and to tell server functions apart (`/%61pi` is `/api`, `/%5FserverFn` is
+ * `/_serverFn`), so a future decoding change fails closed here.
+ * Browsers never send these, so the request guards answer null with a 404 before any other check.
+ * Case is the router's `caseSensitive`.
+ */
+export function canonicalPath(pathname: string): string | null {
+  if (pathname.includes('//') || ESCAPED_SPACE_OR_CONTROL.test(pathname)) return null
+  const resolved = getNormalizedURL(pathname, 'http://localhost').url.pathname
+  return resolved === pathname ? resolved : null
+}
 
 /**
  * Server function and `/api/v1` bodies are small JSON. A server route that takes more (uploads,
