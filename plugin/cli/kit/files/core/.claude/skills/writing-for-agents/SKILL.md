@@ -40,7 +40,7 @@ The description is the only part of a skill loaded every session. Its words deci
 |---|---|
 | `AGENTS.md` | Every session needs it. Rules and pointers only. Each line costs every session. |
 | A skill | A job with steps that a person asks for in words, or that another skill or an issue's `Skills:` line names. |
-| A reference file (`references/<name>.md` in the skill, or a `guide/` page) | Detail only some runs need: a long table, a recipe, the reasons. The skill names the file and says when to read it. |
+| A reference file (`references/<name>.md` in the skill, or a `guide/` page) | Detail only some runs need: a long table, a recipe, the reasons. Give it a row in the skill's **References** table: the file, then "load when …". A `guide/` page gets its row in `guide/README.md`. |
 | Neither | The model already does it, or the repo already says it (`package.json` scripts, config, `--help`). Point to the source. |
 
 - **Make a new skill only** when it has its own trigger words, or another skill must name it. Otherwise add a step or a reference file to a skill that exists. Each skill adds a description to every session.

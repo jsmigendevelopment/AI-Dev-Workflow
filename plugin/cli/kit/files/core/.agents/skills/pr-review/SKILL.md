@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Use to review a pull request or branch as an independent reviewer ("review this PR", "review the change on branch X", "is this ready to merge", or a brief that says use pr-review) - reads only the diff, the issue and the check results, never the author's description; checks every acceptance check has a real test, no test was weakened, the fence and architecture were kept, and the code is readable; posts one verdict that names the commit.
+description: Use to review a pull request or branch as an independent reviewer ("review this PR", "review the change on branch X", "is this ready to merge", or a brief that says use pr-review) - reads only the diff, the issue and the check results, never the author's description; checks every acceptance check ID has a real test, no test was weakened, the fence and architecture were kept, and the code is readable; posts one verdict that names the commit.
 ---
 
 # PR review: fresh eyes on the diff
@@ -11,7 +11,7 @@ You did not write this code. Judge only the **issue, the diff and the check resu
 
 ## Check
 
-1. **Every `auto` acceptance check has a test,** and each test would fail without the change. CI passed on the head commit.
+1. **Every `auto` acceptance check has a test whose title carries its ID.** Search the diff for each `AC-<issue>-<n>`. A missing ID, or a test that doesn't prove its check, is a must fix. Each test would fail without the change. CI passed on the head commit.
    - A bug fix comes with a test that reproduces the bug.
    - Tests go through the public interface and mock only the edges (network, clock, randomness).
    - No snapshot test stands in for a logic test.

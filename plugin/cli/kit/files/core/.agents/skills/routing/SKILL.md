@@ -32,8 +32,7 @@ Effort is a second dial on every model: **low**, **medium** or **high**.
 | **CTO:** research, the pyramid and milestones, schema, API design, wireframes and UI layout | **Strongest · high** |
 | Writing issues from the CTO's plan | Everyday · medium |
 | Art and visual concepts | Creative |
-| Building pass 1 (the MVP's first cut) | Everyday · **low** |
-| Building upgrade passes (pass 2+) | Everyday · medium |
+| Building an issue | Everyday. Effort from its `Complexity:` line: 1–4 **low**, 5–7 medium. Pass 2+ starts at medium. Never the strongest tier without asking. |
 | Code review (`pr-review`) | Everyday · **never below the builder's effort** |
 | Security review (`pr-security`), risky lane only | Everyday, one step above the code reviewer. Add a second-opinion reviewer when the change touches personal data or money. |
 | Acceptance and browser checks (`qa`) | Everyday · low |

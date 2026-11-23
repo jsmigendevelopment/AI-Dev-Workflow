@@ -75,7 +75,7 @@ Called by those, by issues and by the loop:
 - `web-performance`, `web-security`, `seo`, `a11y`, `dependencies`, `writing-for-agents`;
 - stack packs: `stack-<name>` (for example `stack-tanstack-start`).
 
-An issue's `Skills:` line names at most three. Load them.
+An issue's `Skills:` line names at most three. Load them. Load a skill's reference files only when its **References** table says so; the kit's guides are indexed in `guide/README.md`.
 
 ## Project facts
 

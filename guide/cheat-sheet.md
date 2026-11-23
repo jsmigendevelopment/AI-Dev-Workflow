@@ -81,8 +81,7 @@ You rarely need these. The four commands call them for you.
 | 🔥 Grill, planning chat | Everyday · medium | Opus 5.5 medium |
 | 🏛️ CTO: research, pyramid, schema, API, wireframes | **Strongest · high** | Fable 5.2 high |
 | 📋 Writing issues from the plan | Everyday · medium | Opus 5.5 medium |
-| 🔨 Build pass 1 | Everyday · low | Opus 5.5 low |
-| ✨ Build pass 2+ | Everyday · medium | Opus 5.5 medium |
+| 🔨 Build an issue | Everyday · low at complexity 1–4, medium at 5–7 or from pass 2 | Opus 5.5 low / medium |
 | 🔍 Code review | Never below the builder | Opus 5.5 low / medium |
 | 🛡️ Security review (risky only) | One step above review, plus a second vendor for personal data or money | Opus 5.5 medium + ChatGPT |
 | 🎨 Art | Creative | ChatGPT |

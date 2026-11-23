@@ -17,13 +17,14 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 2. **Pick work.** From `status:ready` issues:
    - skip anything whose dependencies aren't merged;
+   - skip anything with a `[NEEDS CLARIFICATION]` marker or a complexity above 7, and take its `status:ready` off. A marker goes to the person (`ask`); a big issue goes back to `issues` to split;
    - skip anything claimed, unless the claim is **stale**: older than 2 hours with no new commit on its branch. That's a ⏳ decision (the `ask` skill): ask before you retake it, and keep going on other work.
    - order by priority, then by pass;
    - start as many as can run **without touching the same modules.**
 
 3. **Claim it.** Label it `status:in-progress` and comment `Claimed by <session name> at <time>`. Check the claim again just before starting. Other people's agents may share the repo.
 
-4. **Start one fresh builder per issue** on branch `feat/<issue>-<short-name>`, in its own worktree or cloud session, with the model and effort from the `routing` table (or the issue's override). Its brief is short: the issue number, and **every skill on the issue's `Skills:` line, named in the brief itself.** For example: "Use the `build`, `a11y` and `stack-tanstack-start` skills." A skill named in the request loads. One that's only named inside another skill often doesn't.
+4. **Start one fresh builder per issue** on branch `feat/<issue>-<short-name>`, in its own worktree or cloud session, with the model and effort from the `routing` table (by the issue's complexity, or its override). Its brief is short: the issue number, and **every skill on the issue's `Skills:` line, named in the brief itself.** For example: "Use the `build`, `a11y` and `stack-tanstack-start` skills." A skill named in the request loads. One that's only named inside another skill often doesn't.
    - Use whatever your tool offers: background agents with worktree isolation, a headless run in a git worktree (`claude -p`, `codex exec`), or cloud sessions.
 
 5. **Act when something reports back:** a finished agent, a new pull request, or a check result. Sweep the board every 10 minutes only as a safety net.
@@ -35,7 +36,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
    4. **Security review** (risky lane only): a fresh agent with "**Use the `pr-security` skill.**"
    5. **Human gate:** if the issue's risk flags, the risk dial or the automation level say the person merges this lane, it's a ⏳ decision: use the `ask` skill and move on to other work. The more careful of the dial and the automation level wins.
 
-   A failure sends the findings back to a fresh builder. **After two rejected rounds on one issue, it's a ⏳ decision** (the review cap): use `ask`, add a `failed` board event, and stop work on it. A verdict stands until the commit changes. Never re-run a reviewer to get a different answer.
+   A failure sends the findings back to a fresh builder. **After two rejected rounds on one issue (three at complexity 6–7), it's a ⏳ decision** (the review cap): use `ask`, add a `failed` board event, and stop work on it. A verdict stands until the commit changes. Never re-run a reviewer to get a different answer.
 
 7. **Merge through one queue,** one pull request at a time.
    - **If main's checks are red, stop merging.** Open a bug issue and send an ℹ️ FYI. If it's still red after one fix round and nothing else can merge, it's a 🛑 blocker.

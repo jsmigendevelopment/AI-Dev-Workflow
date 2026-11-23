@@ -1,6 +1,6 @@
 ---
 name: issues
-description: Use to turn a plan, a pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - each with acceptance checks tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, priority and the skills to load. Runs on the everyday model from the CTO's plan.
+description: Use to turn a plan, a pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - each with WHEN/THEN acceptance checks that carry IDs, tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, a complexity score, priority and the skills to load, then a read-only consistency check. Runs on the everyday model from the CTO's plan.
 ---
 
 # Issues: the contract between the plan and every agent after it
@@ -15,37 +15,53 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
 
 1. **One milestone per pyramid pass** (or per feature, for a project that's already built).
 2. **One issue per slice per pass.** Split anything a reviewer couldn't read in one sitting (about 400 changed lines) into sub-issues.
-3. **Fill in every field** of `.github/ISSUE_TEMPLATE/slice.md`. If the repo doesn't have it, copy it from this skill's `templates/`.
-4. **Acceptance checks.** Each one is concrete and checkable.
+3. **Fill in every field** of `.github/ISSUE_TEMPLATE/slice.md` (copy it from this skill's `templates/` if it's missing).
+4. **Acceptance checks.** Write each one as `AC-<issue>-<n>: WHEN <situation> THEN <result>`, numbered from 1, one result each. The test that proves it carries the ID in its title. No number until the issue exists? Create it, then add the IDs with `gh issue edit`.
    - **`auto`:** becomes an automated test that CI runs on every pull request. Most checks should be `auto`.
    - **`agent`:** needs judgement (layout, flow, copy). A fresh `qa` agent checks it on the preview before merge. Write the steps to click and what you should see.
    - For anything a signed-in user owns, add one check that **a signed-out visitor and a second user can't read or delete it.**
-5. **Risk flags and lane.** Tick every flag that applies, then set the lane:
+   - **Unsure what the person wants?** Write `[NEEDS CLARIFICATION: <question>]` where the gap is, and ask it through `ask`. A marker blocks `status:ready`. Answered? Replace the marker with the answer.
+5. **Complexity.** Write `Complexity: <1–10> · <one-line reason>`. Score the hardest part, not the line count. **Above 7, split it** before it's ready.
+
+   | Score | Looks like |
+   |---|---|
+   | 1–2 | Copy, styling or config. One file, no logic. |
+   | 3–4 | One screen, form or endpoint on an existing module, copying the nearest example. |
+   | 5–7 | A new module end to end (table, service, API, screen), or rules with edge cases: permissions, money, time. |
+   | 8–10 | Several modules, a new outside service, a data migration, or something the repo has never done. Split it. |
+6. **Risk flags and lane.** Tick every flag that applies, then set the lane:
    - **tiny:** copy, styling or config with no logic. Build, CI, review, merge.
    - **normal:** anything else. Build, CI, review, `qa` on the preview, merge.
    - **risky:** any flag ticked. Normal, plus `pr-security`, plus the human gate in `docs/stack.md`.
    - **Who merges:** after the lane, write `merged by: agents` or `merged by: the person`. Take it from the "Automation level" switches in `docs/stack.md`, and the risk dial. The more careful one wins.
-6. **Labels.** Create any that are missing first (`gh label create "<name>" --force`):
+7. **Labels.** Create any that are missing first (`gh label create "<name>" --force`):
    - `priority:p0` to `priority:p3`;
    - `pass:1` to `pass:3`;
    - `slice:core`, `slice:support`;
    - `lane:tiny`, `lane:normal`, `lane:risky`;
-   - `status:ready` once nothing blocks it;
+   - `status:ready` once nothing blocks it: no `[NEEDS CLARIFICATION]` left, complexity 7 or under;
    - `status:in-progress` and `needs-human`, which `coordinate` sets later;
    - `blocker`, added next to `needs-human` when nothing can move until the person answers (see `ask`);
    - `human-approved`, which only the person adds, to a pull request that changes the agents' rules;
    - `no-issue`, the only way a pull request skips the issue link. Dependabot gets it.
-7. **Dependencies both ways:** "Depends on #N" here, and "Blocks #M" on the other one.
-8. **Modules touched,** and whether the issue is **decoupled.** That's how `coordinate` knows what can run in parallel.
+8. **Dependencies both ways:** "Depends on #N" here, and "Blocks #M" on the other one.
+9. **Modules touched,** and whether the issue is **decoupled.** That's how `coordinate` knows what can run in parallel.
    - **A slice that creates a module:** write "Use the generator: `<command>`" in the goal, with the command from "Commands that work here" in `AGENTS.md` (for example `pnpm new:module <name>`). No generator yet? Write "Copy `<the nearest existing module>`" instead.
-9. **Skills line:** `build`, plus at most two more, named exactly. A skill named in the issue gets loaded. One that's only installed may not be. Pick the know-how the work needs:
+10. **Skills line:** `build`, plus at most two more, named exactly. A skill named in the issue gets loaded. One that's only installed may not be. Pick the know-how the work needs:
    - `stack-<name>` for the project's stack;
    - `a11y` for any new screen or form;
    - `web-security` for public endpoints, forms and anything user-supplied;
    - `web-performance` for heavy pages, media or 3D;
    - `seo` for public pages;
    - `dependencies` when adding a library.
-10. **Recipes line:** when the work needs one of the kit's default libraries, name its recipe, so the builder loads it: `Recipes: form` (a form), `table` (a data grid), `charts` (a chart), `markdown` (rendered Markdown), `highlight` (code highlighting), `virtual` (a long list), `hotkeys` (keyboard shortcuts); `start`, `router` and `query` for route, URL-state and server-data work in a TanStack Start app. They live in `.agents/skills/stack-tanstack-start/references/tanstack/` and don't count toward the three skills. The first issue that needs one also installs it (add `dependencies` to its `Skills:` line); nothing is installed before that.
+11. **Recipes line:** when the work needs one of the kit's default libraries, name its recipe, so the builder loads it: `Recipes: form` (a form), `table` (a data grid), `charts` (a chart), `markdown` (rendered Markdown), `highlight` (code highlighting), `virtual` (a long list), `hotkeys` (keyboard shortcuts); `start`, `router` and `query` for route, URL-state and server-data work in a TanStack Start app. They don't count toward the three skills. The first issue that needs one also installs it (add `dependencies` to its `Skills:` line); nothing is installed before that.
+12. **Consistency check,** after the issues for a pass or a re-plan are written. Start a fresh agent with "Read `.agents/skills/issues/references/consistency.md` and check pass <N>." It reads, reports and changes nothing. Then act on each gap: a slip in an issue you wrote gets fixed there; anything missing becomes a new issue; anything that needs a call goes to the person through `ask`. **Done when** the report is clean, or every gap is an issue or a question.
+
+## References
+
+| File | Load when |
+|---|---|
+| `references/consistency.md` | Step 12: you are the fresh checker. |
 
 ## Every change has an issue
 

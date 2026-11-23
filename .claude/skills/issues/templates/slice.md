@@ -19,12 +19,13 @@ title: "[pass N] <slice>: <what a user can do after this>"
 
 ## Acceptance checks
 
-<!-- Written before the build. Each one is concrete and checkable.
+<!-- Written before the build. One result each. The test that proves it has the ID in its title.
      auto  = becomes an automated test that CI runs on every pull request
-     agent = needs judgement; a fresh agent checks it on the preview before merge -->
-- [ ] `auto` 
-- [ ] `auto` 
-- [ ] `agent` <!-- the steps to click, and what you should see -->
+     agent = needs judgement; a fresh agent checks it on the preview before merge
+     Unsure? Write [NEEDS CLARIFICATION: <question>]. The issue can't be status:ready until it's answered. -->
+- [ ] `auto` AC-<issue>-1: WHEN  THEN 
+- [ ] `auto` AC-<issue>-2: WHEN  THEN 
+- [ ] `agent` AC-<issue>-3: WHEN  THEN  <!-- the steps to click, and what you should see -->
 
 ## Out of scope
 
@@ -56,8 +57,8 @@ title: "[pass N] <slice>: <what a user can do after this>"
 
 ## Routing
 
-<!-- Leave blank to use the routing table. Fill in only to override it. -->
-**Override:** 
+**Complexity:** <!-- 1–10 · one-line reason. Above 7: split it. The scale is in the issues skill. -->
+**Override:** <!-- Leave blank to use the routing table. -->
 
 **Priority:** p0 / p1 / p2 / p3
 **Skills:** `build`, <!-- up to two more, named exactly -->

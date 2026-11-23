@@ -200,7 +200,7 @@ A migration the person agreed may drop or rename (nothing to keep yet) carries `
 
 ## Routes, search params and server data
 
-TanStack publishes one-paragraph build prompts for Start, Router and Query; their recipes, with the prompt, the version checked and the kit's rules, are `references/tanstack/start.md`, `router.md` and `query.md`. The notes module is the worked example of each point. The other default libraries (Form, Table v9, Charts, Markdown, Highlight, Virtual, Hotkeys) have recipes in the same folder (`references/tanstack/README.md`); load one only when an issue's `Recipes:` line names it. The note forms follow `form.md`; the pack has no data grid yet.
+The notes module is the worked example of each point below. The recipes are in References. The note forms follow `form.md`; the pack has no data grid yet.
 
 - **State in the URL.** Filters, order, tabs and page counts are search params, validated by the route: `validateSearch: parseNotesSearch` fills defaults and falls back on bad values, so a bad link opens instead of failing, and `stripSearchParams` keeps defaults out of the URL. Write route-level parsers (search and params) as small plain functions in the module's `search.ts`, typed with `SearchSchemaInput` so links may leave fields out: routes ship in the entry chunk, so a schema library there costs every page (Zod, even `zod/mini`, was about 10 KB gzip). The server still checks every input with the module's Zod schemas, and a unit test keeps the two in step. Read them with `useSearch({ from })`, write them with `navigate({ search: (prev) => ... })` or `<Link search>`, and put what the loader needs in `loaderDeps`.
 - **Typed params.** A dynamic route parses its params (`params.parse`, a plain function such as `parseNoteParams`). Return `false` for a shape that can't be a match (`/notes/not-a-uuid` gets the app's 404); `throw notFound()` from the loader when a valid id finds nothing, and give the route a designed `notFoundComponent`. Both answer 404.
@@ -272,6 +272,14 @@ TanStack publishes one-paragraph build prompts for Start, Router and Query; thei
 37. Static files are answered before the Worker, so a guard can't see them. robots.txt, sitemap.xml and llms.txt are in `assets.run_worker_first` (and not in the build) so a not-launched environment can answer them; the password gate can't cover the hashed bundles (Access can).
 38. Playwright's `extraHTTPHeaders` go to every host a page calls, Clerk included. `e2e/gate.ts` adds the protection headers with a route on the site's own origin only. A Playwright fixture's callback must not be named `use` here: the React hooks lint flags it.
 39. `authorizedParties` (Clerk's option name in `clerkMiddleware` and `authenticateRequest`) is an exact string match on the token's `azp`, the `Origin` the browser sent to Clerk: scheme, host and port, no trailing slash, no patterns. An empty list skips the check, so the pack never passes one. With a list set, @clerk/backend 3.12 and later (the pack has 3.31.4) refuse a token with no `azp` (`token-invalid-authorized-parties`, clerk/javascript #8877, `assertAuthorizedPartiesClaim` in `packages/backend/src/jwt/assertions.ts`); Clerk's manual-verification guide still says to skip a missing `azp`, but the SDK is what runs. A refused token is signed out, never a handshake. Clerk's docs say `azp` "could be omitted if `Origin` is empty or null", as for a native app with no `Origin`: `CLERK_ALLOW_NATIVE_TOKENS=true` lets such a bearer token through on `/api/v1` (not yet checked with a real `@clerk/expo` or Electron token). What stays open with it on: another native app on the same Clerk instance could call this API with its users' tokens, so use one Clerk instance per product. Clerk puts the refusal reason, and for a wrong `azp` the allowed list, in `x-clerk-auth-reason` and `x-clerk-auth-message` response headers (also on its 307 handshake, which it throws) and in `__clerk_init_state.__clerk_debug` in the page; `authMiddleware` removes both. The preview rule accepts any account subdomain: neither `wrangler.jsonc` nor setup-cloudflare records it, and the request's own host is ours anyway, so pinning it would add a setup step for no gain. Checked 2026-11-23 on a local build with self-signed tokens only, not a real Clerk instance or a deployed preview.
+
+## References
+
+| File | Load when |
+|---|---|
+| `references/cloudflare-agent-setup.md` | Slice 0, step 9: offering Cloudflare's agent tools. |
+| `references/tanstack/README.md` | Picking a recipe, or adding a new default library. |
+| `references/tanstack/<name>.md` | An issue's `Recipes:` line names it. `start`, `router` and `query` also when a route, search param or server-data rule above is unclear. |
 
 ## Netlify
 

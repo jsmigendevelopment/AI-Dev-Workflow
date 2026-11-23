@@ -6,7 +6,7 @@ The goal is tests that catch real breaks, not tests that pad a number.
 
 ## 1. Tests first for every acceptance check
 
-Every `auto` acceptance check on an issue becomes a test before its code. Name it so it's obvious which check it covers. Run it, watch it fail, then build until it passes. Take the checks one at a time, not all the tests first and then all the code: a batch of tests written up front tests what you imagined, not what you built.
+Every `auto` acceptance check on an issue becomes a test before its code. Each check has an ID (`AC-12-2: WHEN … THEN …`), and the test's title starts with it, so a reviewer can find the test for every check with one search. Run it, watch it fail, then build until it passes. Take the checks one at a time, not all the tests first and then all the code: a batch of tests written up front tests what you imagined, not what you built.
 
 **Why:** a test written first is a statement of what "done" means, made before the code can bend it. Acceptance tests written first and run by someone else added 34–48 points on one benchmark ([evidence](evidence.md)).
 
@@ -69,7 +69,7 @@ Some conventions in [app-conventions.md](app-conventions.md) only hold if a test
 ## What the reviewer checks
 
 The `pr-review` skill checks, for each pull request:
-- every `auto` acceptance check has a test, and it would fail without the change;
+- every `auto` acceptance check has a test with its ID in the title, and it would fail without the change;
 - bug fixes come with a test that reproduces the bug;
 - tests go through the public interface and mock only at the edges;
 - no snapshot stands in for a logic test;

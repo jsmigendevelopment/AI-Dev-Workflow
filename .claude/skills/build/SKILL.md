@@ -9,10 +9,10 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 
 0. **Say you've started:** `node .agents/skills/coordinate/scripts/board.mjs event started issue=<n> title="<issue title>" thread="<your session name>"`. If it can't write (a cloud thread), skip it. The `status:in-progress` label carries it.
 1. **Read the issue in full,** then `docs/design.md` for its screens, schema and API, and `docs/architecture.md`. Open `docs/stack.md` only if you're adding a library. Load the skills named on its `Skills:` line, and read every recipe on its `Recipes:` line (`.agents/skills/stack-tanstack-start/references/tanstack/<name>.md`): a form, data grid, chart, Markdown, code highlighting, long list or keyboard shortcuts follows its recipe, and its "Done when" list is part of the acceptance checks.
-2. **Unclear? Ask, don't guess.** An unclear issue is a ⏳ decision. Use the `ask` skill: comment up to three questions, each with your recommended answer, label it `needs-human`, ping, and stop. If the work would hit the always-stop list, it's a 🛑 blocker instead.
+2. **Unclear? Ask, don't guess.** An unclear issue, or one with a `[NEEDS CLARIFICATION]` marker, is a ⏳ decision. Use the `ask` skill: comment up to three questions, each with your recommended answer, label it `needs-human`, ping, and stop. If the work would hit the always-stop list, it's a 🛑 blocker instead.
 3. **Branch** from the latest main: `feat/<n>-<short-name>`, or `fix/<n>-<short-name>` for a bug. No issue, no branch: ask for one. Start each commit message with the issue number.
 4. **Copy the nearest example.** Find the closest module, route or test the repo already has, and match its naming, error handling, layout and test style. If a generator exists (`pnpm new:module` or similar, listed in "Commands that work here"), use it. Never free-write a module a generator makes.
-5. **Tests first: red, green, refactor.** Turn every `auto` acceptance check into a test, named so it's obvious which check it covers. Take one check at a time:
+5. **Tests first: red, green, refactor.** Turn every `auto` acceptance check into a test whose title starts with the check's ID: `AC-12-2: WHEN a visitor is signed out THEN the list answers 401`. One check per test. Take one check at a time:
    1. **Red.** Write the test for this check. Run it and watch it fail for the right reason: the assertion, not a typo or a missing import.
    2. **Green.** Write the least code that makes it pass. Nothing for the next check yet.
    3. **Refactor.** Tidy names and repeats while every test stays green. No new behaviour.
@@ -21,7 +21,7 @@ description: Use when implementing one issue ("implement issue 12", "build this 
    - **A bug or core logic** (business rules, permissions, money): small steps, one small test per cycle. A bug fix starts with a test that reproduces it (the `diagnose` skill). For wiring, a simple screen or config, bigger steps are fine, but each check's test still comes before its code.
    - Test behaviour through the public interface. Mock only the edges: network, clock, randomness. Use the memory fake, not mocks of your own code.
    - Expected values come from the issue or a worked example, never recomputed the way the code computes them.
-   - No snapshot tests for logic. Each test must fail without your change. The reasons: `references/testing.md`.
+   - No snapshot tests for logic. Each test must fail without your change.
 6. **Stay inside the fence.** Build nothing from "Out of scope." Found another problem? Open a new issue for it.
 7. **Follow the design and the architecture:**
    - the screens and contracts in `docs/design.md`;
@@ -32,7 +32,7 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 8. **Write it the owner's way:** follow "Code rules" below. Installing a package? Open the `dependencies` skill and verify it first.
 9. **Update the docs** your change makes wrong, in the same pull request.
 10. **Run every check** in "Commands that work here" in `AGENTS.md`: lint, typecheck, the boundary check, tests and build. All of it must pass.
-11. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body and, for each acceptance check, the test that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
+11. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body and, for each AC ID, the test file that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
    - Aim for under about 400 changed lines, not counting lockfiles and generated files. Bigger? Split it, or label it `large-pr` and say why.
    - **Hands-on** automation (see "Automation level" in `docs/stack.md`)? Don't open it unless the person said to. Push the branch and tell them its name and the check results.
    - Then add `node .agents/skills/coordinate/scripts/board.mjs event pr-opened issue=<n> pr=<n> title="..."`.
@@ -40,7 +40,7 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 
 ## Code rules
 
-The owner's preferences. Lint catches some. You follow all of them. The reasons are in `guide/code-style.md`, `guide/testing.md` and `guide/app-conventions.md` in the kit.
+The owner's preferences. Lint catches some. You follow all of them.
 
 - **Reuse first.** Search for an existing helper, component or util before you write one.
 - **Simplest thing that passes.** No new abstraction, layer, factory or generic until a second real use exists.
@@ -53,7 +53,7 @@ The owner's preferences. Lint catches some. You follow all of them. The reasons 
 
 ## App rules
 
-The shape is in `docs/architecture.md`. The reasons are in `guide/app-conventions.md`.
+The shape is in `docs/architecture.md`.
 
 - **Rule of three:** search for an existing component first. Extract a shared one the third time, not before.
 - **State:** local `useState` or `useReducer` by default. Anything shareable or refresh-safe (filters, tabs, the selected item, the page) in typed search params. Zustand only for complex shared client state. Server data in TanStack Query, never copied to a store. Forms in TanStack Form, tables in TanStack Table. No props through more than two levels.
@@ -78,7 +78,13 @@ The shape is in `docs/architecture.md`. The reasons are in `guide/app-convention
 
 ## References
 
-The full rules, with the reason for each: `references/code-style.md`, `references/testing.md` and `references/app-conventions.md` in this skill's folder.
+Load a file only when its row fits.
+
+| File | Load when |
+|---|---|
+| `references/testing.md` | A test is hard to write, or you're unsure what to mock or whether a snapshot fits. |
+| `references/code-style.md` | A code rule above is unclear, or you think one should bend here. |
+| `references/app-conventions.md` | An app rule above is unclear and `docs/architecture.md` doesn't settle it. |
 
 ---
 

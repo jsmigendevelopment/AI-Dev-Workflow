@@ -52,4 +52,4 @@ pass 1    ████   ████   ████   ████   ███�
 
 - Every slice in pass 1 ends with something a person can **try.** If they can't, it isn't a slice yet.
 - Don't start pass 2 of anything until pass 1 of the core works.
-- After each pass the person tries the app, and their feedback reshapes the next pass. Everything above the current pass is a draft.
+- After each pass the person tries the app, and their feedback reshapes the next pass. Everything above the current pass is a draft. A re-plan hands off to `issues` too, which ends with its consistency check.
