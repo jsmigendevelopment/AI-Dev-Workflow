@@ -29,7 +29,7 @@ With no keys: the app builds, tests pass, the page says "Billing isn't set up ye
 
 ## Apply
 
-1. Copy `files/` into the project root. The CLI does this step: `npx ai-dev-workflow add tanstack-start/stripe`.
+1. Copy `files/` into the project root. The CLI does this step: `npx onrails add tanstack-start/stripe`.
 2. Install: `pnpm add stripe@23.1.0`.
 3. `src/env.d.ts`: inside `interface Env`, add:
    ```ts

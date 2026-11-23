@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // The board: one page per project that shows what needs the person, what's being built,
 // what's in review and what merged today. It lives OUTSIDE the repo, never committed:
-//   ~/.ai-dev-workflow/boards/<project>.md            the board the person keeps open
-//   ~/.ai-dev-workflow/boards/<project>.events.jsonl  append-only, so many threads can write
-//   ~/.ai-dev-workflow/boards/<project>.github.json   the last GitHub snapshot it was given
+//   ~/.onrails/boards/<project>.md            the board the person keeps open
+//   ~/.onrails/boards/<project>.events.jsonl  append-only, so many threads can write
+//   ~/.onrails/boards/<project>.github.json   the last GitHub snapshot it was given
+// Until the person moves it, ~/.ai-dev-workflow/ (the old name) is used instead of ~/.onrails/.
 // The profile can move it: [board] dir = "<folder>" (for example a Google Drive folder).
 //
 //   node board.mjs event <type> key=value ...      or   node board.mjs event <type> '<json>'
@@ -24,9 +25,13 @@ import { homedir, hostname } from "node:os";
 import { basename, join } from "node:path";
 
 const TYPES = ["started", "pr-opened", "review", "needs-you", "decision", "merged", "finished", "fyi", "failed"];
-const HOME_DIR = join(homedir(), ".ai-dev-workflow");
+// ~/.onrails, or ~/.ai-dev-workflow (its name before the rename to onRails) while only that one exists.
+const NEW_HOME = join(homedir(), ".onrails"), OLD_HOME = join(homedir(), ".ai-dev-workflow");
+const HOME_DIR = !existsSync(NEW_HOME) && existsSync(OLD_HOME) ? OLD_HOME : NEW_HOME;
 const DAY = 864e5;
-const now = () => (process.env.ADW_NOW ? new Date(process.env.ADW_NOW) : new Date());
+// ONRAILS_NOW sets the clock (for tests); ADW_NOW is its name before the rename.
+const NOW = process.env.ONRAILS_NOW || process.env.ADW_NOW;
+const now = () => (NOW ? new Date(NOW) : new Date());
 
 // ---------- arguments, project, profile ----------
 
@@ -83,7 +88,7 @@ function addEvent(type, rest) {
   if (!TYPES.includes(type)) throw new Error(`Unknown event type "${type}". Use one of: ${TYPES.join(", ")}`);
   const fields = parseFields(rest.filter((a, i) => a !== "--project" && rest[i - 1] !== "--project"));
   for (const k of ["issue", "pr"]) if (fields[k] !== undefined) fields[k] = Number(String(fields[k]).replace("#", "")) || undefined;
-  const entry = { ts: now().toISOString(), type, host: hostname(), thread: process.env.ADW_THREAD || undefined, ...fields };
+  const entry = { ts: now().toISOString(), type, host: hostname(), thread: process.env.ONRAILS_THREAD || process.env.ADW_THREAD || undefined, ...fields };
   mkdirSync(BOARD_DIR, { recursive: true });
   appendFileSync(EVENTS, JSON.stringify(entry) + "\n"); // one small append per event: safe across threads
   console.log(JSON.stringify({ ok: true, file: EVENTS }));

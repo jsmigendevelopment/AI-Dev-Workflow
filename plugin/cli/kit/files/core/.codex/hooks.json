@@ -1,5 +1,5 @@
 {
-  "description": "AI-Dev-Workflow kit: the same scripts as the Claude Code hooks in .claude/settings.json. Codex runs them only in a trusted project, after you trust each hook in /hooks. Windows (cmd.exe) uses commandWindows, which assumes Codex was opened at the repo root.",
+  "description": "onRails: the same scripts as the Claude Code hooks in .claude/settings.json. Codex runs them only in a trusted project, after you trust each hook in /hooks. Windows (cmd.exe) uses commandWindows, which assumes Codex was opened at the repo root.",
   "hooks": {
     "SessionStart": [
       {

@@ -4,7 +4,7 @@
 
 **Confidence: high** for the code stack (FastAPI, uv, ruff, pyright, pytest, import-linter). **Medium-low** for Cloudflare Python Workers as the deploy target, until someone runs the example module there and measures CPU per request.
 
-Source: `guide/platform-packs-research.md`, section 3, and fact-check rows 36 to 49. Marks: [V] verified, [S] secondary, [I] inferred, as in the dossier.
+Source: `research/platform-packs.md`, section 3, and fact-check rows 36 to 49. Marks: [V] verified, [S] secondary, [I] inferred, as in the dossier.
 
 ## When to choose it
 

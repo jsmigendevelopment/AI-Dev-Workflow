@@ -1,6 +1,6 @@
 ---
-name: Kit idea
-about: Suggest a new skill, stack pack, add-on or change to the AI-Dev-Workflow kit
+name: onRails idea
+about: Suggest a new skill, stack pack, add-on or change to onRails
 title: "[idea] <the idea in a few words>"
 labels: enhancement
 ---

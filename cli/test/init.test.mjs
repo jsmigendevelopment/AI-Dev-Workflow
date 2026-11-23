@@ -11,10 +11,10 @@ test("init into an empty folder installs the kit and a manifest", () => {
     ".codex/rules/git-safety.rules", ".agents/skills/idea/SKILL.md", ".claude/skills/idea/SKILL.md",
     ".github/ISSUE_TEMPLATE/slice.md"]) assert.ok(exists(dir, path), path);
   assert.ok(!exists(dir, "stacks"), "stack packs are not installed by init");
-  const manifest = JSON.parse(read(dir, ".ai-dev-workflow.json"));
+  const manifest = JSON.parse(read(dir, ".onrails.json"));
   assert.equal(manifest.kitVersion, "0.4.0");
   assert.match(manifest.files["AGENTS.md"], /^[0-9a-f]{64}$/);
-  assert.ok(!(".ai-dev-workflow.json" in manifest.files));
+  assert.ok(!(".onrails.json" in manifest.files));
   assert.match(log.text(), /\/idea/);
   assert.match(log.text(), /trusted/);
 });
@@ -38,7 +38,7 @@ test("init keeps existing AGENTS.md, CLAUDE.md, settings.json and config.toml", 
   assert.equal(init(dir, { log }), 0);
 
   assert.equal(read(dir, "AGENTS.md"), "# Our rules\n");
-  assert.match(read(dir, "AGENTS.kit.md"), /Standing rules/);
+  assert.match(read(dir, "AGENTS.onrails.md"), /Standing rules/);
   assert.match(log.text(), /\/join/);
 
   assert.equal(read(dir, "CLAUDE.md"), "Be nice.\n@AGENTS.md\n");
@@ -53,15 +53,15 @@ test("init keeps existing AGENTS.md, CLAUDE.md, settings.json and config.toml", 
   assert.ok(settings.permissions.deny.includes("Bash(git push --force:*)"));
 
   assert.equal(read(dir, ".codex/config.toml"), 'model = "gpt"\n');
-  assert.ok(exists(dir, ".codex/config.kit.toml"));
-  assert.match(log.text(), /config\.kit\.toml/);
+  assert.ok(exists(dir, ".codex/config.onrails.toml"));
+  assert.match(log.text(), /config\.onrails\.toml/);
 
   assert.equal(read(dir, ".agents/skills/idea/SKILL.md"), "my own idea skill\n");
-  assert.ok(exists(dir, ".agents/skills/idea/SKILL.md.kit-new"));
+  assert.ok(exists(dir, ".agents/skills/idea/SKILL.md.onrails-new"));
 
-  const files = JSON.parse(read(dir, ".ai-dev-workflow.json")).files;
-  assert.ok("AGENTS.kit.md" in files && !("AGENTS.md" in files));
-  assert.ok(".codex/config.kit.toml" in files && !(".codex/config.toml" in files));
+  const files = JSON.parse(read(dir, ".onrails.json")).files;
+  assert.ok("AGENTS.onrails.md" in files && !("AGENTS.md" in files));
+  assert.ok(".codex/config.onrails.toml" in files && !(".codex/config.toml" in files));
   assert.ok(!("CLAUDE.md" in files) && !(".claude/settings.json" in files));
   assert.notEqual(files[".agents/skills/idea/SKILL.md"], undefined, "offered copy recorded, so update stays quiet");
 });
@@ -92,14 +92,14 @@ test("init installs the Codex hooks, wired to the same scripts as the Claude Cod
     assert.ok(handler.commandWindows.startsWith(`node ${script}`), "cmd.exe gets a command without sh syntax");
   }
   assert.ok(codex.SessionEnd[0].hooks[0].timeout <= 3, "Codex caps SessionEnd hooks at 3 seconds");
-  assert.match(read(dir, ".codex/config.toml"), /^writable_roots = \["~\/\.ai-dev-workflow"\]$/m);
-  assert.ok(".codex/hooks.json" in JSON.parse(read(dir, ".ai-dev-workflow.json")).files);
+  assert.match(read(dir, ".codex/config.toml"), /^writable_roots = \["~\/\.onrails", "~\/\.ai-dev-workflow"\]$/m);
+  assert.ok(".codex/hooks.json" in JSON.parse(read(dir, ".onrails.json")).files);
 });
 
-test("init keeps an existing .codex/hooks.json and offers the kit's as .kit-new", () => {
+test("init keeps an existing .codex/hooks.json and offers the kit's as .onrails-new", () => {
   const dir = tmp();
   put(dir, ".codex/hooks.json", '{"hooks":{}}\n');
   init(dir, { log: logger() });
   assert.equal(read(dir, ".codex/hooks.json"), '{"hooks":{}}\n');
-  assert.match(read(dir, ".codex/hooks.json.kit-new"), /session-start\.mjs/);
+  assert.match(read(dir, ".codex/hooks.json.onrails-new"), /session-start\.mjs/);
 });

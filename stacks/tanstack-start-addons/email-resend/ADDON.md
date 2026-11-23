@@ -25,7 +25,7 @@ With no key, the app builds and tests pass, and every send fails closed.
 
 ## Apply
 
-1. Copy `files/` into the project root. The CLI does this step: `npx ai-dev-workflow add tanstack-start/email-resend`.
+1. Copy `files/` into the project root. The CLI does this step: `npx onrails add tanstack-start/email-resend`.
 2. `src/env.d.ts`: inside `interface Env`, add:
    ```ts
    RESEND_API_KEY?: string

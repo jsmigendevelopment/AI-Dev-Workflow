@@ -32,8 +32,8 @@ packages/
 ## Slice 0: apply the pack
 
 ```sh
-npx degit jsmigendevelopment/AI-Dev-Workflow/stacks/monorepo-expo .
-npx degit jsmigendevelopment/AI-Dev-Workflow/stacks/tanstack-start apps/web
+npx degit jsmigendevelopment/onRails/stacks/monorepo-expo .
+npx degit jsmigendevelopment/onRails/stacks/tanstack-start apps/web
 ```
 
 (or the kit CLI, which does both). Then fold the web pack into the monorepo:

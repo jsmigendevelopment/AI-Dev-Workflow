@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { hash, toNative, writeFile } from "../src/files.mjs";
 import { storedName } from "../src/kit.mjs";
 
-export const tmp = (prefix = "adw-") => mkdtempSync(join(tmpdir(), prefix));
+export const tmp = (prefix = "onrails-") => mkdtempSync(join(tmpdir(), prefix));
 
 export function logger() {
   const lines = [];
@@ -20,7 +20,7 @@ export const put = (dir, path, text) => writeFile(toNative(dir, path), text);
 
 // A kit folder with the given core files ({ path: text }); returns its path.
 export function makeKit(version, core, packs = {}) {
-  const dir = tmp("adw-kit-");
+  const dir = tmp("onrails-kit-");
   const shas = {};
   for (const [path, text] of Object.entries(core)) {
     writeFile(toNative(join(dir, "files", "core"), storedName(path)), text);
@@ -32,7 +32,7 @@ export function makeKit(version, core, packs = {}) {
 
 // A fake outside world for doctor: which commands exist, what probes answer, what ran.
 // probes: { "cmd args": { ok, out, all } | null } overrides the default (ok if cmd exists).
-export function fakeSystem({ platform = "linux", commands = [], probes = {}, isRoot = false, home = tmp("adw-home-"), env = {} } = {}) {
+export function fakeSystem({ platform = "linux", commands = [], probes = {}, isRoot = false, home = tmp("onrails-home-"), env = {} } = {}) {
   const ran = [];
   const has = (name) => commands.includes(name);
   const probe = (cmd, args) => {

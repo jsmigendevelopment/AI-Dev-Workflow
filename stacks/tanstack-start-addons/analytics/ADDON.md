@@ -19,7 +19,7 @@ Without a token the build has no analytics and makes no third-party request.
 
 ## Apply
 
-1. Copy `files/` into the project root. The CLI does this step: `npx ai-dev-workflow add tanstack-start/analytics`.
+1. Copy `files/` into the project root. The CLI does this step: `npx onrails add tanstack-start/analytics`.
 2. In `src/routes/__root.tsx`, import the component and render it in `RootDocument`, just before `<Scripts />`:
    ```tsx
    import { WebAnalytics } from '@/components/web-analytics'

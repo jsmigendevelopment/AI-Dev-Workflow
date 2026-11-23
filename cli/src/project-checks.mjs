@@ -3,8 +3,8 @@ import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { envChecks } from "./envfiles.mjs";
 import { readJson, toNative, walk } from "./files.mjs";
-import { loadKit } from "./kit.mjs";
-import { readProjectManifest } from "./sync.mjs";
+import { OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
+import { projectManifestName, readProjectManifest } from "./sync.mjs";
 import { MARKS } from "./marks.mjs";
 
 function sameTree(a, b) {
@@ -17,19 +17,22 @@ export function projectChecks(projectDir, { kitDir, sys }) {
   const { OK, FAIL, INFO } = MARKS;
   const checks = [];
   const add = (status, label, fix, required = true, remedy) => checks.push({ status, label, fix, required, remedy });
-  const init = { print: ["npx ai-dev-workflow init"] };
+  const init = { print: ["npx onrails init"] };
 
   const manifest = readProjectManifest(projectDir);
   let cliKit = null;
   try { cliKit = loadKit(kitDir).version; } catch { /* reported below */ }
-  if (!manifest) add(FAIL, "Kit not installed here", "Run: npx ai-dev-workflow init", true, init);
+  if (!manifest) add(FAIL, "Kit not installed here", "Run: npx onrails init", true, init);
   else if (cliKit && manifest.kitVersion !== cliKit) {
-    add(FAIL, `Kit v${manifest.kitVersion} installed, this CLI has v${cliKit}`, "Run: npx ai-dev-workflow@latest update", false,
-      { print: ["npx ai-dev-workflow@latest update"] });
+    add(FAIL, `Kit v${manifest.kitVersion} installed, this CLI has v${cliKit}`, "Run: npx onrails@latest update", false,
+      { print: ["npx onrails@latest update"] });
   } else add(OK, `Kit v${manifest.kitVersion} installed`);
+  if (projectManifestName(projectDir) === OLD_PROJECT_MANIFEST) {
+    add(INFO, `The kit's record still has its old name, ${OLD_PROJECT_MANIFEST} (it works). npx onrails update offers to rename it ${PROJECT_MANIFEST}`);
+  }
 
   const hasAgents = existsSync(toNative(projectDir, "AGENTS.md"));
-  add(hasAgents ? OK : FAIL, hasAgents ? "AGENTS.md present" : "AGENTS.md missing", "Run: npx ai-dev-workflow init", true, init);
+  add(hasAgents ? OK : FAIL, hasAgents ? "AGENTS.md present" : "AGENTS.md missing", "Run: npx onrails init", true, init);
 
   const a = toNative(projectDir, ".agents/skills"), c = toNative(projectDir, ".claude/skills");
   if (!existsSync(a) && !existsSync(c)) add(INFO, "No skills folders yet");

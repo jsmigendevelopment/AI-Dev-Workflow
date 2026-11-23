@@ -11,8 +11,8 @@ The pack is `stacks/monorepo-expo/` in this kit: pnpm 12 workspaces and Turborep
 
 1. In the new project folder:
    ```sh
-   npx degit jsmigendevelopment/AI-Dev-Workflow/stacks/monorepo-expo .
-   npx degit jsmigendevelopment/AI-Dev-Workflow/stacks/tanstack-start apps/web
+   npx degit jsmigendevelopment/onRails/stacks/monorepo-expo .
+   npx degit jsmigendevelopment/onRails/stacks/tanstack-start apps/web
    ```
    If degit fails, sparse-clone the kit and copy both folders, as in `stack-tanstack-start`.
 2. Fold the web pack in: delete `apps/web/pnpm-workspace.yaml` and `apps/web/pnpm-lock.yaml` (copy any `allowBuilds` or `minimumReleaseAgeExclude` entries the root lacks into the root `pnpm-workspace.yaml` first), delete `apps/web/.github/workflows/ci.yml` (the root one covers it; port any step it has that the root lacks), move `apps/web/.github/dependabot.yml` to `.github/` with npm `directory: /`, and delete `apps/web/lefthook.yml`. Then set `"CLERK_ALLOW_NATIVE_TOKENS": "true"` in all three `vars` blocks of `apps/web/wrangler.jsonc`: the mobile app sends no Origin, so its Clerk tokens have no `azp`, and the web pack refuses those without it (the `stack-tanstack-start` skill, Sign-in).

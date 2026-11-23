@@ -23,7 +23,7 @@ export async function doctorFix(dir = ".", { kitDir, sys = realSystem(), ask, ye
     if (!fixed && ch.required) unfixed++;
   }
   if (dryRun) return requiredFailed(checks) ? 1 : 0;
-  log("\nRun npx ai-dev-workflow doctor again to check.");
+  log("\nRun npx onrails doctor again to check.");
   return unfixed ? 1 : 0;
 }
 

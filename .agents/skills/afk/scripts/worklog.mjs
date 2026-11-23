@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // Work log: timestamps for sessions, /back and /afk, kept OUTSIDE the repo at
-//   ~/.ai-dev-workflow/worklog/<project>.jsonl
+//   ~/.onrails/worklog/<project>.jsonl
 // so it's never committed. Opt-in: only writes when a profile has
 //   [worklog]
 //   enabled = true
-// (docs/profile.toml in the project, or ~/.ai-dev-workflow/profile.toml).
+// (docs/profile.toml in the project, or ~/.onrails/profile.toml).
+// Until the person moves it, ~/.ai-dev-workflow/ (the old name) is used instead of ~/.onrails/.
 //
 //   node worklog.mjs log <event> [note]     event: session-start | session-end | back | afk | active
 //   node worklog.mjs active                 throttled heartbeat (prompt hook): at most every 5 min
-//   node worklog.mjs presence [afk <note> | back | announced]   read or set ~/.ai-dev-workflow/presence.json
+//   node worklog.mjs presence [afk <note> | back | announced]   read or set ~/.onrails/presence.json
 //   node worklog.mjs report [--days N]      hours per day for this project (default 7 days)
 //   node worklog.mjs report --all           every project
 //   node worklog.mjs pending [--mark]       entries not yet copied to the Google Sheet
@@ -20,7 +21,9 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, write
 import { homedir, hostname } from "node:os";
 import { basename, join } from "node:path";
 
-const HOME_DIR = join(homedir(), ".ai-dev-workflow");
+// ~/.onrails, or ~/.ai-dev-workflow (its name before the rename to onRails) while only that one exists.
+const NEW_HOME = join(homedir(), ".onrails"), OLD_HOME = join(homedir(), ".ai-dev-workflow");
+const HOME_DIR = !existsSync(NEW_HOME) && existsSync(OLD_HOME) ? OLD_HOME : NEW_HOME;
 let LOG_DIR = join(HOME_DIR, "worklog");
 let MODE = "explicit";      // explicit: /afk stops the clock | activity: a quiet gap stops it (profile: mode)
 let AWAY_GAP_MIN = 60;      // activity mode: no activity anywhere for this long counts as away (profile: away_after_minutes)
@@ -163,7 +166,7 @@ try {
     }
   }
   else if (cmd === "presence") {
-    // A sandbox that can't write the home folder (Codex without ~/.ai-dev-workflow in
+    // A sandbox that can't write the home folder (Codex without ~/.onrails in
     // writable_roots) must not look like success: say so in the JSON.
     let saved = true;
     const write = (fn) => { try { fn(); } catch { saved = false; } };
@@ -171,7 +174,7 @@ try {
     else if (a1 === "back") write(() => { setPresence("here", ""); log("back"); });
     else if (a1 === "announced") write(() => { const cur = readPresence(); cur.announced = true; writeFileSync(PRESENCE, JSON.stringify(cur) + "\n"); });
     const p = readPresence();
-    if (!saved) Object.assign(p, { saved: false, warning: `could not save ${PRESENCE} (a sandbox? allow writes to ~/.ai-dev-workflow)` });
+    if (!saved) Object.assign(p, { saved: false, warning: `could not save ${PRESENCE} (a sandbox? allow writes to ${HOME_DIR})` });
     // justReturned: this person came back from an /afk in the last 10 minutes, so /back should tell the other threads.
     p.justReturned = p.status === "here" && !!p.returnedAt && !p.announced && Date.now() - Date.parse(p.returnedAt) < 10 * 60e3;
     console.log(JSON.stringify(p));

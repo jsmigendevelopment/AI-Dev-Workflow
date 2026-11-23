@@ -2,14 +2,14 @@
 // skills folders, so /idea and /join work in a folder before the kit is installed there.
 //   Claude Code: ~/.claude/skills (personal skills)
 //   Codex:       ~/.agents/skills (user skills; Codex calls $CODEX_HOME/skills deprecated)
-// Never overwrites: a file you already have that differs gets the kit's copy as <file>.kit-new.
+// Never overwrites: a file you already have that differs gets the kit's copy as <file>.onrails-new.
 // The plugin (plugin/, marketplace "onrails") is now the recommended way to get the same four
 // skills. Don't use both: a personal copy beats the project's copy, the plugin's doesn't.
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { hash, hashFile, toNative, writeFile } from "./files.mjs";
-import { loadKit } from "./kit.mjs";
+import { NEW_SUFFIX, loadKit } from "./kit.mjs";
 import { FAIL, OK } from "./marks.mjs";
 
 export const ENTRY_SKILLS = ["idea", "join", "back", "afk"];
@@ -54,8 +54,8 @@ export function initGlobal({ kitDir, home, log = console.log } = {}) {
       if (current === null) writeFile(target, data), counts.added++;
       else if (current === hash(data)) counts.unchanged++;
       else {
-        writeFile(`${target}.kit-new`, data), counts.kept++;
-        log(`  yours kept, kit's copy in ${label}/${path}.kit-new`);
+        writeFile(`${target}${NEW_SUFFIX}`, data), counts.kept++;
+        log(`  yours kept, kit's copy in ${label}/${path}${NEW_SUFFIX}`);
       }
     }
     log(`  ${label}: ${Object.entries(counts).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(", ")}.`);
@@ -80,8 +80,8 @@ export function globalSkillChecks({ kitDir, home } = {}) {
       ? {
         status: FAIL, required: false,
         label: `${label}: ${stale.join(", ")} differ from this CLI's kit v${kit.version}`,
-        fix: `Run: ${RERUN}, then compare each .kit-new with yours`,
-        remedy: { print: [`${RERUN}   (then compare each .kit-new with yours and delete it)`] },
+        fix: `Run: ${RERUN}, then compare each ${NEW_SUFFIX} with yours`,
+        remedy: { print: [`${RERUN}   (then compare each ${NEW_SUFFIX} with yours and delete it)`] },
       }
       : { status: OK, label: `${label}: entry skills match kit v${kit.version}` });
   }

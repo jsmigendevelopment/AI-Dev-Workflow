@@ -1,7 +1,7 @@
-# Your personal AI-Dev-Workflow profile.
+# Your personal onRails profile.
 # Only things that stay the same from app to app. No secrets: this file is copied into projects.
 #
-# Keep your copy at ~/.ai-dev-workflow/profile.toml. /idea copies it into a new project
+# Keep your copy at ~/.onrails/profile.toml. /idea copies it into a new project
 # as docs/profile.toml, and the grill confirms these as defaults instead of asking.
 # Delete any line you'd rather be asked about every time.
 
@@ -48,12 +48,12 @@ ask_before_strongest = true     # ask before starting anything on the strongest 
 
 [worklog]
 # Track your work hours from session starts and ends, /back and /afk.
-# Kept in ~/.ai-dev-workflow/worklog/, never in a repo.
+# Kept in ~/.onrails/worklog/, never in a repo.
 # Report with: node .agents/skills/afk/scripts/worklog.mjs report
 enabled = false
 mode = "explicit"          # explicit: your first prompt starts the clock, /afk stops it | activity: a quiet gap stops it
 away_after_minutes = 60   # activity mode only: no prompt in any thread for this long counts as away
-# dir = "G:/My Drive/ai-dev-workflow/worklog"   # optional: a Google Drive desktop folder, so it syncs
+# dir = "G:/My Drive/onrails/worklog"   # optional: a Google Drive desktop folder, so it syncs
 # sheet = "https://docs.google.com/spreadsheets/d/..."   # optional: cloud sessions append here via the Google Sheets connector
 
 [notify]
@@ -65,8 +65,8 @@ desktop = true                  # false: phone only
 
 [board]
 # One page per project with what needs you, what's being built and what merged today.
-# Kept in ~/.ai-dev-workflow/boards/, never in a repo.
-# dir = "G:/My Drive/ai-dev-workflow/boards"   # optional: a Google Drive desktop folder, so you can read it on your phone
+# Kept in ~/.onrails/boards/, never in a repo.
+# dir = "G:/My Drive/onrails/boards"   # optional: a Google Drive desktop folder, so you can read it on your phone
 # sheet = "https://docs.google.com/spreadsheets/d/..."   # optional: a Google Sheet copy that cloud threads can update ("off": don't offer one)
 
 [workflow]

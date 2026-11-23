@@ -16,10 +16,12 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - **Cloudflare's agent setup, offered in slice 0.** The TanStack Start skill offers Cloudflare's skills and MCP server for Claude Code or Codex, from a reviewed copy dated 2026-11-22. Creating resources still goes through `setup-cloudflare`.
 - **The onRails plugin** for Claude Code and Codex: `/plugin marketplace add jsmigendevelopment/onRails`, then `/plugin install core@onrails`. It gives you `/or:idea`, `/or:join`, `/or:back` and `/or:afk` in any folder. Each one hands off to the project's copy, or offers to install the kit from a CLI copy inside the plugin, with no npm. `sync-skills` makes the skills, `npm run bundle` makes `plugin/cli/`, and CI validates both. `doctor` reports the plugin's version. `init --global` now points to the plugin.
 - **Click-by-click key setup, per provider.** `secrets` now walks you through one provider at a time from `secrets/providers/` (Cloudflare, GitHub, Clerk, Google, GitHub OAuth, Facebook, LinkedIn, Yandex, Entra, Stripe, Resend, Sentry, Supabase, Expo): deep links, copy blocks, the provider's CLI where there is one, and what you'll see when it worked. Each file is dated, lists the official docs it was checked against, and marks unchecked steps. The agent re-checks those docs before each walkthrough and opens an issue when they differ. Keys are asked for right after planning, so the first test deploy never waits on one. setup-cloudflare's Access login steps now point to the same files.
-- **A plan for shipping the kit as a Claude Code plugin:** [`guide/plugin-plan.md`](guide/plugin-plan.md).
+- **A plan for shipping the kit as a Claude Code plugin:** [`research/plugin-plan.md`](research/plugin-plan.md).
 
 ### Changed
 
+- **The kit is renamed onRails everywhere (#31).** The npm package and command are `onrails` (`npx onrails init`); the `ai-dev-workflow` and `adw` commands are gone. Files the kit puts next to yours are now `AGENTS.onrails.md`, `.codex/config.onrails.toml` and `<file>.onrails-new` (were `AGENTS.kit.md`, `config.kit.toml` and `.kit-new`). The home folder is `~/.onrails/` (was `~/.ai-dev-workflow/`) and the project record is `.onrails.json` (was `.ai-dev-workflow.json`). Degit and GitHub links point to `jsmigendevelopment/onRails`, and the skills, hooks, guides, stack READMEs, issue templates and `AGENTS.md` footer say onRails. Older setups keep working: the CLI, `notify.mjs`, `worklog.mjs`, `board.mjs`, `setup-github.mjs` and the session-start hook read the old folder and record while the new ones are missing; every CLI command but `doctor` offers to move `~/.ai-dev-workflow/` (`[y/N]`, `--yes` moves it) and `doctor --fix` offers it too; `update` offers to rename the record, replaces an untouched `AGENTS.kit.md` or `config.kit.toml` with the new name, keeps one you edited, and lists `.kit-new` copies still waiting; `/join` merges either name; the scripts still read `ADW_NOW`, `ADW_NOTIFY_PRINT` and `ADW_THREAD`; and Codex may write to both folders. Nothing is deleted without a yes. The hook commands are unchanged, so `update` adds no duplicate hooks. The unused `assets/choose-your-path.svg` is gone.
+- **Research and plans move out of `guide/` into `research/`** (#31), with a `research/README.md` that says what each one decided. `guide/` now holds only how-to guides, and `research/` is never copied into a project.
 - **Bundle budgets (#7):** unchanged for `/` (145 KB gzip, measured 136.4) and `/notes` (170 KB, measured 143.9); new ones for a note's page (170 KB, measured 144.0) and the lazy chunks for the note forms (42 KB, measured 36.7) and the toaster (12 KB, measured 9.2). Start splits every route on its own: `autoCodeSplitting` isn't an option there, and the build shows one chunk per route.
 - **The README is rewritten under the name onRails** (#22): the plugin first, a run from idea to the test site, the guardrails, the packs and add-ons. It says plainly that `npx onrails` isn't published yet. The banner says onRails, and the cheat sheet shows `/or:idea` next to the project's `/idea`.
 
@@ -120,8 +122,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - The first kit: `AGENTS.md`, skills for the product grill, the tech grill, research, the tracer-bullet pyramid, issues, model routing, the build loop, reviews and browser tests, plus templates and a guide.
 - Skills live in `.agents/skills` for Codex and are copied to `.claude/skills` for Claude Code. CI checks the copies match.
 
-[Unreleased]: https://github.com/jsmigendevelopment/AI-Dev-Workflow/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/jsmigendevelopment/AI-Dev-Workflow/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/jsmigendevelopment/AI-Dev-Workflow/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/jsmigendevelopment/AI-Dev-Workflow/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/jsmigendevelopment/AI-Dev-Workflow/releases/tag/v0.1.0
+[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/jsmigendevelopment/onRails/releases/tag/v0.1.0

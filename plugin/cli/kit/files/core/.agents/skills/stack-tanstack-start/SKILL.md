@@ -9,10 +9,10 @@ The pack is `stacks/tanstack-start/` in this kit. TanStack Start, shadcn/ui and 
 
 ## Slice 0: apply the pack
 
-1. In the new project folder: `npx degit jsmigendevelopment/AI-Dev-Workflow/stacks/tanstack-start .`
+1. In the new project folder: `npx degit jsmigendevelopment/onRails/stacks/tanstack-start .`
 2. If degit fails, use a sparse clone:
    ```sh
-   git clone --depth 1 --filter=blob:none --sparse https://github.com/jsmigendevelopment/AI-Dev-Workflow.git /tmp/kit
+   git clone --depth 1 --filter=blob:none --sparse https://github.com/jsmigendevelopment/onRails.git /tmp/kit
    git -C /tmp/kit sparse-checkout set stacks/tanstack-start
    cp -R /tmp/kit/stacks/tanstack-start/. . && rm -rf /tmp/kit
    ```

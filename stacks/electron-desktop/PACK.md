@@ -4,7 +4,7 @@
 
 **Confidence: medium.** Electron is the pick when the app needs embedded Chromium views, a session partition per account, or Node native modules such as a terminal. Clerk is an optional module, not the reason to choose it. Its Electron SDK is beta. If an app needs none of those things, Tauri is close to a coin flip, and it wins on size.
 
-Sources: `guide/electron-pack-research.md` (the dossier, with its fact-check table), and `guide/platform-packs-research.md`, section 2 and fact-check rows 19 to 35. Marks: [V] verified, [S] secondary, [I] inferred, as in the dossier.
+Sources: `research/electron-pack.md` (the dossier, with its fact-check table), and `research/platform-packs.md`, section 2 and fact-check rows 19 to 35. Marks: [V] verified, [S] secondary, [I] inferred, as in the dossier.
 
 ## When to choose it
 

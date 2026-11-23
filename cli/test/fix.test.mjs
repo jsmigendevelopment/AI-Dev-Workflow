@@ -23,7 +23,7 @@ test("Linux with apt plans sudo apt-get installs, corepack for pnpm, and prints 
   assert.doesNotMatch(out, /npm install -g corepack/);
   assert.match(out, /you do this yourself: Claude Code: curl -fsSL https:\/\/claude\.ai\/install\.sh \| bash/);
   assert.match(out, /you do this yourself: Codex: npm install -g @openai\/codex/);
-  assert.match(out, /you do this yourself: npx ai-dev-workflow init/);
+  assert.match(out, /you do this yourself: npx onrails init/);
 });
 
 test("Linux as root with dnf drops sudo; pacman uses github-cli; no manager prints the link", async () => {

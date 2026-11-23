@@ -24,19 +24,19 @@ test("profile init asks, keeps defaults on Enter, re-asks bad choices, and write
 
 test("profile init never overwrites without asking", async () => {
   const home = tmp();
-  put(home, ".ai-dev-workflow/profile.toml", "mine\n");
+  put(home, ".onrails/profile.toml", "mine\n");
   assert.equal(await profileInit({ home, ask: fakeAsk(["n"]), log: logger() }), 0);
-  assert.equal(read(home, ".ai-dev-workflow/profile.toml"), "mine\n");
+  assert.equal(read(home, ".onrails/profile.toml"), "mine\n");
   assert.equal(await profileInit({ home, yes: true, log: logger() }), 1, "--yes does not replace it");
-  assert.equal(read(home, ".ai-dev-workflow/profile.toml"), "mine\n");
+  assert.equal(read(home, ".onrails/profile.toml"), "mine\n");
   assert.equal(await profileInit({ home, ask: fakeAsk(["y", "me"]), log: logger() }), 0);
-  assert.match(read(home, ".ai-dev-workflow/profile.toml"), /^github_owner = "me"/m);
+  assert.match(read(home, ".onrails/profile.toml"), /^github_owner = "me"/m);
 });
 
 test("profile init --yes takes the template's defaults", async () => {
   const home = tmp();
   assert.equal(await profileInit({ home, yes: true, log: logger() }), 0);
-  assert.match(read(home, ".ai-dev-workflow/profile.toml"), /^github_plan = "free"/m);
+  assert.match(read(home, ".onrails/profile.toml"), /^github_plan = "free"/m);
 });
 
 test("profile show prints it, or says how to make one", async () => {
@@ -44,7 +44,7 @@ test("profile show prints it, or says how to make one", async () => {
   const none = logger();
   assert.equal(profileShow({ home, log: none }), 1);
   assert.match(none.text(), /profile init/);
-  put(home, ".ai-dev-workflow/profile.toml", 'github_owner = "octo"\n');
+  put(home, ".onrails/profile.toml", 'github_owner = "octo"\n');
   const log = logger();
   assert.equal(profileShow({ home, log }), 0);
   assert.match(log.text(), /github_owner = "octo"/);
@@ -52,10 +52,10 @@ test("profile show prints it, or says how to make one", async () => {
 
 test("profile copy writes docs/profile.toml and asks before replacing a different one", async () => {
   const home = tmp(), dir = tmp();
-  put(home, ".ai-dev-workflow/profile.toml", "v1\n");
+  put(home, ".onrails/profile.toml", "v1\n");
   assert.equal(await profileCopy(dir, { home, log: logger() }), 0);
   assert.equal(read(dir, "docs/profile.toml"), "v1\n");
-  put(home, ".ai-dev-workflow/profile.toml", "v2\n");
+  put(home, ".onrails/profile.toml", "v2\n");
   await profileCopy(dir, { home, ask: fakeAsk(["n"]), log: logger() });
   assert.equal(read(dir, "docs/profile.toml"), "v1\n");
   await profileCopy(dir, { home, ask: fakeAsk(["y"]), log: logger() });
@@ -64,7 +64,7 @@ test("profile copy writes docs/profile.toml and asks before replacing a differen
 
 test("init copies the home profile into a project without one, and leaves an existing one", () => {
   const home = tmp();
-  put(home, ".ai-dev-workflow/profile.toml", "home profile\n");
+  put(home, ".onrails/profile.toml", "home profile\n");
   const dir = tmp();
   const log = logger();
   init(dir, { home, log });

@@ -76,7 +76,7 @@ Then type `$idea` or `$join`.
 
 ### From npm: not yet
 
-The package will be `onrails`, and the command will be `npx onrails init`. **It isn't published yet. Don't run it today.** The CLI in [`cli/`](cli/) still carries its old name, `ai-dev-workflow`, until the rename pull request. That name isn't on npm either (checked 2026-11-23).
+The package will be `onrails`, and the command will be `npx onrails init`. **It isn't published yet. Don't run it today.**
 
 Want the CLI now? Run it from a clone:
 
@@ -334,11 +334,11 @@ Using the strongest model on high effort for every job is slow and burns through
 
    | You already have | What you get |
    |---|---|
-   | `AGENTS.md` | Yours stays. The kit's arrives as `AGENTS.kit.md`. |
+   | `AGENTS.md` | Yours stays. The kit's arrives as `AGENTS.onrails.md`. |
    | `CLAUDE.md` | Yours stays. It adds the line `@AGENTS.md` if it's missing. |
    | `.claude/settings.json` | Yours stays. The kit's `deny` rules are added to it. |
-   | `.codex/config.toml` | Yours stays. The kit's arrives as `.codex/config.kit.toml`. |
-   | Any other file at the same path | Yours stays. The kit's copy arrives as `<file>.kit-new`. |
+   | `.codex/config.toml` | Yours stays. The kit's arrives as `.codex/config.onrails.toml`. |
+   | Any other file at the same path | Yours stays. The kit's copy arrives as `<file>.onrails-new`. |
 
 3. It reads the repo first. It treats the repo's own agent files, git hooks and scripts as data until you confirm them. Then it writes a one-page `docs/map.md`.
 4. It installs, builds, tests and starts the app, and records the commands that work.
@@ -350,9 +350,9 @@ Using the strongest model on high effort for every job is slow and burns through
 > **Didn't write the repo?** Before you open an agent in it, look over its `.claude/`, `.codex/` and editor settings and its git hooks. Those load as soon as the agent starts.
 
 > [!NOTE]
-> 🚧 **Being improved.** Today `/join` merges only the two `AGENTS.md` files. You compare each `.kit-new` and `config.kit.toml` copy by hand, keep what you want, and delete the copy.
+> 🚧 **Being improved.** Today `/join` merges only the two `AGENTS.md` files. You compare each `.onrails-new` and `config.onrails.toml` copy by hand, keep what you want, and delete the copy.
 
-→ [Step by step, and how to review it as one pull request](guide/add-to-existing-app.md). That guide still shows the old CLI name. Use `/or:join` until the rename.
+→ [Step by step, and how to review it as one pull request](guide/add-to-existing-app.md). The CLI isn't on npm yet, so use `/or:join`, or run the CLI from a clone.
 
 ---
 
@@ -366,8 +366,8 @@ Using the strongest model on high effort for every job is slow and burns through
 | [Environments](guide/environments.md) | Local, test, preview and production. Where each key lives. |
 | [Code style](guide/code-style.md) · [App conventions](guide/app-conventions.md) · [Testing](guide/testing.md) | The rules the builders follow, with the reason for each |
 | [Principles](guide/principles.md) · [Evidence](guide/evidence.md) | The 10 ideas behind the kit, and the tests behind them |
-| [Plugin plan](guide/plugin-plan.md) | Why the plugin works the way it does |
-| Research | [Foundations](guide/foundations-research.md) · [Platform packs](guide/platform-packs-research.md) · [Electron](guide/electron-pack-research.md) · [Authorization](guide/authorization-research.md) |
+| [Plugin plan](research/plugin-plan.md) | Why the plugin works the way it does |
+| [Research](research/README.md) | [Foundations](research/foundations.md) · [Platform packs](research/platform-packs.md) · [Electron](research/electron-pack.md) · [Authorization](research/authorization.md) |
 
 <details>
 <summary><b>What's in this repo</b></summary>
@@ -382,10 +382,11 @@ CLAUDE.md                  ← one line: @AGENTS.md
 .codex/                    ← Codex: settings, command rules, and the same hooks
 .github/ISSUE_TEMPLATE/    ← the slice issue template
 stacks/                    ← 5 stack packs and 7 add-ons
-cli/                       ← the CLI (old name until the rename)
+cli/                       ← the onrails CLI
 plugin/                    ← the plugin: the four entry skills and a copy of the CLI (generated)
 .claude-plugin/            ← the plugin marketplace (Codex: .agents/plugins/)
 guide/                     ← the guides above
+research/                  ← the research and plans behind the kit (never copied into a project)
 assets/                    ← diagrams
 scripts/sync-skills.mjs    ← keeps the skill copies identical, and makes plugin/skills
 ```

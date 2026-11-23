@@ -1,6 +1,6 @@
 ---
-name: Kit bug
-about: Something in the AI-Dev-Workflow kit itself is broken or wrong
+name: onRails bug
+about: Something in onRails itself is broken or wrong
 title: "[bug] <what broke>"
 labels: bug
 ---
@@ -23,7 +23,7 @@ labels: bug
 ## Where
 
 - **Part of the kit:** <!-- a skill (which one), the CLI, a stack pack or add-on, a script, a hook, AGENTS.md, the docs -->
-- **Kit version:** <!-- the line at the bottom of AGENTS.md, or `npx ai-dev-workflow --version` -->
+- **onRails version:** <!-- the line at the bottom of AGENTS.md, or `npx onrails --version` -->
 - **Agent and model:** <!-- e.g. Claude Code + its model, or Codex + its model -->
 - **OS and Node version:** 
 

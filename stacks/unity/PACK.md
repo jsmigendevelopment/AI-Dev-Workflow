@@ -4,7 +4,7 @@
 
 **Confidence: medium** that GameCI on GitHub Actions plus assembly-definition modules is the right shape. **Low** that agents can build much beyond game logic alone. Tell the person this before they choose it.
 
-Source: `guide/platform-packs-research.md`, section 4, and fact-check rows 50 to 64. Marks: [V] verified, [S] secondary, [I] inferred, as in the dossier.
+Source: `research/platform-packs.md`, section 4, and fact-check rows 50 to 64. Marks: [V] verified, [S] secondary, [I] inferred, as in the dossier.
 
 ## When to choose it
 

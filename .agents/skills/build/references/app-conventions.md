@@ -267,7 +267,7 @@ The tech grill asks: *"Support many languages from day one, or English only for 
   - No role checks scattered in code. No `if (user.role === "admin")` in a service or a component.
   - **The default adapter is the kit's own small built-in engine:** a tuples table in the app database, plus the schema of relations (which relations grant which actions) as code in one file (until research confirms).
   - **SpiceDB, OpenFGA or another Zanzibar-style service** can be injected later in its place, without touching the services.
-  - The table shape, the schema format and how lists are filtered are being designed in a research thread (`guide/authorization-research.md` in the kit, coming). Until it lands, treat those details as "until research confirms".
+  - The table shape, the schema format and how lists are filtered are being designed in a research thread (`research/authorization.md` in the kit, coming). Until it lands, treat those details as "until research confirms".
 - The tech grill asks: *"Will people share things, have teams, or have roles?"* The answer and the model go in `docs/security-policy.md`.
 
 **Why:** role checks copied into every handler drift, and one missed copy is a data leak. One `check()` is one place to test and one place to fix. The port means the engine can change without a rewrite.

@@ -34,7 +34,7 @@ With no keys: the app builds and tests pass, `/files` shows the signed-out state
 
 ## Apply
 
-1. Copy `files/` into the project root. The CLI does this step: `npx ai-dev-workflow add tanstack-start/r2-uploads`.
+1. Copy `files/` into the project root. The CLI does this step: `npx onrails add tanstack-start/r2-uploads`.
 2. `wrangler.jsonc`: add the bucket at the top level (local dev), before `"env"`:
    ```jsonc
    // Uploaded files. scripts/setup-cloudflare.mjs creates the deployed buckets.

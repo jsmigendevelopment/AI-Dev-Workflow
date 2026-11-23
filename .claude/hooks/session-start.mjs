@@ -17,7 +17,8 @@ const git = (args) => gitIn(root, args);
 
 const out = ["## Project state (from the session-start hook)"];
 
-const manifest = read(".ai-dev-workflow.json");
+// .ai-dev-workflow.json is the record's name before the rename to onRails.
+const manifest = read(".onrails.json") ?? read(".ai-dev-workflow.json");
 if (manifest) { try { out.push(`- Kit: v${JSON.parse(manifest).kitVersion}`); } catch {} }
 
 const branch = git(["branch", "--show-current"]);
