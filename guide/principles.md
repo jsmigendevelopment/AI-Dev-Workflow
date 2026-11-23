@@ -4,7 +4,7 @@ The *why* behind the steps.
 
 ## 1. AI is a program. It does what you tell it.
 
-It won't grill you, plan in slices, follow your architecture or test its own work unless something tells it to. This kit is that something: `AGENTS.md` loads every session, and skills load when they're named.
+It won't grill you, plan in slices, follow your architecture or test its own work unless something tells it to. This kit is that something: `AGENTS.md` loads every session, and a skill loads when the request names it.
 
 ## 2. Words are switches.
 
@@ -17,22 +17,22 @@ Certain phrases switch on certain behaviours. Use them on purpose.
 | **"Give me three options with trade-offs and a recommendation."** | Choices instead of the first idea it had |
 | **"Modular monolith"** | Decoupled feature modules you can split out later |
 | **"Controller → service → repository"** | An API that's easy to test and swap parts in |
-| **"Red/green TDD"** | A failing test first, then the code |
+| **"Use the `<name>` skill."** | That skill, every time |
 | **"Review in a fresh context"** | A reviewer that judges the diff, not the author's story |
 | **"The code wins over the docs"** | It trusts what's real when the two disagree |
 | **"What's out of scope?"** | A fence, so it doesn't wander |
 
-**"Ask me if you don't understand" barely works.** In one test, telling the AI it *may* ask got questions in only 4 of 24 conversations. Telling it to **ask three** surfaced 39 of 48 hidden decisions. Don't *allow* it to ask. *Make* it ask, and give it a number.
+**"Ask me if you don't understand" barely works.** Told it *may* ask, the AI asked in only 4 of 24 conversations. Told to **ask three**, the builds that matched what was intended went from 7 of 24 to 19 of 24. Don't *allow* it to ask. *Make* it ask, and give it a number.
 
-**Skills need to be named.** In one test, a skill that was installed but never mentioned loaded in 0 of 50 runs. One line naming it got 50 of 50. That's why `AGENTS.md` lists every skill, and every issue has a `Skills:` line.
+**Name the skill in the request.** Skills that were installed but never mentioned loaded 0 of 40 times on a small model. One sentence naming the skill got 20 of 20. A list of names in `AGENTS.md` isn't the same thing: it helped one skill in four. That's why you type the command, every issue has a `Skills:` line, and every skill names the next one.
 
 ## 3. AI finds *a* solution, not *the* solution.
 
-It picks the first thing that works and runs with it. That's why the grill exists, why every real decision gets three options, and why the crucial ones get deep research before anyone writes code.
+It picks the first thing that works and runs with it. That's why the grill exists, why every real decision gets three options, and why the crucial ones get researched before anyone writes code.
 
 ## 4. Constrain it before it builds.
 
-Without a chosen UI kit, it invents its own components. Without a folder structure and an architecture, you end up with a 4,000-line React component. Decide the stack, the structure and the patterns in the tech grill, write them down, and make every agent follow them.
+Without a chosen UI kit, it invents its own components. Without a folder structure and an architecture, you end up with a 4,000-line React component. Decide the stack, the structure and the patterns in the tech grill, write them down, and make every agent follow them. Rules that must hold become checks in CI, like a boundary check that fails when one feature imports another.
 
 ## 5. Readable for people means readable for AI.
 
@@ -48,11 +48,11 @@ Tracer bullets give you something to try after the first slice, so you can steer
 
 ## 8. Remove yourself from everything except intent and taste.
 
-You decide *what* gets built and whether it's *right*. Agents plan the details, build, review, security-check, merge and test in a browser. You look at the result once an agent has already used it.
+You decide *what* gets built and whether it's *right*. Agents plan the details, build, check, review, merge and test in a browser. You look at the result once an agent has already used it.
 
 ## 9. Your speed depends on where you work.
 
-At a startup with no real users yet, you can let agents merge after automated review. At a bank, you can't. Pick your **risk dial** (move fast, careful or strict) and gate merges to match. Schema changes are the one thing that's hard to undo, so most people should read them.
+At a startup with no real users yet, you can let agents merge after automated review. At a bank, you can't. Pick your **risk dial** (move fast, careful or strict) and gate merges to match. Whatever the dial, a short list always waits for a person: production, secrets, real data and money. And size the checks to the change: a CSS tweak doesn't need a security review, but anything touching auth, personal data or money does.
 
 ## 10. Decisions live in files.
 

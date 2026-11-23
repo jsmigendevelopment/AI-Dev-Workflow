@@ -19,14 +19,16 @@ title: "[pass N] <slice>: <what a user can do after this>"
 
 ## Acceptance checks
 
-<!-- Written BEFORE the build. Each check is something another agent can run or click. -->
-- [ ] 
-- [ ] 
-- [ ] Browser: <!-- the steps to click, and what you should see -->
+<!-- Written before the build. Each one is concrete and checkable.
+     auto  = becomes an automated test that CI runs on every pull request
+     agent = needs judgement; a fresh agent checks it on the preview before merge -->
+- [ ] `auto` 
+- [ ] `auto` 
+- [ ] `agent` <!-- the steps to click, and what you should see -->
 
 ## Out of scope
 
-<!-- The fence. Nearby things this issue must NOT do. -->
+<!-- The fence. Nearby things this issue must not do. -->
 - 
 
 ## Dependencies
@@ -38,20 +40,24 @@ title: "[pass N] <slice>: <what a user can do after this>"
 
 - **Modules:** <!-- e.g. features/lists, features/auth -->
 - **Decoupled:** yes / no <!-- if no, list the issues it may conflict with -->
-- **Schema or migration change:** yes / no
-- **API contract change:** yes / no
+
+## Risk flags
+
+<!-- Tick any that apply. One tick puts the issue in the risky lane: security review plus the human gate. -->
+- [ ] Auth or permissions
+- [ ] Secrets or config
+- [ ] Personal data
+- [ ] Money
+- [ ] Schema or migration
+- [ ] New dependency
+- [ ] API contract change
+
+**Lane:** tiny / normal / risky
 
 ## Routing
 
-| Role | Model | Effort |
-|---|---|---|
-| Builder |  |  |
-| Code reviewer |  |  |
-| Security reviewer |  |  |
+<!-- Leave blank to use the routing table. Fill in only to override it. -->
+**Override:** 
 
 **Priority:** p0 / p1 / p2 / p3
-**Skills:** `build-issue`, <!-- up to two more, named exactly -->
-
-## Human gate
-
-<!-- none / read schema / skim API / approve merge (follow the risk dial in docs/stack.md) -->
+**Skills:** `build`, <!-- up to two more, named exactly -->

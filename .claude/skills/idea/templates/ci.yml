@@ -1,0 +1,24 @@
+# Copy to .github/workflows/ci.yml. Runs every check on every pull request.
+# Adjust the commands to match "Commands that work here" in AGENTS.md.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint --if-present          # includes the boundary check
+      - run: npm run typecheck --if-present
+      - run: npm test --if-present              # unit tests, incl. every earlier slice's
+      - run: npm run build --if-present
+      - run: npx playwright install --with-deps chromium
+        if: hashFiles('playwright.config.*') != ''
+      - run: npm run test:e2e --if-present      # the `auto` acceptance checks
