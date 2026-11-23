@@ -47,6 +47,15 @@ export async function sessionToken(azp: string | undefined): Promise<{ token: st
   return { token, iat }
 }
 
+/** The `Cookie` header Clerk's browser SDK sets on a development instance, for `azp`. */
+export async function sessionCookie(azp: string | undefined): Promise<string> {
+  const { token, iat } = await sessionToken(azp)
+  return `__session=${token}; __client_uat=${iat}; __clerk_db_jwt=dvb_e2e`
+}
+
+/** An unsigned token with no `azp`: what an attacker puts in a header Clerk may not read. */
+export const UNSIGNED = `${btoa('{"alg":"none"}')}.${btoa('{"sub":"user_e2e"}')}.x`.replace(/=/g, '')
+
 /** `GET /api/v1/notes` with a session token for `azp` as the bearer. */
 export const bearer = async (request: APIRequestContext, azp: string | undefined) => {
   const { token } = await sessionToken(azp)
@@ -56,8 +65,7 @@ export const bearer = async (request: APIRequestContext, azp: string | undefined
 // The session cookie as Clerk's browser SDK sets it on a development instance. The page's
 // server-rendered Clerk state says who Clerk let in.
 export const signedInAs = async (request: APIRequestContext, azp: string | undefined) => {
-  const { token, iat } = await sessionToken(azp)
-  const cookie = `__session=${token}; __client_uat=${iat}; __clerk_db_jwt=dvb_e2e`
+  const cookie = await sessionCookie(azp)
   const response = await request.get('/', { headers: { cookie } })
   expect(response.status()).toBe(200)
   for (const header of ['x-clerk-auth-reason', 'x-clerk-auth-message'])

@@ -3,7 +3,7 @@ import { createMiddleware, createServerOnlyFn } from '@tanstack/react-start'
 
 import type { Actor } from '@/lib/actor'
 import { type ApiResult, unauthenticated } from '@/lib/app-error'
-import { authorizedParties, isNativeBearer, NO_PARTY } from '@/lib/authorized-parties'
+import { authorizedParties, isNativeBearer, NO_PARTY, requestForClerk } from '@/lib/authorized-parties'
 import { BUILD_TARGET } from '@/lib/build-target'
 import { bearerToken } from '@/lib/http'
 import { logger } from '@/lib/logger'
@@ -91,7 +91,7 @@ export const authMiddleware = createMiddleware().server(async (args) => {
     return args.next(opts)
   }
   try {
-    const result = await run({ ...args, next })
+    const result = await run({ ...args, request: requestForClerk(args.request), next })
     withoutDebugHeaders(result instanceof Response ? result : result.response)
     return result
   } catch (thrown) {

@@ -6,6 +6,7 @@ import {
   isNativeBearer,
   NO_PARTY,
   partiesConfigError,
+  requestForClerk,
 } from './authorized-parties'
 
 const local: BuildTarget = { deployEnv: 'local', testWorker: '', siteUrl: '' }
@@ -145,6 +146,21 @@ describe('isNativeBearer: a native app’s token (no Origin, so no azp), only wh
     expect(isNativeBearer(bearer({ sub: 'user_1', azp: '' }), true)).toBe(false)
   })
 
+  it('never with a lowercase or otherwise inexact scheme (Clerk would read the cookie)', () => {
+    for (const scheme of ['bearer', 'BEARER', 'Bearer '])
+      expect(
+        isNativeBearer(call('/api/v1/notes', { authorization: `${scheme} ${jwt({ sub: 'u' })}` }), true),
+        scheme,
+      ).toBe(false)
+  })
+
+  it('never while any Clerk session cookie is there, suffixed ones included', () => {
+    const authorization = `Bearer ${jwt({ sub: 'user_1' })}`
+    for (const cookie of ['__session=x', '__client_uat=1', 'a=1; __session_Abc12=x', '__client_uat_Abc12=0'])
+      expect(isNativeBearer(call('/api/v1/notes', { authorization, cookie }), true), cookie).toBe(false)
+    expect(isNativeBearer(call('/api/v1/notes', { authorization, cookie: 'theme=dark' }), true)).toBe(true)
+  })
+
   it('never for the cookie, outside /api/v1, or a token it cannot read', () => {
     const cookie = `__session=${jwt({ sub: 'user_1' })}; __client_uat=1`
     expect(isNativeBearer(call('/api/v1/notes', { cookie }), true)).toBe(false)
@@ -153,5 +169,32 @@ describe('isNativeBearer: a native app’s token (no Origin, so no azp), only wh
     expect(isNativeBearer(bearer({ sub: 'user_1' }, '/api/v10'), true)).toBe(false)
     for (const authorization of ['Bearer not-a-jwt', 'Bearer a.%%%.c', 'Bearer a.bnVsbA.c', 'Basic dXNlcg=='])
       expect(isNativeBearer(call('/api/v1/notes', { authorization }), true), authorization).toBe(false)
+  })
+})
+
+describe('requestForClerk: on /api/v1 Clerk never sees the cookie', () => {
+  const headers = { cookie: '__session=x; __client_uat=1', authorization: 'Bearer abc', 'x-test': '1' }
+
+  it('drops Cookie on /api/v1 and keeps the URL, method and every other header', () => {
+    const original = new Request('https://app.example.com/api/v1/notes?limit=5', {
+      method: 'POST',
+      headers,
+      body: '{"title":"Hi"}',
+    })
+    const forClerk = requestForClerk(original)
+    expect(forClerk.headers.get('cookie')).toBeNull()
+    expect(forClerk.url).toBe(original.url)
+    expect(forClerk.method).toBe('POST')
+    expect(forClerk.headers.get('authorization')).toBe('Bearer abc')
+    expect(forClerk.headers.get('x-test')).toBe('1')
+    expect(original.bodyUsed).toBe(false)
+    expect(original.headers.get('cookie')).toBe(headers.cookie)
+  })
+
+  it('leaves pages and server functions alone: the cookie is how they sign in', () => {
+    for (const path of ['/', '/notes', '/_serverFn/x', '/api/v10']) {
+      const request = new Request(`https://app.example.com${path}`, { headers })
+      expect(requestForClerk(request), path).toBe(request)
+    }
   })
 })

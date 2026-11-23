@@ -17,12 +17,21 @@ export function envelopeResponse<T>(result: ApiResult<T>, okStatus = 200): Respo
 }
 
 /**
+ * The token from an `Authorization` value, or null. The one parser for that header: it must
+ * agree with Clerk's (`parseAuthorizationHeader` in @clerk/backend: the exact scheme `Bearer`,
+ * one space, the token). Clerk ignores `bearer x` and verifies the cookie instead, so a looser
+ * match here would let a cookie pass as a header token. Stricter is fine; looser never.
+ */
+export function parseBearer(value: string | null): string | null {
+  return /^Bearer ([\w.~+/-]+=*)$/.exec(value ?? '')?.[1] ?? null
+}
+
+/**
  * The token from `Authorization: Bearer <token>`, or null. Only the header counts: the API never
  * accepts the session cookie, so a cross-site page can't make a signed-in browser call it (CSRF).
  */
 export function bearerToken(request: Request): string | null {
-  const match = /^Bearer\s+([\w.~+/-]+=*)\s*$/i.exec(request.headers.get('authorization') ?? '')
-  return match?.[1] ?? null
+  return parseBearer(request.headers.get('authorization'))
 }
 
 /**

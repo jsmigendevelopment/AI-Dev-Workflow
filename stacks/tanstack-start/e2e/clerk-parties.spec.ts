@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { bearer, sessionToken, signedInAs } from './clerk-tokens'
+import { bearer, sessionCookie, sessionToken, signedInAs, UNSIGNED } from './clerk-tokens'
 
 // Clerk's authorizedParties (src/lib/authorized-parties.ts), end to end through clerkMiddleware,
 // on a local preview with a made-up Clerk instance (the `clerk` project in playwright.config.ts).
@@ -25,6 +25,21 @@ test('bearer: a token for this origin signs in', async ({ request, baseURL }) =>
 
 test('cookie: a session for this origin signs in', async ({ request, baseURL }) => {
   expect(await signedInAs(request, new URL(baseURL!).origin)).toBe('"user_e2e"')
+})
+
+test('a valid session cookie never signs in to the API, whatever the Authorization header says', async ({
+  request,
+  baseURL,
+}) => {
+  const cookie = await sessionCookie(new URL(baseURL!).origin)
+  // Clerk reads only the exact `Bearer <token>`; for anything else it would fall back to the cookie.
+  for (const authorization of [undefined, 'bearer junk', 'BEARER junk', 'Bearer', `bearer ${UNSIGNED}`]) {
+    const response = await request.get('/api/v1/notes', {
+      headers: { cookie, ...(authorization ? { authorization } : {}) },
+    })
+    expect(response.status(), authorization ?? 'no header').toBe(401)
+  }
+  expect((await request.get('/', { headers: { cookie } })).status()).toBe(200)
 })
 
 test('bearer: a spoofed X-Forwarded-Host never makes its origin a party', async ({ request }) => {
