@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { buildEnvSchema, parseEnv, runtimeEnvSchema } from './env-schema'
 
 const run = (raw: Record<string, string | undefined>) => () => parseEnv(runtimeEnvSchema, raw, 'Worker')
@@ -44,10 +45,14 @@ describe('env schema', () => {
   })
 
   it('takes LAUNCHED and SITE_PROTECTION only as their exact values', () => {
-    expect(run({ LAUNCHED: 'false', SITE_PROTECTION: 'access' })()).toEqual({
+    expect(
+      run({ LAUNCHED: 'false', SITE_PROTECTION: 'password', SITE_PASSWORD: 'k3Vq9XbT0wLr7NpZs2YhAe5D' })(),
+    ).toEqual({
       LAUNCHED: 'false',
-      SITE_PROTECTION: 'access',
+      SITE_PROTECTION: 'password',
+      SITE_PASSWORD: 'k3Vq9XbT0wLr7NpZs2YhAe5D',
     })
+    expect(run({ SITE_PROTECTION: 'none' })()).toEqual({ SITE_PROTECTION: 'none' })
     expect(run({ LAUNCHED: 'yes' })).toThrow(/LAUNCHED must be "true" or "false"/)
     expect(run({ SITE_PROTECTION: 'basic' })).toThrow(
       /SITE_PROTECTION must be "access", "password" or "none"/,
@@ -60,6 +65,23 @@ describe('env schema', () => {
     expect(run({ SITE_PROTECTION: 'password' })).toThrow(/SITE_PASSWORD is missing/)
     expect(run({ SITE_PROTECTION: 'password', SITE_PASSWORD: 'my-app' })).toThrow(/SITE_PASSWORD must be/)
     expect(run({ SITE_PROTECTION: 'password', SITE_PASSWORD: 'my-app' })).not.toThrow(/my-app/)
+  })
+
+  it('needs the team domain and AUD with Cloudflare Access, and checks their shape', () => {
+    const access = {
+      SITE_PROTECTION: 'access',
+      ACCESS_TEAM_DOMAIN: 'https://ann.cloudflareaccess.com',
+      ACCESS_AUD: 'f'.repeat(64),
+    }
+    expect(run(access)()).toMatchObject(access)
+    expect(run({ ...access, ACCESS_PATHS: '/admin/*,/ops' })().ACCESS_PATHS).toBe('/admin/*,/ops')
+    expect(run({ SITE_PROTECTION: 'access' })).toThrow(/ACCESS_TEAM_DOMAIN is missing/)
+    expect(run({ SITE_PROTECTION: 'access' })).toThrow(/ACCESS_AUD is missing/)
+    expect(run({ ...access, ACCESS_TEAM_DOMAIN: 'https://evil.example.com' })).toThrow(
+      /ACCESS_TEAM_DOMAIN must be/,
+    )
+    expect(run({ ...access, ACCESS_AUD: 'not hex' })).toThrow(/ACCESS_AUD must be/)
+    expect(run({ ...access, ACCESS_PATHS: 'admin' })).toThrow(/ACCESS_PATHS must be/)
   })
 
   it('checks the build-time site URL', () => {

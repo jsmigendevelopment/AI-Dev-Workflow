@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { type Page } from '@playwright/test'
+
 import { expect, test } from './gate'
 import { hydrated, navigate, ROUTES } from './helpers'
 

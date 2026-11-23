@@ -1,0 +1,27 @@
+# Remakes the screenshot baselines in the same image CI compares them in. Run it by hand
+# (Actions → visual-baselines → Run workflow) after an intended UI change, or when the first CI
+# run on a new machine image shows only rendering noise. Download the artifact, look at every
+# PNG, and commit the ones you mean into e2e/visual.spec.ts-snapshots/.
+name: visual-baselines
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.65.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:visual --update
+        env:
+          CI: '' # let Playwright write baselines
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines
+          path: e2e/visual.spec.ts-snapshots/

@@ -1,7 +1,8 @@
 import type { Actor } from '@/lib/actor'
-import { unauthenticated, type ApiResult } from '@/lib/app-error'
+import { type ApiResult, unauthenticated } from '@/lib/app-error'
 import { envelopeResponse, queryObject, readJson } from '@/lib/http'
 import { respond } from '@/lib/respond'
+
 import { renameNoteBody } from '../schemas'
 import type { NotesController } from './notes.controller'
 
@@ -54,5 +55,3 @@ export function notesHttp(controller: NotesController, actorOf: (request: Reques
       signedIn(request, async (actor) => envelopeResponse(await controller.remove(actor, { id }))),
   }
 }
-
-export type NotesHttp = ReturnType<typeof notesHttp>

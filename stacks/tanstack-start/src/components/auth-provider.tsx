@@ -1,5 +1,6 @@
-import { lazy, Suspense, type ReactNode } from 'react'
-import { PublicConfigContext, type PublicConfig } from '@/hooks/use-public-config'
+import { lazy, type ReactNode, Suspense } from 'react'
+
+import { type PublicConfig, PublicConfigContext } from '@/hooks/use-public-config'
 
 const ClerkRoot = lazy(() => import('./clerk').then((m) => ({ default: m.ClerkRoot })))
 

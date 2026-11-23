@@ -4,11 +4,31 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **`init` offers to start the session.** In a terminal it asks "Start Claude Code here now with /idea?" (`/join` when the folder already has code), asks which agent when you have both, and hands the terminal over. `--start` skips the question, `--no-start` turns it off.
+- **`init --global`** copies the four entry skills (`idea`, `join`, `back`, `afk`) to `~/.claude/skills` and `~/.agents/skills`. It never overwrites, and `doctor` warns when they fall behind the CLI.
+- **Cloudflare's agent setup, offered in slice 0.** The TanStack Start skill offers Cloudflare's skills and MCP server for Claude Code or Codex, from a reviewed copy dated 2026-11-22. Creating resources still goes through `setup-cloudflare`.
+- **A plan for shipping the kit as a Claude Code plugin:** [`guide/plugin-plan.md`](guide/plugin-plan.md).
+
 ### Being built
 
 - A needs-you convention: one clear way for agents to flag what's waiting on you.
 - A status board: where every issue and pull request stands, in one place.
 - A "Coming soon" page that keeps an app private until you choose to make it public.
+- Permissions by relationship (ReBAC): a built-in engine behind a swappable port, and `authorize()` returns a proof the repository needs. The notes example uses it, so agents copy the real pattern.
+- Go-style results: services return a value or a typed error instead of throwing.
+- An app map: every file belongs to a named area, `pnpm map:check` fails on a gap, and the loop never runs two issues on the same one-at-a-time area.
+- One-command dev: `pnpm dev` checks what's missing and names the fix, then migrates, seeds and waits for the health check.
+- Tests for the kit itself: scripted sessions replayed each release to prove the agents still follow the rules.
+- An incident skill: find the cause, roll back, open the fix issue, write what happened.
+
+- **Renaming the kit to OnRails.** The npm package becomes `onrails`, and the plugin's short name is `or`, so commands read `/or:idea`, `/or:join`, `/or:back` and `/or:afk`. The repo, CLI, plugin and README move together in one pull request.
+
+### Planned, after 0.4
+
+- Tree-shakeable framework packages, and code fixes on update.
+- AI cost per issue on the board, privacy export and delete, uptime checks and backup-restore drills.
 
 ## [0.4.0] - 2026-11-23
 

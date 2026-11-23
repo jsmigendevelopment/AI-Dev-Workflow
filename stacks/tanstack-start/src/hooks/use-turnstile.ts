@@ -1,4 +1,5 @@
-import { useCallback, useRef, type RefObject } from 'react'
+import { type RefObject, useCallback, useRef } from 'react'
+
 import { usePublicConfig } from './use-public-config'
 
 interface TurnstileApi {

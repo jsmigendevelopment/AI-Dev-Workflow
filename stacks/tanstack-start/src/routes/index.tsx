@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+
 import { pageHead, siteJsonLd } from '@/lib/seo'
 import { SITE } from '@/lib/site'
 import { HomeView } from '@/modules/home/ui/views/home-view'

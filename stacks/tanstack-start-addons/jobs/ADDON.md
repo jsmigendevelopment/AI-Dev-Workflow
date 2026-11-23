@@ -81,7 +81,12 @@ With no keys this needs nothing: queues and crons run in local dev too.
    ```
 4. `pnpm db:generate --name jobs`, read the SQL (one `job_runs` table and one index), then `pnpm db:migrate:local`.
 5. Before the first deploy, create the four deployed queues: `node scripts/setup-cloudflare.mjs --dry-run`, show the person, then run it without `--dry-run` (it creates the queues the environments declare, and skips the ones that exist). Queues has a free daily allowance; check the current limits on Cloudflare's pricing page. The deploy workflows apply the `job_runs` migration. Add **Account → Queues → Edit** to the CI deploy token: `wrangler deploy` configures the consumer.
-6. `pnpm check`.
+6. `knip.jsonc`: `memoryJobQueue` is for the tests of code that enqueues, so keep it until one uses it. Add to `ignoreIssues`:
+   ```jsonc
+   "src/lib/jobs.ts": ["exports"],
+   ```
+7. `pnpm exec eslint --fix . && pnpm format`: the pack's lint sorts imports, including the ones this add-on added.
+8. `pnpm check`.
 
 To enqueue from a feature: give its service a `queue: JobQueue` dependency (`jobQueue()` in composition, `memoryJobQueue()` in tests), call `queue.send({ id: 'send-receipt/<order id>', type: 'send-receipt', payload: { orderId } })`, and register the handler in `jobsApi()`.
 

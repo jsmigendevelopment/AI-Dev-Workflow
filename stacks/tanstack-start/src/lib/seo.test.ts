@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
+
 import { pageHead, siteJsonLd } from './seo'
 import {
-  robotsTxt,
-  securityTxt,
-  sitemapXml,
   AI_SEARCH_CRAWLERS,
   AI_TRAINING_CRAWLERS,
   llmsTxt,
+  robotsTxt,
+  securityTxt,
+  sitemapXml,
 } from './seo-files'
 import { isIndexableHost } from './site-url'
 
@@ -35,8 +36,8 @@ describe('pageHead', () => {
   it('emits JSON-LD that parses and cannot close its script tag', () => {
     const { children } = siteJsonLd()
     expect(children).not.toContain('<')
-    const graph = JSON.parse(children)['@graph']
-    expect(graph.map((n: { '@type': string }) => n['@type'])).toEqual(['WebSite', 'Organization'])
+    const graph = (JSON.parse(children) as { '@graph': Array<{ '@type': string }> })['@graph']
+    expect(graph.map((n) => n['@type'])).toEqual(['WebSite', 'Organization'])
   })
 })
 

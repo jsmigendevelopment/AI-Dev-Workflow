@@ -39,14 +39,14 @@ const DEV_ONLY_EXCEPTIONS: Record<string, string> = {
 
 type Listing = Record<string, Array<{ name: string; versions: string[] }>>
 
-const list = (prod: boolean): Listing =>
+const list = (prod: boolean) =>
   JSON.parse(
     execFileSync('pnpm', ['licenses', 'list', '--json', ...(prod ? ['--prod'] : [])], {
       encoding: 'utf8',
       shell: process.platform === 'win32',
       maxBuffer: 64 * 1024 * 1024,
     }),
-  )
+  ) as Listing
 
 /** `MIT OR Apache-2.0` is fine if any side is; `A AND B` needs both. */
 function allowed(expression: string): boolean {

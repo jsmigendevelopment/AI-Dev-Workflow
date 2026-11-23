@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
+
 import { notesController } from './notes.controller'
 import { memoryNotesRepository } from './notes.repository.memory'
 import { createNotesService, type NotesService } from './notes.service'
 
 const ann = { userId: 'user_ann' }
 const id = '00000000-0000-4000-8000-000000000001'
-const controller = () =>
-  notesController(createNotesService({ repo: memoryNotesRepository(), now: () => 1000, newId: () => id }))
+const service = () => createNotesService({ repo: memoryNotesRepository(), now: () => 1000, newId: () => id })
+const controller = () => notesController(service())
 
 describe('notes controller contract', () => {
   it('answers a valid create with exactly the DTO', async () => {
@@ -17,8 +18,8 @@ describe('notes controller contract', () => {
   })
 
   it('answers bad input with field errors and never calls the service', async () => {
-    const service = { create: vi.fn() } as unknown as NotesService
-    const result = await notesController(service).create(ann, { title: '   ' })
+    const create = vi.fn<NotesService['create']>()
+    const result = await notesController({ ...service(), create }).create(ann, { title: '   ' })
     expect(result).toEqual({
       ok: false,
       error: {
@@ -27,14 +28,17 @@ describe('notes controller contract', () => {
         fields: { title: ['Give the note a title.'] },
       },
     })
-    expect(service.create).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled()
   })
 
   it('rejects unknown fields, so an ownerId in the body never reaches the service', async () => {
-    const service = { create: vi.fn() } as unknown as NotesService
-    const result = await notesController(service).create(ann, { title: 'Hi', ownerId: 'user_bob' })
+    const create = vi.fn<NotesService['create']>()
+    const result = await notesController({ ...service(), create }).create(ann, {
+      title: 'Hi',
+      ownerId: 'user_bob',
+    })
     expect(result).toMatchObject({ ok: false, error: { code: 'validation' } })
-    expect(service.create).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled()
   })
 
   it('maps a service AppError to its code', async () => {
@@ -46,10 +50,11 @@ describe('notes controller contract', () => {
 
   it('maps anything unexpected to internal without leaking the cause', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const service = {
+    const failing: NotesService = {
+      ...service(),
       list: () => Promise.reject(new Error('D1_ERROR: no such table: notes')),
-    } as unknown as NotesService
-    expect(await notesController(service).list(ann, {})).toEqual({
+    }
+    expect(await notesController(failing).list(ann, {})).toEqual({
       ok: false,
       error: { code: 'internal', message: 'Something went wrong. Try again.' },
     })

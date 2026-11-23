@@ -1,0 +1,22 @@
+// knip: unused files, exports and dependencies (`pnpm knip`, part of `pnpm check`).
+// Knip reads the Vite, Vitest, Playwright and package.json entry points itself; these are the rest.
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["src/routes/**/*.{ts,tsx}", "scripts/*.{ts,mjs}", "scripts/generate/*.ts", "lighthouserc.cjs"],
+  "project": ["src/**/*.{ts,tsx,css}", "scripts/**/*.{ts,mjs}", "e2e/**/*.ts", "*.{ts,js,cjs}"],
+  "ignore": [
+    // A shared helper the kit ships for the first page with images (the web-performance skill).
+    "src/components/responsive-image.tsx",
+  ],
+  // An export the same file also uses is part of that file's own API, not dead code.
+  "ignoreExportsUsedInFile": true,
+  "ignoreIssues": {
+    // shadcn/ui primitives: vendored from the UI kit with all their parts, some used only by
+    // generated code (the skeleton).
+    "src/components/ui/**": ["files", "exports", "types"],
+    // A module's controller and HTTP adapter types are part of its server API.
+    "src/modules/*/server/*.{controller,http}.ts": ["types"],
+    // The composition root's factories are the app's wiring: an add-on adds one before a feature uses it.
+    "src/server/composition.ts": ["exports"],
+  },
+}

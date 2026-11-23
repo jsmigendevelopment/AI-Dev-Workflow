@@ -3,6 +3,17 @@ import { expect, type Page } from '@playwright/test'
 /** The password-gate preview's password (playwright.config.ts). A fixed test value, not a secret. */
 export const E2E_PASSWORD = 'e2e-only-Password-not-a-secret-0123'
 
+/**
+ * The Access-check preview's vars (playwright.config.ts): a made-up team and AUD, and the paths
+ * that need the JWT. No real Access sits in front of it, so those paths refuse everything.
+ */
+export const E2E_ACCESS = {
+  SITE_PROTECTION: 'access',
+  ACCESS_TEAM_DOMAIN: 'https://e2e-only.cloudflareaccess.com',
+  ACCESS_AUD: '0123456789abcdef'.repeat(4),
+  ACCESS_PATHS: '/notes,/api/v1/*,/_serverFn/*',
+}
+
 /** Every route a visitor can open. The 404 page is a route too. */
 export const ROUTES = ['/', '/notes', '/this-page-does-not-exist'] as const
 

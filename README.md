@@ -59,8 +59,8 @@ You need Node 22 or newer, and Claude Code or Codex.
    mkdir my-app && cd my-app
    npx ai-dev-workflow init
    ```
-   It prints how many files it added and a short `Next:` list.
-2. **Open Claude Code or Codex in the folder and type `/idea`** (Codex: `$idea`). In Codex, mark the project as trusted when it asks, so `.codex/` loads, then run `/hooks` and trust the kit's hooks (again after a kit update changes them). On Windows, open Codex at the repo root.
+   It prints how many files it added and a short `Next:` list. Then it asks to start Claude Code (or Codex) right there with `/idea`. Say yes, and your terminal becomes that session.
+2. **Or open Claude Code or Codex in the folder yourself and type `/idea`** (Codex: `$idea`). In the desktop app or an IDE, open the folder and start a new session. In Codex, mark the project as trusted when it asks, so `.codex/` loads, then run `/hooks` and trust the kit's hooks (again after a kit update changes them). On Windows, open Codex at the repo root.
 3. **Say yes or no to a profile.** The first time, it offers to save what never changes for you: GitHub owner, naming style, stack picks, models, risk dial. Later apps confirm those in one round.
 4. **Pitch it, then get grilled.** It plays your idea back in 3–5 lines. Then it asks which preset fits (`saas`, `internal-tool`, `content-site`, `marketplace`, `api-service`) and asks three questions a round, each with a recommended answer.
 5. **Pick the MVP, a name and the tech.** You choose the one core piece. It runs `git init`, asks before it makes a GitHub repo, and recommends a stack you can change.
@@ -144,6 +144,7 @@ The [CLI reference](cli/README.md) has every command and flag.
 
 | Command | What it does |
 |---|---|
+| `npx ai-dev-workflow init --global` | Copies `idea`, `join`, `back` and `afk` into your own skills folders, so `/idea` works in any folder. Never overwrites. |
 | `npx ai-dev-workflow@latest update` | Brings in a newer kit. Files you changed are kept. `--dry-run` shows the plan first. |
 | `npx ai-dev-workflow doctor --fix` | Checks your tools, sign-ins and env var names. Offers a fix for each problem and runs it only after you type `y`. |
 | `npx ai-dev-workflow profile init` | Makes your personal profile, `~/.ai-dev-workflow/profile.toml`. |

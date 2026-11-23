@@ -27,7 +27,7 @@ Without a token the build has no analytics and makes no third-party request.
    ```tsx
    <body>
      {children}
-     <WebAnalytics token={import.meta.env.VITE_CF_BEACON_TOKEN} />
+     <WebAnalytics token={import.meta.env.VITE_CF_BEACON_TOKEN as string | undefined} />
      <Scripts />
    </body>
    ```
@@ -48,7 +48,8 @@ Without a token the build has no analytics and makes no third-party request.
    ```
    Then update the expectation in `src/lib/security-headers.test.ts` ("adds origins from CSP_EXTRA, and ships with none") to these two origins: it guards that nothing else was opened. `public/_headers` needs no change: it carries the baseline, which has no `script-src`.
 5. The token is read at build time, so set `VITE_CF_BEACON_TOKEN` wherever `pnpm build` runs for a deploy (a CI variable, not a secret). Ask the person to create the site in the Cloudflare dashboard; it's free.
-6. `pnpm check`.
+6. `pnpm exec eslint --fix . && pnpm format`: the pack's lint sorts imports, including the ones this add-on added.
+7. `pnpm check`.
 
 ## Verify
 

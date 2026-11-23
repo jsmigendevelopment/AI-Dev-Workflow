@@ -1,6 +1,6 @@
 {
   // Tests, e2e, scripts and config files: these run in Node, so they get Node types.
-  "extends": "./tsconfig.json",
+  "extends": "./tsconfig.app.json",
   "compilerOptions": {
     "types": ["node", "vite/client"],
     // Node runs scripts/*.ts directly (type stripping), which needs explicit .ts extensions.

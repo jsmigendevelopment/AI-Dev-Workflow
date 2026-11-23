@@ -1,6 +1,7 @@
 import type { Actor } from '@/lib/actor'
 import { AppError } from '@/lib/app-error'
 import { decodeCursor, encodeCursor, type Page } from '@/lib/page'
+
 import type { NoteDto } from '../types'
 import type { NoteRow, NotesRepository } from './notes.repository'
 

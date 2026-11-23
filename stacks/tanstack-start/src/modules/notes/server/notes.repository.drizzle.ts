@@ -1,5 +1,7 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
+
 import type { Db } from '@/db/client'
+
 import type { NotesRepository } from './notes.repository'
 import { notes } from './notes.table'
 

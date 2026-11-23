@@ -1,9 +1,12 @@
 import { createMiddleware, createServerOnlyFn } from '@tanstack/react-start'
 import { env } from 'cloudflare:workers'
+
+import { accessCheck, accessPaths } from '@/lib/access-jwt'
 import { problemResponse } from '@/lib/app-error'
 import { isLaunched, prelaunchResponse } from '@/lib/launch'
-import { checkBody, isApiPath, SCANNER_PATH } from '@/lib/request-limits'
+import { logger } from '@/lib/logger'
 import { rateLimitKey } from '@/lib/rate-limit-key'
+import { checkBody, isApiPath, SCANNER_PATH } from '@/lib/request-limits'
 import {
   botChallengeOrigin,
   clerkHostFromKey,
@@ -13,9 +16,10 @@ import {
   withHeaders,
 } from '@/lib/security-headers'
 import { seoFileResponse } from '@/lib/seo-routes'
-import { siteGate } from '@/lib/site-gate'
 import { DEFAULT_SITE_URL } from '@/lib/site'
+import { siteGate } from '@/lib/site-gate'
 import { isIndexableHost, SITE_URL } from '@/lib/site-url'
+
 import { serverEnv } from './env'
 
 /**
@@ -24,14 +28,16 @@ import { serverEnv } from './env'
  *
  * 1. validate the Worker's env (fails fast, names only);
  * 2. scanner paths (`/wp-login.php`, `/.env`) get a plain 404 with no render;
- * 3. not launched (`LAUNCHED` isn't "true"): the "Coming soon" page, robots `Disallow: /`, and
+ * 3. `SITE_PROTECTION` "access": on the paths Access protects (`ACCESS_PATHS`, default all, minus
+ *    `OPEN_PATHS`), a valid Access JWT or the 401 envelope (src/lib/access-jwt.ts);
+ * 4. not launched (`LAUNCHED` isn't "true"): the "Coming soon" page, robots `Disallow: /`, and
  *    503 for server functions and `/api/v1` (src/lib/launch.ts). Nothing of the app runs;
- * 4. `SITE_PROTECTION` "password" (test and previews): the password gate (src/lib/site-gate.ts);
- * 5. robots.txt, sitemap.xml and llms.txt (src/lib/seo-routes.ts);
- * 6. a server function or `/api/v1` call with no body length or over the cap is refused before
+ * 5. `SITE_PROTECTION` "password" (test and previews): the password gate (src/lib/site-gate.ts);
+ * 6. robots.txt, sitemap.xml and llms.txt (src/lib/seo-routes.ts);
+ * 7. a server function or `/api/v1` call with no body length or over the cap is refused before
  *    anything reads it, then rate-limited per client (IPv4 or IPv6 /64);
- * 7. a server function or `/api/v1` route that crashed answers with the safe `internal` envelope;
- * 8. every response gets the security headers; HTML gets a CSP with a fresh nonce. A non-HTML
+ * 8. a server function or `/api/v1` route that crashed answers with the safe `internal` envelope;
+ * 9. every response gets the security headers; HTML gets a CSP with a fresh nonce. A non-HTML
  *    response that set its own, stricter CSP (a file download) keeps it.
  *
  * Static files never get here (except the three in `assets.run_worker_first`): `public/_headers`
@@ -49,7 +55,7 @@ async function underLimit(limiter: RateLimit | undefined, request: Request): Pro
     return success
   } catch (error) {
     // A limiter outage must not block users.
-    console.error('rate limiter unavailable', error instanceof Error ? error.name : 'error')
+    logger.warn('rate_limiter_unavailable', { error_name: error instanceof Error ? error.name : 'error' })
     return true
   }
 }
@@ -62,6 +68,17 @@ const limitCalls = createServerOnlyFn(async (request: Request): Promise<Response
 })
 
 const limitPasswordTries = createServerOnlyFn((request: Request) => underLimit(env.PASSWORD_LIMITER, request))
+
+/** Null unless this environment is behind Access and the path needs a valid Access JWT. */
+async function checkAccess(request: Request, url: URL): Promise<Response | null> {
+  const { SITE_PROTECTION, ACCESS_TEAM_DOMAIN, ACCESS_AUD, ACCESS_PATHS } = serverEnv()
+  // The env schema refuses "access" without the team domain and AUD, so this never fails open.
+  if (SITE_PROTECTION !== 'access' || !ACCESS_TEAM_DOMAIN || !ACCESS_AUD) return null
+  const config = { teamDomain: ACCESS_TEAM_DOMAIN, aud: ACCESS_AUD, paths: accessPaths(ACCESS_PATHS) }
+  return accessCheck(request, url, config, undefined, (why) =>
+    logger.warn('access_jwt_refused', { why, path: url.pathname }),
+  )
+}
 
 function responseHeaders(response: Response, url: URL, nonce: string | undefined): Record<string, string> {
   const headers: Record<string, string> = { ...SECURITY_HEADERS }
@@ -92,6 +109,8 @@ export const requestGuards = createMiddleware().server(async ({ request, next, h
     withHeaders(response, responseHeaders(response, url, nonce))
 
   if (handlerType === 'router' && SCANNER_PATH.test(url.pathname)) return finish(plain404())
+  const noAccess = await checkAccess(request, url)
+  if (noAccess) return finish(noAccess)
   if (!isLaunched(LAUNCHED)) return finish(prelaunchResponse(request, url, handlerType), createNonce())
   if (SITE_PROTECTION === 'password' && SITE_PASSWORD) {
     const gated = await siteGate(request, url, handlerType, SITE_PASSWORD, limitPasswordTries)
@@ -115,7 +134,7 @@ export const requestGuards = createMiddleware().server(async ({ request, next, h
   const envelope = response.headers.get('content-type')?.startsWith('application/json') ?? false
   if ((handlerType === 'serverFn' || (api && !envelope)) && response.status >= 500) {
     // Start would serialize the thrown error; the stack stays in the log, the client gets the envelope.
-    console.error(api ? 'api route failed' : 'server function failed', response.status)
+    logger.error(api ? 'api_route_failed' : 'server_function_failed', { status: response.status })
     response = problemResponse('internal', 'Something went wrong. Try again.')
   }
   return finish(response, nonce)

@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
+
 import { verifyTurnstile } from './turnstile'
 
 const answer = (body: unknown, ok = true) =>
-  vi.fn(async () => new Response(JSON.stringify(body), { status: ok ? 200 : 500 }))
+  vi.fn<typeof fetch>(async () => new Response(JSON.stringify(body), { status: ok ? 200 : 500 }))
 const base = {
   secret: 'real-secret-key-0123',
   token: 'tok',
@@ -14,8 +15,9 @@ describe('verifyTurnstile', () => {
   it('passes a successful check for this host', async () => {
     const fetch = answer({ success: true, hostname: 'app.example.com' })
     expect(await verifyTurnstile({ ...base, fetch })).toBe('passed')
-    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    expect(String(init.body)).toContain('response=tok')
+    const init = fetch.mock.calls[0]![1]!
+    expect(init.body).toBeInstanceOf(URLSearchParams)
+    expect((init.body as URLSearchParams).get('response')).toBe('tok')
     expect(init.signal).toBeInstanceOf(AbortSignal)
   })
 

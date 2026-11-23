@@ -1,22 +1,9 @@
 {
-  // The app: src/ without tests. No Node types, so a Node-only global in Worker code fails here.
-  "compilerOptions": {
-    "target": "ES2023",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "jsx": "react-jsx",
-    "types": ["vite/client"],
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noFallthroughCasesInSwitch": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "paths": { "@/*": ["./src/*"] }
-  },
-  "include": ["src", "worker-configuration.d.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  // A solution file: it compiles nothing itself. Each file belongs to one of the two projects
+  // below, which is how editors and type-aware ESLint (projectService) find the right settings.
+  // `pnpm typecheck` runs both. The paths are repeated here for tools that read this file only
+  // (shadcn, the import resolver).
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }],
+  "compilerOptions": { "paths": { "@/*": ["./src/*"] } }
 }

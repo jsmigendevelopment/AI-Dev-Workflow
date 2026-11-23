@@ -1,6 +1,6 @@
 import { problemResponse } from './app-error'
-import { escapeHtml, plainPage } from './plain-page'
 import { isOpenPath, OPEN_PATHS } from './open-paths'
+import { escapeHtml, plainPage } from './plain-page'
 import { checkBody, isApiPath } from './request-limits'
 
 /**

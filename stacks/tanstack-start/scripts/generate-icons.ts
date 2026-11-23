@@ -2,6 +2,7 @@
 // src/lib/site.ts. Run after changing either: `pnpm icons`. Output is committed to public/.
 // Uses Playwright's Chromium (set PLAYWRIGHT_CHROMIUM_PATH to use a browser you already have).
 import { readFileSync, writeFileSync } from 'node:fs'
+
 import { chromium } from '@playwright/test'
 
 const SITE_FILE = readFileSync('src/lib/site.ts', 'utf8')

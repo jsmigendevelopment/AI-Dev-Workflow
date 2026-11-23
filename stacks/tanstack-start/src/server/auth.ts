@@ -1,8 +1,10 @@
 import { auth, clerkMiddleware } from '@clerk/tanstack-react-start/server'
 import { createMiddleware, createServerOnlyFn } from '@tanstack/react-start'
+
 import type { Actor } from '@/lib/actor'
-import { unauthenticated, type ApiResult } from '@/lib/app-error'
+import { type ApiResult, unauthenticated } from '@/lib/app-error'
 import { bearerToken } from '@/lib/http'
+
 import { serverEnv } from './env'
 
 /**

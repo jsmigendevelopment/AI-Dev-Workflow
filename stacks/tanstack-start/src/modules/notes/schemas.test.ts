@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+
 import { ERROR_STATUS } from '@/lib/app-error'
+
 import { createNoteInput, listNotesInput, renameNoteBody } from './schemas'
 
 // The same cases as the /api/v1 contract's own tests (monorepo pack, packages/contracts), so the

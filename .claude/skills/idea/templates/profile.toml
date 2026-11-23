@@ -32,6 +32,10 @@ errors = "Sentry"
 analytics = "Cloudflare Web Analytics"
 file_storage = "Cloudflare R2"
 prefer = "Cloudflare for anything it offers free"
+# How the test site and previews are protected: "access", "password" or "none".
+test_site_protection = "access"
+# Login options for Cloudflare Access, in the order offered. Any of: google, github, facebook, linkedin, yandex, otp.
+test_site_logins = ["google", "otp"]
 avoid = []                      # tools you never want recommended
 
 [routing]

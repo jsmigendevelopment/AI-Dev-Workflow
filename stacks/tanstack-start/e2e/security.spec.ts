@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+
 import { hydrated, recordCspViolations, ROUTES, watchProblems } from './helpers'
 
 const BASELINE = {

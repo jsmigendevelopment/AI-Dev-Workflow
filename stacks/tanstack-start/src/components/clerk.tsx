@@ -1,5 +1,6 @@
 import { ClerkProvider, Show, SignInButton, UserButton } from '@clerk/tanstack-react-start'
 import type { ReactNode } from 'react'
+
 import { Button } from '@/components/ui/button'
 
 // Everything that touches Clerk's SDK lives in this one module, loaded with React.lazy only when

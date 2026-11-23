@@ -1,0 +1,46 @@
+# Pull request rules: each one is tied to an issue, and small enough to review.
+# The logic lives in scripts/pr/rules.ts (unit-tested); this only feeds it the pull request.
+name: pr-rules
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+concurrency:
+  group: pr-rules-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  issue-link:
+    # `Closes #<n>` (or Fixes / Resolves) in the description and a feat|fix|chore/<n>-name branch.
+    # Skipped by the no-issue label. Dependabot is exempt.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/pr
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tied to an issue
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          BRANCH: ${{ github.head_ref }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: node scripts/pr/check.ts issue
+
+  size:
+    # Over 400 changed lines (lockfiles and generated files not counted) fails without large-pr.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Small enough to review
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: node scripts/pr/check.ts size
