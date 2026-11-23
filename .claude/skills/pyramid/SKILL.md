@@ -5,7 +5,7 @@ description: Use when planning how to build an app or a big feature, or checking
 
 # Pyramid: see it working early, then make it great
 
-This is CTO work. Run it on the strongest model at high effort (see `routing`). It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next on a cheaper model.
+This is CTO work. Run it on the strongest model at high effort. Ask first, unless the profile says not to or the person already said yes (see `routing`). It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next on a cheaper model.
 
 ## Why
 
@@ -93,6 +93,10 @@ A step passes when all four are true:
 - **Ways to cut:** the plainest path first, then one rule at a time, one kind of data at a time, one state at a time (empty, error, loading), and the simple version before the nice one. `references/slicing.md` has each one with an example.
 - **One schema change per slice per pass.** A migration puts a step in the risky lane, and that lane can wait for the person. So a slice's first step adds its whole table as `docs/design.md` has it, and the steps after it use that table.
 - **An open question isn't a step.** Use `research`, or make the first step the thinnest one that would prove the idea wrong.
+
+## Checking a plan
+
+Asked whether a plan is thin enough, or handed one that someone else wrote? Run the checker first, on the file as it is: `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md`. Report every error it prints. Then judge what a script can't: whether a person would really do each try line, and whether a step hides a layer behind a friendly name. Don't judge by eye alone. Don't change the plan unless asked.
 
 ## Rules
 
