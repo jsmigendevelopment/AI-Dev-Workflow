@@ -1,6 +1,7 @@
-// The checks about this project: the kit, the skills mirror, .env files, Playwright, wrangler.
+// The checks about this project: the kit, the skills mirror, stale research, .env files, Playwright, wrangler.
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { staleDossiers } from "./check-research.mjs";
 import { envChecks } from "./envfiles.mjs";
 import { readJson, toNative, walk } from "./files.mjs";
 import { OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
@@ -51,6 +52,7 @@ export function projectChecks(projectDir, { kitDir, sys }) {
   const state = existsSync(toNative(projectDir, "docs/state.md"));
   add(state ? OK : INFO, state ? "docs/state.md present" : "No docs/state.md yet: type /idea for a new app or /join for an existing repo");
 
+  checks.push(...researchChecks(projectDir));
   checks.push(...envChecks(projectDir, MARKS));
   const deps = projectDeps(projectDir);
   if (deps["@playwright/test"]) checks.push(playwrightCheck(projectDir, sys));
@@ -58,6 +60,20 @@ export function projectChecks(projectDir, { kitDir, sys }) {
     checks.push(...wranglerChecks(projectDir, deps, sys));
   }
   return checks;
+}
+
+// Dossiers past their re-check date (the research skill). check-research.mjs is synced from scripts/.
+function researchChecks(projectDir) {
+  const { OK, FAIL } = MARKS;
+  const dir = join(projectDir, "docs", "research");
+  if (!existsSync(join(dir, "README.md"))) return [];
+  const stale = staleDossiers(dir);
+  if (!stale.length) return [{ status: OK, label: "No stale research dossiers" }];
+  const list = stale.map((s) => `${s.dossier} (re-check ${s.recheck})`).join(", ");
+  return [{
+    status: FAIL, required: false, label: `${stale.length} stale research dossier(s): ${list}`,
+    fix: "Re-check each with the research skill, or mark it superseded in docs/research/README.md",
+  }];
 }
 
 function projectDeps(projectDir) {

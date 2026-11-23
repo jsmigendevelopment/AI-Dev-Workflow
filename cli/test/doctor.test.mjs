@@ -27,3 +27,23 @@ test("doctor after init checks the kit and the skills mirror", () => {
   doctor(dir, { log: drift });
   assert.match(drift.text(), /✗ \.agents\/skills and \.claude\/skills differ/);
 });
+
+test("doctor lists stale research dossiers by name, and stays quiet without docs/research", () => {
+  const dir = tmp();
+  init(dir, { log: logger() });
+  const none = logger();
+  doctor(dir, { log: none });
+  assert.doesNotMatch(none.text(), /research dossier/);
+
+  const header = "| Dossier | Question | Decision | Date | Status | Re-check | Author model · effort |\n|---|---|---|---|---|---|---|\n";
+  put(dir, "docs/research/README.md", `${header}| [Old](old.md) | Which? | none yet | 2020-01-01 | current | 2020-06-01 | unknown · unknown |\n`);
+  const log = logger();
+  doctor(dir, { log });
+  assert.match(log.text(), /✗ 1 stale research dossier\(s\): old\.md \(re-check 2020-06-01\)/);
+  assert.match(log.text(), /fix: Re-check each with the research skill/);
+
+  put(dir, "docs/research/README.md", header);
+  const fresh = logger();
+  doctor(dir, { log: fresh });
+  assert.match(fresh.text(), /✓ No stale research dossiers/);
+});

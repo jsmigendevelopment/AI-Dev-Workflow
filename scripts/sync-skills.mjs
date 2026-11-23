@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Keeps .claude/skills (Claude Code) identical to .agents/skills (Codex, the master copy),
-// and .github/ISSUE_TEMPLATE/slice.md identical to the issues skill's template.
+// .github/ISSUE_TEMPLATE/slice.md identical to the issues skill's template, and the copies in COPIES
+// identical to their masters.
 // It also writes the plugin's starter skills (plugin/skills/<name>/SKILL.md): the master's
 // frontmatter plus the hand-off step in scripts/plugin-handoff.md.
 // Usage:  node scripts/sync-skills.mjs          copy the master copies over the mirrors
@@ -12,8 +13,15 @@ const SRC = ".agents/skills";
 const DEST = ".claude/skills";
 const ISSUE_SRC = join(SRC, "issues", "templates", "slice.md");
 const ISSUE_DEST = ".github/ISSUE_TEMPLATE/slice.md";
-// The people-facing guides ship inside the build skill, so every project has them.
-const GUIDES = ["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]);
+// Copies made from a master elsewhere in the repo. The people-facing guides ship inside the
+// build skill, so every project has them. The research checker ships inside the research skill,
+// so apps can run it in CI, and in the CLI, so doctor can list stale dossiers.
+const CHECKER = join("scripts", "check-research.mjs");
+const COPIES = [
+  ...["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
+  [CHECKER, join(SRC, "research", "scripts", "check-research.mjs")],
+  [CHECKER, join("cli", "src", "check-research.mjs")],
+];
 
 // The plugin's entry skills: what to add when the kit is missing (step 3 of the hand-off),
 // and which project skill to follow once it's in (step 5).
@@ -61,7 +69,7 @@ function files(dir) {
 }
 
 if (process.argv.includes("--check")) {
-  const guideProblems = GUIDES.filter(([from, to]) => !existsSync(to) || !readFileSync(from).equals(readFileSync(to))).map(([from, to]) => `differs: ${to} (master: ${from})`);
+  const copyProblems = COPIES.filter(([from, to]) => !existsSync(to) || !readFileSync(from).equals(readFileSync(to))).map(([from, to]) => `differs: ${to} (master: ${from})`);
   const a = files(SRC).map((f) => relative(SRC, f)).sort();
   const b = files(DEST).map((f) => relative(DEST, f)).sort();
   const problems = [];
@@ -72,14 +80,14 @@ if (process.argv.includes("--check")) {
     else if (!readFileSync(join(SRC, f)).equals(readFileSync(join(DEST, f)))) problems.push(`differs: ${f}`);
   }
   if (!existsSync(ISSUE_DEST) || !readFileSync(ISSUE_SRC).equals(readFileSync(ISSUE_DEST))) problems.push(`differs: ${ISSUE_DEST} (master: ${ISSUE_SRC})`);
-  problems.push(...guideProblems, ...pluginProblems());
+  problems.push(...copyProblems, ...pluginProblems());
   if (problems.length) {
     console.error(problems.join("\n") + "\n\nRun: node scripts/sync-skills.mjs");
     process.exit(1);
   }
   console.log(`skills in sync (${a.length} files, ${Object.keys(PLUGIN_SKILLS).length} plugin skills)`);
 } else {
-  for (const [from, to] of GUIDES) {
+  for (const [from, to] of COPIES) {
     mkdirSync(dirname(to), { recursive: true });
     copyFileSync(from, to);
   }

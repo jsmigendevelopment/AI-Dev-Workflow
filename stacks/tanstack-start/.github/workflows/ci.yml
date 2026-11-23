@@ -87,6 +87,23 @@ jobs:
       - name: Licences on the allow-list
         run: pnpm check:licenses
 
+  research:
+    # The research folder: index, provenance, claim labels, re-check dates, append-only stores.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check docs/research
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ ! -d docs/research ]; then echo "No docs/research yet."; exit 0; fi
+          node .agents/skills/research/scripts/check-research.mjs docs/research ${BASE:+--base "$BASE"}
+
   secrets:
     runs-on: ubuntu-latest
     steps:
