@@ -1,0 +1,44 @@
+# Publishes the onrails CLI to npm when a v* tag is pushed. No npm token: npm trusted
+# publishing swaps GitHub's OIDC token for a short-lived publish token. RELEASING.md has the setup.
+# npm's trusted publisher names this file (release.yml) and the `release` environment. Rename either and publishing breaks.
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # The environment's required reviewer approves each publish.
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      # Node 24.22.3 ships npm 11.19.1. Trusted publishing needs npm 11.5.1+ and Node 22.14.0+
+      # (docs.npmjs.com/trusted-publishers, checked 2026-11-23). Node 22 still ships npm 10.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.3
+          registry-url: https://registry.npmjs.org
+      - name: npm is new enough for trusted publishing
+        run: node -e 'const [a,b,c]=process.argv[1].split(".").map(Number); if (a<11||(a===11&&(b<5||(b===5&&c<1)))) { console.error(`npm ${process.argv[1]} is older than 11.5.1`); process.exit(1) }' "$(npm --version)"
+      - name: Tag matches the versions
+        run: node scripts/versions.mjs --check --tag "$GITHUB_REF_NAME"
+        working-directory: cli
+      # cli/ has no dependencies and no lockfile, so there is no npm ci.
+      - run: node scripts/sync-skills.mjs --check
+      - run: npm run bundle:check
+        working-directory: cli
+      - run: npm run bundle && npm test
+        working-directory: cli
+      - run: npx -y @anthropic-ai/claude-code@2.1.330 plugin validate ./plugin
+      - run: npx -y @anthropic-ai/claude-code@2.1.330 plugin validate .
+      - run: npm run pack:check
+        working-directory: cli
+      # --provenance is automatic with OIDC, but only if npm's checks pass; otherwise it is
+      # skipped quietly. Setting it makes a missing provenance fail the publish instead.
+      - run: npm publish --provenance --access public
+        working-directory: cli

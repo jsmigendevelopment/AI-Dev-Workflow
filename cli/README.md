@@ -77,8 +77,4 @@ npm run bundle && npm test
 npm pack --dry-run      # see what would ship
 ```
 
-To publish (the owner does this, after bumping `version` in `package.json` to match the kit):
-
-```bash
-cd cli && npm publish
-```
+Publishing runs in GitHub Actions on a `v*` tag, with no npm token. [RELEASING.md](../RELEASING.md) has the one-time setup and the steps for each release.
