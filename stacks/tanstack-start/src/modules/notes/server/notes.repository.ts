@@ -9,13 +9,24 @@ export interface NoteRow {
   updatedAt: number
 }
 
+/** Which notes and in what order. `q` matches part of the title, ignoring ASCII case. */
+export interface ListOptions {
+  after: Position | null
+  limit: number
+  q?: string | undefined
+  /** Newest (createdAt, then id, descending) by default; oldest is the same keys ascending. */
+  order?: 'newest' | 'oldest' | undefined
+}
+
 /**
  * The port the service depends on. Every method is one atomic statement, is scoped by owner,
  * and reports "nothing matched" as a value (null or false), never as an exception.
  */
 export interface NotesRepository {
-  /** Newest first (createdAt, then id), strictly after `after`. */
-  listByOwner(ownerId: string, opts: { after: Position | null; limit: number }): Promise<NoteRow[]>
+  /** In `order`, strictly after `after` in that order. */
+  listByOwner(ownerId: string, opts: ListOptions): Promise<NoteRow[]>
+  /** Null when no row matched id + owner. */
+  findByOwner(ownerId: string, id: string): Promise<NoteRow | null>
   insert(row: NoteRow): Promise<void>
   /** Null when no row matched id + owner. */
   rename(ownerId: string, id: string, title: string, updatedAt: number): Promise<NoteRow | null>

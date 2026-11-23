@@ -61,3 +61,4 @@ title: "[pass N] <slice>: <what a user can do after this>"
 
 **Priority:** p0 / p1 / p2 / p3
 **Skills:** `build`, <!-- up to two more, named exactly -->
+**Recipes:** <!-- the default libraries this needs, by recipe name: form, table, charts, markdown, highlight, virtual, hotkeys, start, router, query. Leave blank if none -->

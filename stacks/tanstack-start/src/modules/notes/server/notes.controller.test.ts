@@ -41,6 +41,27 @@ describe('notes controller contract', () => {
     expect(create).not.toHaveBeenCalled()
   })
 
+  it('browses with a filter and an order, and the /api/v1 list still refuses them', async () => {
+    const api = controller()
+    await api.create(ann, { title: 'Milk' })
+    expect(await api.browse(ann, { q: 'mil', sort: 'oldest', limit: '5' })).toMatchObject({
+      ok: true,
+      data: { items: [{ title: 'Milk' }], nextCursor: null },
+    })
+    expect(await api.browse(ann, { sort: 'title' })).toMatchObject({
+      ok: false,
+      error: { code: 'validation', fields: { sort: expect.any(Array) as unknown } },
+    })
+    expect(await api.list(ann, { q: 'mil' })).toMatchObject({ ok: false, error: { code: 'validation' } })
+  })
+
+  it('gets one note, and refuses an id that is not a UUID', async () => {
+    const api = controller()
+    await api.create(ann, { title: 'Milk' })
+    expect(await api.get(ann, { id })).toMatchObject({ ok: true, data: { id, title: 'Milk' } })
+    expect(await api.get(ann, { id: 'nope' })).toMatchObject({ ok: false, error: { code: 'validation' } })
+  })
+
   it('maps a service AppError to its code', async () => {
     expect(await controller().rename(ann, { id, title: 'New' })).toEqual({
       ok: false,

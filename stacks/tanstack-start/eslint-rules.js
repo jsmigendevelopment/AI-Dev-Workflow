@@ -49,7 +49,67 @@ const exceptionNeedsIssue = {
   },
 }
 
+/**
+ * Routes render fully on the server by default (`ssr: true`, which is never written out). A route
+ * that sets `ssr: false`, `'data-only'` or a function says why in a comment right above it.
+ */
+const ssrNeedsReason = {
+  meta: {
+    type: 'suggestion',
+    docs: { description: 'Require a reason comment on every route ssr option other than the default' },
+    schema: [],
+    messages: {
+      redundant: '`ssr: true` is the default. Leave it out.',
+      bare: 'Say why this route is not fully server-rendered, in a comment above `ssr:`.',
+    },
+  },
+  create(context) {
+    return {
+      'Property[key.name="ssr"]'(node) {
+        if (node.parent.type !== 'ObjectExpression' || node.parent.parent.type !== 'CallExpression') return
+        if (node.value.type === 'Literal' && node.value.value === true)
+          return context.report({ node, messageId: 'redundant' })
+        if (context.sourceCode.getCommentsBefore(node).length === 0)
+          context.report({ node, messageId: 'bare' })
+      },
+    }
+  },
+}
+
+// Config pieces for eslint.config.js, kept here so that file stays readable.
+
+// Links and navigation stay type-safe: the router checks `to` against the route tree, and
+// `params` and `search` against each route's schemas. A raw `<a href="/...">` or a path built
+// from a string skips all three, so a renamed route breaks at runtime instead of in typecheck.
+const BUILT_PATH = 'TemplateLiteral[expressions.length>0], BinaryExpression[operator="+"]'
+export const routing = [
+  {
+    selector:
+      'JSXOpeningElement[name.name="a"] > JSXAttribute[name.name="href"]:matches([value.value=/^\\//], [value.expression.value=/^\\//], [value.expression.type="TemplateLiteral"][value.expression.quasis.0.value.raw=/^\\//])',
+    message: 'An internal link: use <Link to="/path"> from @tanstack/react-router, not <a href>.',
+  },
+  {
+    selector: `:matches(Property[key.name="to"], JSXAttribute[name.name="to"] > JSXExpressionContainer) > :matches(${BUILT_PATH})`,
+    message: 'A path built from a string: pass `to="/notes/$noteId"` with `params={{ noteId }}` instead.',
+  },
+  {
+    selector: `CallExpression:matches([callee.name="navigate"], [callee.property.name="navigate"]) > :matches(Literal, ${BUILT_PATH}).arguments`,
+    message: 'Navigate with an object: navigate({ to: "/path", params, search }), never a string.',
+  },
+]
+/** For Zustand stores: server data and its types stay in TanStack Query (the module hooks). */
+export const storeImports = {
+  regex:
+    '^@tanstack/(react-)?query|/hooks/|^\\.\\./hooks|/server/|^\\.\\./server|^@/server|(^|/)types$|\\.functions$',
+  message:
+    'A store holds client-only state. Server data and its types stay in TanStack Query (the module hooks).',
+}
+
 export default {
   meta: { name: 'local' },
-  rules: { 'todo-needs-issue': todoNeedsIssue, 'exception-needs-issue': exceptionNeedsIssue },
+  rules: {
+    'todo-needs-issue': todoNeedsIssue,
+    'exception-needs-issue': exceptionNeedsIssue,
+    'ssr-needs-reason': ssrNeedsReason,
+  },
 }

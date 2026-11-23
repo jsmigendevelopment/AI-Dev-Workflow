@@ -14,8 +14,13 @@ export const E2E_ACCESS = {
   ACCESS_PATHS: '/notes,/api/v1/*,/_serverFn/*',
 }
 
-/** Every route a visitor can open. The 404 page is a route too. */
-export const ROUTES = ['/', '/notes', '/this-page-does-not-exist'] as const
+/** Every route a visitor can open. The 404 page is a route too; a note's page uses a made-up id. */
+export const ROUTES = [
+  '/',
+  '/notes',
+  '/notes/00000000-0000-4000-8000-000000000000',
+  '/this-page-does-not-exist',
+] as const
 
 /** Waits until React has hydrated the page and the router is idle. */
 export async function hydrated(page: Page) {

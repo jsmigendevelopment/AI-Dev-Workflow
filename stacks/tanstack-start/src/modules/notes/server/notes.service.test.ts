@@ -75,6 +75,34 @@ describe('notes service', () => {
     expect(seen).toEqual(['N5', 'N4', 'N3', 'N2', 'N1'])
   })
 
+  it('pages oldest first, filtered by title, with no gaps or repeats', async () => {
+    const service = setup()
+    for (const title of ['Milk', 'Bread', 'Oat milk', 'Milkshake', 'Eggs'])
+      await service.create(ann, { title })
+    await service.create(bob, { title: 'Milk for bob' })
+    const seen: string[] = []
+    let cursor: string | undefined
+    do {
+      const page = await service.list(ann, { cursor, limit: 2, q: 'MILK', sort: 'oldest' })
+      seen.push(...page.items.map((n) => n.title))
+      cursor = page.nextCursor ?? undefined
+    } while (cursor)
+    expect(seen).toEqual(['Milk', 'Oat milk', 'Milkshake'])
+  })
+
+  it('treats an empty filter as no filter', async () => {
+    const service = setup()
+    await service.create(ann, { title: 'One' })
+    expect((await service.list(ann, { limit: 10, q: '' })).items).toHaveLength(1)
+  })
+
+  it("gets one note by id, and another user's note is not_found", async () => {
+    const service = setup()
+    const note = await service.create(ann, { title: 'Mine' })
+    expect(await service.get(ann, { id: note.id })).toEqual(note)
+    expect(await code(service.get(bob, { id: note.id }))).toBe('not_found')
+  })
+
   it('rejects a cursor it did not make', async () => {
     expect(await code(setup().list(ann, { cursor: 'not-a-cursor', limit: 2 }))).toBe('validation')
   })

@@ -1,37 +1,43 @@
-import { infiniteQueryOptions, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+// The hooks components use: the list, and the writes. Kept apart from notes-queries.ts because
+// routes import that one in their loaders, which ship in the entry chunk; these (and the toast
+// they show) load with the notes pages only.
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { showErrorToast } from '@/components/error-toast'
 import { call } from '@/lib/api-call'
 import { TURNSTILE_HEADER } from '@/lib/turnstile'
 
-import { createNote, deleteNote, listNotes, renameNote } from '../server/notes.functions'
+import { createNote, deleteNote, renameNote } from '../server/notes.functions'
 import type { CreateNoteInput, DeleteNoteInput, RenameNoteInput } from '../types'
+import { type NotesCache, optimisticDelete, optimisticRename } from './notes-cache'
+import { notesKeys, type NotesListFilter, notesQueries } from './notes-queries'
 
-/** Key prefixes, for invalidation. Reads go through `notesQueries`, so key and fetcher can't drift. */
-export const notesKeys = {
-  all: ['notes'] as const,
-  lists: () => [...notesKeys.all, 'list'] as const,
+export const useNotesList = (filter: NotesListFilter) => useInfiniteQuery(notesQueries.list(filter))
+
+/** An optimistic write: the cache change, and the toast's title if the server says no. */
+interface Optimistic<I> {
+  apply: (cache: NotesCache, input: I) => Promise<() => void>
+  failed: string
 }
 
-export const notesQueries = {
-  list: (limit = 20) =>
-    infiniteQueryOptions({
-      queryKey: [...notesKeys.lists(), { limit }] as const,
-      queryFn: ({ pageParam, signal }) =>
-        call(() => listNotes({ data: { cursor: pageParam, limit }, signal })),
-      initialPageParam: undefined as string | undefined,
-      getNextPageParam: (last) => last.nextCursor ?? undefined,
-    }),
-}
-
-export const useNotesList = () => useInfiniteQuery(notesQueries.list())
-
-/** Writes refetch the list when they settle. Simple and always correct. */
-function useNotesMutation<I, O>(send: (input: I) => Promise<O>) {
+/**
+ * Writes refetch every list and note when they settle. Simple and always correct. An optimistic
+ * write shows its change at once, puts the snapshot back if the server refuses, and says so in
+ * the error toast (with a reference id and a retry).
+ */
+function useNotesMutation<I, O>(send: (input: I) => Promise<O>, optimistic?: Optimistic<I>) {
   const client = useQueryClient()
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: send,
-    onSettled: () => client.invalidateQueries({ queryKey: notesKeys.lists() }),
+    onMutate: optimistic ? (input) => optimistic.apply(client, input) : undefined,
+    onError: (error, input, rollback) => {
+      if (!optimistic) return
+      rollback?.()
+      showErrorToast(optimistic.failed, error, () => mutation.mutate(input))
+    },
+    onSettled: () => client.invalidateQueries({ queryKey: notesKeys.all }),
   })
+  return mutation
 }
 
 /** `humanToken` is the Turnstile token from `useTurnstile()`, sent as a header (absent when off). */
@@ -40,6 +46,12 @@ export const useCreateNote = () =>
     call(() => createNote({ data, headers: humanToken ? { [TURNSTILE_HEADER]: humanToken } : undefined })),
   )
 export const useRenameNote = () =>
-  useNotesMutation((data: RenameNoteInput) => call(() => renameNote({ data })))
+  useNotesMutation((data: RenameNoteInput) => call(() => renameNote({ data })), {
+    apply: optimisticRename,
+    failed: 'Couldn’t rename the note',
+  })
 export const useDeleteNote = () =>
-  useNotesMutation((data: DeleteNoteInput) => call(() => deleteNote({ data })))
+  useNotesMutation((data: DeleteNoteInput) => call(() => deleteNote({ data })), {
+    apply: optimisticDelete,
+    failed: 'Couldn’t delete the note',
+  })

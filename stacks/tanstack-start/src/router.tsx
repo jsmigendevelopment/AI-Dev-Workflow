@@ -5,6 +5,7 @@ import { getGlobalStartContext } from '@tanstack/react-start'
 
 import { ErrorState } from '@/components/error-state'
 import { NotFound } from '@/components/not-found'
+import { PageSkeleton } from '@/components/page-skeleton'
 import type { AppError } from '@/lib/app-error'
 
 import { routeTree } from './routeTree.gen'
@@ -47,6 +48,11 @@ export function getRouter() {
     // Route code and data start loading on hover or focus, not on page load.
     defaultPreload: 'intent',
     ssr: { nonce: cspNonce() },
+    // A navigation whose loaders take longer than 300 ms shows the page skeleton, and keeps it
+    // for at least 500 ms so it never flashes. Fast navigations show no skeleton at all.
+    defaultPendingComponent: PageSkeleton,
+    defaultPendingMs: 300,
+    defaultPendingMinMs: 500,
     defaultErrorComponent: () => <ErrorState />,
     defaultNotFoundComponent: () => <NotFound />,
   })

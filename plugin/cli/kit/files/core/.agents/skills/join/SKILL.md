@@ -38,6 +38,7 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
 
    - The person picks per row: **keep theirs, adopt ours, or merge.** Three rows a round, each with your recommendation.
    - Write each answer to `docs/decisions.md` and to "Conventions this repo keeps" in `docs/architecture.md`.
+   - For an area the repo doesn't cover yet (forms, data grids, charts, Markdown, code highlighting, long lists, keyboard shortcuts), the kit's TanStack default (the `stack` skill's table) is the pick to confirm, not a question. A library the repo already uses for that area is a clash row like any other.
    - **Never silently switch a repo to the kit's conventions.** "Adopt ours" means an issue for the move, not a quiet rewrite.
 
 5. **Grill the person.** Open `grill` and run its existing-project topics. Ask only what the code can't tell you:

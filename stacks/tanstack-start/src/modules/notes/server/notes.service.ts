@@ -22,21 +22,40 @@ const toDto = (row: NoteRow): NoteDto => ({
 // Someone else's note is "not found", never "forbidden": ids don't leak existence.
 const missing = () => new AppError('not_found', 'That note does not exist.')
 
+interface ListInput {
+  cursor?: string | undefined
+  limit: number
+  q?: string | undefined
+  sort?: 'newest' | 'oldest' | undefined
+}
+
 /** Business rules only. Inputs are already validated. No HTTP, no env, no SQL. */
 export function createNotesService({ repo, now, newId }: NotesDeps) {
   return {
-    async list(actor: Actor, input: { cursor?: string | undefined; limit: number }): Promise<Page<NoteDto>> {
+    /** Newest first unless `sort` says oldest; `q` keeps notes whose title contains it. */
+    async list(actor: Actor, input: ListInput): Promise<Page<NoteDto>> {
       const after = decodeCursor(input.cursor)
       if (after === undefined)
         throw new AppError('validation', 'That page link is not valid.', { cursor: ['Not a valid cursor.'] })
       // One extra row tells us whether there is a next page.
-      const rows = await repo.listByOwner(actor.userId, { after, limit: input.limit + 1 })
+      const rows = await repo.listByOwner(actor.userId, {
+        after,
+        limit: input.limit + 1,
+        q: input.q || undefined,
+        order: input.sort,
+      })
       const items = rows.slice(0, input.limit)
       const last = items.at(-1)
       return {
         items: items.map(toDto),
         nextCursor: rows.length > input.limit && last ? encodeCursor(last) : null,
       }
+    },
+
+    async get(actor: Actor, input: { id: string }): Promise<NoteDto> {
+      const row = await repo.findByOwner(actor.userId, input.id)
+      if (!row) throw missing()
+      return toDto(row)
     },
 
     async create(actor: Actor, input: { title: string }): Promise<NoteDto> {
