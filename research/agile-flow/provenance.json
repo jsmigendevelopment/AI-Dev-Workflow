@@ -1,0 +1,17 @@
+{
+  "schema": "research-provenance/1",
+  "dossier": "agile-flow.md",
+  "stores": ["desk"],
+  "roles": [
+    {
+      "role": "author",
+      "model": "claude-fable-5-2",
+      "effort": "high",
+      "harness": "Claude Code 2.1.330, cloud session, main thread",
+      "started": "2026-11-23",
+      "finished": "unknown",
+      "brief": "briefs/author.md",
+      "notes": "Model and effort as the session reports them (session_context.model and effort_level, read 2026-11-23). The session was configured for claude-opus-5-5 and switched by the owner to claude-fable-5-2 before the first turn."
+    }
+  ]
+}
