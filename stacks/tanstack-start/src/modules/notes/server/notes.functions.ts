@@ -4,7 +4,13 @@ import { asActor, withActor } from '@/server/auth'
 import { notesApi } from '@/server/composition'
 import { asHuman, withHumanCheck } from '@/server/turnstile'
 
-import type { CreateNoteInput, DeleteNoteInput, ListNotesInput, RenameNoteInput } from '../types'
+import type {
+  BrowseNotesInput,
+  CreateNoteInput,
+  DeleteNoteInput,
+  GetNoteInput,
+  RenameNoteInput,
+} from '../types'
 
 // The route table: method, auth middleware, a typed pass-through validator, one controller call.
 // The validator only types `data` for callers; the controller does the real parsing, so bad
@@ -13,8 +19,13 @@ import type { CreateNoteInput, DeleteNoteInput, ListNotesInput, RenameNoteInput 
 
 export const listNotes = createServerFn({ method: 'GET' })
   .middleware([withActor])
-  .validator((data: ListNotesInput): unknown => data)
-  .handler(({ data, context }) => asActor(context.actor, (actor) => notesApi().list(actor, data)))
+  .validator((data: BrowseNotesInput): unknown => data)
+  .handler(({ data, context }) => asActor(context.actor, (actor) => notesApi().browse(actor, data)))
+
+export const getNote = createServerFn({ method: 'GET' })
+  .middleware([withActor])
+  .validator((data: GetNoteInput): unknown => data)
+  .handler(({ data, context }) => asActor(context.actor, (actor) => notesApi().get(actor, data)))
 
 // The public-facing write: Turnstile-checked when TURNSTILE_* keys are set, a pass-through when not.
 export const createNote = createServerFn({ method: 'POST' })

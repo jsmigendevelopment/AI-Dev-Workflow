@@ -1,0 +1,83 @@
+import { ESLint } from 'eslint'
+import tseslint from 'typescript-eslint'
+import { describe, expect, it } from 'vitest'
+
+// The routing, store and SSR rules in eslint.config.js and eslint-rules.js, each proved on a
+// deliberate violation through the real config (a rule that never fires passes silently). The
+// probes are text, not files, so the type-aware rules are off: these rules read syntax only.
+const eslint = new ESLint({ cwd: process.cwd(), overrideConfig: tseslint.configs.disableTypeChecked })
+
+async function rulesHit(code: string, filePath: string) {
+  const [result] = await eslint.lintText(code, { filePath })
+  return (result?.messages ?? []).map((m) => `${m.ruleId}: ${m.message}`)
+}
+
+const SYNTAX = 'no-restricted-syntax'
+
+describe('lint: links and navigation stay type-safe', () => {
+  const file = 'src/components/lint-probe.tsx'
+  const component = (body: string) =>
+    `import { Link, useNavigate } from '@tanstack/react-router'\n\nexport function Probe({ id }: { id: string }) {\n  const navigate = useNavigate()\n  void navigate\n  void Link\n  void id\n  return ${body}\n}\n`
+
+  it.each([
+    ['a raw internal <a href>', '<a href="/notes">Notes</a>'],
+    ['an <a href> built from a template', '<a href={`/notes/${id}`}>Note</a>'],
+    ['a Link to a string-built path', '<Link to={`/notes/${id}`}>Note</Link>'],
+    ['a Link to a concatenated path', "<Link to={'/notes/' + id}>Note</Link>"],
+  ])('refuses %s', async (_, jsx) => {
+    expect((await rulesHit(component(jsx), file)).some((m) => m.startsWith(SYNTAX))).toBe(true)
+  })
+
+  it('refuses navigate() with a string or a string-built `to`', async () => {
+    for (const call of ["navigate('/notes')", 'navigate({ to: `/notes/${id}` })'])
+      expect(
+        (await rulesHit(component(`(void ${call}, null)`), file)).some((m) => m.startsWith(SYNTAX)),
+      ).toBe(true)
+  })
+
+  it('allows typed links, external links, anchors and object navigation', async () => {
+    const ok = component(
+      '<>\n<Link to="/notes/$noteId" params={{ noteId: id }}>Note</Link>\n<a href="https://example.com">Out</a>\n<a href="#main">Skip</a>\n<button onClick={() => void navigate({ to: "/notes" })}>Go</button>\n</>',
+    )
+    expect((await rulesHit(ok, file)).filter((m) => m.startsWith(SYNTAX))).toEqual([])
+  })
+})
+
+describe('lint: a Zustand store never holds server data', () => {
+  it.each([
+    ["import { useQuery } from '@tanstack/react-query'", 'src/stores/probe-store.ts'],
+    ["import { useNotesList } from '@/modules/notes/hooks/use-notes'", 'src/stores/probe-store.ts'],
+    ["import type { NoteDto } from '@/modules/notes/types'", 'src/stores/probe-store.ts'],
+    ["import type { NoteDto } from '../types'", 'src/modules/notes/stores/probe-store.ts'],
+    ["import { listNotes } from '../server/notes.functions'", 'src/modules/notes/stores/probe-store.ts'],
+  ])('refuses %s in %s', async (line, file) => {
+    const hits = await rulesHit(`${line}\n\nexport const probe = 1\n`, file)
+    expect(hits.some((m) => m.startsWith('no-restricted-imports'))).toBe(true)
+  })
+
+  it('allows client-only imports in a store', async () => {
+    const hits = await rulesHit(
+      "import { cn } from '@/lib/utils'\n\nexport const probe = cn\n",
+      'src/stores/probe-store.ts',
+    )
+    expect(hits.filter((m) => m.startsWith('no-restricted-imports'))).toEqual([])
+  })
+})
+
+describe('lint: a route that is not fully server-rendered says why', () => {
+  const route = (option: string) =>
+    `import { createFileRoute } from '@tanstack/react-router'\n\nexport const Route = createFileRoute('/probe')({\n${option}\n})\n`
+  const file = 'src/routes/probe.tsx'
+
+  it('refuses ssr: false or data-only with no reason, and a redundant ssr: true', async () => {
+    for (const option of ['  ssr: false,', "  ssr: 'data-only',", '  ssr: true,'])
+      expect((await rulesHit(route(option), file)).some((m) => m.startsWith('local/ssr-needs-reason'))).toBe(
+        true,
+      )
+  })
+
+  it('accepts ssr: false with a reason above it', async () => {
+    const hits = await rulesHit(route('  // ssr: the canvas editor needs window.\n  ssr: false,'), file)
+    expect(hits.filter((m) => m.startsWith('local/ssr-needs-reason'))).toEqual([])
+  })
+})

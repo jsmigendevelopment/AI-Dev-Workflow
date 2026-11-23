@@ -17,7 +17,14 @@ Picked in the tech grill. Every choice says whether it was the recommended defau
 | Production behind a login | nothing / chosen paths (`/admin`) / the whole app |  |  |  |
 | Testing |  |  |  |  |
 | Client state | local first, then the URL, then Zustand |  |  |  |
-| Server data, forms, tables | TanStack Query, TanStack Form, TanStack Table |  |  |  |
+| Server data | TanStack Query |  |  |  |
+| Forms (when needed) | TanStack Form |  |  |  |
+| Data grids (when needed) | TanStack Table v9 |  |  |  |
+| Charts (when needed) | TanStack Charts |  |  |  |
+| Markdown content (when needed) | TanStack Markdown |  |  |  |
+| Code highlighting (when needed) | TanStack Highlight |  |  |  |
+| Long lists (when needed) | TanStack Virtual |  |  |  |
+| Keyboard shortcuts (when needed) | TanStack Hotkeys (0.x: exact pin) |  |  |  |
 | ORM | Drizzle |  |  |  |
 | ID strategy | UUIDv7 / ULID, made on the server |  |  |  |
 | Instant format | ISO 8601 UTC / epoch milliseconds |  |  |  |
@@ -30,6 +37,8 @@ Picked in the tech grill. Every choice says whether it was the recommended defau
 | Analytics |  |  |  |  |
 | OpenAPI generator | zod-openapi (until research confirms) |  |  |  |
 | Other SaaS / libraries |  |  |  |  |
+
+The "when needed" rows are defaults, not installs: a library is added by the first issue that needs it, and that issue names its recipe (`stack-tanstack-start/references/tanstack/<area>.md` in the kit).
 
 ## Build vs buy
 

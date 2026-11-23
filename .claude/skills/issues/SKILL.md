@@ -45,6 +45,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - `web-performance` for heavy pages, media or 3D;
    - `seo` for public pages;
    - `dependencies` when adding a library.
+10. **Recipes line:** when the work needs one of the kit's default libraries, name its recipe, so the builder loads it: `Recipes: form` (a form), `table` (a data grid), `charts` (a chart), `markdown` (rendered Markdown), `highlight` (code highlighting), `virtual` (a long list), `hotkeys` (keyboard shortcuts); `start`, `router` and `query` for route, URL-state and server-data work in a TanStack Start app. They live in `.agents/skills/stack-tanstack-start/references/tanstack/` and don't count toward the three skills. The first issue that needs one also installs it (add `dependencies` to its `Skills:` line); nothing is installed before that.
 
 ## Every change has an issue
 

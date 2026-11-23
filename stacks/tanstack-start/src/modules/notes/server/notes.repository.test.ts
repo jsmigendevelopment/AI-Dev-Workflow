@@ -33,6 +33,42 @@ function contract(name: string, make: () => Promise<NotesRepository>) {
       expect(await ids({ createdAt: 2, id: 'n2' })).toEqual(['n1'])
     })
 
+    it('lists oldest first when asked, paging forward from the cursor', async () => {
+      const repo = await make()
+      for (const r of [row(1), row(2), row(3, { createdAt: 2 }), row(4, { ownerId: 'bob' })])
+        await repo.insert(r)
+      const ids = async (after: { createdAt: number; id: string } | null) =>
+        (await repo.listByOwner('ann', { after, limit: 10, order: 'oldest' })).map((r) => r.id)
+      expect(await ids(null)).toEqual(['n1', 'n2', 'n3'])
+      expect(await ids({ createdAt: 2, id: 'n2' })).toEqual(['n3'])
+    })
+
+    it('filters by part of the title, ignoring ASCII case, with % and _ as plain text', async () => {
+      const repo = await make()
+      for (const r of [
+        row(1, { title: 'Buy MILK' }),
+        row(2, { title: 'Call mum' }),
+        row(3, { title: '50% off_sale' }),
+        row(4, { ownerId: 'bob', title: 'milk for bob' }),
+      ])
+        await repo.insert(r)
+      const ids = async (q: string) =>
+        (await repo.listByOwner('ann', { after: null, limit: 10, q })).map((r) => r.id)
+      expect(await ids('milk')).toEqual(['n1'])
+      expect(await ids('M')).toEqual(['n2', 'n1'])
+      expect(await ids('%')).toEqual(['n3'])
+      expect(await ids('f_s')).toEqual(['n3'])
+      expect(await ids('nothing')).toEqual([])
+    })
+
+    it('finds one row by id for its owner only', async () => {
+      const repo = await make()
+      await repo.insert(row(1))
+      expect(await repo.findByOwner('ann', 'n1')).toEqual(row(1))
+      expect(await repo.findByOwner('bob', 'n1')).toBeNull()
+      expect(await repo.findByOwner('ann', 'missing')).toBeNull()
+    })
+
     it('renames only for the owner and returns the stored row', async () => {
       const repo = await make()
       await repo.insert(row(1))

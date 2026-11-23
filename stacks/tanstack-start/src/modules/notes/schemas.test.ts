@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { ERROR_STATUS } from '@/lib/app-error'
 
-import { createNoteInput, listNotesInput, renameNoteBody } from './schemas'
+import { browseNotesInput, createNoteInput, getNoteInput, listNotesInput, renameNoteBody } from './schemas'
+import { parseNoteParams, parseNotesSearch } from './search'
 
 // The same cases as the /api/v1 contract's own tests (monorepo pack, packages/contracts), so the
 // standalone web pack can't drift from it without a failing test.
@@ -42,5 +43,42 @@ describe('notes schemas match the /api/v1 contract', () => {
       internal: 500,
       unavailable: 503,
     })
+  })
+})
+
+/** What the router hands the parser: whatever the URL holds. */
+const parseUrl = (raw: Record<string, unknown>) =>
+  parseNotesSearch(raw as Parameters<typeof parseNotesSearch>[0])
+
+describe('the /notes URL and the app-only list input', () => {
+  it('fills defaults and falls back on bad values instead of failing the page', () => {
+    expect(parseUrl({})).toEqual({ sort: 'newest', page: 1 })
+    expect(parseUrl({ q: ' milk ', sort: 'oldest', page: '3' })).toEqual({
+      q: 'milk',
+      sort: 'oldest',
+      page: 3,
+    })
+    expect(parseUrl({ q: 'x'.repeat(101), sort: 'title', page: '99' })).toEqual({
+      q: undefined,
+      sort: 'newest',
+      page: 1,
+    })
+    expect(parseUrl({ page: '-1' }).page).toBe(1)
+  })
+
+  it('browses with q and sort, but keeps the rest of the contract strict', () => {
+    expect(browseNotesInput.parse({ q: 'a', sort: 'oldest' })).toEqual({ q: 'a', sort: 'oldest', limit: 20 })
+    expect(browseNotesInput.parse({})).toEqual({ sort: 'newest', limit: 20 })
+    expect(browseNotesInput.safeParse({ sort: 'title' }).success).toBe(false)
+    expect(browseNotesInput.safeParse({ ownerId: 'u1' }).success).toBe(false)
+  })
+
+  it('takes a UUID as a note id and nothing else', () => {
+    const id = '00000000-0000-4000-8000-000000000001'
+    expect(parseNoteParams({ noteId: id })).toEqual({ noteId: id })
+    for (const noteId of ['1', 'abc', `${id}x`, '00000000-0000-4000-8000-00000000000g'])
+      expect(parseNoteParams({ noteId })).toBe(false)
+    // The route's check and the server's schema agree on what an id is.
+    expect(getNoteInput.safeParse({ id }).success).toBe(true)
   })
 })

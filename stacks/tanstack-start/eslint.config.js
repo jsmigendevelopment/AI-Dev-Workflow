@@ -9,7 +9,7 @@ import importSort from 'eslint-plugin-simple-import-sort'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
-import local from './eslint-rules.js'
+import local, { routing, storeImports } from './eslint-rules.js'
 
 // The module boundary check. Elements are the folders in docs/architecture.md; every import
 // between them must match a policy below, or lint fails.
@@ -62,6 +62,11 @@ const restrictedSyntax = [
     message: '`as unknown as` turns the checker off. Fix the type, or parse the value with Zod.',
   },
 ]
+// Code outside src/ (scripts, e2e) may reach into it: the alias only covers src/.
+const deepRelative = {
+  regex: '^\\.\\./\\.\\./(?!(?:\\.\\./)*(?:scripts|e2e)/)',
+  message: 'Use the @/ alias instead of a deep relative path.',
+}
 // Colours come from the design tokens. These files hold the tokens, so they may spell colours.
 // (src/styles.css is the main token file; ESLint doesn't read CSS.)
 const TOKEN_FILES = ['src/lib/site.ts', 'src/lib/plain-page.ts']
@@ -121,13 +126,7 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          patterns: [
-            // Code outside src/ (scripts, e2e) may reach into it: the alias only covers src/.
-            {
-              regex: '^\\.\\./\\.\\./(?!(?:\\.\\./)*(?:scripts|e2e)/)',
-              message: 'Use the @/ alias instead of a deep relative path.',
-            },
-          ],
+          patterns: [deepRelative],
         },
       ],
       'simple-import-sort/imports': 'error',
@@ -158,6 +157,13 @@ export default tseslint.config(
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
+      // The router's own control flow: `throw notFound()` and `throw redirect()` in loaders.
+      '@typescript-eslint/only-throw-error': [
+        'error',
+        {
+          allow: [{ from: 'package', package: '@tanstack/router-core', name: ['NotFoundError', 'Redirect'] }],
+        },
+      ],
       '@typescript-eslint/switch-exhaustiveness-check': [
         'error',
         { considerDefaultExhaustiveForUnions: true, requireDefaultForNonUnion: false },
@@ -174,6 +180,10 @@ export default tseslint.config(
       ],
       'no-restricted-syntax': ['error', ...restrictedSyntax],
     },
+  },
+  {
+    files: TOKEN_FILES,
+    rules: { 'no-restricted-syntax': ['error', ...restrictedSyntax, ...routing] },
   },
   {
     // Classes: tokens only. No arbitrary values (`mt-[13px]`) and no palette colours (`bg-blue-500`).
@@ -202,7 +212,20 @@ export default tseslint.config(
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: TOKEN_FILES,
-    rules: { 'no-restricted-syntax': ['error', ...restrictedSyntax, ...rawColour] },
+    rules: { 'no-restricted-syntax': ['error', ...restrictedSyntax, ...rawColour, ...routing] },
+  },
+  {
+    // Zustand stores hold client-only state. Server data lives in TanStack Query and nowhere else,
+    // so a store may not import Query, a module's hooks, its server code or its wire types.
+    files: ['src/stores/**', 'src/modules/*/stores/**', 'src/**/*-store.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [deepRelative, storeImports],
+        },
+      ],
+    },
   },
   {
     // The logger is the one module that writes to the console.
@@ -215,11 +238,14 @@ export default tseslint.config(
     rules: {
       'check-file/filename-naming-convention': [
         'error',
-        { 'src/routes/**/*.{ts,tsx}': '+([a-z0-9_.$-])' },
+        // Param names after `$` are camelCase, as in TanStack's docs (`$noteId`).
+        { 'src/routes/**/*.{ts,tsx}': '+([a-zA-Z0-9_.$-])' },
         { ignoreMiddleExtensions: false },
       ],
       'check-file/folder-naming-convention': 'off',
       'check-file/no-index': 'off',
+      // Every route renders fully on the server unless it says why not (the stack skill's SSR rule).
+      'local/ssr-needs-reason': 'error',
     },
   },
   {

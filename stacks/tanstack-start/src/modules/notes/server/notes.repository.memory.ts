@@ -1,4 +1,16 @@
-import type { NoteRow, NotesRepository } from './notes.repository'
+import type { ListOptions, NoteRow, NotesRepository } from './notes.repository'
+
+// Like SQLite's lower(): ASCII letters only, so the fake matches what D1 matches.
+const fold = (text: string) => text.replace(/[A-Z]/g, (c) => c.toLowerCase())
+
+/** Newest first: createdAt, then id, both descending. */
+const newestFirst = (a: NoteRow, b: NoteRow) =>
+  b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
+
+const isAfter = (r: NoteRow, after: NonNullable<ListOptions['after']>, order: ListOptions['order']) =>
+  order === 'oldest'
+    ? r.createdAt > after.createdAt || (r.createdAt === after.createdAt && r.id > after.id)
+    : r.createdAt < after.createdAt || (r.createdAt === after.createdAt && r.id < after.id)
 
 /** The test fake. It passes the same contract suite as the D1 adapter, so service tests can trust it. */
 export function memoryNotesRepository(seed: NoteRow[] = []): NotesRepository {
@@ -8,16 +20,17 @@ export function memoryNotesRepository(seed: NoteRow[] = []): NotesRepository {
     return row && row.ownerId === ownerId ? row : null
   }
   return {
-    async listByOwner(ownerId, { after, limit }) {
-      return [...rows.values()]
+    async listByOwner(ownerId, { after, limit, q, order = 'newest' }) {
+      const sorted = [...rows.values()]
         .filter((r) => r.ownerId === ownerId)
-        .filter(
-          (r) =>
-            !after || r.createdAt < after.createdAt || (r.createdAt === after.createdAt && r.id < after.id),
-        )
-        .sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0))
-        .slice(0, limit)
-        .map((r) => ({ ...r }))
+        .filter((r) => !after || isAfter(r, after, order))
+        .filter((r) => !q || fold(r.title).includes(fold(q)))
+        .sort(newestFirst)
+      return (order === 'oldest' ? sorted.reverse() : sorted).slice(0, limit).map((r) => ({ ...r }))
+    },
+    async findByOwner(ownerId, id) {
+      const row = mine(ownerId, id)
+      return row ? { ...row } : null
     },
     async insert(row) {
       if (rows.has(row.id)) throw new Error('UNIQUE constraint failed: notes.id')

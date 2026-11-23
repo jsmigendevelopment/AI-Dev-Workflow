@@ -26,17 +26,25 @@ import {
 // --- budgets (gzip bytes) --------------------------------------------------------------------
 /**
  * Each page to check. React 19 + Router + Start client is ~105 KB gz of framework floor, and
- * 150 KB gz is the target for any page. Measured 2026-11-22: `/` 135.6 KB; `/notes` 160.7 KB, of
- * which 25.5 KB is its own chunk, mostly Zod for the form's client-side check (`zod/mini` or a
- * server-only check is the lever if it must shrink).
+ * 150 KB gz is the target for any page. Measured 2026-11-23: `/` 136.4 KB; `/notes` 143.9 KB and a
+ * note's page 144.0 KB, of which about 8 KB is their own chunks. Route search and params parsers
+ * are plain functions (Zod in the entry would cost every page about 10 KB); the note forms
+ * (TanStack Form and classic Zod) and Sonner load lazily, after the page. Each route is its own
+ * chunk: Start always runs the router's code splitter, so `route JS` is the page's own code.
  */
 const PAGES: Record<string, { initialJs: number; routeJs: number; css: number }> = {
   '/': { initialJs: 145 * 1024, routeJs: 5 * 1024, css: 8 * 1024 },
   '/notes': { initialJs: 170 * 1024, routeJs: 30 * 1024, css: 8 * 1024 },
+  '/notes/00000000-0000-4000-8000-000000000000': { initialJs: 170 * 1024, routeJs: 30 * 1024, css: 8 * 1024 },
 }
 /** Lazy chunks: one file-name pattern each (exactly one file must match) and a gzip budget. */
 const LAZY: Record<string, { pattern: RegExp; budget: number }> = {
   clerk: { pattern: /^clerk-[\w-]+\.js$/, budget: 40 * 1024 },
+  // Sonner, for the error toast: loaded after the notes pages, never with them.
+  toaster: { pattern: /^toaster-[\w-]+\.js$/, budget: 12 * 1024 },
+  // The note forms' shared code (TanStack Form and classic Zod), loaded after the notes pages.
+  // Rolldown names a shared chunk after its first module, here `field-error.tsx`.
+  noteForms: { pattern: /^field-error-[\w-]+\.js$/, budget: 42 * 1024 },
 }
 // ---------------------------------------------------------------------------------------------
 

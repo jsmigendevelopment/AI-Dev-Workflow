@@ -36,7 +36,7 @@ The platform comes first, because everything else depends on it.
 9. **CI and the check contract:** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). CI runs them on every pull request, plus a secret scan and the agent-file guard. Lint enforces the code rules a tool can check: no `any` or unexplained `eslint-disable`, no `console.log`, file and function size, unused exports, import order and kebab-case names. Start from `templates/ci.yml` in the `idea` skill.
 10. **Build vs buy** for every other need: open source first, then a free-tier SaaS, then build it.
 11. **App conventions,** as quick confirmations. Say the default and move on unless the person objects. The reasons are in `guide/app-conventions.md` in the kit.
-    - State: local `useState` first, then typed search params for anything shareable, then **Zustand** only for complex shared client state. Server data in TanStack Query, forms in **TanStack Form**, tables in **TanStack Table**.
+    - State: local `useState` first, then typed search params for anything shareable, then **Zustand** only for complex shared client state. Server data in TanStack Query, forms in **TanStack Form**, tables in **TanStack Table**. The other TanStack defaults (charts, Markdown, highlighting, long lists, shortcuts) are in the table below: confirm them as defaults, install none until a feature needs it.
     - Drizzle, snake_case plural tables, `created_at` and `updated_at`, an index on every foreign key. The ID: **UUIDv7 or ULID**, made on the server. Ask which.
     - Money: one `Money` type in integer minor units plus the currency. Rounding: half-even for splitting and tax, unless they want another rule.
     - Time: instants in UTC. Ask the format: **ISO 8601 or epoch milliseconds**, one for the project. Temporal where supported, else `date-fns` with `@date-fns/tz` (until research confirms).
@@ -65,8 +65,13 @@ The platform comes first, because everything else depends on it.
 | Queries | Drizzle | Kysely, Prisma |
 | Server data | TanStack Query | |
 | Client state | Local first, then the URL, then Zustand | Jotai |
-| Forms | TanStack Form | React Hook Form |
-| Tables | TanStack Table | |
+| Forms | TanStack Form (recipe `form.md`) | React Hook Form |
+| Data grids | TanStack Table v9 (recipe `table.md`) | |
+| Charts | TanStack Charts (recipe `charts.md`) | Recharts |
+| Markdown content | TanStack Markdown (recipe `markdown.md`) | `react-markdown` |
+| Code highlighting | TanStack Highlight (recipe `highlight.md`) | Shiki |
+| Long lists | TanStack Virtual (recipe `virtual.md`) | |
+| Keyboard shortcuts | TanStack Hotkeys, 0.x: pin it exactly (recipe `hotkeys.md`) | |
 | IDs | UUIDv7, made on the server | ULID |
 | Dates and times | Temporal where supported, else `date-fns` + `@date-fns/tz` (until research confirms) | Luxon |
 | Money | One `Money` type in `lib/money.ts`, integer minor units | Dinero.js (until research confirms) |
@@ -86,6 +91,8 @@ The platform comes first, because everything else depends on it.
 | Email | Resend for sending, Cloudflare Email Routing for receiving. Add-on `email-resend`, risky lane | Postmark |
 | Payments | Stripe for subscriptions. Add-on `stripe`, risky lane | Lemon Squeezy or Paddle as merchant of record |
 | Tests | Vitest + Playwright | Jest |
+
+**The TanStack defaults per area** (forms, data grids, charts, Markdown, code highlighting, long lists, keyboard shortcuts) are the owner's decision of 2026-11-23 for any web app, on any framework. They are defaults *when the app needs that area*, not installs: nothing is added until a feature needs it, and the issue that adds it names its recipe (`stack-tanstack-start/references/tanstack/<area>.md`), which the builder loads. The grill and `/join` confirm each one as a default ("Charts, if we need them: TanStack Charts. OK?"); they don't open it as a question.
 
 If the person picks a database, make it a real decision. Switching engines after launch means a new SQL dialect and a data migration.
 
