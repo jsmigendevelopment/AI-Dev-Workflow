@@ -32,3 +32,27 @@ test("production refuses Cloudflare's documented Turnstile test keys", () => {
     assert.equal(shapeProblem(name, "1x0000000000000000000000000000000AA", shape, "local"), null);
   }
 });
+
+// #13: `clerk env pull` writes the publishable key as VITE_CLERK_PUBLISHABLE_KEY for TanStack Start
+// (clerk/cli framework.ts), the name in Clerk's quickstart. Every place the pack's keys are named
+// must use it, so pulled keys work with no rename.
+test("the Clerk connect block, .env.example and the env schema use Clerk's name for the publishable key", () => {
+  const pack = fileURLToPath(new URL("../../stacks/tanstack-start/", import.meta.url));
+  const clerk = parseProvider("clerk", readFileSync(DIR + "clerk.md", "utf8"));
+  const example = readFileSync(pack + ".env.example", "utf8");
+  const schema = readFileSync(pack + "src/lib/env-schema.ts", "utf8");
+  const listed = [...example.matchAll(/^([A-Z0-9_]+)=/gm)].map((m) => m[1]);
+  assert.ok(clerk.vars.VITE_CLERK_PUBLISHABLE_KEY, "clerk.md's connect block fills VITE_CLERK_PUBLISHABLE_KEY");
+  assert.equal(clerk.vars.CLERK_PUBLISHABLE_KEY, undefined, "clerk.md's connect block still fills the old name");
+  for (const name of Object.keys(clerk.vars)) {
+    assert.ok(listed.includes(name), `${name} is in clerk.md's connect block but not in the pack's .env.example`);
+    assert.match(schema, new RegExp(`^    ${name}: `, "m"), `${name} is not in the pack's runtime env schema`);
+  }
+  assert.ok(!listed.includes("CLERK_PUBLISHABLE_KEY"), ".env.example still lists the old name");
+});
+
+test("no walkthrough tells the person to rename the key Clerk's CLI writes", () => {
+  const clerk = readFileSync(DIR + "clerk.md", "utf8");
+  assert.doesNotMatch(clerk, /Rename `?VITE_CLERK_PUBLISHABLE_KEY/i);
+  assert.doesNotMatch(clerk, /Rename one line/i);
+});

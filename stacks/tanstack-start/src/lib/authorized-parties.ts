@@ -71,7 +71,7 @@ export function authorizedParties(url: URL, target: BuildTarget, extra: string |
 
 interface ClerkVars {
   CLERK_SECRET_KEY?: string
-  CLERK_PUBLISHABLE_KEY?: string
+  VITE_CLERK_PUBLISHABLE_KEY?: string
   CLERK_AUTHORIZED_PARTIES?: string
 }
 
@@ -81,7 +81,7 @@ interface ClerkVars {
  * naming the variables, never a value.
  */
 export function partiesConfigError(env: ClerkVars, target: BuildTarget): string | null {
-  if (!env.CLERK_SECRET_KEY || !env.CLERK_PUBLISHABLE_KEY) return null
+  if (!env.CLERK_SECRET_KEY || !env.VITE_CLERK_PUBLISHABLE_KEY) return null
   const needsFixed = target.deployEnv === 'production' || env.CLERK_SECRET_KEY.startsWith('sk_live_')
   if (!needsFixed || fixedParties(target.siteUrl, env.CLERK_AUTHORIZED_PARTIES).length > 0) return null
   return 'CLERK_AUTHORIZED_PARTIES is missing (Clerk keys are set for production: set the SITE_URL variable for the build, or list the app’s origins in CLERK_AUTHORIZED_PARTIES)'

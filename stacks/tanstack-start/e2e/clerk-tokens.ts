@@ -20,10 +20,15 @@ function keyPair(): { privatePem: string; publicPem: string } {
 
 const FRONTEND_API = 'e2e-only.clerk.accounts.dev'
 
-/** The Worker vars of the `clerk` preview. */
-export function e2eClerkVars(): Record<string, string> {
+/**
+ * The Worker vars of the `clerk` preview. `publishableKeyName` is Clerk's documented name by
+ * default; the old `CLERK_PUBLISHABLE_KEY` proves the alias (#13) on a built Worker.
+ */
+export function e2eClerkVars(
+  publishableKeyName: 'VITE_CLERK_PUBLISHABLE_KEY' | 'CLERK_PUBLISHABLE_KEY' = 'VITE_CLERK_PUBLISHABLE_KEY',
+): Record<string, string> {
   return {
-    CLERK_PUBLISHABLE_KEY: `pk_test_${Buffer.from(`${FRONTEND_API}$`).toString('base64')}`,
+    [publishableKeyName]: `pk_test_${Buffer.from(`${FRONTEND_API}$`).toString('base64')}`,
     CLERK_SECRET_KEY: 'sk_test_e2e-only-not-a-secret',
     CLERK_JWT_KEY: keyPair().publicPem,
   }

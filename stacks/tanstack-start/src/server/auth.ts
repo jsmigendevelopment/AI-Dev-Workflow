@@ -23,7 +23,11 @@ import { serverEnv } from './env'
 
 /** Read per request, never at module scope. Validated in src/lib/env-schema.ts. */
 export const clerkKeys = createServerOnlyFn(() => {
-  const { CLERK_SECRET_KEY: secretKey, CLERK_PUBLISHABLE_KEY: publishableKey, CLERK_JWT_KEY } = serverEnv()
+  const {
+    CLERK_SECRET_KEY: secretKey,
+    VITE_CLERK_PUBLISHABLE_KEY: publishableKey,
+    CLERK_JWT_KEY,
+  } = serverEnv()
   if (!secretKey || !publishableKey) return null
   // With the instance's PEM public key, tokens are verified with no call to Clerk (networkless).
   return CLERK_JWT_KEY ? { secretKey, publishableKey, jwtKey: CLERK_JWT_KEY } : { secretKey, publishableKey }
