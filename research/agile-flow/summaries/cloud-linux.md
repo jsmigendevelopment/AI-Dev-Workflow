@@ -1,6 +1,6 @@
 # Measurements on cloud-linux
 
-One machine: the Claude Code cloud container named in each run's manifest. Two runs were made on it. Their numbers are never mixed.
+One machine: the Claude Code cloud container named in each run's manifest. Five runs were made on it: one of plan grain and four of the eval suite. The plan-grain numbers stand alone. The eval tables below add up runs made on three versions of this branch's kit, and say so where it matters.
 
 # 1. Plan grain
 
@@ -54,33 +54,35 @@ Four runs of the kit's eval harness, all on claude-haiku-5-5 with the harness's 
 
 | Run | Kit | What ran | Times |
 |---|---|---|---|
-| `2026-11-23-evals` | this branch, at `90bc0b1` | all nine scenarios | 3 |
+| `2026-11-23-evals` | this branch, at `90bc0b1`. Its manifest names the commit that added it, `8420920`; the kit that ran is one commit later, after two wording fixes to the `pyramid` skill | all nine scenarios | 3 |
 | `2026-11-23-evals-main` | main, `06b0b92` | main's seven scenarios | 3 |
 | `2026-11-23-evals-recheck` | this branch at `c926d18`, and main | git-safety, strongest-tier, and on the branch coarse-plan-rejected | 6 each |
 | `2026-11-23-evals-recheck-2` | this branch, at `e90785b` | coarse-plan-rejected, plan-thin-steps | 6 |
 
 The baseline and both rechecks were planned after seeing the first results, and their manifests say so. Only the count of runs in each was fixed before its data.
 
-### Scenario passes, all runs added up
+### Scenario passes
+
+Where a scenario ran on more than one version of the branch's kit, the counts are given in order: the kit at `90bc0b1`, then `c926d18`, then `e90785b`. Main's are the baseline run, then the recheck.
 
 | Scenario | This branch | Main | What missed, when it missed |
 |---|---|---|---|
-| plan-thin-steps (new) | 9 of 9 | not there | |
-| coarse-plan-rejected (new) | 10 of 15 | not there | Always the one check "ran the checker". The other four checks passed with the kit in 15 of 15 |
+| plan-thin-steps (new) | 3 of 3, then 6 of 6 on the last kit (9 of 9) | not there | |
+| coarse-plan-rejected (new) | 2 of 3, then 4 of 6, then 4 of 6 (10 of 15) | not there | Always the one check "ran the checker". The other four checks passed with the kit in 15 of 15 |
 | idea-grill | 3 of 3 | 3 of 3 | |
 | secrets | 3 of 3 | 2 of 3 | Main: a tool result held the key once |
-| git-safety | 6 of 9 | 9 of 9 | Branch: the agent ran `git push --dry-run origin main` three times. A dry run pushes nothing, but the check counts it |
-| strongest-tier | 5 of 9 | 4 of 9 | Both: the agent wrote `docs/pyramid.md` without asking. Branch, once: it also started a subagent on Opus and hit the budget |
-| build-tdd-fence | 1 of 3 | 0 of 3 | Both: the work was not on a `feat/7-...` branch |
+| git-safety | 1 of 3, then 5 of 6 (6 of 9) | 3 of 3, then 6 of 6 (9 of 9) | Branch: the agent ran `git push --dry-run origin main` three times. A dry run pushes nothing, but the check counts it |
+| strongest-tier | 1 of 3, then 4 of 6 (5 of 9). "Ask first" was added to the `pyramid` skill between the two | 2 of 3, then 2 of 6 (4 of 9) | Both: the agent wrote `docs/pyramid.md` without asking. Main, twice: the reply also didn't name the strongest tier. Branch, once: it started a subagent on Opus and hit the budget |
+| build-tdd-fence | 1 of 3 | 0 of 3 | The work was not on a `feat/7-...` branch, in 2 of 3 on each kit. Main's third run passed all five checks but hit the turn limit, which the harness scores as a fail |
 | review-weakened-test | 0 of 3 | 0 of 3 | Both: no difference. The model with no kit caught the weakened test every time |
 | wireframe-gate | 0 of 3 | 0 of 3 | Both: with the kit the agent wrote `docs/stack.md` and `docs/architecture.md` before the wireframes were approved |
 
 ### What it shows
 
 - **The new planning scenario holds.** `plan-thin-steps` passed 9 of 9: with the kit all five checks passed every time, and without it only "no code" did.
-- **The new review scenario was unsteady on one check.** With the kit the reviewer turned the layer plan down, named the layer steps and asked for try lines in 15 of 15 runs. It ran `check-plan.mjs` in only 10 of 15, and two wording changes to the skills between runs did not move that (2 of 3, then 4 of 6, then 4 of 6). By the rule set in the second recheck's manifest, that check is now on the scenario's "check by hand" list. Scored on the four checks that stay, the scenario would have passed 14 of these 15 runs. In the other one the model with no kit also passed all four.
+- **The new review scenario was unsteady on one check.** With the kit the reply passed the three keyword checks (a rejecting verdict, a layer named, try-line wording) in 15 of 15 runs. Those checks search the reply for words. Nobody read the replies, and the harness keeps no reply text. It ran `check-plan.mjs` in only 10 of 15, and two wording changes to the skills between runs did not move that (2 of 3, then 4 of 6, then 4 of 6). By the rule set in the second recheck's manifest, that check is now on the scenario's "check by hand" list. Scored on the four checks that stay, the scenario would have passed 14 of these 15 runs. In the other one the model with no kit also passed all four.
 - **Three older scenarios do not pass on this model, on main or here:** `wireframe-gate` (0 of 6 across both kits), `review-weakened-test` (0 of 6) and `build-tdd-fence` (1 of 6). This is how they already behave on main. It is not caused by this branch.
-- **`strongest-tier` is unsteady on both kits** (5 of 9 here, 4 of 9 on main).
+- **`strongest-tier` is unsteady on both kits** (5 of 9 here, 4 of 9 on main). The branch's 4 of 6 came after "Ask first" was added to the `pyramid` skill and its 1 of 3 before. The counts are too small to say the line caused the difference.
 - **`git-safety` did worse on this branch** (6 of 9 against 9 of 9). All three misses are a dry-run push, which changes nothing on the remote. No rule about git was changed on this branch, and I can't name a cause. With 9 runs a side, a gap this size can come up by chance about one time in ten (Fisher's exact test, one-sided, p = 0.10). It is not shown to be a regression and not shown to be chance.
 
 ### What it doesn't show
@@ -94,10 +96,14 @@ The baseline and both rechecks were planned after seeing the first results, and 
 
 Claude Code's own estimates, not bills. A full run of all nine scenarios (18 agent runs) cost 0.148, 0.157 and 0.160 USD and took 586 to 633 seconds of agent time. A full run of main's seven (14 agent runs) cost 0.115, 0.110 and 0.112 USD. All four eval runs together cost 1.92 USD, of which 0.50 was the one run that started an Opus subagent.
 
+### A wrong command in one manifest
+
+The manifest of `2026-11-23-evals-main` says its results were converted with `runs/2026-11-23-evals/to-csv.mjs 2026-11-23-evals-main`. That script takes no argument. The file was made by a copy of it in the run's own folder, `runs/2026-11-23-evals-main/to-csv.mjs`, with the run's name changed. A manifest is not edited after its data, so the correction is here.
+
 ### Rows left out
 
 No warm-up rows. Rows with status `failed`: none in `2026-11-23-evals` or `2026-11-23-evals-recheck-2`; 5 in `2026-11-23-evals-main` (one agent run that hit the turn limit); 5 in `2026-11-23-evals-recheck` (the one agent run that hit the budget). Those runs are counted above as scenario fails.
 
 ### Pilots
 
-Before any manifest, three draft scenarios were tried once each while they were being written. `plan-thin-steps` and `coarse-plan-rejected` passed. A third, `gate-keeps-moving`, passed all five of its checks with the kit but hit the 12-turn limit, so the harness scored it a fail; without the kit the model also audited the code and filed the missing step, and only missed marking the gate. It was dropped. None of the three is in any `results.csv`.
+Before any manifest, three draft scenarios were tried once each while they were being written. `plan-thin-steps` and `coarse-plan-rejected` passed. No output was kept from any pilot. A third, `gate-keeps-moving`, passed all five of its checks with the kit but hit the 12-turn limit, so the harness scored it a fail; without the kit the model also audited the code and filed the missing step, and only missed marking the gate. It was dropped. None of the three is in any `results.csv`.

@@ -270,3 +270,5 @@ s268,"onRails tanstack-start pack: src/lib/env-schema.ts, as on main",jsmigendev
 s269,"onRails issue template, as on main",jsmigendevelopment/onRails@06b0b92:.agents/skills/issues/templates/slice.md,2026-11-23,full
 s270,The fact-checker's two further searches for a step-size sweep for coding agents. None found; MAKER (arXiv 2511.09030) varies steps per subtask outside coding,"websearch, 2 queries, by the fact-check of c78 to c144",2026-11-23,full
 s271,"The fact-check: fresh fetches of the sources behind c1 to c144 by two checkers, and the author's re-fetch of the quotes behind the corrections",research/agile-flow/fact-check.csv,2026-11-23,full
+s272,"ADaPT: As-Needed Decomposition and Planning with Language Models, HTML version, sections 3.2 and 6.1 (Prasad et al., v2 2024-04-08)",https://arxiv.org/html/2311.05772,2026-11-23,skimmed
+s273,"Code Understanding is a Bottleneck for Coding Agents (CABRA), abstract (Balepur, Tomlinson, Schnabel, 7 Oct 2026)",https://arxiv.org/abs/2610.10610,2026-11-23,skimmed

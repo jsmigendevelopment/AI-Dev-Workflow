@@ -12,9 +12,9 @@
       "effort": "high",
       "harness": "Claude Code 2.1.330, cloud session, main thread",
       "started": "2026-11-23",
-      "finished": "unknown",
+      "finished": "2026-11-23",
       "brief": "briefs/author.md",
-      "notes": "Model and effort as the session reports them (session_context.model and effort_level, read 2026-11-23). The session was configured for claude-opus-5-5 and switched by the owner to claude-fable-5-2 before the first turn."
+      "notes": "Model and effort as the session reports them (session_context.model and effort_level, read 2026-11-23). The session was configured for claude-opus-5-5 and switched by the owner to claude-fable-5-2 before the first turn. The measurement runs in runs/ were started by the author's session and ran on the models named in each manifest."
     },
     {
       "role": "helper",
@@ -57,6 +57,51 @@
       "finished": "2026-11-23",
       "brief": "briefs/helper-cicd.md",
       "notes": "Asked for high effort. The helper's own session showed a numeric reasoning effort of 30 and no named level, so the effort is recorded as unknown. Its notes file is not in the repo; the sources and claims taken from it are in sources.csv and claims.csv."
+    },
+    {
+      "role": "fact-check",
+      "requested": {
+        "model": "claude-opus-5-5",
+        "effort": "high"
+      },
+      "model": "claude-opus-5-5",
+      "effort": "unknown",
+      "harness": "Claude Code 2.1.330, cloud session, fresh subagent",
+      "started": "2026-11-23",
+      "finished": "2026-11-23",
+      "brief": "briefs/fact-check.md",
+      "disposition": "fact-check.csv",
+      "notes": "Checked claims c1 to c77. Asked for high effort; the checker's own session reported the model and no effort level, so the effort is recorded as unknown. A fresh subagent with no view of the author's thread, on a different model from the author."
+    },
+    {
+      "role": "fact-check",
+      "requested": {
+        "model": "claude-opus-5-5",
+        "effort": "high"
+      },
+      "model": "claude-opus-5-5",
+      "effort": "unknown",
+      "harness": "Claude Code 2.1.330, cloud session, fresh subagent",
+      "started": "2026-11-23",
+      "finished": "2026-11-23",
+      "brief": "briefs/fact-check.md",
+      "disposition": "fact-check.csv",
+      "notes": "Checked claims c78 to c144. Asked for high effort; the checker's own session reported the model and no effort level, so the effort is recorded as unknown. A fresh subagent with no view of the author's thread, on a different model from the author."
+    },
+    {
+      "role": "fact-check",
+      "requested": {
+        "model": "claude-opus-5-5",
+        "effort": "high"
+      },
+      "model": "claude-opus-5-5",
+      "effort": "unknown",
+      "harness": "Claude Code 2.1.330, cloud session, fresh subagent",
+      "started": "2026-11-23",
+      "finished": "2026-11-23",
+      "brief": "briefs/fact-check.md",
+      "disposition": "fact-check.csv",
+      "notes": "Checked claims c145 to c193: the measured claims, recomputed from the run folders, and the corrections made after the first two checks. Asked for high effort; the checker's own session reported the model and no effort level, so the effort is recorded as unknown. A fresh subagent with no view of the author's thread, on a different model from the author. Its own findings led to a second round of corrections (c194 to c215), which no further session checked."
     }
   ]
 }
