@@ -20,20 +20,24 @@ export const isApiPath = (pathname: string): boolean =>
 // Anywhere for a control character; a space only at the end, where URL parsing drops it.
 const ESCAPED_SPACE_OR_CONTROL = /%(?:[01][0-9a-f]|7f)|%20$/i
 
+// Only the case of an escape's hex digits may differ: Start re-encodes `%c3%a9` as `%C3%A9`.
+const upperEscapes = (path: string) => path.replace(/%[0-9a-f]{2}/gi, (escape) => escape.toUpperCase())
+
 /**
  * The pathname every path guard compares (`isApiPath`, Access paths, `OPEN_PATHS`, the launch and
- * password gates), or null when Start or the router would resolve the raw path to another one:
- * an empty segment (`/api//v1`), an escaped control character, a trailing escaped space
- * (`/notes%20` loses it), or anything `getNormalizedURL` decodes. That is the function Start uses
- * to pick the route and to tell server functions apart (`/%61pi` is `/api`, `/%5FserverFn` is
- * `/_serverFn`), so a future decoding change fails closed here.
- * Browsers never send these, so the request guards answer null with a 404 before any other check.
- * Case is the router's `caseSensitive`.
+ * password gates): the one Start routes. Null when Start or the router would resolve the raw path
+ * to another one: an empty segment (`/api//v1`), an escaped control character, a trailing escaped
+ * space (`/notes%20` loses it), or anything `getNormalizedURL` decodes. That is the function Start
+ * uses to pick the route and to tell server functions apart (`/%61pi` is `/api`, `/%5FserverFn` is
+ * `/_serverFn`), so a future decoding change fails closed here. A lowercase escape of a non-ASCII
+ * character (`/notes/caf%c3%a9`, sent by some API clients) is kept, as Start's `%C3%A9` (#65).
+ * Browsers never send the others, so the request guards answer null with a 404 before any other
+ * check. Case is the router's `caseSensitive`.
  */
 export function canonicalPath(pathname: string): string | null {
   if (pathname.includes('//') || ESCAPED_SPACE_OR_CONTROL.test(pathname)) return null
   const resolved = getNormalizedURL(pathname, 'http://localhost').url.pathname
-  return resolved === pathname ? resolved : null
+  return upperEscapes(resolved) === upperEscapes(pathname) ? resolved : null
 }
 
 /**

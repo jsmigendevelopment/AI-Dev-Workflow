@@ -13,7 +13,7 @@
   "name": "app",
   "compatibility_date": "2026-11-17",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "src/server.ts",
   "observability": { "enabled": true },
   // The Worker answers these before the static files, so a not-launched environment can say
   // `Disallow: /` (src/lib/launch.ts). Inherited by every environment.

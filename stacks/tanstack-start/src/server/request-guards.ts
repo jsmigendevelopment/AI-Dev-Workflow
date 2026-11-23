@@ -23,8 +23,9 @@ import { isIndexableHost, SITE_URL } from '@/lib/site-url'
 import { serverEnv } from './env'
 
 /**
- * The first request middleware (src/start.ts). Every request that reaches the Worker passes here
- * before Start parses a body or renders a page. In order:
+ * The first request middleware (src/start.ts). Every request that reaches Start's handler passes
+ * here before Start parses a body or renders a page (the two it answers earlier get `beforeStart`
+ * in the Worker entry). In order:
  *
  * 1. validate the Worker's env (fails fast, names only);
  * 2. a path Start or the router would resolve to another one (`/api//v1`, `/%61pi/v1`,
@@ -39,7 +40,8 @@ import { serverEnv } from './env'
  * 6. robots.txt, sitemap.xml and llms.txt (src/lib/seo-routes.ts);
  * 7. a server function or `/api/v1` call with no body length or over the cap is refused before
  *    anything reads it, then rate-limited per client (IPv4 or IPv6 /64);
- * 8. a server function or `/api/v1` route that crashed answers with the safe `internal` envelope;
+ * 8. a server function or `/api/v1` route that crashed, or a server function ID that doesn't exist,
+ *    answers with the safe `internal` envelope;
  * 9. every response gets the security headers; HTML gets a CSP with a fresh nonce. A non-HTML
  *    response that set its own, stricter CSP (a file download) keeps it.
  *
@@ -105,13 +107,44 @@ function responseHeaders(response: Response, url: URL, nonce: string | undefined
   return headers
 }
 
+// Start's default server function base; vite.config.ts doesn't change it.
+const SERVER_FN_BASE = '/_serverFn/'
+
+/**
+ * The two shapes Start answers before any request middleware (#65): `//x`, a 308 to `/x`, and a
+ * server function path with no ID (`/_serverFn/`, `/%5FserverFn/`, `/_serverFn//x`), a bare 500.
+ * The Worker entry (src/server.ts) asks this before Start's handler, so they get the guards'
+ * plain 404 with the security headers. Null for every other request.
+ */
+export function beforeStart(request: Request): Response | null {
+  const url = new URL(request.url)
+  const routed = canonicalPath(url.pathname)
+  if (routed !== null && routed !== SERVER_FN_BASE) return null
+  const response = plain404()
+  return withHeaders(response, responseHeaders(response, url, undefined))
+}
+
+const internalError = () => problemResponse('internal', 'Something went wrong. Try again.')
+
+/** A server function or `/api/v1` route that crashed answers `internal`; anything else is kept. */
+function safeFailure(response: Response, serverFn: boolean, api: boolean): Response {
+  const envelope = response.headers.get('content-type')?.startsWith('application/json') ?? false
+  if (response.status < 500 || !(serverFn || (api && !envelope))) return response
+  // Start would serialize the thrown error; the stack stays in the log, the client gets the envelope.
+  logger.error(api ? 'api_route_failed' : 'server_function_failed', { status: response.status })
+  return internalError()
+}
+
 export const requestGuards = createMiddleware().server(async ({ request, next, handlerType }) => {
   const { LAUNCHED, SITE_PROTECTION, SITE_PASSWORD } = serverEnv()
   const url = new URL(request.url)
   const finish = (response: Response, nonce?: string) =>
     withHeaders(response, responseHeaders(response, url, nonce))
 
-  if (canonicalPath(url.pathname) === null) return finish(plain404())
+  const routed = canonicalPath(url.pathname)
+  if (routed === null) return finish(plain404())
+  // Later guards compare the path Start routes: `/x/caf%c3%a9` is `/x/caf%C3%A9` to an Access path.
+  url.pathname = routed
   if (handlerType === 'router' && SCANNER_PATH.test(url.pathname)) return finish(plain404())
   const noAccess = await checkAccess(request, url)
   if (noAccess) return finish(noAccess)
@@ -133,13 +166,15 @@ export const requestGuards = createMiddleware().server(async ({ request, next, h
   }
 
   const nonce = handlerType === 'router' ? createNonce() : undefined
-  const result = await next({ context: { cspNonce: nonce } })
-  let response = result.response
-  const envelope = response.headers.get('content-type')?.startsWith('application/json') ?? false
-  if ((handlerType === 'serverFn' || (api && !envelope)) && response.status >= 500) {
-    // Start would serialize the thrown error; the stack stays in the log, the client gets the envelope.
-    logger.error(api ? 'api_route_failed' : 'server_function_failed', { status: response.status })
-    response = problemResponse('internal', 'Something went wrong. Try again.')
+  let response: Response
+  try {
+    response = (await next({ context: { cspNonce: nonce } })).response
+  } catch (error) {
+    // An unknown server function ID throws before Start's handler catches anything (#65); a
+    // thrown Response (a redirect) and every router error keep Start's own handling.
+    if (handlerType !== 'serverFn' || error instanceof Response) throw error
+    logger.error('server_function_failed', { error_name: error instanceof Error ? error.name : 'error' })
+    return finish(internalError())
   }
-  return finish(response, nonce)
+  return finish(safeFailure(response, handlerType === 'serverFn', api), nonce)
 })
