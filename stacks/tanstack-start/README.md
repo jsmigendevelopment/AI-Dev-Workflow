@@ -111,6 +111,8 @@ Set `SITE_URL` before the first deploy: until it is set, canonicals point at loc
 
 The server reads the keys per request in `src/server/auth.ts`. The signed-in user comes from the verified Clerk session, never from the request body. The CSP opens Clerk's Frontend API host (read from the publishable key) only when the keys are set.
 
+A session token is accepted only from the app's own origins (Clerk's `authorizedParties`, `src/lib/authorized-parties.ts`): `SITE_URL`, localhost in a local build, and the test Worker's workers.dev URL and `pr-<n>` previews in a test build. Add any other origin to `CLERK_AUTHORIZED_PARTIES` (exact origins, comma-separated). Production with Clerk keys needs `SITE_URL` or `CLERK_AUTHORIZED_PARTIES`, or the Worker refuses to start.
+
 ## Turnstile (optional)
 
 Add it only when counters show the cheaper layers are not enough. Create a widget in the Cloudflare dashboard, set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`, and the note form starts sending a token; `withHumanCheck` verifies it. The script loads on the form's first focus, never on page load.

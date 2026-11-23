@@ -23,6 +23,9 @@
   // records the person's choice; production can be "access" too). With "access", setup-cloudflare
   // also writes ACCESS_TEAM_DOMAIN, ACCESS_AUD (and ACCESS_PATHS) into that environment: the Worker
   // checks Access's JWT with them (src/lib/access-jwt.ts). Vars are not inherited: each lists its own.
+  // CLERK_AUTHORIZED_PARTIES (optional, any environment): extra exact origins Clerk tokens may come
+  // from, e.g. a custom test domain. SITE_URL, localhost and the test Worker's previews need nothing
+  // here (src/lib/authorized-parties.ts).
   "vars": { "LAUNCHED": "true", "SITE_PROTECTION": "none" },
   "d1_databases": [
     {

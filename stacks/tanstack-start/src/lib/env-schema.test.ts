@@ -44,6 +44,21 @@ describe('env schema', () => {
     expect(run({ CLERK_JWT_KEY: pem })).toThrow(/CLERK_JWT_KEY needs CLERK_SECRET_KEY too/)
   })
 
+  it('takes CLERK_AUTHORIZED_PARTIES only as exact origins, never a pattern or a path', () => {
+    const ok = 'https://app.example.com,https://www.example.com, http://localhost:3000'
+    expect(run({ CLERK_AUTHORIZED_PARTIES: ok })().CLERK_AUTHORIZED_PARTIES).toBe(ok)
+    for (const bad of [
+      'https://*.example.com',
+      'https://app.example.com/',
+      'https://app.example.com/path',
+      'app.example.com',
+      '*',
+      'https://app.example.com,,https://b.example.com',
+      'https://App.Example.com',
+    ])
+      expect(run({ CLERK_AUTHORIZED_PARTIES: bad }), bad).toThrow(/CLERK_AUTHORIZED_PARTIES must be/)
+  })
+
   it('takes LAUNCHED and SITE_PROTECTION only as their exact values', () => {
     expect(
       run({ LAUNCHED: 'false', SITE_PROTECTION: 'password', SITE_PASSWORD: 'k3Vq9XbT0wLr7NpZs2YhAe5D' })(),
