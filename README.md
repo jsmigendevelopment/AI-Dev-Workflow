@@ -102,6 +102,32 @@ Then type `/join`. It merges `AGENTS.kit.md` into your `AGENTS.md` and shows you
 > [!NOTE]
 > 🚧 **Being improved.** Today `/join` merges only the two `AGENTS.md` files. You compare each `.kit-new` and `config.kit.toml` copy by hand, keep what you want, and delete the copy. We're researching a better way to merge two sets of skills.
 
+### Install as a plugin
+
+Want `/idea` in any folder, before the kit is there? Install the plugin once. In Claude Code:
+
+```text
+/plugin marketplace add jsmigendevelopment/onRails
+/plugin install core@onrails
+/reload-plugins
+```
+
+Now type `/idea` or `/join` in any folder. The menu shows them as `/or:idea`, `/or:join`, `/or:back` and `/or:afk`. The first time, it asks to install the kit into that folder. It doesn't need npm: the kit ships inside the plugin. Then it carries on from the project's copy.
+
+Codex, from a terminal (the entry is `or` here, because Codex wants it to match the plugin's name):
+
+```bash
+codex plugin marketplace add jsmigendevelopment/onRails
+codex plugin add or@onrails
+```
+
+The catches:
+
+- **Updates are by hand.** Run `claude plugin update core@onrails` (Codex: `codex plugin marketplace upgrade onrails`). `doctor` tells you when the plugin and the kit differ.
+- **Cloud sessions don't load your personal plugins.** That's fine: once the kit is in the repo, cloud sessions use the repo's own skills.
+- **The project copy wins.** In a folder with the kit, `/idea` runs the project's skill. The plugin only gets you started.
+- **Use the plugin or `init --global`, not both.** A personal copy from `init --global` beats the project's copy.
+
 ### Other ways to install
 
 <details>
@@ -144,7 +170,7 @@ The [CLI reference](cli/README.md) has every command and flag.
 
 | Command | What it does |
 |---|---|
-| `npx ai-dev-workflow init --global` | Copies `idea`, `join`, `back` and `afk` into your own skills folders, so `/idea` works in any folder. Never overwrites. |
+| `npx ai-dev-workflow init --global` | Copies `idea`, `join`, `back` and `afk` into your own skills folders, so `/idea` works in any folder. Never overwrites. The [plugin](#install-as-a-plugin) is the better way now. Don't use both. |
 | `npx ai-dev-workflow@latest update` | Brings in a newer kit. Files you changed are kept. `--dry-run` shows the plan first. |
 | `npx ai-dev-workflow doctor --fix` | Checks your tools, sign-ins and env var names. Offers a fix for each problem and runs it only after you type `y`. |
 | `npx ai-dev-workflow profile init` | Makes your personal profile, `~/.ai-dev-workflow/profile.toml`. |
@@ -323,9 +349,11 @@ CLAUDE.md                  ← one line: @AGENTS.md
 .github/ISSUE_TEMPLATE/    ← the slice issue template
 stacks/                    ← stack packs and add-ons, pulled in at slice 0
 cli/                       ← the npx ai-dev-workflow command
+plugin/                    ← the onRails plugin: the four entry skills and a copy of the CLI (generated)
+.claude-plugin/            ← the plugin marketplace (Codex: .agents/plugins/)
 guide/                     ← cheat sheet, principles, evidence (for people)
 assets/                    ← diagrams
-scripts/sync-skills.mjs    ← keeps the two skill copies identical
+scripts/sync-skills.mjs    ← keeps the two skill copies identical, and makes plugin/skills
 ```
 
 | Skills | |
@@ -336,7 +364,7 @@ scripts/sync-skills.mjs    ← keeps the two skill copies identical
 | **Know-how**, named in issues (5) | [`web-performance`](.agents/skills/web-performance/SKILL.md) · [`web-security`](.agents/skills/web-security/SKILL.md) · [`seo`](.agents/skills/seo/SKILL.md) · [`a11y`](.agents/skills/a11y/SKILL.md) · [`dependencies`](.agents/skills/dependencies/SKILL.md) |
 | **Stack packs** (2) | [`stack-tanstack-start`](.agents/skills/stack-tanstack-start/SKILL.md) · [`stack-monorepo-expo`](.agents/skills/stack-monorepo-expo/SKILL.md) |
 
-**Editing a skill?** Edit it in `.agents/skills/`, then run `node scripts/sync-skills.mjs`. CI fails if the two copies drift apart.
+**Editing a skill?** Edit it in `.agents/skills/`, then run `node scripts/sync-skills.mjs`. Changed the CLI or a kit file? Run `npm run bundle` in `cli/`, so `plugin/cli/` keeps up. CI fails if any copy drifts.
 
 ---
 

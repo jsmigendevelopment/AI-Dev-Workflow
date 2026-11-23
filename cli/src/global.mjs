@@ -3,6 +3,8 @@
 //   Claude Code: ~/.claude/skills (personal skills)
 //   Codex:       ~/.agents/skills (user skills; Codex calls $CODEX_HOME/skills deprecated)
 // Never overwrites: a file you already have that differs gets the kit's copy as <file>.kit-new.
+// The plugin (plugin/, marketplace "onrails") is now the recommended way to get the same four
+// skills. Don't use both: a personal copy beats the project's copy, the plugin's doesn't.
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -29,9 +31,20 @@ function entryFiles(kit) {
     .map((p) => [p.slice(prefix.length), kit.readCore(p)]);
 }
 
+export const PLUGIN_TIP = [
+  "Tip: the plugin is now the recommended way to get /idea in any folder. In Claude Code:",
+  "  /plugin marketplace add jsmigendevelopment/onRails",
+  "  /plugin install core@onrails",
+  "  /reload-plugins",
+  "Use the plugin or init --global, not both. To switch, delete idea, join, back and afk from",
+  "~/.claude/skills and ~/.agents/skills.",
+];
+
 export function initGlobal({ kitDir, home, log = console.log } = {}) {
   const kit = loadKit(kitDir);
   const files = entryFiles(kit);
+  for (const line of PLUGIN_TIP) log(line);
+  log("");
   log(`Copying the entry skills (${ENTRY_SKILLS.join(", ")}) from kit v${kit.version} to your own skills folders`);
   for (const { label, dir } of globalSkillDirs(home)) {
     const counts = { added: 0, unchanged: 0, kept: 0 };

@@ -1,0 +1,258 @@
+---
+name: stack-tanstack-start
+description: Use when slice 0 sets up a TanStack Start app from the stack pack, or when building in an app made from it - applying the starter with degit, renaming or deleting the example notes module, creating a module, route, section, component or Drizzle table with the new generators, the code rules lint enforces and how to make an exception with a reason and an issue, knip, jscpd, Semgrep, the migration lint, the pull request size and issue-link checks, Dependabot auto-merge, screenshot tests, adding a server function, D1 migration or shadcn/ui component, wiring Clerk auth or Turnstile, changing a security header, the CSP, a rate or body limit, a bundle budget or the crawler policy, the test and production environments, deploys, rollbacks and pull request previews, the versioned /api/v1 HTTP API with Clerk bearer tokens, the Coming soon page and going live, protecting the test and preview URLs with Cloudflare Access (Google, GitHub and other logins, a one-time PIN) or a password, putting Access in front of production or some of its paths, the Worker's Access JWT check, Bot Fight Mode, running setup-cloudflare, and avoiding the known traps of Start on Cloudflare Workers with D1.
+---
+
+# Stack pack: TanStack Start on Cloudflare Workers
+
+The pack is `stacks/tanstack-start/` in this kit. TanStack Start, shadcn/ui and Tailwind, Drizzle on D1, Zod, TanStack Query, Clerk, Vitest and Playwright, ESLint with a boundary check, CI. It follows `docs/architecture.md`, with one addition: each module's server folder also has a `<feature>.controller.ts` (see Conventions). It starts secure, fast, accessible and search-ready, with no keys needed (see On by default).
+
+## Slice 0: apply the pack
+
+1. In the new project folder: `npx degit jsmigendevelopment/AI-Dev-Workflow/stacks/tanstack-start .`
+2. If degit fails, use a sparse clone:
+   ```sh
+   git clone --depth 1 --filter=blob:none --sparse https://github.com/jsmigendevelopment/AI-Dev-Workflow.git /tmp/kit
+   git -C /tmp/kit sparse-checkout set stacks/tanstack-start
+   cp -R /tmp/kit/stacks/tanstack-start/. . && rm -rf /tmp/kit
+   ```
+3. Set `name` in `package.json`, and the Worker and database names in `wrangler.jsonc` (`app`, `app-test`, `app-production`, top level and in each `env` block), and the site's name and description in `src/lib/site.ts`, then `pnpm icons` to redraw the icons and share image (replace `public/favicon.svg` first if there is a logo). Run `pnpm install`, `pnpm check`, `pnpm check:budgets`, then `pnpm exec playwright install chromium`, `pnpm test:e2e` and `pnpm test:visual`. All must pass before you change anything. The renames change the pages, so remake the screenshot baselines after them (`pnpm test:visual --update` on Linux, or the `visual-baselines` workflow once the repo is on GitHub) and look at each one.
+4. The example module: rename `notes` to the core resource, or delete it. To delete, remove `src/modules/notes/`, `src/routes/notes.tsx`, its factory in `src/server/composition.ts`, the header link, `/notes` in `e2e/helpers.ts` and in the budgets and Lighthouse URLs, and the `notes-*` screenshots in `e2e/visual.spec.ts-snapshots/`. Either way, while no migration has run outside your laptop, delete `migrations/` and run `pnpm db:generate` again.
+5. Fill in "Commands that work here" in `AGENTS.md` from the pack's README, including the `new:*` generators. The pack's `.github/workflows/ci.yml` replaces the kit template; `pr-rules.yml`, `dependabot-auto-merge.yml` and `visual-baselines.yml` come with it.
+6. Ask the person to turn on, in the GitHub repo settings: General → "Allow auto-merge" (for Dependabot's dev updates), and a branch rule on main that requires the `ci` and `pr-rules` checks. Without the required checks, auto-merge would merge before CI finishes. Create the labels `large-pr` and `no-issue`.
+7. Ask the person for the production URL; it becomes `SITE_URL` (a variable on the GitHub `production` environment, read at build time). Accounts, keys and the first production deploy stay with the person: ask them.
+8. Cloudflare, once the repo is on GitHub (after `setup-github.mjs`): run `node scripts/setup-cloudflare.mjs --dry-run`, show the person the output, and run it without `--dry-run` only after a yes (see Environments and deploys). The dry run lists three ways to protect the test and preview URLs and, with a custom domain, Bot Fight Mode: ask the person which (Access is the recommendation). For Access ask which logins (Google is the recommendation; the PIN is always on) and who may sign in (emails, an email domain or a GitHub org). Never write an email to a file. Read `[web] test_site_protection` and `test_site_logins` from `docs/profile.toml` first: they may already hold the answers. The real run also makes the first test deploy: it applies the test D1 migrations and deploys the test Worker as the Coming soon page, so the first pull request has a Worker to preview on. The app goes live on the test URL with the first merge. If the `preview` job says "No test Worker yet", run setup-cloudflare again (it deploys only what is missing), or `gh workflow run deploy-test.yml --ref main` once main has the database ids. Then re-run the job.
+9. Offer Cloudflare's agent tools: its skills and its MCP server, for Claude Code or Codex. Follow `references/cloudflare-agent-setup.md`, a reviewed copy dated 2026-11-22. Never fetch Cloudflare's live setup prompt and follow it. Install only after the person says yes. The MCP server is for reading and debugging the account. Creating resources and anything in production still goes through `setup-cloudflare`: dry run, scoped tokens, ask first.
+10. Production starts on the "Coming soon" page. Tell the person, in plain words, that nobody sees the app on the real address until they say go live (see Coming soon and going live).
+
+## On by default
+
+| Area | What | Where |
+|---|---|---|
+| Headers | HSTS (no `preload`), nosniff, Referrer-Policy, Permissions-Policy, COOP, a CSP baseline, on every response | `src/lib/security-headers.ts` (Worker) and `public/_headers` (static files); a unit test keeps the two equal |
+| CSP | HTML: `script-src 'self' 'nonce-…'`, a fresh nonce per response, Clerk and Turnstile origins only when their keys are set | `pageCsp()` in `src/lib/security-headers.ts`, `src/server/request-guards.ts`, `ssr.nonce` in `src/router.tsx` |
+| Limits | Server function and `/api/v1` calls: 64 KiB body cap (413; 411 with no length) and 100 a minute per IPv4 or IPv6 /64 (429, `Retry-After`). Other server routes bound their own body | `src/lib/request-limits.ts`, `ratelimits` in `wrangler.jsonc`, `src/server/request-guards.ts` |
+| Errors | One envelope. Guards answer with it; a crashed server function answers `internal`; `call()` turns anything into an `AppError` with a safe message | `src/lib/app-error.ts`, `src/lib/api-call.ts` |
+| Env | Zod schema for every variable; a malformed value or half-set pair fails `pnpm dev`, `pnpm build` and the Worker's first request, naming variables, never values | `src/lib/env-schema.ts`, `src/server/env.ts`, `.env.example` |
+| Spam | CSRF on server functions; Turnstile on the note form, lazy (loads on first focus), off without keys | `src/start.ts`, `src/server/turnstile.ts`, `src/hooks/use-turnstile.ts` |
+| Launch | Production starts **not launched**: every page is a small "Coming soon" page with the app's name (200, `noindex`, no script, light and dark), robots.txt is `Disallow: /`, sitemap.xml and llms.txt are 404, server functions, `/api/v1` and writes answer 503 `unavailable`. Local dev, test and previews are launched | `LAUNCHED` per environment in `wrangler.jsonc` (validated in `src/lib/env-schema.ts`), `src/lib/launch.ts`, `src/lib/plain-page.ts` |
+| Test site | The person's choice in setup-cloudflare: Cloudflare Access (Google or other logins plus a one-time PIN for people, a service token for CI), a password page, or none. Recorded as `SITE_PROTECTION` in `env.test.vars`. With Access the Worker also checks Access's JWT and fails closed | `scripts/cloudflare/protection.ts`, `access.ts`, `logins.ts`, `src/lib/access-jwt.ts`, `src/lib/site-gate.ts`, `src/lib/open-paths.ts`, `e2e/gate.ts` |
+| Bots | Scanner paths (`.php`, `/wp-`, `/.env`, `/.git`) get a plain-text 404 with no render; robots.txt welcomes search and AI search, disallows AI training and the `__usage_ai-training` token | `SCANNER_PATH` in `src/lib/request-limits.ts`, `src/lib/seo-files.ts` |
+| SEO | `pageHead()` (title, description, canonical, Open Graph, Twitter), JSON-LD on `/`, sitemap.xml, robots.txt and llms.txt answered by the Worker (`assets.run_worker_first`, so a not-launched site can refuse crawlers), a build-time security.txt, icon set and share image, a real 404 status, `noindex` on app pages and on every host but production and localhost | `src/lib/seo.ts`, `src/lib/site.ts`, `src/lib/site-url.ts`, `src/lib/seo-routes.ts`, the `seoFiles` plugin in `vite.config.ts` (dev) |
+| Speed | Budgets in CI, Lighthouse CI, hashed assets cached a year, HTML `private, no-cache`, Clerk's SDK loaded only with keys, preload on intent, system fonts, `ResponsiveImage` for images | `scripts/budgets/`, `lighthouserc.cjs`, `src/components/responsive-image.tsx` |
+| Access | Skip link, `outline` focus in the text colour, reduced motion, focus moves to the new `h1` after a client navigation, the form error pattern, axe on every route in both themes on desktop and phone | `src/routes/__root.tsx`, `src/styles.css`, `src/components/route-focus.tsx`, `note-create-form.tsx`, `e2e/a11y.spec.ts` |
+| Theme | Dark mode with no flash: an inline script sets `data-theme` before first paint and handles the toggle before hydration | `src/lib/theme.ts`, `src/components/theme-toggle.tsx`, tokens in `src/styles.css` |
+| Quality | Dependabot (weekly, grouped, npm and Actions, 7-day cooldown), CI cancels stale runs, `pnpm audit --audit-level=high`, licence allow-list, lefthook pre-commit (Prettier and ESLint on staged files), a dev container | `.github/`, `scripts/check-licenses.ts`, `lefthook.yml`, `.devcontainer/` |
+
+What the e2e suite proves: `e2e/api.spec.ts` (every `/api/v1` route is 401 without a valid bearer token, a cookie alone never signs in, 405 for other methods, 413 before auth, 429), `e2e/security.spec.ts` (headers on every path, nonce on every inline script, zero CSP violations and console errors per route, cache headers, scanner 404s, 413, 411, 429, CSRF, no Turnstile request without keys, the build-time files), `e2e/seo.spec.ts` (metadata in the server HTML, noindex, unique titles, icons, no theme flash), `e2e/a11y.spec.ts` (axe at rest, in the form's error states and on hover and focus; skip link, focus, navigation focus, reduced motion, reflow at 320 by 256), `e2e/coming-soon.spec.ts` (a preview of the same build with `LAUNCHED=false`: the page on every path, noindex, no script, robots, 503s, axe in both themes, desktop and phone), `e2e/site-gate.spec.ts` (a preview with the password gate: 401 page, the header, the cookie's flags, axe with and without the error, the rate limit), `e2e/access-check.spec.ts` (a preview with `SITE_PROTECTION=access` and a made-up team: protected pages, `/api/v1` and server functions are 401 without a valid Access JWT, other paths are not). The four previews run on ports 4173 to 4176; `CLOUDFLARE_INCLUDE_PROCESS_ENV=true` makes `vite preview` take vars from the shell.
+
+**Browsers.** Playwright is the test runner and the gate. A person's own browser (for example Claude in Chrome) is used only after Playwright passes, to look at something a test can't judge, never instead of a test.
+
+## Environments and deploys
+
+| Where | Worker | D1 | How it gets there | GitHub environment |
+|---|---|---|---|---|
+| local | none | `app`, local | `pnpm dev`, tests | |
+| test | `app-test` | `app-test` | every push to main, `deploy-test.yml` | `test` |
+| previews | aliases of `app-test` | `app-test` | every pull request, `preview.yml` | `preview` |
+| production | `app-production` | `app-production` | Run workflow on `deploy-production.yml`, then the person approves | `production` |
+
+- **Test:** build, migrate test D1, deploy, `pnpm test:deployed` (smoke, a11y, API) against the URL, with the protection's headers from the environment's secrets; on failure `wrangler rollback` and an issue labelled `needs-human`.
+- **Previews:** `wrangler versions upload --preview-alias pr-<n>` on the test Worker, one PR comment kept up to date. Test D1 and test keys, never migrated (the comment warns when the PR adds a migration). A quick check that the preview answers 200, with the protection's headers. Skipped for forks, Dependabot and `lane:tiny`.
+- **Production:** build, D1 Time Travel bookmark (refuses to migrate without one), migrate, deploy, smoke on the workers.dev URL (outside the zone, so Bot Fight Mode never challenges it): `pnpm test:coming-soon` while `env.production.vars.LAUNCHED` is "false", `pnpm test:deployed` once it is "true"; on failure roll back the code and print `wrangler d1 time-travel restore DB --bookmark=<b> --env production -c wrangler.jsonc`. Restoring data is always the person's call (always-stop list).
+- Each workflow has its own concurrency group and never cancels a deploy half-way. Secrets by name: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and in `test` and `preview` the protection's `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` or `SITE_PASSWORD`; variables `SITE_URL` (production) and `APP_URL` (where to smoke-test when there is no workers.dev URL).
+- A rollback restores code, not data: write migrations that the previous release also works with (add first, remove in a later release).
+
+**setup-cloudflare** (`scripts/setup-cloudflare.mjs`, logic and tests in `scripts/cloudflare/`): dry run first, then ask. It checks `wrangler whoami` (not signed in: the person runs `pnpm exec wrangler login`), creates the D1 databases and writes their ids into `wrangler.jsonc`, creates the R2 buckets and queues that add-ons declared, prints `CLOUDFLARE_ACCOUNT_ID` and sets it in the `test`, `production` and `preview` GitHub environments, prints the deploy token's permissions and the `gh secret set` commands the person types the token into, makes the first test deploy (below), runs the kit's `push-secrets.mjs --wrangler`, and, with a custom domain and a zone token (`CLOUDFLARE_ZONE_TOKEN` in `.env.cloudflare.local`), sets Always Use HTTPS, TLS 1.2+, AI training Disallow and a WAF rule for scanner paths. Then the test and preview protection (below). Idempotent; reads run in a dry run too, writes never.
+
+- **The first test deploy.** Previews are versions of the test Worker, and `deploy-test.yml` runs only after a merge, so without this the first pull request could never pass `preview`. When `wrangler versions list --name <test worker>` says the Worker doesn't exist (code 10007), setup-cloudflare runs deploy-test's commands with `CLOUDFLARE_ENV=test`: `pnpm build`, `wrangler d1 migrations apply DB --remote -c wrangler.jsonc`, `wrangler deploy`, plus `--var LAUNCHED:false`. That first version is only the Coming soon page. The app goes live on the test URL with the first merge, through CI and its smoke test, behind the protection now in `wrangler.jsonc`. With Access, the Access app is put on the new Worker later in the same run. So the app itself is never live unprotected. It runs before the secrets: `wrangler secret put` on a missing Worker makes an empty placeholder. Never production. The dry run prints "would deploy"; an existing Worker is left alone; `--no-first-deploy` skips it. The `preview` job asks the API whether the test Worker exists and fails with the fix when it doesn't. It fails rather than passing with a warning: it is a required check, and a pass with no preview would let a pull request merge unchecked.
+- **Bot Fight Mode** (`--bot-fight-mode`): recommended once the production custom domain exists, the person's call. It is zone-wide (test and previews are on workers.dev, outside any zone). The page CSP allows its same-origin `/cdn-cgi/challenge-platform/` and `/cdn-cgi/bm/` for script and connect, on the `SITE_URL` host only (`botChallengeOrigin` in `src/lib/security-headers.ts`); Cloudflare's docs say it adds the response's CSP nonce to the script it injects. It can't be skipped per path and it strips ETags. The trade-off: production's workers.dev URL stays on for the smoke test, so it skips the zone's bot settings (it is noindex, and the rate limits still apply). Managed robots.txt stays off (`--managed-robots`): it would duplicate the app's own.
+
+### Protecting the test and preview URLs
+
+The test Worker's workers.dev URL and every preview URL are public by default (always `noindex`). Ask the person which of three, then run setup-cloudflare with it; the choice is written to `SITE_PROTECTION` in `env.test.vars` (commit it).
+
+| | `--protect access` (recommended) | `--protect password` | `--protect none` |
+|---|---|---|---|
+| What | Cloudflare Access in front of the whole test Worker: workers.dev, previews, routes, static files | a password page in the app, test and previews only | nothing |
+| People | sign in with the logins in `--logins` or a one-time PIN by email; allowed by `--allow-emails`, `--allow-domain` or `--allow-github-org` | one random password (`SITE_PASSWORD`, 32 URL-safe characters, never the repo name), shown once; an HttpOnly, Secure, SameSite=Lax session cookie holding an HMAC of it | |
+| CI and agents | `CF-Access-Client-Id` and `CF-Access-Client-Secret` from GitHub secrets `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` (a service token, Service Auth policy) | `x-site-password: <password>` from the secret `SITE_PASSWORD`; never `Authorization` (`/api/v1` reads Bearer tokens) | |
+| Needs | Zero Trust on the account (Free plan; it can ask for a payment method, so that is the person's call) and an account token in `CLOUDFLARE_ACCESS_TOKEN` with Access: Apps and Policies, Service Tokens, and Organizations, Identity Providers, and Groups (all Edit) and Workers Scripts Read. The test Worker must exist (setup-cloudflare's first test deploy makes it). Each login but the PIN needs the person's own OAuth client | nothing | |
+| Leaves open | the paths in `OPEN_PATHS` (as public overrides) | `OPEN_PATHS`, and static files (hashed JS and CSS, icons): the assets layer answers them before the Worker | everything |
+
+**Logins.** `--logins` takes these names, the same ones as `test_site_logins` in `docs/profile.toml` (`["google", "otp"]` becomes `--logins google,otp`). The PIN is always added, so `otp` alone or no `--logins` means PIN only.
+
+| Name | Access type | The person makes | `.env.cloudflare.local` |
+|---|---|---|---|
+| `google` (recommended) | `google` | a Google Cloud OAuth client, Web application | `ACCESS_GOOGLE_CLIENT_ID`, `ACCESS_GOOGLE_CLIENT_SECRET` |
+| `github` | `github` | a GitHub OAuth app; after setup, Finish setup → Authorize in Zero Trust | `ACCESS_GITHUB_CLIENT_ID`, `ACCESS_GITHUB_CLIENT_SECRET` |
+| `facebook` | `facebook` | a Meta app with Facebook Login | `ACCESS_FACEBOOK_CLIENT_ID`, `ACCESS_FACEBOOK_CLIENT_SECRET` |
+| `linkedin` | `linkedin` | a LinkedIn app with "Sign In with LinkedIn using OpenID Connect" (needs a LinkedIn Page) | `ACCESS_LINKEDIN_CLIENT_ID`, `ACCESS_LINKEDIN_CLIENT_SECRET` |
+| `yandex` | `yandex` | a Yandex OAuth client with email access | `ACCESS_YANDEX_CLIENT_ID`, `ACCESS_YANDEX_CLIENT_SECRET` |
+| `entra` (work) | `azureAD` | an Entra app registration (groups off) | `ACCESS_ENTRA_CLIENT_ID`, `ACCESS_ENTRA_CLIENT_SECRET`, `ACCESS_ENTRA_TENANT_ID` |
+| `oidc` (work: Okta, Auth0, Keycloak…) | `oidc` (PKCE on, `openid email profile`) | a web client in that provider | `ACCESS_OIDC_CLIENT_ID`, `_CLIENT_SECRET`, `_AUTH_URL`, `_TOKEN_URL`, `_CERTS_URL` |
+| `otp` | `onetimepin` | nothing | |
+
+SAML and the other Access types (Okta, OneLogin, PingOne, Centrify, Google Workspace) are a Zero Trust dashboard job: add the login there, and setup-cloudflare leaves it alone.
+
+- **The flow.** Run setup-cloudflare with the logins. For each one whose client is missing it prints that provider's "Setup step for you" (the `ask` skill's format) with the real callback URL `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`, and stops before any write. Give the person those steps. They paste the id and secret into `.env.cloudflare.local` (git-ignored), never into chat and never as a command-line argument. Run it again. The secret goes only to the Cloudflare API; it is never printed, and child commands never see it.
+- **Who may sign in** (any match is enough): `--allow-emails a@x.com,b@y.com` (the old `--access-email` still works), `--allow-domain company.com` (anyone who signs in with an email there: with Google or the PIN, that email is verified), `--allow-github-org acme` (needs `github` in `--logins`; a person who joins the org after a failed try must revoke the app in their GitHub settings and sign in again). Emails are never written to a file.
+- **Discord: not offered.** Access has no Discord login (the identity provider `type` enum in the API schema has none). Discord publishes an OpenID Connect discovery document (`https://discord.com/.well-known/openid-configuration`: RS256, PKCE, `jwks_uri` `https://discord.com/api/oauth2/keys`), but it lists no scopes or claims, `openid` is not in Discord's own scope table, and neither Discord nor Cloudflare documents an `email` claim in its ID token, which Access needs to match a policy. Unproven, so setup-cloudflare refuses `discord` with that reason. A Discord-only community is better served by Clerk's Discord sign-in inside the app.
+- **Changing it later.** Run again with the new logins or people. The Access app is updated in place (same AUD); edits made by hand in Zero Trust are replaced, and the run says so first. A login that already exists is reused, not rotated: to rotate a client secret, edit it in Zero Trust → Integrations → Identity providers.
+
+**The Worker checks Access's token too** (defence in depth, `src/lib/access-jwt.ts`, called first in `src/server/request-guards.ts`). With `SITE_PROTECTION` "access", every request on a protected path (`ACCESS_PATHS`, comma-separated, default every path, minus `OPEN_PATHS`) needs a `Cf-Access-Jwt-Assertion` header that `jose` verifies: RS256, signed by a key from `<ACCESS_TEAM_DOMAIN>/cdn-cgi/access/certs` (cached per isolate, refetched on an unknown `kid`), issuer the team domain, audience `ACCESS_AUD`, `exp` present and not passed. Anything else, including a key fetch that fails, is `401 { ok: false, error: { code: "unauthenticated" } }` with `WWW-Authenticate: Cloudflare-Access realm="site"` and a log line naming only the reason. The env schema refuses "access" without `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD`, so it never fails open. setup-cloudflare writes both (the team domain from `/access/organizations`, the AUD from the app). It reads the header, not `ctx.access`: Cloudflare's docs say a Worker with static assets, which Start has through the Vite plugin, does not get `ctx.access`. Static files are covered by Access at the edge only.
+
+How Access is set up, through the API (sources: cloudflare-docs `src/content/docs/workers/configuration/cloudflare-access.mdx`, `cloudflare-one/integrations/identity-providers/*.mdx` and `cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json.mdx`, and `cloudflare/api-schemas` `openapi.json`, all read 2026-11-22): `GET /accounts/{id}/workers/workers` finds the Worker's id; one identity provider per login (`POST /access/identity_providers` with `type` and `config`); a service token (`POST /access/service_tokens`, `duration: 8760h`; its secret is returned once and goes straight to `gh secret set`); one `self_hosted` app (`POST /access/apps`, or `PUT /access/apps/{id}` to change it) with destination `{ type: "worker", worker_id }`, `allowed_idps` the logins, and two policies, `non_identity` with `{ service_token: { token_id } }` and `allow` with `email`, `email_domain` and `github-organization` rules. Not yet run against a real account: that `worker_id` is the id `workers/workers` returns, that inline policies are accepted on create and update, that the app list returns `policies` and `aud`, the `github-organization` rule key (from the schema; the docs have no example), the token permission names, and every provider console link in the setup steps. If the API refuses, the dashboard path is Workers & Pages → the Worker → Access → Protect this Worker behind Access, All traffic. Worker-level Access refuses WebSocket upgrades with 403.
+
+Agents checking a protected preview (the `qa` skill) send the same headers: Playwright through `e2e/gate.ts` (set `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`, or `SITE_PASSWORD`, in the shell), `curl -H` otherwise. The headers go only to the site's own origin, never to Clerk or another third party. A person asks for the password or signs in with a login.
+
+### Protecting production with Access
+
+Production is open to everyone (the Coming soon page until launch). Access can go in front of all of it or of some paths. **This changes production, so it is on the always-stop list:**
+
+1. Ask the person, plainly: "Put a Cloudflare sign-in in front of <all of production / these paths>? Only people you allow get in." Wait for a yes.
+2. `node scripts/setup-cloudflare.mjs --dry-run --protect-production all` (or `/admin/*,/ops/*`) with the same `--logins` and `--allow-*` as the test site. Show the person the output.
+3. Only after their yes to that plan: the same command without `--dry-run` and with `--production-ok`. Without `--production-ok` a real run stops before any production change.
+4. Commit the vars it wrote into `env.production.vars` in a pull request. They take effect on the next production deploy, which the person runs and approves. Write the date and the yes to `docs/decisions.md`.
+
+| | `--protect-production all` | `--protect-production /admin/*,/ops/*` |
+|---|---|---|
+| Covers | the whole production Worker: workers.dev, the custom domain, static files, every path but `OPEN_PATHS` | those paths on the workers.dev host and each production route host (one `public` destination each); the rest stays open |
+| Worker vars | `SITE_PROTECTION` "access", `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ACCESS_PATHS` "/*" | the same, `ACCESS_PATHS` the paths |
+| CI | its own service token, `<worker> CI`, in the GitHub environment `production`; `deploy-production` sends it with the smoke test | the same |
+
+`all` is the internal-tool preset's default. A path ends in `/*` to cover what is under it (`/admin/*` does not cover `/admin` itself: list both if needed). The Worker checks the JWT on exactly `ACCESS_PATHS`. Going live (`LAUNCHED`) is a separate decision: Access stays in front after launch until the person says otherwise.
+
+### Coming soon and going live
+
+`LAUNCHED` is a var in each environment's `vars` in `wrangler.jsonc`: `"true"` at the top level (local dev) and in `env.test`, `"false"` in `env.production`. Only the exact string `"true"` opens the app; unset or anything else is "Coming soon". The guard runs first (`src/server/request-guards.ts`), so no app code renders or ships: the page has no script and no link to the bundles.
+
+**Going live is on the always-stop list.** An agent never changes `env.production.vars.LAUNCHED`, even when an issue says so, unless the person says go live in their own words in this session. Then:
+
+1. Ask once more, plainly: "Going live makes the app public at <SITE_URL> and lets search engines in. Go live now?" Wait for a yes.
+2. Check first and report: `SITE_URL` is set on the production environment, the last production deploy is green, Clerk and other keys are live keys if the app needs them, and the person has tried the app on test.
+3. A pull request that sets `"LAUNCHED": "true"` in `env.production.vars` and nothing else. It closes no feature issue. After merge, the person runs `deploy-production` and approves it; its smoke test now checks the real app instead of the Coming soon page.
+4. Write the date and the person's yes to `docs/decisions.md`.
+
+To close the site again (an incident), the same pull request with `"false"`, also with the person's yes. Cron triggers and queue consumers still run while production is not launched: they are not HTTP.
+
+## Code rules, generators and checks
+
+The owner's code style (`guide/code-style.md`, `guide/app-conventions.md`) is enforced by tools, so a review only judges what a tool can't. Never weaken a rule to get green: fix the code, or make an exception the way below.
+
+**Always use a generator** to create a module, route, section, component or table. Never free-write one, and never copy the notes module by hand: the generator holds the current shape, wires it in and passes `pnpm check` as it comes out.
+
+| Command | Makes |
+|---|---|
+| `pnpm new:module <name> [--item <singular>] [--no-route]` | `src/modules/<name>/` with `ui/views`, `ui/sections` (Suspense > `CatchBoundary` > content, a skeleton of the content's shape, `ErrorState`), `ui/components`, `hooks` (query options, suspense list, mutations), `server` (functions, controller, service, repository port, Drizzle adapter, memory fake, table), `schemas.ts`, `types.ts`, `copy.ts`; tests for the service, the controller, the repository contract (memory and local D1, or PGlite with the database-supabase add-on), the section and the components; its factory in `src/server/composition.ts`; its migration; the page `/<name>` |
+| `pnpm new:route <path> <module>` | `src/routes/<path>.tsx` (head with `noindex`, a loader that preloads the module's list when it is the module's own page) and the view if it doesn't exist; regenerates `src/routeTree.gen.ts`; adds the path to `ROUTES` in `e2e/helpers.ts`, so axe and the screenshots cover it |
+| `pnpm new:section <module> <name>` | `ui/sections/<name>-section.tsx` from the module's `<module>Queries.list()`, with its skeleton and test. Replace the content, keep the skeleton the same shape |
+| `pnpm new:component <module> <name>` | `ui/components/<name>.tsx` (props in, markup out) and its test |
+| `pnpm new:table <module> <name>` | `server/<name>.table.ts` with `id`, `created_at`, `updated_at` (snake_case table and columns, epoch-ms UTC) and its migration. Add columns, then `pnpm db:generate` |
+
+Names are kebab-case and a module is plural (`todo-items`; `--item` when the singular isn't the name minus "s"). Generators refuse to overwrite a file, run ESLint's fixes and Prettier on what they wrote, and `pnpm routes:generate` rebuilds the route tree on its own. A new page has no screenshot yet: run `pnpm test:visual --update` and look at each new PNG before committing it.
+
+**What fails the build, and where:**
+
+| Rule | Check | Where |
+|---|---|---|
+| No floating or misused promises; exhaustive `switch` over a union | typescript-eslint `recommendedTypeChecked` with `projectService`, plus `switch-exhaustiveness-check` | `eslint.config.js` |
+| No `any`, `as unknown as`, `@ts-ignore`; `@ts-expect-error` needs ` -- <reason> (#n)` | `no-explicit-any`, `no-restricted-syntax`, `ban-ts-comment` (`descriptionFormat`) | `eslint.config.js` |
+| `eslint-disable` needs ` -- <reason> (#n)` | `@eslint-community/eslint-comments/require-description`, `local/exception-needs-issue` | `eslint-rules.js` |
+| No `console` except `src/lib/logger.ts` (scripts and build configs may print) | `no-console` | the logger: one JSON line, secrets masked by key |
+| No bare TODO, FIXME, XXX or HACK: `TODO(#12): ...` | `local/todo-needs-issue` | `eslint-rules.js` |
+| Files fail at 500 lines (warn at 300), skipping blanks and comments; functions warn past 60 lines, complexity past 15 | `max-lines`, `size/max-lines-soft`, `max-lines-per-function`, `complexity` | tests skip the function length |
+| No empty catch; no unused catch binding | `no-empty`, `no-unused-vars` with `caughtErrors: all` | |
+| kebab-case files and folders (routes keep TanStack's `__root`, `$id`, `_`); no `../../` (use `@/`); sorted imports; no `index.ts` barrel | `check-file`, `no-restricted-imports`, `simple-import-sort` | scripts may use relative paths: Node has no `@/` |
+| Tokens only: no arbitrary Tailwind value, palette colour class or raw colour literal | `better-tailwindcss/no-restricted-classes`, `no-restricted-syntax` | token files: `src/styles.css`, `src/lib/site.ts`, `src/lib/plain-page.ts`; shadcn primitives in `src/components/ui` keep their classes |
+| Module boundaries | `eslint-plugin-boundaries` | `eslint.config.js` |
+| Unused files, exports, dependencies | knip | `knip.jsonc`, in `pnpm check` |
+| Duplicated code over 3% of lines (60 tokens, tests ignored) | jscpd | `.jscpd.json`, `pnpm dupes`, in `pnpm check` |
+| A migration drops or renames a column or table, adds NOT NULL without a default, or stores money in a float | `scripts/check-migrations.ts` | in `pnpm check`; it replays all migrations, so a Drizzle SQLite table rebuild that loses a column is caught |
+| Known-bad TypeScript and React patterns | Semgrep `p/typescript` and `p/react`, free, no account | `semgrep` job in `ci.yml` |
+| A pull request says `Closes #<n>` (or Fixes, Resolves) from a `feat|fix|chore/<n>-name` branch | `scripts/pr/rules.ts` | `pr-rules.yml`; `no-issue` label skips it, Dependabot is exempt |
+| Under about 400 changed lines, lockfiles and generated files not counted | `scripts/pr/rules.ts` | `pr-rules.yml`; `large-pr` label with the reason in the description |
+| Pages don't change by accident | Playwright `toHaveScreenshot`, every route, both themes, desktop and phone | `pnpm test:visual`, `visual` job in `ci.yml` |
+
+**Making an exception.** Only when the rule is truly wrong for this line: a comment on the same line or the line above, with the reason and an issue that tracks removing it. The reviewer flags every one.
+
+```ts
+// eslint-disable-next-line no-console -- the build prints its own summary (#42)
+// @ts-expect-error -- the SDK's type is wrong until v3 (#42)
+// TODO(#42): page the list once there are more than 100
+```
+
+A migration the person agreed may drop or rename (nothing to keep yet) carries `-- migration-lint-allow <rule>: <reason> (#42)` in its SQL. Never add a file to `knip.jsonc` or `.jscpd.json` ignores to silence a finding: delete the unused code, or extract the duplicate.
+
+**Commands.** `pnpm check` runs lint, typecheck, knip, dupes, check:migrations, test and build (about 30 s). CI adds the bundle budgets, e2e, the screenshot tests, Semgrep, the audit, licences and gitleaks. Lint warnings (size, complexity) print but don't fail: split by responsibility when one appears. The pre-commit hook lints only the staged files, with types, in a few seconds.
+
+**Screenshots.** Baselines are `e2e/visual.spec.ts-snapshots/<page>-<theme>-<project>.png`. CI compares them in `mcr.microsoft.com/playwright:v1.65.1-noble`; fonts differ across systems, so make baselines on Linux (`pnpm test:visual --update`) or with the `visual-baselines` workflow (Actions → Run workflow, then download the artifact). A diff in CI uploads expected, actual and diff images as the `visual-diff` artifact. After an intended change, update and look at every changed PNG; never update to make an unexplained diff go away.
+
+**Dependabot auto-merge.** `dependabot-auto-merge.yml` turns on auto-merge (squash) for npm patch and minor updates to development dependencies only. GitHub merges once the required checks pass. It needs "Allow auto-merge" and a branch rule with required checks (slice 0, step 6). A merge made with the workflow token starts no other workflow, so the test deploy waits for the next push to main.
+
+**Errors in sections.** A section's boundary shows `ErrorState error={error}`: an `AppError`'s own message, or the default for anything else. `src/client.tsx` (Start's client entry plus `onCaughtError`) doesn't log an `AppError` the boundary handled as a failure; anything else goes to the logger. The `sentry` add-on replaces this file and keeps the same filter (its ADDON.md). On the server, a section whose query fails (signed out) logs `Error in renderToReadableStream` and the client renders the boundary: expected, not a bug.
+
+## Change it safely
+
+- **A budget:** `scripts/budgets/check-budgets.ts`, gzip bytes per page (initial JS, route JS, CSS) and per lazy chunk. Measured 2026-11-22: `/` 135.6 KB initial, `/notes` 160.7 KB (25.5 KB its own chunk, mostly Zod for the form), Clerk 34.2 KB lazy. Find what grew first (`pnpm check:budgets --json`, then grep the chunk). Lower a budget when the app shrinks; raise one only with the cause in the pull request. The research target is 150 KB gzip per page on this stack.
+- **A security header:** change `SECURITY_HEADERS` and the `/*` block of `public/_headers` together (the unit test fails otherwise). Never let two `_headers` rules that match one file set the same header: Cloudflare joins them with a comma.
+- **The CSP:** change `pageCsp()`, never the header string in the guard. To allow a third-party service, add its exact origin to `CSP_EXTRA`. Never add `'unsafe-inline'`, `'unsafe-eval'`, `'strict-dynamic'` or `*` to `script-src`. Run `pnpm test:e2e`: the per-route test fails on any violation. An inline script you add needs `nonce={useRouter().options.ssr?.nonce}`.
+- **A limit:** `MAX_BODY_BYTES` for server functions; `ratelimits` in `wrangler.jsonc` for the rate (periods are 10 or 60 seconds; it is per location and approximate, so a burst guard, not a quota). A daily quota needs storage (D1 or a Durable Object). Certain junk belongs in a Cloudflare WAF rule, where a block isn't even counted.
+- **The crawler policy:** `AI_TRAINING_CRAWLERS` in `src/lib/seo-files.ts`. Re-check names in each vendor's docs. Cloudflare's AI "Training" setting must be Allow or Disallow, never Block (Block also stops Google, Bing and Apple search). The person changes dashboard settings.
+- **A path a protected test site must leave open** (a signed webhook): add it to `OPEN_PATHS` in `src/lib/open-paths.ts` (exact, or a prefix ending in `/*`), update its unit test, and rerun setup-cloudflare, which updates the Access app's public paths (the Worker's JWT check skips them too). Never open a page or `/api/v1`.
+- **A variable:** add it to `src/lib/env-schema.ts`, `.env.example` and, for a secret, `src/env.d.ts`. Build-time values are public; secrets are runtime only, set per environment (`wrangler secret put NAME --env test`).
+- **A binding** (queue, bucket, var, Hyperdrive): add it at the top level and inside `env.test` and `env.production` with that environment's resource name. Each already has a `"vars"` block: add a var to it, never a second `"vars"` key (the later one wins and drops `LAUNCHED`, which closes the site). Bindings are not inherited; a missing one makes it optional in the generated types and `pnpm typecheck` fails. Then rerun `setup-cloudflare`.
+
+## Gotchas (checked 2026-11)
+
+1. D1 has no interactive transactions. `db.transaction()` fails on `BEGIN`. Use one statement or `db.batch([...])` inside one repository method, and put the condition in SQL.
+2. Read bindings with `import { env } from 'cloudflare:workers'` inside a handler or `createServerOnlyFn`, never at module scope.
+3. `start.ts`, `*.functions.ts` and `server/*.ts` are also bundled for the browser. Server-only calls must sit inside `.server()`, `.handler()` or `createServerOnlyFn`, or the client build fails on `cloudflare:workers`.
+4. A Zod schema passed straight to `.validator()` throws on bad input, and the browser gets a plain error with no field messages. Use the pass-through and return the envelope. The method is `.validator()`, not `.inputValidator()`.
+5. Server function results must be serializable. A field typed `unknown` fails typecheck.
+6. Having `src/start.ts` turns off Start's default CSRF check. Keep `createCsrfMiddleware` in `requestMiddleware`, after `requestGuards`.
+7. `GET` server functions put their input in the query string. Nothing private, nothing big.
+8. `clerkMiddleware()` throws without a secret key, and `auth()` throws without the middleware. The pack checks for keys first. Clerk's React SDK uses `<Show when="signed-in">`. There is no `SignedIn` component.
+9. Binding `undefined` throws `D1_TYPE_ERROR`; use `null`. A statement takes at most 100 bound parameters, so chunk bulk inserts.
+10. Create the `QueryClient` inside `getRouter()`. A module-level client leaks one user's cache into another's HTML.
+11. TanStack Query 5.108 deprecates `ensureQueryData` and `prefetchQuery`. Use `queryClient.query()` and `queryClient.infiniteQuery()`.
+12. Pin `wrangler` to the version `@cloudflare/vite-plugin` depends on (`pnpm view @cloudflare/vite-plugin@<v> dependencies`). If they differ, two workerd builds install.
+13. Keep TypeScript on 6.0.x until typescript-eslint supports 7.
+14. eslint-plugin-boundaries skips package imports and imports inside one element unless `checkAllOrigins` and `checkInternals` are on. Prove a rule fails on a deliberate violation before you trust it.
+15. Edit `wrangler.jsonc`, never `dist/server/wrangler.json`. `pnpm typecheck` reruns `wrangler types`. Secrets go in `src/env.d.ts`.
+16. Request middleware runs before Start reads a server function's body, so limits belong there, first in `requestMiddleware`. Its `next({ context })` is what `getGlobalStartContext()` returns inside `getRouter()`: that is how the nonce reaches the router.
+17. A JSON response Start didn't serialize reaches the caller oddly: the client spreads it, returns `body.result` and throws `body.error`. The guards answer with the plain envelope and `call()` maps the thrown `{ code, message }`. A test that fakes a server function answers `{ result: envelope }`.
+18. A query error rendered on the server is dehydrated as a plain `Error` and loses `code`, so the view picks another branch and React throws hydration error 418. `appErrorAdapter` (registered in `src/start.ts`) keeps `AppError` intact, and `retryOnMount: false` keeps the server's error instead of flashing a loading state (that flash was the `/notes` LCP, 2.2 s).
+19. Zod probes for eval with `Function('')` on its first parse; under the CSP that logs a violation in every browser. `src/router.tsx` sets `globalThis.__zod_globalConfig.jitless`. `z.config()` would do the same but pulls all of Zod into the entry chunk.
+20. React 19 moves a plain `<script>` in `<head>` after the stylesheets and hoisted meta. The theme script still runs before first paint (tested with the app bundle blocked); don't move it into `head()`.
+21. `public/_headers` never applies to Worker responses, and every page here is a Worker response. The guards set headers for those; the unit test keeps both lists equal.
+22. `vite preview` serves JS uncompressed, so Lighthouse there overstates transfer and LCP. `pnpm lhci` runs `wrangler dev -c dist/server/wrangler.json`, which compresses. It clears `.lighthouseci/` first, or old runs are averaged in. Lighthouse 13 renamed `third-party-summary` to `third-parties-insight`; asserting the old id passes without checking.
+23. Clerk's React SDK is about 35 KB gzip. It loads lazily and only with keys; with keys, hydration waits for that chunk. The CSP reads Clerk's Frontend API host from the publishable key (base64 of the host). Not yet run with real Clerk keys: check the console for CSP errors the first time.
+24. Locally the rate limiter trusts a `cf-connecting-ip` header (tests use it for their own bucket); on Cloudflare the edge sets it and a client can't. Its windows are fixed: a test must cross the limit twice over to pass on a window boundary.
+25. Vite 8's native config loader wants explicit `.ts` extensions on files `vite.config.ts` imports (`tsconfig.node.json` allows them). `src/lib/site.ts` stays free of `import.meta.env` because the config imports it.
+26. The React Compiler lint (`react-hooks/refs`) rejects a ref returned inside a hook's result object. Create the ref in the component and pass it in (see `useTurnstile`).
+27. Turnstile's test secrets answer with hostname `example.com`; `verifyTurnstile` accepts that only for a test secret. Test keys: site `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA` (always pass).
+28. Never name a server file `*.client.*` (for example `stripe.client.ts`): Start's import protection treats it as browser-only code and the build breaks. Use `.adapter.ts`, `.payments.stripe.ts` and similar.
+29. The environment is chosen at **build** time: `CLOUDFLARE_ENV=test pnpm build`, then `wrangler deploy` (its `--env` must match or be left out). The build leaves `.wrangler/deploy/config.json`, which redirects later wrangler commands to the flattened config: pass `-c wrangler.jsonc` to D1 commands and `wrangler types`, and delete that file before `wrangler secret put --env` (setup-cloudflare does).
+30. `wrangler d1 time-travel info` is remote-only and takes no `--remote`. Its `--json` prints `{ bookmark, … }`; parse from the first `{`.
+31. `auth()` from `@clerk/tanstack-react-start/server` does read header tokens: `clerkMiddleware` calls `authenticateRequest` with `acceptsToken: 'any'`, a token in `Authorization` takes precedence over the cookie, and `auth()` (default `session_token`) turns an API key or M2M token into signed-out. Checked in the package source (1.7.19, backend 3.31.4) and on the built Worker with a self-signed key as `CLERK_JWT_KEY`: valid token 200, expired 401, another user's note 404, cookie alone 401. Not yet run against a real Clerk instance. Clerk session JWTs carry a `cat` header; a hand-made test token without it is a `token-type-mismatch`.
+32. `CLERK_JWT_KEY` (networkless verification) must be the PEM on one line or with real newlines, never with literal `\n`: Clerk strips newlines and reads the modulus, so `\n` gives `token-invalid-signature`.
+33. A server route with no handler for a method falls through to the HTML shell with 200. Every `/api/v1` route has `ANY: methodNotAllowed(...)`.
+34. A non-HTML response that sets its own CSP keeps it (the guards add the baseline only when none is set); HTML always gets the page CSP.
+35. `pnpm exec playwright test` with `BASE_URL` set skips the local web servers: that is how the deploy workflows test a deployed URL. The rate-limit tests skip there (the edge sets the client address). Pass projects as `--project=desktop`: `--project desktop e2e/x.spec.ts` reads the file as a second project name.
+36. `vite preview` reads vars from `dist/server/wrangler.json` and `.dev.vars`; with `CLOUDFLARE_INCLUDE_PROCESS_ENV=true` it also takes them from the shell, on top of the config. That is how the e2e suite previews one build launched, not launched and password-gated.
+37. Static files are answered before the Worker, so a guard can't see them. robots.txt, sitemap.xml and llms.txt are in `assets.run_worker_first` (and not in the build) so a not-launched environment can answer them; the password gate can't cover the hashed bundles (Access can).
+38. Playwright's `extraHTTPHeaders` go to every host a page calls, Clerk included. `e2e/gate.ts` adds the protection headers with a route on the site's own origin only. A Playwright fixture's callback must not be named `use` here: the React hooks lint flags it.
+
+## Netlify
+
+Netlify is the only alternative host. Swap `@cloudflare/vite-plugin` for `@netlify/vite-plugin-tanstack-start`, and move the data off D1, because `cloudflare:workers` and D1 bindings don't exist there. The rate-limit binding goes too: use the host's own limits.
+
+## Optional add-ons
+
+- **Local-first with Dexie:** IndexedDB as the client's owner of a resource, an outbox synced with last-write-wins on a server `version`, and undo history from Immer patches. One owner per resource: never the same rows in TanStack Query and Dexie. Add client-made ids, `baseVersion` and tombstones to the server side when you do.
+- **Prerendered marketing pages:** `prerender` in `tanstackStart()` for pages that don't depend on the session; they are served without running the Worker. A prerendered page can't carry a per-response nonce: give it a hash-based CSP built from the final HTML instead, in its own `_headers` rule. List unlinked pages in `pages[]`.
+- **A static 404 for unknown URLs:** only once every page is prerendered (`not_found_handling: "404-page"`); until then the Worker renders the 404 and scanner paths are answered without a render.
+- **File uploads** to R2 through a server route, not a server function, with its own body cap (`r2-uploads` add-on).
+
+The add-ons in `stacks/tanstack-start-addons/` follow the environments: each binding goes in all three blocks, `sentry` and `jobs` wrap Start's handler in `src/server.ts` (so the guards still run), and third-party origins go in `CSP_EXTRA`.

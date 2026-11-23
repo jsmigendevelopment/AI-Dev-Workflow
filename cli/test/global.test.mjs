@@ -52,3 +52,13 @@ test("init --global through the binary uses HOME", () => {
   assert.ok(exists(home, ".claude/skills/join/SKILL.md"));
   assert.ok(exists(home, ".agents/skills/afk/SKILL.md"));
 });
+
+test("init --global says the plugin is the recommended way, and still copies the skills", () => {
+  const home = tmp();
+  const log = logger();
+  assert.equal(initGlobal({ home, log }), 0);
+  assert.match(log.text(), /the plugin is now the recommended way/);
+  assert.match(log.text(), /\/plugin install core@onrails/);
+  assert.match(log.text(), /not both/);
+  assert.ok(exists(home, ".claude/skills/idea/SKILL.md"));
+});

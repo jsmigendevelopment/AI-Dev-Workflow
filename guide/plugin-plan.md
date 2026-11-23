@@ -1,6 +1,6 @@
 # Plan: the kit as a Claude Code plugin
 
-A plan only. Nothing here is built yet. Researched 2026-11-23.
+Researched 2026-11-23. Option A is now built (issue #4): see `plugin/`, `.claude-plugin/marketplace.json` and the README's "Install as a plugin". One finding from the build: Codex refuses an entry whose name differs from the plugin's own `name`, so Codex gets its own marketplace file, `.agents/plugins/marketplace.json`, with the entry `or` (`codex plugin add or@onrails`). ✅ [Local] codex-cli 0.171.0.
 
 **Marks:** ✅ verified (read in a primary source, or run here). 🔶 inferred (read the code or a nearby doc, not run). ❓ unknown.
 
@@ -10,6 +10,12 @@ A plan only. Nothing here is built yet. Researched 2026-11-23.
 - [Local] Claude Code 2.1.330 and codex-cli 0.171.0, run in this repo's dev box, 2026-11-23.
 - [CF] `cloudflare/skills`, commit `5108325e` (2026-11-17): a working plugin for both Claude Code and Codex.
 - [Codex] `openai/codex` source, commit `e0a6d053` (2026-11-23). Codex's docs site was blocked from this box, so Codex facts come from its source code and CLI help.
+
+## Decided (2026-11-23, by the owner)
+
+- Kit name **onRails**; npm package `onrails`; repo `onRails`.
+- Marketplace name `onrails`. Plugin entry `core`, so it installs with `/plugin install core@onrails`. Stack packs can follow later as their own entries (for example `tanstack@onrails`).
+- Plugin manifest `name` is `or`, so commands read `/or:idea`, `/or:join`, `/or:back`, `/or:afk`. The entry name and the manifest name may differ (see the table below).
 
 ## 1. The name: `/or:idea`, or just `/idea`?
 

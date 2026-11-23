@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Copies the kit from the repo (the folder above cli/) into cli/kit/, with a manifest.
 // Runs before every npm pack / npm publish, so each CLI version carries one kit version.
+// It also writes plugin/cli/: this CLI with the core kit only (no stack packs), so the
+// plugin's skills can run `init` without npm. That copy is checked in, because a plugin
+// installs from a git clone. `--check` only compares plugin/cli/ and writes nothing.
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +14,7 @@ import { storedName } from "../src/kit.mjs";
 const CLI = join(dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = join(CLI, "..");
 const OUT = join(CLI, "kit");
+const PLUGIN_CLI = join(REPO, "plugin", "cli");
 
 const CORE = [
   "AGENTS.md",
@@ -80,10 +84,46 @@ function bundleAddons(dir, outDir) {
   return addons;
 }
 
+// Every file of plugin/cli/, as { "/" path: data }. Same layout as this package, core kit only.
+function pluginFiles(version, coreFiles) {
+  const out = {};
+  for (const path of walk(join(CLI, "src"))) out[`src/${path}`] = readFileSync(toNative(join(CLI, "src"), path));
+  out["bin/cli.mjs"] = readFileSync(join(CLI, "bin", "cli.mjs"));
+  out["LICENSE"] = readFileSync(join(CLI, "LICENSE"));
+  const pkg = readJson(join(CLI, "package.json"));
+  const slim = { name: pkg.name, version, description: pkg.description, license: pkg.license, type: pkg.type, bin: pkg.bin, engines: pkg.engines };
+  out["package.json"] = Buffer.from(JSON.stringify(slim, null, 2) + "\n");
+  const core = {};
+  for (const [path, data] of Object.entries(coreFiles)) {
+    out[`kit/files/core/${storedName(path)}`] = data;
+    core[path] = hash(data);
+  }
+  out["kit/manifest.json"] = Buffer.from(JSON.stringify({ kitVersion: version, core, packs: {}, addons: {} }, null, 2) + "\n");
+  return out;
+}
+
+function checkPlugin(want) {
+  const have = walk(PLUGIN_CLI);
+  const problems = Object.keys(want).filter((p) => !have.includes(p) || !readFileSync(toNative(PLUGIN_CLI, p)).equals(want[p]))
+    .map((p) => `differs: plugin/cli/${p}`);
+  problems.push(...have.filter((p) => !(p in want)).map((p) => `not made by the bundle: plugin/cli/${p}`));
+  if (problems.length) {
+    console.error(problems.join("\n") + "\n\nRun: cd cli && npm run bundle");
+    process.exit(1);
+  }
+  console.log(`plugin/cli in sync (${have.length} files)`);
+}
+
 const version = readJson(join(CLI, "package.json")).version;
+const coreFiles = collect(REPO, CORE);
+const plugin = pluginFiles(version, coreFiles);
+if (process.argv.includes("--check")) {
+  checkPlugin(plugin);
+  process.exit(0);
+}
 rmSync(OUT, { recursive: true, force: true });
 
-const core = store(collect(REPO, CORE), join(OUT, "files", "core"));
+const core = store(coreFiles, join(OUT, "files", "core"));
 const packs = {};
 const addons = {};
 const stackNames = readdirSync(join(REPO, "stacks")).filter((n) => statSync(join(REPO, "stacks", n)).isDirectory());
@@ -99,3 +139,7 @@ writeFile(join(OUT, "manifest.json"), JSON.stringify({ kitVersion: version, core
 const packCount = Object.values(packs).reduce((n, p) => n + Object.keys(p.files).length, 0);
 const addonCount = Object.values(addons).reduce((n, a) => n + Object.keys(a).length, 0);
 console.log(`bundled kit v${version}: ${Object.keys(core).length} core files, ${Object.keys(packs).length} pack(s) with ${packCount} files, ${addonCount} add-on(s) -> cli/kit/`);
+
+rmSync(PLUGIN_CLI, { recursive: true, force: true });
+for (const [path, data] of Object.entries(plugin)) writeFile(toNative(PLUGIN_CLI, path), data);
+console.log(`bundled plugin/cli/: the CLI and kit v${version} core, ${Object.keys(plugin).length} files`);
