@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-import { e2eClerkVars } from './e2e/clerk-tokens'
+import { E2E_APP, e2eClerkVars } from './e2e/clerk-tokens'
 import { E2E_ACCESS, E2E_PASSWORD } from './e2e/helpers'
 
 const port = 4173
@@ -87,8 +87,8 @@ export default defineConfig({
                 use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 4) },
                 testMatch: /clerk-parties\.spec\.ts/,
               },
-              // The same with CLERK_ALLOW_NATIVE_TOKENS on, as the monorepo-expo pack sets it, and the
-              // publishable key under its old name (the alias).
+              // The same with CLERK_ALLOW_NATIVE_TOKENS on and the app claim, as the monorepo-expo
+              // pack sets them, and the publishable key under its old name (the alias).
               {
                 name: 'clerk-native',
                 use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 5) },
@@ -113,7 +113,11 @@ export default defineConfig({
               variant(port + 3, E2E_ACCESS),
               // Signed-in calls read the notes table: migrate the local D1 first.
               {
-                ...variant(port + 4, { ...e2eClerkVars(), CLERK_TELEMETRY_DISABLED: '1' }),
+                ...variant(port + 4, {
+                  ...e2eClerkVars(),
+                  CLERK_TELEMETRY_DISABLED: '1',
+                  CLERK_NATIVE_APP_CLAIM: E2E_APP,
+                }),
                 command: `pnpm db:migrate:local && pnpm preview --port ${port + 4} --strictPort`,
               },
               // The old key name, so the alias (src/lib/env-schema.ts) is proved on a built Worker.
@@ -121,6 +125,7 @@ export default defineConfig({
                 ...e2eClerkVars('CLERK_PUBLISHABLE_KEY'),
                 CLERK_TELEMETRY_DISABLED: '1',
                 CLERK_ALLOW_NATIVE_TOKENS: 'true',
+                CLERK_NATIVE_APP_CLAIM: E2E_APP,
               }),
             ]),
       ],

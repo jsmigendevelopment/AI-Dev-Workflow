@@ -26,7 +26,9 @@
   // CLERK_AUTHORIZED_PARTIES (optional, any environment): extra exact origins Clerk tokens may come
   // from, e.g. a custom test domain. SITE_URL, localhost and the test Worker's previews need nothing
   // here (src/lib/authorized-parties.ts). CLERK_ALLOW_NATIVE_TOKENS: "true" when a native app calls
-  // /api/v1 (its tokens have no azp); the monorepo-expo pack sets it in every environment.
+  // /api/v1 (its tokens have no azp), with CLERK_NATIVE_APP_CLAIM, the `app` claim those tokens must
+  // carry (Clerk's session token claims); the monorepo-expo pack sets both in every environment.
+  // Any other native app on the same Clerk instance can use its tokens: one Clerk instance per product.
   // Not here: the Clerk keys VITE_CLERK_PUBLISHABLE_KEY (Clerk's name) and CLERK_SECRET_KEY are
   // Worker secrets per environment, set by setup-cloudflare (push-secrets) or `pnpm connect`.
   "vars": { "LAUNCHED": "true", "SITE_PROTECTION": "none" },

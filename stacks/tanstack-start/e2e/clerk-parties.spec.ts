@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { bearer, sessionCookie, sessionToken, signedInAs, UNSIGNED } from './clerk-tokens'
+import { bearer, E2E_APP, sessionCookie, sessionToken, signedInAs, UNSIGNED } from './clerk-tokens'
 import { API_LOOKALIKES } from './helpers'
 
 // Clerk's authorizedParties (src/lib/authorized-parties.ts), end to end through clerkMiddleware,
@@ -43,6 +43,68 @@ test('a valid session cookie never signs in to the API, whatever the Authorizati
   expect((await request.get('/', { headers: { cookie } })).status()).toBe(200)
 })
 
+// requestForClerk (src/lib/authorized-parties.ts): Clerk is handed the API request without
+// `Cookie`. Our 401 alone can't show that (bearerActor refuses any header but an exact Bearer),
+// so this reads what Clerk decided: with the cookie it would say signed-in.
+test('a valid session cookie plus a bare or inexact bearer token is a 401, and Clerk never saw the cookie', async ({
+  request,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin
+  const cookie = await sessionCookie(origin)
+  const { token } = await sessionToken(origin)
+  // A bare value is Clerk's header token (a junk one is signed out); the rest make Clerk fall back to the cookie.
+  for (const authorization of [token, UNSIGNED, undefined, `bearer ${token}`, `Bearer  ${token}`, 'Bearer']) {
+    const response = await request.get('/api/v1/notes', {
+      headers: { cookie, ...(authorization === undefined ? {} : { authorization }) },
+    })
+    const label = authorization === token ? 'bare token' : (authorization?.slice(0, 9) ?? 'no header')
+    expect(response.status(), label).toBe(401)
+    expect(await response.json(), label).toEqual(UNAUTHENTICATED)
+    if (authorization !== token) expect(response.headers()['x-clerk-auth-status'], label).toBe('signed-out')
+  }
+})
+
+// Clerk reads its own `__clerk*` query parameters even on an API call: a junk handshake made a
+// development instance throw (a 500), and `__clerk_redirect_url`, `__clerk_db_jwt` and
+// `__clerk_synced` started a redirect. requestForClerk drops them all, and any redirect Clerk
+// still answers with on /api/v1 becomes the uniform 401.
+const CLERK_QUERIES = [
+  '__clerk_handshake=junk',
+  '__clerk_handshake=a.b.c',
+  '__clerk_handshake_nonce=junk',
+  '__clerk_redirect_url=https%3A%2F%2Fevil.example%2Fx',
+  '__clerk_db_jwt=dvb_e2e',
+  '__clerk_synced=false',
+  '__clerk_synced=true',
+  '__clerk_status=x',
+  '__clerk_help=1',
+]
+
+test('every __clerk query parameter on /api/v1 is the uniform 401, never a redirect or a 500', async ({
+  request,
+}) => {
+  for (const query of CLERK_QUERIES)
+    for (const headers of [{}, { 'sec-fetch-dest': 'document', accept: 'text/html' }] as Record<
+      string,
+      string
+    >[]) {
+      const label = `${query} ${Object.keys(headers).length ? 'document' : 'fetch'}`
+      const response = await request.get(`/api/v1/notes?${query}`, { headers, maxRedirects: 0 })
+      expect(response.status(), label).toBe(401)
+      expect(response.headers()['location'], label).toBeUndefined()
+      expect(await response.json(), label).toEqual(UNAUTHENTICATED)
+    }
+})
+
+test('normal query parameters still reach the API route', async ({ request, baseURL }) => {
+  const { token } = await sessionToken(new URL(baseURL!).origin)
+  const headers = { authorization: `Bearer ${token}` }
+  expect((await request.get('/api/v1/notes?limit=5', { headers })).status()).toBe(200)
+  // The route reads the original query: a bad value is its own 400, not swallowed.
+  expect((await request.get('/api/v1/notes?limit=0', { headers })).status()).toBe(400)
+})
+
 test('a look-alike API path is a 404, or Clerk never sees the session cookie there', async ({
   request,
   baseURL,
@@ -69,8 +131,11 @@ test('bearer: a spoofed X-Forwarded-Host never makes its origin a party', async 
 test('bearer: a native token (no azp) is refused while CLERK_ALLOW_NATIVE_TOKENS is off', async ({
   request,
 }) => {
-  const response = await bearer(request, undefined)
-  expect(response.status()).toBe(401)
+  // This preview sets CLERK_NATIVE_APP_CLAIM too: the flag alone keeps the native path off.
+  for (const claims of [{}, { app: E2E_APP }]) {
+    const response = await bearer(request, undefined, claims)
+    expect(response.status(), JSON.stringify(claims)).toBe(401)
+  }
 })
 
 for (const [name, azp] of Object.entries(WRONG)) {
