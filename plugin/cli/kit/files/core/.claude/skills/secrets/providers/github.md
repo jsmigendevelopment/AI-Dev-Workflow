@@ -10,6 +10,21 @@ How: the docs site was blocked here, so the pages were read from GitHub's public
 
 **What it's for.** CI deploys with the values stored in three GitHub environments: `test`, `production` and `preview`. Environment secrets are only given to jobs that name that environment, so test jobs never see production keys.
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "GitHub environments",
+  "order": 20,
+  "url": "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments",
+  "steps": "## Walkthrough",
+  "vars": {
+    "SITE_URL": {"secret": false, "scope": ["production"], "to": ["github"], "shape": {"prefix": ["https://"]}},
+    "APP_URL": {"secret": false, "scope": ["test", "production"], "to": ["github"], "shape": {"prefix": ["https://"]}}
+  }
+}
+```
+
 ## What the workflows read
 
 TanStack Start pack (`.github/workflows/deploy-test.yml`, `deploy-production.yml`, `preview.yml`):

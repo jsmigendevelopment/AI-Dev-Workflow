@@ -14,6 +14,21 @@ ACCESS_FACEBOOK_CLIENT_SECRET=
 
 You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare prints it).
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "Facebook sign-in for Cloudflare Access",
+  "order": 60,
+  "url": "https://developers.facebook.com/apps/creation/",
+  "steps": "## Walkthrough",
+  "vars": {
+    "ACCESS_FACEBOOK_CLIENT_ID": {"secret": false, "scope": ["local"], "to": [".env.cloudflare.local"]},
+    "ACCESS_FACEBOOK_CLIENT_SECRET": {"secret": true, "scope": ["local"], "to": [".env.cloudflare.local"]}
+  }
+}
+```
+
 ## Walkthrough · about 10 minutes
 
 1. Open https://developers.facebook.com/apps/creation/ (make a developer account if asked). Enter the **App name** and **App contact email**, **Next**. `[V]` steps, `[U]` the deep link.

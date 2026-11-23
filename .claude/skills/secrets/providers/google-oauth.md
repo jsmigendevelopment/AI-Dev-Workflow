@@ -14,6 +14,21 @@ ACCESS_GOOGLE_CLIENT_SECRET=
 
 You need your **team domain** first: `<team>.cloudflareaccess.com`. setup-cloudflare prints it, or see **Zero Trust → Settings → Team name and domain**. `[V]`
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "Google sign-in for Cloudflare Access",
+  "order": 60,
+  "url": "https://console.cloud.google.com/auth/clients",
+  "steps": "## Walkthrough",
+  "vars": {
+    "ACCESS_GOOGLE_CLIENT_ID": {"secret": false, "scope": ["local"], "to": [".env.cloudflare.local"]},
+    "ACCESS_GOOGLE_CLIENT_SECRET": {"secret": true, "scope": ["local"], "to": [".env.cloudflare.local"]}
+  }
+}
+```
+
 ## Walkthrough · about 5 minutes
 
 1. Make a project: https://console.cloud.google.com/projectcreate. Any name. Click **Create**. `[V]` (Cloudflare: "Create a new project ... select Create")

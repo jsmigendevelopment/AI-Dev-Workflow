@@ -15,6 +15,21 @@ EMAIL_FROM       a sender on your verified domain, e.g. Acme <hello@mail.example
 
 Use a separate API key for test and production. `[V]` (the add-on's rule)
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "Resend",
+  "order": 40,
+  "url": "https://resend.com/api-keys",
+  "steps": "## Walkthrough",
+  "vars": {
+    "RESEND_API_KEY": {"secret": true, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"], "shape": {"prefix": ["re_"]}},
+    "EMAIL_FROM": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.local", "wrangler"]}
+  }
+}
+```
+
 ## Walkthrough · about 10 minutes, plus DNS time
 
 1. Make an account and open the domains page: https://resend.com/domains. Add a domain you own. A subdomain like `mail.example.com` keeps your main domain's reputation safe. `[U]`

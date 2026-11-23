@@ -14,6 +14,21 @@ ACCESS_LINKEDIN_CLIENT_SECRET=
 
 You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare prints it). You also need a **LinkedIn Page** (a company page) and a logo image.
 
+**For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
+
+```json connect
+{
+  "title": "LinkedIn sign-in for Cloudflare Access",
+  "order": 60,
+  "url": "https://www.linkedin.com/developers/apps/new",
+  "steps": "## Walkthrough",
+  "vars": {
+    "ACCESS_LINKEDIN_CLIENT_ID": {"secret": false, "scope": ["local"], "to": [".env.cloudflare.local"]},
+    "ACCESS_LINKEDIN_CLIENT_SECRET": {"secret": true, "scope": ["local"], "to": [".env.cloudflare.local"]}
+  }
+}
+```
+
 ## Walkthrough · about 10 minutes
 
 1. Open https://www.linkedin.com/developers/apps/new. Enter an **App name**, pick a **LinkedIn Page** (or **Create a new LinkedIn page**), **Upload a logo**, agree to the **API Terms of Use**, then **Create app**. `[V]` steps, `[U]` the deep link.

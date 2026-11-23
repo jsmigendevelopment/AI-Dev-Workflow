@@ -12,6 +12,9 @@ rewritten in the kit's own words:
   from skills/engineering/retro
 - .agents/skills/writing-for-agents/SKILL.md
   from skills/productivity/writing-for-agents
+- stacks/tanstack-start/scripts/connect.mjs and scripts/connect/ (`pnpm connect`), and the
+  connect blocks in .agents/skills/secrets/ (SKILL.md and providers/)
+  from skills/engineering/wizard
 
 Copies of these files in .claude/skills/, plugin/ and the CLI's bundled kit carry the same parts.
 

@@ -31,6 +31,7 @@
     "new:component": "node scripts/generate/new-component.ts",
     "new:table": "node scripts/generate/new-table.ts",
     "setup:cloudflare": "node scripts/setup-cloudflare.mjs",
+    "connect": "node scripts/connect.mjs",
     "cf-typegen": "wrangler types -c wrangler.jsonc",
     "check:budgets": "node scripts/budgets/check-budgets.ts",
     "check:licenses": "node scripts/check-licenses.ts",

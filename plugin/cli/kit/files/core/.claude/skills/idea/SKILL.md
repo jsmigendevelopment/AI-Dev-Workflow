@@ -45,7 +45,7 @@ Run the steps in order. Don't write app code before step 8 unless the person say
 9. **Keys and accounts, before any building.** Open `secrets` now, not when a deploy is stuck. Nothing reaches the test site until these exist, so ask while the person is still here:
    - List every account and key the first test deploy needs (for the default stack: a Cloudflare login and a Clerk app), plus the ones later slices add, marked "later".
    - Say it plainly: *"The test site can't go live until these are set. It takes about 10 minutes. Want to do it now?"*
-   - Wire them through the `secrets` checklist. Values never go in the chat.
+   - Wire them through the `secrets` checklist. Values never go in the chat. If they'll do it themselves, that's `pnpm connect` in their own terminal, about 10 minutes; check the result by name with `pnpm connect --dry-run`.
    - If they say later: write each missing one to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the first deploy, and say building will continue but nothing will be visible on the test site until then.
 
 10. **Hand off.** Write `docs/state.md` from `templates/state.md`. Then tell the person, in under 10 lines:

@@ -28,9 +28,9 @@ When a step adds a service, it adds its variables here in this format.
 
 1. **List what's needed.** Read `.env.example` and show a table of the name, what it's for, where to get it, which environments, and whether it's secret. Mention any accounts to create first (for example Cloudflare, Clerk, Stripe).
 
-2. **Ask once:** *"Do you want to set the keys up yourself, or should I wire them for you? Either way, you'll type the values into a local file or a prompt, never into this chat."*
+2. **Ask once:** *"Do you want to set the keys up yourself, or should I wire them for you? Yourself means running one command in your own terminal that walks you through it. Either way, you'll type the values into a local file or a prompt, never into this chat."*
 
-3. **Walk them through one provider at a time.** Each provider has a click-by-click file in [`providers/`](providers/). Group the variables by provider, finish one provider, then start the next.
+3. **Walk them through one provider at a time.** (Doing it themselves with `pnpm connect`? The script prints each walkthrough, so skip item 5 below; still do items 1 to 4, then go to step 4.) Each provider has a click-by-click file in [`providers/`](providers/). Group the variables by provider, finish one provider, then start the next.
 
    | Provider file | Fills |
    |---|---|
@@ -51,17 +51,13 @@ When a step adds a service, it adds its variables here in this format.
    4. **Prefer the provider's CLI** where the file gives one (`wrangler`, `gh`, the Clerk CLI, the Stripe CLI, `sentry`, `supabase`, `eas`). Commands that sign in to the person's account run in **their** terminal. If the provider publishes agent skills or an MCP server, offer them; install only on a yes.
    5. Give the file's walkthrough as one "Setup step for you" from the `ask` skill: its numbered steps, links and copy blocks, what they'll see when it worked, and how long it takes. Keep the "Why / if it goes wrong" part for when they're stuck.
 
-4. **If they'll do it themselves:** for each variable, after its provider's walkthrough:
-   - the link where they get it;
-   - for local development, the line to add to `.env.local`;
-   - for test and production, the commands to run, which ask for the value without showing it:
-     ```bash
-     gh secret set NAME --env production
-     ```
-     ```bash
-     npx wrangler secret put NAME --env production
-     ```
-     (use the second only on a Cloudflare stack).
+4. **If they'll do it themselves:** they run `pnpm connect` in **their own terminal**, not yours. Say: *"In a terminal in the app folder, run `pnpm connect`. It walks you through each service one at a time, opens the page, and asks for each key with hidden input. It takes about 10 minutes for Cloudflare and Clerk, longer with add-ons. Tell me when it's done."*
+   - `pnpm connect clerk` does one provider. `--force` sets a value again. `--dry-run` shows what's set and what it would ask, by name only.
+   - It lists the providers the app needs (from `.env.example` and the workflows' `secrets.*` and `vars.*`), prints each walkthrough's steps short, and asks before it opens a page.
+   - It checks each value's shape where the provider has a rule, and asks before each destination: `.env.local` (mode 600), `wrangler secret put`, `gh secret set` or `gh variable set`. Values go on stdin, never in a command's arguments, and are never printed. Production needs its own yes.
+   - Every value is read hidden; a public one is shown after Enter unless it looks like a secret key, which is refused. Typing from before a question is dropped, and a y/N question shows only y, n or yes, so a key pasted in the wrong place is never shown. A failing `wrangler` or `gh` prints only its exit code and the command to rerun by hand. It refuses to run without a terminal, so you never run it for them. Afterwards, check by name: `pnpm connect --dry-run` (✓ set, ✗ missing, ? couldn't check).
+   - A step the script can't do (for example `wrangler login`, Clerk's CLI, a DNS record) stays in the printed steps for them to do.
+   - Pack without the script? Give each variable's link, the `.env.local` line, and `gh secret set NAME --env <env>` or `npx wrangler secret put NAME --env <env>`, which ask for the value without showing it.
 
 5. **If you're wiring them:**
    1. Copy `.env.example` to `.env.local`, and to `.env.test.local` and `.env.production.local` if the app deploys. Check all three are git-ignored.
@@ -75,6 +71,36 @@ When a step adds a service, it adds its variables here in this format.
    5. Offer to delete `.env.production.local` now that the values are stored in GitHub and Cloudflare.
 
 6. **Check it works.** Start the app. A missing variable fails at startup with its name (the pack's env schema does this). Then report which variables are set where, by name only.
+
+## The connect block
+
+Each file in `providers/` carries one fenced `json connect` block that `pnpm connect` reads. The steps stay in the markdown; the block only says what to ask and where it goes. Edit both together.
+
+```jsonc
+{
+  "title": "Clerk",                       // shown as the provider's name
+  "order": 30,                            // walk order: Cloudflare 10, GitHub 20, sign-in 30, add-ons 40+
+  "url": "https://dashboard.clerk.com/~/api-keys",   // the page to open
+  "steps": "## 1.",                       // the heading whose numbered steps are printed
+  "vars": {
+    "CLERK_SECRET_KEY": {
+      "secret": true,                     // hidden input; a GitHub secret, not a variable
+      "scope": ["local", "test", "production"],   // also "preview" (a GitHub environment)
+      "to": [".env.local", "wrangler"],   // "wrangler", "github", "github-repo", or a file
+      "shape": { "prefix": ["sk_test_", "sk_live_"] }   // optional; also "min", "max", and "notInProduction" (documented test values)
+    }
+  }
+}
+```
+
+- A bare file name is in the app's folder (`.env.local`, `.env.cloudflare.local`). A path is from the repo root (`apps/mobile/.env`). No `..` or absolute paths; the script writes only inside the repo (symlinks followed) and only to a file git says it ignores.
+- GitHub destinations go to the repo named by `origin`, passed as `-R owner/repo`; an inherited `GH_REPO` is dropped.
+- A prefix with `_test_` is refused in production, and one with `_live_` everywhere else. A `-----BEGIN …-----` prefix reads the key to its matching END line.
+- Local and test share one value; `"split": true` asks for them separately. Production is always asked separately, after its own yes.
+- A variable may name its own `"steps"` heading and `"url"`.
+- A provider with nothing to store (Supabase) has no block and says why. `cli/test/connect-blocks.test.mjs` checks every file.
+
+`pnpm connect` is based on Matt Pocock's wizard (MIT): https://github.com/mattpocock/skills/tree/main/skills/engineering/wizard
 
 ## Rules
 

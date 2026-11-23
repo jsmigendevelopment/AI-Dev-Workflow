@@ -15,7 +15,8 @@
     "test:e2e": "turbo run test:e2e --filter=./apps/web",
     "test:e2e:mobile": "turbo run test:e2e --filter=./apps/mobile",
     "build": "turbo run build",
-    "boundaries:report": "turbo boundaries"
+    "boundaries:report": "turbo boundaries",
+    "connect": "pnpm -C apps/web connect"
   },
   "devDependencies": {
     "eslint": "catalog:",

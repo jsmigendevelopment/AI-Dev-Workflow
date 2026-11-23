@@ -16,6 +16,8 @@ DATABASE_URL   secret; never in the Worker, never in a file the agent opens
 
 Test and production are two Supabase projects and two Hyperdrive configs.
 
+**No `pnpm connect` block, on purpose.** `DATABASE_URL` lives only in your shell for a migration, and the Hyperdrive id isn't secret, so there's nothing for the script to store.
+
 ## Walkthrough · about 10 minutes per environment
 
 1. Create a project: https://supabase.com/dashboard/new (or **New project** on https://supabase.com/dashboard). Save the database password in your password manager; the dashboard won't show it again. `[V]` (create), `[U]` (the deep link).
