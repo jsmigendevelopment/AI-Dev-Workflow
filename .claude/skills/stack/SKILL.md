@@ -57,7 +57,9 @@ The platform comes first, because everything else depends on it.
 | Framework | TanStack Start (React, TypeScript) | Next.js, React Router (framework mode), SvelteKit |
 | UI | shadcn/ui + Tailwind CSS | Mantine, Radix + your own CSS |
 | Structure | Module-based feature folders (`src/modules/<feature>/`) | By layer (only for tiny apps) |
-| API | Controller → service → repository, schema validation (Zod) | tRPC, GraphQL |
+| Code layers | Route or controller → service → repository or client, inside each feature module | |
+| Server calls from the web app | Typed server functions (`createServerFn`), inputs checked with Zod | tRPC, oRPC |
+| HTTP API for other clients | Versioned `/api/v1` JSON, Clerk bearer tokens, Zod at the edge | GraphQL |
 | Boundary check | `eslint-plugin-boundaries` or `dependency-cruiser`, run with lint | A custom script |
 | Code-rule lint | `typescript-eslint` strict, `max-lines` (warn 300, error 500), `knip` for unused code | Biome |
 | Module generator | `pnpm new:module <name>`, a small script that copies the example module | Plop, Hygen |
