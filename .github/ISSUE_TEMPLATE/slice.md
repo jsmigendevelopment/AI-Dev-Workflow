@@ -14,7 +14,7 @@ title: "[pass N] <slice>: <what a user can do after this>"
 
 ## Pyramid
 
-- **Slice:** <!-- name --> · **Role:** core / support
+- **Slice:** <!-- name --> · **Role:** core / support / insisted
 - **Pass:** 1 / 2 / 3
 
 ## Acceptance checks

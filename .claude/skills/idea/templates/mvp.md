@@ -8,7 +8,7 @@
 
 ## The slices the MVP needs
 
-The core slice gets the most passes. The supporting slices stay thin.
+Only what the core can't work without, plus the floor. Test each: does the core work without it? The core gets 3 passes. Supports and insisted musts stop at pass 1 or 2.
 
 | Slice | Role | Passes planned |
 |---|---|---|
@@ -17,11 +17,13 @@ The core slice gets the most passes. The supporting slices stay thin.
 
 ## Done when
 
-What the person must be able to do, end to end, for the MVP to count as done:
+What the person must be able to do, end to end, on the test site, for the MVP to count as complete. Complete is not launch:
 
 1. 
 2. 
 
 ## Not in the MVP
+
+Each gets its own pyramid of 1 to 2 passes after the MVP.
 
 - 

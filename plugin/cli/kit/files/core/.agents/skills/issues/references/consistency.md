@@ -18,6 +18,7 @@ You check one pass's issues against the plan. You didn't write them. **Read only
 7. **Acceptance checks:** every issue has them, in the form `AC-<issue>-<n>: WHEN … THEN …` with no repeated ID. No two checks, in one issue or across issues, ask for opposite results. None contradicts `decisions.md`.
 8. **No `[NEEDS CLARIFICATION]`** is left on an issue labelled `status:ready`. List every open marker either way.
 9. **Every issue has** a `Complexity:` line of 7 or under, a fence, a lane, a priority and a `Skills:` line.
+10. **The pass fence:** no open issue sits in a later pass's milestone. In the MVP, no insisted slice is above pass 2, and a pass 4 has its row in `decisions.md`.
 
 **Done when** every item above has a result for every issue in the pass.
 
