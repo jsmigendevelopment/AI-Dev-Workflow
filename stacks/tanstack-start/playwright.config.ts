@@ -21,7 +21,8 @@ const variant = (p: number, vars: Record<string, string>) => ({
   env: { CLOUDFLARE_INCLUDE_PROCESS_ENV: 'true', ...vars },
 })
 
-const SPECIAL = /(access-check|clerk-native|clerk-parties|coming-soon|site-gate|visual)\.spec\.ts/
+const SPECIAL =
+  /(access-check|clerk-native|clerk-parties|clerk-redirects|coming-soon|site-gate|visual)\.spec\.ts/
 // The screenshot tests run only through `pnpm test:visual` (scripts/test-visual.ts sets VISUAL).
 const visual = !!process.env.VISUAL && !deployed
 
@@ -80,12 +81,13 @@ export default defineConfig({
                 use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 3) },
                 testMatch: /access-check\.spec\.ts/,
               },
-              // Clerk's authorizedParties (src/lib/authorized-parties.ts): a made-up instance whose
-              // tokens the tests sign themselves (e2e/clerk-tokens.ts).
+              // Clerk's authorizedParties (src/lib/authorized-parties.ts) and its redirects
+              // (src/lib/clerk-redirects.ts): a made-up development instance whose tokens the
+              // tests sign themselves (e2e/clerk-tokens.ts).
               {
                 name: 'clerk',
                 use: { ...devices['Desktop Chrome'], launchOptions, baseURL: local(port + 4) },
-                testMatch: /clerk-parties\.spec\.ts/,
+                testMatch: /clerk-(parties|redirects)\.spec\.ts/,
               },
               // The same with CLERK_ALLOW_NATIVE_TOKENS on and the app claim, as the monorepo-expo
               // pack sets them, and the publishable key under its old name (the alias).

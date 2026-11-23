@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers'
 
 import { accessCheck, accessPaths } from '@/lib/access-jwt'
 import { problemResponse } from '@/lib/app-error'
+import { foreignRedirectParam, refusedRedirect } from '@/lib/clerk-redirects'
 import { isLaunched, prelaunchResponse } from '@/lib/launch'
 import { logger } from '@/lib/logger'
 import { rateLimitKey } from '@/lib/rate-limit-key'
@@ -20,6 +21,7 @@ import { DEFAULT_SITE_URL } from '@/lib/site'
 import { siteGate } from '@/lib/site-gate'
 import { isIndexableHost, SITE_URL } from '@/lib/site-url'
 
+import { partiesFor } from './auth'
 import { serverEnv } from './env'
 
 /**
@@ -31,7 +33,8 @@ import { serverEnv } from './env'
  * 2. a path Start or the router would resolve to another one (`/api//v1`, `/%61pi/v1`,
  *    `/%5FserverFn/x`, `/notes%20`: canonicalPath), server functions included, and scanner paths
  *    (`/wp-login.php`, `/.env`) get a plain 404 with no render. Every later guard compares the
- *    raw path, which is then the one Start routes;
+ *    raw path, which is then the one Start routes. A Clerk redirect target (`__clerk_redirect_url`,
+ *    `__clerk_satellite_url`) off the authorized parties is a 400 (src/lib/clerk-redirects.ts, #66);
  * 3. `SITE_PROTECTION` "access": on the paths Access protects (`ACCESS_PATHS`, default all, minus
  *    `OPEN_PATHS`), a valid Access JWT or the 401 envelope (src/lib/access-jwt.ts);
  * 4. not launched (`LAUNCHED` isn't "true"): the "Coming soon" page, robots `Disallow: /`, and
@@ -124,6 +127,18 @@ export function beforeStart(request: Request): Response | null {
   return withHeaders(response, responseHeaders(response, url, undefined))
 }
 
+/**
+ * The 400 for a Clerk redirect target off the authorized parties (#66), or null. Not `/api/v1`:
+ * requestForClerk hands Clerk no `__clerk*` parameter there, and the API's answer stays the 401.
+ */
+function foreignRedirect(request: Request, url: URL, handlerType: string): Response | null {
+  if (handlerType === 'router' && isApiPath(url.pathname)) return null
+  const param = foreignRedirectParam(url, partiesFor(request))
+  if (!param) return null
+  logger.warn('clerk_redirect_refused', { param })
+  return refusedRedirect(handlerType === 'serverFn')
+}
+
 const internalError = () => problemResponse('internal', 'Something went wrong. Try again.')
 
 /** A server function or `/api/v1` route that crashed answers `internal`; anything else is kept. */
@@ -146,7 +161,7 @@ export const requestGuards = createMiddleware().server(async ({ request, next, h
   // Later guards compare the path Start routes: `/x/caf%c3%a9` is `/x/caf%C3%A9` to an Access path.
   url.pathname = routed
   if (handlerType === 'router' && SCANNER_PATH.test(url.pathname)) return finish(plain404())
-  const noAccess = await checkAccess(request, url)
+  const noAccess = foreignRedirect(request, url, handlerType) ?? (await checkAccess(request, url))
   if (noAccess) return finish(noAccess)
   if (!isLaunched(LAUNCHED)) return finish(prelaunchResponse(request, url, handlerType), createNonce())
   if (SITE_PROTECTION === 'password' && SITE_PASSWORD) {

@@ -63,6 +63,17 @@ export async function sessionToken(
   return { token, iat }
 }
 
+/**
+ * What Clerk's Frontend API sends back at the end of a handshake (`__clerk_handshake`): a JWT
+ * signed with the instance key whose `handshake` claim is the `Set-Cookie` directives.
+ */
+export async function handshakeToken(directives: string[]): Promise<string> {
+  const key = await importPKCS8(keyPair().privatePem, 'RS256')
+  return new SignJWT({ handshake: directives })
+    .setProtectedHeader({ alg: 'RS256', typ: 'JWT', kid: 'ins_e2e' })
+    .sign(key)
+}
+
 /** The `Cookie` header Clerk's browser SDK sets on a development instance, for `azp`. */
 export async function sessionCookie(azp: string | undefined, claims: Claims = {}): Promise<string> {
   const { token, iat } = await sessionToken(azp, claims)
