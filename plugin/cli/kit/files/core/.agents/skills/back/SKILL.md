@@ -23,7 +23,8 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
    - open pull requests and their verdict comments;
    - claimed issues;
    - **the orphan sweep:** every open `needs-human` item, every `handoff` record with no `Got it ·` receipt or past its "check by" time, and every stale claim (over 2 hours with no new commits). List each one under "Waiting on you", even if nothing else mentions it (`../ask/references/handoffs.md`);
-   - whether main's checks are green.
+   - whether main's checks are green;
+   - **the sweep timer:** the loop should be running (not Hands-on, work left)? Check this session has its 10-minute timer (`coordinate`, "Start"). None armed? Say so, and arm it when the loop starts or resumes.
 
 4. **Who else is working?** Look for claims and branches from sessions that weren't yours, then ask: *"Is anyone else, or any other agent, working on this repo right now?"* Record the answer in `state.md`.
 

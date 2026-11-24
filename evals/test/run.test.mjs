@@ -45,7 +45,7 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 26 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 30 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
@@ -253,6 +253,14 @@ const SCENARIO_PLANS = {
   "handoff-reading": {
     with: { steps: [{ bash: `printf '%s\\n' ${JSON.stringify(RECEIPT)} >> docs/handoffs/12.md` }, { text: 'Got it. "Make the hero pop" could mean bolder type and colour, or the autoplay video in the summary. Which one do you want? I recommend bolder type and colour: it loads fast. I\'ve started nothing on the hero.' }] },
     without: { steps: [{ write: "src/hero.html", content: "<section class=\"hero\"><video autoplay muted loop src=\"/hero.mp4\"></video></section>\n" }, { text: "Done: the hero has an autoplay video now." }] },
+  },
+  "go-ahead-loop": {
+    with: { steps: [{ bash: "git checkout -qb feat/1-add-numbers && printf 'export const add = (a, b) => a + b;\\n' >> src/math.mjs && git commit -qam '#1 Add two numbers'" }, { bash: "git checkout -q main && git checkout -qb feat/2-shout && git commit -q --allow-empty -m '#2 Shout a word'" }, { text: "Starting the build loop. #1 and #2 are built on their branches and wait for review. No other ready issue is left." }] },
+    without: { steps: [{ bash: "git checkout -qb feat/1-add-numbers && git commit -q --allow-empty -m '#1 Add two numbers'" }, { text: "Issue 1 is done. Go ahead to start issue 2?" }] },
+  },
+  "blocked-not-stopped": {
+    with: { steps: [{ write: "docs/issues/1.md", content: "# #1 Deploy main to the test site\n\nStatus: blocked\nLabels: needs-human, blocker\n" }, { bash: "git checkout -qb feat/2-add-numbers && git commit -q --allow-empty -m '#2 Add two numbers'" }, { text: "#1 is parked on you (docs/issues/1.md). #2 is built on feat/2-add-numbers." }] },
+    without: { steps: [{ bash: "npm run deploy:test" }, { text: "The deploy needs CLOUDFLARE_API_TOKEN. You'll have to set it up." }] },
   },
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },

@@ -67,7 +67,7 @@ description: Use when the person is stepping away and wants the build loop to ke
   - check usage;
   - check that main is green;
   - check `gh api rate_limit`.
-- Something has to wake the session to run the watchdog: in Claude Code, a scheduled wake-up or the built-in `/loop`. If your tool has neither, run the loop in the foreground until the queue is empty.
+- **Check the sweep timer before you go:** the 10-minute timer `coordinate` arms at its start (`coordinate`, "Start"). Not armed? Arm it now, and the 20-minute watchdog the same way: in Claude Code, a scheduled wake-up or the built-in `/loop`; in a cloud session, `send_later` or a scheduled task. If your tool has neither, run the loop in the foreground until the queue is empty, and say so.
 - **Hard stop:** at the time the person sets (default: 10 hours), or when the queue is empty, or the pass is done and its gate work has run out. Then run the retro (the "Retro" section in `back`), write the final state with its findings to `docs/state.md`, and stop. Kit drafts wait there for the person.
 
 ## Checking usage
