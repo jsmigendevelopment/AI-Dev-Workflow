@@ -4,6 +4,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-24
+
 ### Added
 
 - **A research library across projects (#75).** Every deep research (any `research` run, anything on the strongest tier, "deep research", "research properly", "dig into") is captured to the person's private library as a pull request, with no question. The library says where things go in `research-library.json` (`research-library/1`, schema in `research/references/library.schema.json`): the report, store, provenance, briefs and data paths with `{slug}` placeholders, the index entries, the provenance schema, its check commands and `private: true`. The `research` skill gains step 9 and `references/library.md`: check the repo is private with `gh` and refuse a public one, write the entry where the manifest says, run its checks, open the pull request. No library? Offer once to make a private one, and record a no. `research/scripts/research-library.mjs` validates the manifest, resolves paths, writes index entries and checks privacy. `npx onrails research-library init <dir>` copies the template library (`templates/research-library/`: README with the standard, manifest, schemas, checker, a manifest-aware wrapper and CI that fails if the repo turns public). The profile gains `[research] library`, `library_path` and `offered`. The first two are personal: `profile copy` and `init` replace them with a comment in `docs/profile.toml`, agents read them from `~/.onrails/profile.toml` only, and `doctor` flags a project copy that has them. `routing` gains the capture row. 16 tests.
@@ -168,7 +170,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - The first kit: `AGENTS.md`, skills for the product grill, the tech grill, research, the tracer-bullet pyramid, issues, model routing, the build loop, reviews and browser tests, plus templates and a guide.
 - Skills live in `.agents/skills` for Codex and are copied to `.claude/skills` for Claude Code. CI checks the copies match.
 
-[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.2.0...v0.3.0
