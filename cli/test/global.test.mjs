@@ -62,7 +62,7 @@ test("init --global says the plugin is the recommended way, and still copies the
   const log = logger();
   assert.equal(initGlobal({ home, log }), 0);
   assert.match(log.text(), /the plugin is now the recommended way/);
-  assert.match(log.text(), /\/plugin install core@onrails/);
+  assert.match(log.text(), /claude plugin install core@onrails --scope user/);
   assert.match(log.text(), /not both/);
   assert.ok(exists(home, ".claude/skills/idea/SKILL.md"));
 });
