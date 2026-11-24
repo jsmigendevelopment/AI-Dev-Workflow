@@ -40,7 +40,9 @@
   "scripts": {
     "bundle": "node scripts/bundle.mjs",
     "bundle:check": "node scripts/bundle.mjs --check",
-    "prepack": "node scripts/bundle.mjs",
+    "readme": "node ../scripts/npm-readme.mjs",
+    "readme:check": "node ../scripts/npm-readme.mjs --check",
+    "prepack": "node ../scripts/npm-readme.mjs && node scripts/bundle.mjs",
     "pack:check": "node scripts/pack-check.mjs",
     "versions:check": "node scripts/versions.mjs --check",
     "release:bump": "node scripts/versions.mjs",
