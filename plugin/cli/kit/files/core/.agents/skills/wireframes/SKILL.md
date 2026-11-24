@@ -10,15 +10,15 @@ Two stages, both in the background while the grill goes on.
 | Stage | Starts when | Tier · effort (see `routing`) | Draws |
 |---|---|---|---|
 | **1. Layout** | the grill's main-flow topic ends | Everyday · medium | every main-flow screen: structure and content, grey boxes, no theme |
-| **2. Detailed UI and UX** | the look-and-feel topic is answered | Strongest · high. Ask first unless the profile says not to. | the agreed layout as the full design: tokens, states, spacing, motion, interactions, light and dark |
+| **2. Detailed UI and UX** | the look-and-feel topic is answered | Strongest · high. Ask first unless the profile says not to. On Full automation, use the current model. | the agreed layout as the full design: tokens, states, spacing, motion, interactions, light and dark |
 
 Before the repo exists, write to `kickoff/` instead of `docs/`. `name` moves it.
 
 ## Screen by screen
 
-At both stages, draw one screen at a time. When it's done, show it: open the prototype at its `#id` in a browser if you can, or give the full path (double-click it, or drag it into a browser). One line on what it is, then ask: *"What would you change?"* Start the next screen at once. Fold the answer into its screen while the next one draws. Never hold screens back for the whole set.
+At both stages, draw one screen at a time. When it's done, show it: open the prototype at its `#id` in a browser if you can, or give the full path (double-click it, or drag it into a browser). One line on what it is, then ask: *"What would you change?"* (on Full, at either stage: *"Tell me any time"*, no wait). Start the next screen at once. Fold the answer into its screen while the next one draws. Never hold screens back for the whole set.
 
-Auto grill is the one exception: in auto mode, hold screens for the review (`grill`'s `references/auto.md`).
+Auto grill is the one exception: in auto mode, hold screens for the review (`grill`'s `references/auto.md`). On Full automation, auto grill holds them too, and nothing waits on the review.
 
 ## The prototype
 
@@ -36,7 +36,7 @@ One file, `docs/wireframes/index.html`. Stage 1 starts it; stage 2 details it.
 3. **Draw each screen,** screen by screen: an ASCII sketch under "Screens" in `design.md` (what's on it, what each action does), and a grey-box section in the prototype. System font, greys only.
 4. **Follow the grill.** A new `must` feature or a floor item (sign-in, delete my data) adds or changes a screen. The MVP cut drops the screens the MVP doesn't need. Say what changed.
 
-**Done when** every screen the MVP needs is sketched and in the prototype, and the person has seen each one.
+**Done when** every screen the MVP needs is sketched and in the prototype, and the person has seen each one. On Full: and the review's FYI links them.
 
 ## Stage 2: detailed UI and UX
 
@@ -50,10 +50,12 @@ One file, `docs/wireframes/index.html`. Stage 1 starts it; stage 2 details it.
 5. **Revise until they say yes** to the full set. Change the sketches and the prototype together. A "yes" with changes is not a yes yet.
 6. **Record it.** Run `git hash-object docs/wireframes/index.html` (it works without a repo). Add a row to `decisions.md`: `Wireframes approved: <date>, <hash>`, with the screens covered. Commit both files if there's a repo.
 
-**Done when** every MVP screen and the core screen's states are detailed in `design.md` and the prototype, and `decisions.md` has an approval row whose hash matches the file.
+**On Full automation,** skip step 5's wait. Once the set is detailed, step 6's row reads `Wireframes: AI pick, not reviewed: <date>, <hash>`. Add the prototype's path to the review's FYI, or send one. A later change from the person is a changed screen (see "Rules").
+
+**Done when** every MVP screen and the core screen's states are detailed in `design.md` and the prototype, and `decisions.md` has an approval row (on Full, the "AI pick, not reviewed" row) whose hash matches the file.
 
 ## Rules
 
 - **Approval is once, for the full stage-2 set.** Per-screen comments are feedback, not approval.
-- **A changed screen goes back through approval.** Redraw, show, and add a new approval row. The old row stays.
+- **A changed screen goes back through approval.** Redraw, show, and add a new approval row. The old row stays. On Full, a screen the agents change, in the first plan, during a pass or at a re-plan, gets a `Wireframes: AI pick, not reviewed` row and an ℹ️ FYI instead.
 - **New screens later** (in `/join` or a big feature): both stages, for the new screens only, in the same prototype. Stage 1 once the flow is clear, stage 2 once the look is agreed.

@@ -5,7 +5,7 @@ description: Use when planning how to build an app or a big feature, or checking
 
 # Pyramid: see it working early, then make it great
 
-This is CTO work. Run it on the strongest model at high effort. Ask first, unless the profile says not to or the person already said yes (see `routing`). It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next on a cheaper model.
+This is CTO work. Run it on the strongest model at high effort. Ask first, unless the profile says not to or the person already said yes (see `routing`). On Full automation: use the current model, record it in `docs/decisions.md`, and don't ask. It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next on a cheaper model.
 
 ## Why
 
@@ -26,7 +26,7 @@ pass 1  Works ████ ████  ████   ████ ███�
               sup. sup.  CORE   sup. sup.
 ```
 
-- **The MVP is 3 passes.** More needs a written reason in `docs/decisions.md` and the person's yes. Never more than 4.
+- **The MVP is 3 passes.** More needs a written reason in `docs/decisions.md` and the person's yes (on Full, the reason and an FYI). Never more than 4.
 - **The core slice is the tallest column.** Supporting slices stop once they serve the core.
 - **The end of pass 3 is "MVP complete" on the test site. It is not launch.** Launch is the person's call, on the always-stop list, any time after.
 
@@ -34,7 +34,7 @@ pass 1  Works ████ ████  ████   ████ ███�
 
 Only the core, the supporting slices the core can't work without, and the floor (sign-in, who sees what, deleting personal data). Test each slice: **does the core work without it?** Yes? It's not in the MVP.
 
-- A non-core "must" the person insists on: ask once, plainly. Still a must? It goes in as a supporting slice with the role `insisted`, capped at pass 1 or 2. Record the decision.
+- A non-core "must" the person insists on: ask once, plainly (on Full, keep it, capped as below, with an FYI). Still a must? It goes in as a supporting slice with the role `insisted`, capped at pass 1 or 2. Record the decision.
 - Everything else in `docs/features.md` waits for the top half of the hourglass, below.
 
 ## After the MVP: the hourglass
@@ -64,7 +64,7 @@ pass 1  ████ ████ ████ ████ ████
    - **First, the person sees it run.** Start the dev server and show them the starter page (`build`, "Show it"): "The app runs at http://localhost:3000. You'll see the starter page with your app's name." Keys not set? Run it on the fakes. Only then set up CI, secrets and the test deploy.
    - Every command in the check contract works.
    - Lint enforces the code rules a tool can check (see `AGENTS.md`), and there's a generator that makes a new module from the example one. Write its command in "Commands that work here" in `AGENTS.md`.
-   - CI runs on every pull request: checks, secret scan and agent-file guard (start from `templates/ci.yml` in the `idea` skill), plus the issue-link check from the stack pack.
+   - CI runs on every pull request: checks, secret scan and agent-file guard (start from `templates/ci.yml` and `templates/agent-files.yml` in the `idea` skill), plus the issue-link check from the stack pack.
    - **Set up in the skeleton** (see `guide/app-conventions.md` in the kit): the error system with request IDs and structured logs, a health endpoint, `/api/v1`, UTC times and money in cents, the ID strategy and standard columns, the audit log, feature flags, `object_action` event names, breakpoints and a type scale in the tokens, per-module `copy.ts`, and generators for module, route, section and component. A stack pack should ship these. Without one, build them by hand.
    - Main deploys to test, and there's a preview per pull request if the host offers one. Record the test URL in `AGENTS.md`.
    - Open `secrets` and wire every key the stack needs.
@@ -73,9 +73,11 @@ pass 1  ████ ████ ████ ████ ████
      2. Run `node .agents/skills/name/scripts/setup-github.mjs --dry-run` and show them the list.
      3. Say in one line what it does (labels, Dependabot, secret scanning, rules on main, a production environment that waits for them) and ask: *"Set this up now?"*
      4. On a yes, run it without `--dry-run` and show the results, including anything skipped because of their plan.
+     - Main requires `agent-files` only once `.github/workflows/agent-files.yml` is on it. Run the script again after slice 0 merges.
+     - **On Full automation, ask nothing.** `gh` signed in? Run it without `--dry-run`, and put the results in an ℹ️ FYI. Not signed in? Run local mode (`../coordinate/references/local-mode.md`) and list `gh auth login` in the FYI.
 2. **Seed data and test users.** Once the schema is designed (step 4), the first step that adds a table also adds a seed script and **two test users**, so `qa` can always sign in and check that one user can't see another's data.
 3. **List the slices** from `docs/mvp.md`. One slice is one thing a user can do, end to end. Name the **core.** Keep only slices that pass "does the core work without it?". Not every app needs auth.
-4. **Design what the slices share.** Start from the approved screens and tokens in `docs/design.md` and `docs/wireframes/index.html`. No approval row in `docs/decisions.md`? Stop and run `wireframes` first. Apply the tokens to the UI kit's theme, then write the schema and the API contracts the screens need. A screen that must change goes back through `wireframes` for approval. Builders follow this design. They don't invent their own.
+4. **Design what the slices share.** Start from the approved screens and tokens in `docs/design.md` and `docs/wireframes/index.html`. No approval row in `docs/decisions.md`? Stop and run `wireframes` first. On Full automation, a `Wireframes: AI pick, not reviewed` row counts as the approval. Apply the tokens to the UI kit's theme, then write the schema and the API contracts the screens need. A screen that must change goes back through `wireframes` for approval. On Full, the changed screen is "AI pick, not reviewed" with an FYI, and the plan goes on. Builders follow this design. They don't invent their own.
 5. **Outline every pass.** For each: the milestone name, its slices, and one line per slice on what "better" means.
 6. **Cut the current pass into steps,** and only the current pass. For each of its slices, list the smallest changes a person can try, and put each through the thin test below. Order them: slice 0 first, then the step that proves the riskiest idea, usually in the core. Fill in "After" only where one step truly needs another, so steps that don't can be built at the same time.
 7. **Write `docs/pyramid.md`** from the `idea` skill's template: the steps go in its steps table, and the current pass is marked `building`.

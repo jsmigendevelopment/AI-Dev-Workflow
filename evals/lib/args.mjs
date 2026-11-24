@@ -4,7 +4,7 @@ export const DEFAULTS = {
   maxTurns: 12,
   timeoutSec: 240,
   maxBudgetUsd: 0.5,
-  maxRuns: 34,
+  maxRuns: 36,
 };
 // No flag can raise the number of runs past this. Each run is one paid Claude Code session.
 export const HARD_CAP = 40;
@@ -33,9 +33,22 @@ const STRING = { "--scenario": "scenario", "--model": "model", "--summary": "sum
   "--scenarios-dir": "scenariosDir", "--claude": "claude" };
 const BOOL = { "--dry-run": "dryRun", "--keep": "keep", "--help": "help", "-h": "help" };
 
+// The limits a scenario may set for itself, in its checks.mjs: `export const limits = { maxTurns: 40 }`.
+const SCENARIO_LIMITS = ["maxTurns", "timeoutSec", "maxBudgetUsd"];
+// No scenario's own budget goes past this, per run.
+export const SCENARIO_BUDGET_CAP = 2;
+
+/** One scenario's options: its own limits replace the defaults, and a flag on the command line still wins. */
+export function withLimits(opts, limits = {}) {
+  const out = { ...opts };
+  for (const key of SCENARIO_LIMITS) if (limits[key] !== undefined && !opts.given.includes(key)) out[key] = limits[key];
+  out.maxBudgetUsd = opts.given.includes("maxBudgetUsd") ? out.maxBudgetUsd : Math.min(out.maxBudgetUsd, SCENARIO_BUDGET_CAP);
+  return out;
+}
+
 /** Parses argv into options. Returns { error } on a bad flag. */
 export function parseArgs(argv) {
-  const opts = { ...DEFAULTS, dryRun: false, keep: false, help: false };
+  const opts = { ...DEFAULTS, dryRun: false, keep: false, help: false, given: [] };
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split(/=(.*)/s, 2);
     if (BOOL[flag]) { opts[BOOL[flag]] = true; continue; }
@@ -47,6 +60,7 @@ export function parseArgs(argv) {
       const n = Number(value);
       if (!Number.isFinite(n) || n <= 0) return { error: `${flag} needs a positive number, got "${value}"` };
       opts[key] = n;
+      opts.given.push(key);
     } else opts[key] = value;
   }
   if (!/^[A-Za-z0-9._-]+$/.test(opts.model)) return { error: `--model "${opts.model}" doesn't look like a model id` };

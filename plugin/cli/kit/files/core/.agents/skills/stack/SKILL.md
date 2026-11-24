@@ -7,6 +7,8 @@ description: Use to decide how an app gets built ("what stack should we use", "p
 
 The person shouldn't need to know any of this. For each area, give your **recommended pick, why it fits this product, and one or two alternatives.** A beginner says "go with your picks." An expert changes whatever they want. Keep rounds at three questions.
 
+**On Full automation, ask nothing.** Take every recommended pick, and the one-way doors from the review. The risk dial is Move fast unless the profile's `risk_dial` says otherwise. The time format is ISO 8601. Mark each row in `docs/stack.md` **AI pick, not reviewed**. A step only the person can do (a login app for Cloudflare Access, a key) becomes a "Setup step for you" in "Waiting on you" (`ask`), and the work goes on. Production stays on the always-stop list.
+
 ## Order
 
 The platform comes first, because everything else depends on it.
@@ -33,7 +35,7 @@ The platform comes first, because everything else depends on it.
      They can pick more than one. Then ask who's allowed: a list of emails, a whole email domain, or a GitHub org. Each provider except the emailed code needs a login app the person creates once ("Setup step for you" in `ask`). Other choices: a password page in the app, or no protection.
    - **Anything in production behind a login?** For example `/admin`, or the whole app for an internal tool. Production changes are on the always-stop list: show the dry run, then ask.
    - **Agents get test credentials only.** Production keys and settings stay with the person.
-9. **CI and the check contract:** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). CI runs them on every pull request, plus a secret scan and the agent-file guard. Lint enforces the code rules a tool can check: no `any` or unexplained `eslint-disable`, no `console.log`, file and function size, unused exports, import order and kebab-case names. Start from `templates/ci.yml` in the `idea` skill.
+9. **CI and the check contract:** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). CI runs them on every pull request, plus a secret scan and the agent-file guard. Lint enforces the code rules a tool can check: no `any` or unexplained `eslint-disable`, no `console.log`, file and function size, unused exports, import order and kebab-case names. Start from `templates/ci.yml` and `templates/agent-files.yml` in the `idea` skill.
 10. **Build vs buy** for every other need: open source first, then a free-tier SaaS, then build it.
 11. **App conventions,** as quick confirmations. Say the default and move on unless the person objects. The reasons are in `guide/app-conventions.md` in the kit.
     - State: local `useState` first, then typed search params for anything shareable, then **Zustand** only for complex shared client state. Server data in TanStack Query, forms in **TanStack Form**, tables in **TanStack Table**. The other TanStack defaults (charts, Markdown, highlighting, long lists, shortcuts) are in the table below: confirm them as defaults, install none until a feature needs it.
@@ -117,7 +119,7 @@ Research behind the packs: `research/platform-packs.md` in the kit.
 ## Write it down
 
 From the `idea` skill's `templates/`:
-- `docs/stack.md`: every row marked **default** or **chosen**;
+- `docs/stack.md`: every row marked **default** or **chosen** (on Full, **AI pick, not reviewed**);
 - `docs/architecture.md`;
 - `docs/security-policy.md`: the trust boundaries, what's sensitive, and the risks the person accepts and why. The security reviewer reads it.
 

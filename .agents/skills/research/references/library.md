@@ -15,7 +15,7 @@ A quick lookup (a version, a doc link, one fact) is not captured.
 
 Run `node .agents/skills/research/scripts/research-library.mjs library .`. It reads `[research]` from the personal profile only (`~/.onrails/profile.toml`, or `~/.ai-dev-workflow/profile.toml` before the move) and prints `library` (`owner/repo`) and `library_path` (a local clone, optional). A `library` in the project's `docs/profile.toml` is ignored, and it warns: tell the person to delete it. `offered` (whether the offer was already made) is read from either profile.
 
-`library` set? Go to "Capture". Empty and `offered = false`? Go to "No library yet". Empty and `offered = true`? Skip the capture and say nothing.
+`library` set? Go to "Capture". Empty and `offered = false`? Go to "No library yet". Empty and `offered = true`? Skip the capture and say nothing. On Full automation, skip this whole file: no capture, no offer, `offered` left unset. The research's FYI says so.
 
 ## Capture
 

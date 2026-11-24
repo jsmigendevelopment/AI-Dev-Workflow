@@ -114,7 +114,7 @@ jobs:
           body="${marker}
           **Preview:** ${URL}
           Commit ${SHA::7}. Runs on the **test** database and test keys."
-          if [ -n "$(git diff --name-only "$BASE"...HEAD -- migrations)" ]; then
+          if [ -n "$(git diff --no-renames --name-only "$BASE"...HEAD -- migrations)" ]; then
             body="${body}
           This pull request adds a migration. Previews never migrate the shared test database, so
           pages that need the new schema fail here until it is merged."

@@ -29,7 +29,7 @@ description: Use when implementing one issue ("implement issue 12", "build this 
    - the screens and contracts in `docs/design.md`;
    - feature modules don't import each other;
    - controller → service → repository/client;
-   - the UI kit's components and design tokens. No one-off colours, spacing or font sizes. A new token is the person's call, so ask;
+   - the UI kit's components and design tokens. No one-off colours, spacing or font sizes. A new token is the person's call, so ask (on Full: add it, "AI pick, not reviewed", in the FYI);
    - the app conventions in "App rules" below.
 8. **Write it the owner's way:** follow "Code rules" below. Installing a package? Open the `dependencies` skill and verify it first.
 9. **Update the docs** your change makes wrong, in the same pull request.
@@ -61,7 +61,7 @@ The person steers by looking. Show each visible step as soon as it renders, on t
        - desktop: `pnpm exec playwright screenshot --viewport-size=1280,800 --color-scheme=light <url> $S/desktop-light.png`;
        - phone: `pnpm exec playwright screenshot --viewport-size=390,844 --color-scheme=light <url> $S/phone-light.png`;
      - the command for their machine: `git fetch && git switch <branch>`, then `pnpm install && pnpm dev`, and the link.
-   - **Public repo?** Check with `gh repo view --json visibility`. Public and the app not launched? Pushed screenshots show the unlaunched app to anyone. Say so once and ask whether they may be public (a ⏳ decision through `ask`; in the loop, put the question in your report). Until a yes is in `docs/decisions.md`, push nothing: give the screenshots in your report only, as local paths or images shown in the session.
+   - **Public repo?** Check with `gh repo view --json visibility`. Public and the app not launched? Pushed screenshots show the unlaunched app to anyone. Say so once and ask whether they may be public (a ⏳ decision through `ask`; in the loop, put the question in your report). On Full, don't ask: keep them private (record "AI pick, not reviewed") until the person says otherwise. Until a yes is in `docs/decisions.md`, push nothing: give the screenshots in your report only, as local paths or images shown in the session.
    - **Get the screenshots to the person** once the pull request exists (step 12). They go on their own branch `B`: `screenshots/pr-<n>`, or `screenshots/<your branch>` when there's no pull request (Hands-on). Never on the pull request's branch or on main. `W=${TMPDIR:-/tmp}/shots-<n>-git`:
      1. `git ls-remote --exit-code origin refs/heads/B` exits 0 (a rerun)? `git fetch origin B:B`, then `git worktree add $W B`, and add a commit on top. Otherwise make it new: `git worktree add --orphan -b B $W`. Git older than 2.42: `git worktree add --detach $W && git -C $W switch --orphan B`.
      2. `cp $S/*.png $W/` and `git -C $W add -A`. `git -C $W diff --cached --quiet && echo unchanged`? Same screenshots as last time: skip the commit and the push. Otherwise commit there and `git -C $W push origin B`. Either way, `git worktree remove $W`.

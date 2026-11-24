@@ -1,0 +1,1 @@
+I have an idea for an app, and this is my whole pitch: a shared grocery list for me and my three flatmates. Anyone can add an item, whoever does the shopping ticks items off and we all see it live, and at the end of the month the app splits what we spent. No ads, ever. My profile is in docs/profile.toml. There's no GitHub here: issues are files in docs/issues/. Take it from here.

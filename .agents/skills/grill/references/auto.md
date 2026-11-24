@@ -2,9 +2,11 @@
 
 The AI grills itself, then the person reviews everything in one sitting. The topics, their order, the floor and the log are the same as the full grill. Only who answers first changes.
 
+**On Full automation** (the level in `kickoff/decisions.md`, or in `docs/stack.md` once the folder has moved), nothing waits on the person. Each step's "On Full" line says what changes. Recommended and Hands-on keep every wait.
+
 ## 1. Recommend a high-end run
 
-The self-grill makes every early decision. Before it starts, recommend a stronger model and more effort, in one line, from the "Auto grill" table in `routing`. Ask under `ask_before_strongest` (routing's first rule). Can't switch models in this session? Say so once, carry on with the current model, and record it.
+The self-grill makes every early decision. Before it starts, recommend a stronger model and more effort, in one line, from the "Auto grill" table in `routing`. Ask under `ask_before_strongest` (routing's first rule). Can't switch models in this session? Say so once, carry on with the current model, and record it. On Full, don't ask: carry on with the current model and record it.
 
 **Done when** "Provenance" in `grill-log.md` names the model and effort used, and whether that was the recommended one.
 
@@ -18,6 +20,8 @@ These four only the person can answer. Ask them in one round, open, with no sugg
 4. Anything you never want in it?
 
 Log each with the source "person". Ask nothing else before the review. A gap you'd normally ask about becomes a pick with two alternatives. A vague core gets one follow-up: the core is never defaulted.
+
+**On Full, ask nothing.** Answer each seed question from the pitch, source "person (pitch)". One the pitch doesn't answer gets your best guess, source "AI pick, not reviewed". The core too: take it from what the pitch says the app does. Each guess goes first in the FYI (step 4).
 
 **Done when** all four are answered and logged.
 
@@ -83,18 +87,26 @@ Change any row in plain words. "Looks good" accepts the rest.
 - **Doors never appear in the table** or under "Everything else".
 - **Each door's question is about that door alone.** "Looks good" and "accept all" never confirm a door. Each one needs its own yes.
 
-**Done when** `review.md` has a door block for each of the five doors, the person has answered every door on its own, and they've replied on the table.
+**On Full, nothing waits on the review:**
+
+- End every `Pick:` line and the look-and-feel picks with "AI pick, not reviewed". Set every AI row's source in `grill-log.md`, and every originator in `decisions.md`, to **AI pick, not reviewed**.
+- Send one ℹ️ FYI with the link, the seed guesses first: `node .claude/hooks/notify.mjs --level fyi --title "Kickoff review: AI picks, not reviewed" --message "<the guesses>. Change any pick, any time." --link kickoff/review.md`.
+- Don't show the review in chat: no `Question:` lines and no "Change any row". Say in one line where it is and that you're going on. Go to step 6.
+
+**Done when** `review.md` has a door block for each of the five doors, the person has answered every door on its own, and they've replied on the table. On Full: `review.md` has the five door blocks, every pick says "AI pick, not reviewed", and the FYI was sent.
 
 ## 5. Re-check what a change touches
 
 When the person changes a pick, re-check every pick that depends on it (the "Depends on" column, and anything else it breaks). Redo the ones that no longer fit. Show what moved in a table: Topic · Was · Now · Why. A door that moved needs its own yes again.
 
-**Done when** every pick that depends on a changed one was re-checked, and the "What moved" table is shown.
+**A door changed after the build started** becomes a "Re-plan: <door>" issue that opens with **Cost to change:** (`issues`, "From feedback or bugs"). Put the "What moved" table in it.
+
+**Done when** every pick that depends on a changed one was re-checked, and the "What moved" table is shown. A door changed after the build started: the re-plan issue exists and names its cost.
 
 ## 6. Record it
 
 - Set each row's source in `grill-log.md`, and each decision's originator in `decisions.md`, from the labels in `grill`'s "Keep the record".
 - Tick the coverage map. Write "Look and feel" in `design.md`.
-- Then go back to `/idea`. The name is picked, so `name` starts at its step 3. Stage 2 of `wireframes` draws the picked layout with the agreed look. The wireframe approval gate (`/idea` step 6) still holds.
+- Then go back to `/idea`. The name is picked, so `name` starts at its step 3. Stage 2 of `wireframes` draws the picked layout with the agreed look. The wireframe approval gate (`/idea` step 6) still holds, except on Full.
 
-**Done when** every row in the log has a source, and every door has its own confirmation in `decisions.md`.
+**Done when** every row in the log has a source, and every door has its own confirmation in `decisions.md`. On Full: every door says "AI pick, not reviewed" there instead.

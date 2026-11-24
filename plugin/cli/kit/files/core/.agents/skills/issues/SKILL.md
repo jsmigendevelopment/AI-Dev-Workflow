@@ -9,6 +9,8 @@ A builder knows only what the issue says, plus `AGENTS.md` and `docs/design.md`.
 
 Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the everyday model at medium effort. The design decisions are already made, so don't redesign here. If the plan has a gap, it's a ⏳ decision: write the issues you can, and use the `ask` skill for the gap. A gap in the MVP core is a 🛑 blocker.
 
+**On Full automation,** the CTO decides every gap instead: a plan gap, an MVP-core gap, a `[NEEDS CLARIFICATION]` marker and a consistency-check gap. Record each as "AI pick, not reviewed" in `docs/decisions.md`, write the issue, and list them in one ℹ️ FYI.
+
 **Hands-on** automation: write the issues and stop. Don't add `status:ready` unless the person asks. They pick what gets built.
 
 ## Steps
@@ -33,8 +35,8 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
 7. **Risk flags and lane.** Tick every flag that applies, then set the lane:
    - **tiny:** copy, styling or config with no logic. Build, CI, review, merge.
    - **normal:** anything else. Build, CI, review, `qa` on the preview, merge.
-   - **risky:** any flag ticked. Normal, plus `pr-security`, plus the human gate in `docs/stack.md`.
-   - **Who merges:** after the lane, write `merged by: agents` or `merged by: the person`. Take it from the "Automation level" switches in `docs/stack.md`, and the risk dial. The more careful one wins.
+   - **risky:** any flag ticked. Normal, plus `pr-security`, plus the human gate in `docs/stack.md` (none on Full).
+   - **Who merges:** after the lane, write `merged by: agents` or `merged by: the person`. Take it from the "Automation level" switches in `docs/stack.md`, and the risk dial. The more careful one wins. On Full it's always `merged by: agents`: the dial adds reviews there, never the person (#103).
 8. **Labels.** Create any that are missing first (`gh label create "<name>" --force`):
    - `priority:p0` to `priority:p3`;
    - `pass:<n>`, one per pass in the outline;
@@ -76,3 +78,5 @@ Write each issue as `docs/issues/NNN-short-title.md` from the same template, wit
 ## From feedback or bugs
 
 One issue per point, in the person's words: "what I saw, what I want." For a bug: the steps, what was expected, what happened, a screenshot, and the PR that caused it if known. Its "Try it" line is how the person will see the fix. Tag it with the current pass. From a pass gate, tag it with the next pass and label it `gate`. A new idea is not an issue yet: add a row to `docs/features.md`, and the next re-plan places it.
+
+**A one-way door changed after the build started** (the data model, auth and access, hosting and the database, money and time, the module boundaries), from any skill, after either kind of grill: write one issue titled "Re-plan: <door>", never a quiet edit. Its body opens with **Cost to change:** what undoing it takes now (the review's "Cost to change later" line if there is one, plus the modules, data and merged issues built on it), then the picks that move. On Recommended and Hands-on, label it `needs-human` and confirm the cost through `ask`. On Full, an agent's own change gets an ℹ️ FYI and goes ahead; the person's change is their answer, so it goes ahead too. Deleting or migrating real data is a 🛑 blocker on every level.

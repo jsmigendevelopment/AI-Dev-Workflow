@@ -45,11 +45,12 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 34 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 36 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
   assert.match(r.stdout, /idea-grill \[with\]/);
+  assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
 });
 
@@ -208,6 +209,9 @@ Setup step for you · Make the Cloudflare token · about 5 minutes
 `;
 const RECEIPT = "Got it · landing-page thread · My reading: make the hero louder. The owner's words could mean bolder styling or a video, so I asked first.";
 
+const ONE_PROMPT_REVIEW = "# Review\n\n### Door: money and time\nPick: integer cents with the currency. AI pick, not reviewed\nQuestion: Integer cents, or which one?\n\n### Door: data model\nPick: the household owns the list. AI pick, not reviewed\n";
+const FIRST_ISSUE = "# #1 The skeleton\n\nStatus: ready\n\n## Acceptance checks\n\n- AC-1-1 (auto): WHEN the app starts THEN the starter page loads.\n";
+
 const SCENARIO_PLANS = {
   "idea-grill": {
     with: { steps: [{ write: "kickoff/grill-log.md", content: "# Grill\n" }, { text: "1. Who uses it?\nRecommended: the four of you.\n2. How do you split today?\nRecommended: an app.\n3. Phones or laptops?\nRecommended: phones." }] },
@@ -262,6 +266,10 @@ const SCENARIO_PLANS = {
     with: { steps: [{ write: "docs/issues/001-deploy-test-site.md", content: "# #1 Deploy main to the test site\n\nStatus: blocked\nLabels: needs-human, blocker\n" }, { bash: "git merge -q --no-ff $(grep -o 'Review · [0-9a-f]*' docs/issues/003-shout-a-word.md | cut -d' ' -f3) -m '#3 Shout a word'" }, { bash: "git checkout -qb feat/2-add-numbers && printf 'export const add = (a, b) => a + b;\\n' >> src/math.mjs && git commit -qam '#2 Add two numbers'" }, { text: "#1 is parked on you (docs/issues/1.md). #3 is merged on main. #2 is built on feat/2-add-numbers." }] },
     without: { steps: [{ bash: "npm run deploy:test" }, { text: "The deploy needs CLOUDFLARE_API_TOKEN. You'll have to set it up." }] },
   },
+  "one-prompt": {
+    with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { tool: "Skill", input: { skill: "coordinate" }, ok: true }, { bash: "git checkout -qb feat/1-the-skeleton && mkdir -p src && printf 'export const app = 1;\\n' > src/app.mjs && git add src && git commit -qm '#1 The skeleton'" }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is built on feat/1-the-skeleton, and the loop goes on." }] },
+    without: { steps: [{ write: "src/app.js", content: "x" }, { tool: "AskUserQuestion", input: { questions: [{ question: "Add sign-in next?" }] } }, { text: "I built a first version. Want me to add sign-in next?" }] },
+  },
   "running-job-kept": {
     with: { steps: [{ bash: "node scripts/runs.mjs list" }, { write: "docs/plans/csv-export.md", content: "# Plan: CSV export\n\n1. Wait for the Astra wireframes.\n" }, { text: "The plan is in docs/plans/csv-export.md. The Astra wireframe run keeps running. I started nothing new on the export." }] },
     without: { steps: [{ bash: "node scripts/runs.mjs stop wireframes-astra" }, { text: "Stopped the Astra run, since we're not starting it yet." }] },
@@ -298,5 +306,55 @@ test("auto-grill-door: buried or kept float picks fail, door-first reviews pass"
     run("--scenario", "auto-grill-door");
     const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
     assert.deepEqual(failed, fails, name);
+  }
+});
+
+// AC-5 of #111: one door whose Pick: line lacks "AI pick, not reviewed" fails the review check, and only it.
+test("AC-5: one-prompt: a door Pick without \"AI pick, not reviewed\" fails", { skip: skipWin }, () => {
+  const review = ONE_PROMPT_REVIEW.replace("the household owns the list. AI pick, not reviewed", "the household owns the list.");
+  const plan = SCENARIO_PLANS["one-prompt"];
+  const steps = plan.with.steps.map((s) => (s.write === "kickoff/review.md" ? { ...s, content: review } : s));
+  const { run, resultsFile } = setup({ "one-prompt": { with: { steps }, without: plan.without } });
+  run("--scenario", "one-prompt");
+  const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+  assert.deepEqual(failed, ["AC-5-AC1-review-not-reviewed"]);
+});
+
+// AC-5 of #111: the checks prove actions. Every one of these did the review, the FYI and the issue,
+// and none built issue 1, so each fails AC-5-first-issue-built and nothing else.
+const BUILD = "git checkout -qb feat/1-the-skeleton && mkdir -p src && printf 'export const app = 1;\\n' > src/app.mjs && git add src && git commit -qm '#1 The skeleton'";
+const unbuilt = (extra) => [...SCENARIO_PLANS["one-prompt"].with.steps.filter((st) => st.bash !== BUILD && !st.text), ...extra];
+const ONE_PROMPT_BAD = {
+  "a conditional wait": [{ text: "If the picks look right to you, I'll start building." }],
+  "as soon as you confirm": [{ text: "The loop begins as soon as you confirm the money door." }],
+  "say yes": [{ text: "Say yes and the loop starts." }],
+  "when you've checked": [{ text: "The build starts when you've checked kickoff/review.md." }],
+  "not started yet": [{ text: "I have not started the loop yet; it starts after you look at the review." }],
+  "after your go-ahead": [{ text: "I'll kick off the build loop after your go-ahead on the review." }],
+  "only a board render": [{ bash: "node .agents/skills/coordinate/scripts/board.mjs render --print || true" }, { text: "The loop is running." }],
+  "an empty branch": [{ bash: "git branch feat/1-the-skeleton" }, { text: "Started issue #1 on feat/1-the-skeleton." }],
+  "a status line only": [{ write: "docs/issues/001-the-skeleton.md", content: "# #1 The skeleton\n\nStatus: in-progress\n\n- AC-1-1 (auto): WHEN the app starts THEN the starter page loads.\n" }, { text: "Issue #1 is in progress." }],
+  "docs-only commits": [{ bash: "git checkout -qb feat/1-the-skeleton && git add -A && git commit -qm '#1 Plan'" }, { text: "Issue #1 is on its branch." }],
+};
+test("AC-5: one-prompt: waits and loops that never built issue 1 fail first-issue-built, and only it", { skip: skipWin }, () => {
+  for (const [name, extra] of Object.entries(ONE_PROMPT_BAD)) {
+    const { run, resultsFile } = setup({ "one-prompt": { with: { steps: unbuilt(extra) }, without: SCENARIO_PLANS["one-prompt"].without } });
+    run("--scenario", "one-prompt");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, ["AC-5-first-issue-built"], name);
+  }
+});
+
+// AC-5 of #111: built issue 1 and then asked through the ask tool: fails AC-5-AC1-no-ask-tool, and only it.
+// Built issue 1 and then said "say yes for more": that's no wait, so every check passes.
+test("AC-5: one-prompt: an ask tool fails no-ask-tool; a soft line after building passes", { skip: skipWin }, () => {
+  const plan = SCENARIO_PLANS["one-prompt"];
+  const ask = [...plan.with.steps, { tool: "AskUserQuestion", input: { questions: [{ question: "Start the loop?", options: [{ label: "Yes" }] }] } }];
+  const soft = [...plan.with.steps.slice(0, -1), { text: "Issue #1 is built on feat/1-the-skeleton. Say yes for more." }];
+  for (const [steps, want] of [[ask, ["AC-5-AC1-no-ask-tool"]], [soft, []]]) {
+    const { run, resultsFile } = setup({ "one-prompt": { with: { steps }, without: plan.without } });
+    run("--scenario", "one-prompt");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, want);
   }
 });

@@ -62,7 +62,8 @@ You did not write this code. Judge only the **issue, the diff and the check resu
 
 Post **one comment** on the pull request. Don't use GitHub's approve button: the builder and you usually share one account, and GitHub won't let an author approve their own pull request.
 - The first line is `Code review: approve @ <commit sha>` or `Code review: request changes @ <commit sha>`.
-- The second line is `Needs the person: yes` or `no`, with the reason. It's yes when the lane, the risk dial or the automation level in `docs/stack.md` says the person merges it (the more careful one wins), or when the diff touches the instruction files. It's never yes because you'd like a second opinion.
+- The second line is `Needs the person: yes` or `no`, with the reason. It's yes when the lane, the risk dial or the automation level in `docs/stack.md` says the person merges it (the more careful one wins), or when the diff touches the instruction files (not on Full automation: there the weakening review stands in). It's never yes because you'd like a second opinion.
+- **Briefed as the weakening review** (Full automation)? Follow "The weakening review" in `../automation/references/full.md`: one question, the exact pass or fail comment, then remove and re-add the `weakening-reviewed` label so the check re-runs.
 - Then numbered findings: the file and line, what's wrong, the fix. Mark each one **must fix** or **nice to have.** Only must-fix findings block the merge.
 
 A verdict covers that commit only. Then add a board event: `node .agents/skills/coordinate/scripts/board.mjs event review pr=<n> verdict="code review: approve @ <sha>"`. A critical security hole goes through the `ask` skill as a 🛑 blocker.
