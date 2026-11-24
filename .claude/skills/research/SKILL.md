@@ -1,6 +1,6 @@
 ---
 name: research
-description: Use when a decision is crucial, uncertain and expensive to undo and nobody knows the best answer ("we need to research this", "what's the best way to do X", "which library should we use", "is this even possible") - runs a focused research thread on the strongest model, compares at least three options against evidence, fact-checks it in a fresh session, and writes a dated dossier with a recommendation, its sources, provenance and a re-check date into docs/research/.
+description: Use when a decision is crucial, uncertain and expensive to undo and nobody knows the best answer ("we need to research this", "deep research", "research this properly", "dig into X", "which library should we use", "is this even possible") - runs a focused research thread on the strongest model, compares at least three options against evidence, fact-checks it in a fresh session, writes a dated dossier with its sources, provenance and a re-check date into docs/research/, and captures it to the person's private research library as a pull request.
 ---
 
 # Research: don't guess on the decisions that matter
@@ -26,7 +26,12 @@ Everything else gets three options with trade-offs and a recommendation, decided
 6. **Add its row to the index:** the question, the decision it fed, the date, the status, the re-check date and the author's model and effort.
 7. **Check it:** `node .agents/skills/research/scripts/check-research.mjs docs/research/`. Done when it passes.
 8. **Commit with the trailers** `Research-Model: <exact ID>` and `Research-Effort: <effort or unknown>`, in the commit and the pull request.
-9. **Bring back the recommendation, not the whole dossier.** The person decides. The decision goes into `docs/decisions.md` with a link to the dossier.
+9. **Capture it to the library.** Every run of this skill, every research on the strongest tier, and every "deep research", "research properly" or "dig into" is captured. A quick lookup (a version, a doc link) isn't. Follow `references/library.md`:
+   - `[research] library` set in the personal profile (`~/.onrails/profile.toml`, never `docs/profile.toml`): check that the repo is private and refuse a public one, read its `research-library.json`, write the entry where it says, run its checks, and open a pull request. Don't ask.
+   - No library and `offered = false`: offer once to make a private one. Record the answer, so you never offer again.
+
+   Done when the library's checks pass and the pull request is open, or the refusal or the "no" is recorded.
+10. **Bring back the recommendation, not the whole dossier.** The person decides. The decision goes into `docs/decisions.md` with a link to the dossier.
 
 ## Rules
 
@@ -59,3 +64,5 @@ Load a file only when its row fits.
 | `references/provenance.md` | Writing `provenance.json`, starting a helper or fact-checker, or backfilling an old dossier. |
 | `references/measurements.md` | The dossier rests on numbers you measure yourself. |
 | `references/provenance.schema.json` | You need the exact shape of `provenance.json`. |
+| `references/library.md` | Step 9: capturing to the research library, or offering to make one. |
+| `references/library.schema.json` | You need the exact shape of `research-library.json`. |

@@ -1,0 +1,36 @@
+{
+  "schema": "research-library/1",
+  "private": true,
+  "description": "A private research library made from the onRails template. Every deep research from every project lands here as a pull request.",
+  "layout": {
+    "report": "research/{slug}.md",
+    "store": "research/{slug}",
+    "provenance": "research/{slug}/provenance.json",
+    "data": "research/{slug}",
+    "briefs": {
+      "author": "briefs/{slug}/author.md",
+      "helper": "briefs/{slug}/helper-{name}.md",
+      "fact-check": "briefs/{slug}/fact-check.md"
+    }
+  },
+  "index": [
+    {
+      "file": "research/README.md",
+      "insert": "table-end",
+      "anchor": "| Dossier |",
+      "entry": "| [{title}]({slug}.md) | {question} | {decision} | {date} | {status} | {recheck} | {model} · {effort} | {project} |"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "insert": "after-anchor",
+      "anchor": "# Changelog",
+      "entry": "## {date}: {title}\n\n{summary}\n"
+    }
+  ],
+  "provenance": {
+    "id": "research-provenance/1",
+    "schema": "schemas/provenance.schema.json",
+    "paths": "store"
+  },
+  "checks": ["node scripts/check-library.mjs"]
+}

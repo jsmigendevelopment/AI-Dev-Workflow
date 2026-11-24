@@ -17,10 +17,18 @@ const ISSUE_DEST = ".github/ISSUE_TEMPLATE/slice.md";
 // build skill, so every project has them. The research checker ships inside the research skill,
 // so apps can run it in CI, and in the CLI, so doctor can list stale dossiers.
 const CHECKER = join("scripts", "check-research.mjs");
+const LIBRARY = join("scripts", "research-library.mjs");
+const TEMPLATE = join("templates", "research-library");
 const COPIES = [
   ...["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
   [CHECKER, join(SRC, "research", "scripts", "check-research.mjs")],
   [CHECKER, join("cli", "src", "check-research.mjs")],
+  // The library helper and the template library's copies of the checker and the schemas.
+  [LIBRARY, join(SRC, "research", "scripts", "research-library.mjs")],
+  [LIBRARY, join("cli", "src", "research-library.mjs")],
+  [CHECKER, join(TEMPLATE, "scripts", "check-research.mjs")],
+  [LIBRARY, join(TEMPLATE, "scripts", "research-library.mjs")],
+  ...["provenance.schema.json", "library.schema.json"].map((name) => [join(SRC, "research", "references", name), join(TEMPLATE, "schemas", name)]),
 ];
 
 // The plugin's entry skills: what to add when the kit is missing (step 3 of the hand-off),
