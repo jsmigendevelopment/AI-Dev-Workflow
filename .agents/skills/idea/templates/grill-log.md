@@ -10,12 +10,13 @@ About 10 questions per topic, fewer if answers come fast. Move on after three ro
 
 - [ ] 1. Who and why
 - [ ] 2. The main flow
+- [ ] Wireframes stage 1 started (layout, background)
 - [ ] 3. Features (the person's ideas first)
 - [ ] 4. The floor
 - [ ] 5. The MVP
 - [ ] 6. Look and feel
+- [ ] Wireframes stage 2 started (detail, background)
 - [ ] 7. Confirm
-- [ ] Wireframes started (background)
 - [ ] Intermission: name and repo
 - [ ] Wireframes approved
 - [ ] Tech grill

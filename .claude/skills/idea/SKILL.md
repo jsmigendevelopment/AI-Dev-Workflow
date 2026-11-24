@@ -1,6 +1,6 @@
 ---
 name: idea
-description: Use when the person has an idea for a new app, product or tool ("I have an idea for an app", "new project", "let's build X", "start a new app"). Runs the whole kickoff in order - pitch, product grill by topic, the MVP, wireframes drawn while naming the repo, wireframe approval, tech grill, the tracer-bullet pyramid, then issues - and hands off to the build loop.
+description: Use when the person has an idea for a new app, product or tool ("I have an idea for an app", "new project", "let's build X", "start a new app"). Runs the whole kickoff in order - pitch, product grill by topic with the wireframes drawn alongside, the MVP, naming the repo, wireframe approval, tech grill, the tracer-bullet pyramid, then issues - and hands off to the build loop.
 ---
 
 # /idea: from idea to a planned repo
@@ -26,17 +26,16 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter.
 
 2. **Product grill.** Open `grill` and run its product topics. Until the repo exists, the notes live in a local `kickoff/` folder: `grill-log.md`, `decisions.md`, `features.md` and `vision.md`, each started from this skill's `templates/`, plus `kickoff/research/README.md` from `templates/research-index.md`, so the first dossier has a home.
-   - After the first two topics, the grill starts a competitor scan in the background. It writes `kickoff/research/competitors.md` and is ready by the MVP topic.
+   - **Background work starts here.** At the end of the main-flow topic, the grill starts the competitor scan (`kickoff/research/competitors.md`, ready by the MVP topic) and `wireframes` stage 1, the layout. Once look and feel is answered, it starts stage 2, the detailed UI and UX. Each screen is shown as it's done. No way to run them in the background? Draw stage 1 after the grill and stage 2 after step 5.
    - If the person needs a break, save and stop. `/back` resumes from the grill log.
 
 3. **Find the MVP.** This is the grill's MVP topic: **the one core piece that makes this app stand out,** made as good as possible, plus only the thin supporting slices it can't work without. Test each: *does the core work without it?* **The core is never filled in with a default.** If the person won't choose, stop here and say so. Write `kickoff/mvp.md` from `templates/mvp.md`.
 
-4. **Start the wireframes.** Once the person confirms the product grill, start `wireframes` in the background: the strongest tier, high effort (see `routing`). Ask first unless the profile says not to. No way to run it in the background? Draw them after step 5.
-   - **Then, while they draw: other accounts?** Ask once whether the person uses more than one Claude or Codex account, and which projects or jobs belong to each. On a yes, give one "Setup step for you" per account to sign it in from their terminal, then write `[accounts]` in the profile. `routing`'s `references/accounts.md` has the questions, the verified commands and the rule: a fixed split, never by usage.
+4. **Other accounts?** While stage 2 draws, ask once whether the person uses more than one Claude or Codex account, and which projects or jobs belong to each. On a yes, give one "Setup step for you" per account to sign it in from their terminal, then write `[accounts]` in the profile. `routing`'s `references/accounts.md` has the questions, the verified commands and the rule: a fixed split, never by usage.
 
-5. **Intermission: name it and make the repo,** while the wireframes draw. Open `name`. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
+5. **Intermission: name it and make the repo,** while stage 2 finishes. Open `name`. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
 
-6. **Approve the wireframes.** Show them and revise until the person says yes (`wireframes` steps 6 to 8). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row.
+6. **Approve the wireframes.** Revise the full stage-2 set until the person says yes (`wireframes` stage 2, steps 5 and 6). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row.
 
 7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. Crucial unknowns go to `research` first. It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
 

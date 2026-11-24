@@ -29,7 +29,9 @@ Effort is a second dial on every model: **low**, **medium** or **high**.
 | The live thread you talk to all day (coordinator) | Everyday · **low**. Medium once the app is in good shape. Speed matters more than depth here. |
 | Grill and planning chat | Everyday · medium |
 | Competitor scan (background, during the grill) | Everyday · medium. Broad searching, not design, so it doesn't ask first. |
-| **CTO:** research, the pyramid and each pass gate's re-plan, schema, API design, wireframes (`wireframes`, in the background during naming) | **Strongest · high** |
+| Wireframes stage 1, layout (background, from the grill's main-flow topic) | Everyday · medium. Grey boxes, not design, so it doesn't ask first. |
+| Wireframes stage 2, detailed UI and UX (background, from the look-and-feel topic) | **Strongest · high** |
+| **CTO:** research, the pyramid and each pass gate's re-plan, schema, API design | **Strongest · high** |
 | Capture to the research library | The research's own tier and effort for its provenance record. The copy, index, checks and pull request: Everyday · low. |
 | Pass-gate audit (read-only, fresh) | Everyday · medium |
 | Writing issues from the CTO's plan | Everyday · medium |

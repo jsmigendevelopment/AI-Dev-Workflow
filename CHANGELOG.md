@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- **Wireframes start earlier, in two stages, screen by screen (#80).** Stage 1, the grey-box layout, starts in the background when the grill's main-flow topic ends, on the everyday model at medium effort; later topics add screens and the MVP cut drops them. Stage 2, the detailed UI and UX (tokens, states, spacing, motion, the light and dark prototype), starts once look and feel is answered, on the strongest tier at high effort, asking first. Each screen is shown as it's done with "What would you change?". Approval is still one row for the full stage-2 set, before the tech grill. `idea`, `grill`, `routing`, `join`, `pyramid`, the consistency check, the templates, the README, the cheat sheet and the `wireframe-gate` fixture follow.
+
 ## [0.5.1] - 2026-11-24
 
 ### Added

@@ -1,6 +1,6 @@
 ---
 name: idea
-description: Use when the person has an idea for a new app, product or tool ("I have an idea for an app", "new project", "let's build X", "start a new app"). Runs the whole kickoff in order - pitch, product grill by topic, the MVP, wireframes drawn while naming the repo, wireframe approval, tech grill, the tracer-bullet pyramid, then issues - and hands off to the build loop.
+description: Use when the person has an idea for a new app, product or tool ("I have an idea for an app", "new project", "let's build X", "start a new app"). Runs the whole kickoff in order - pitch, product grill by topic with the wireframes drawn alongside, the MVP, naming the repo, wireframe approval, tech grill, the tracer-bullet pyramid, then issues - and hands off to the build loop.
 ---
 
 <!-- Made by scripts/sync-skills.mjs from .agents/skills/idea/SKILL.md and scripts/plugin-handoff.md. Edit those, then run it. -->

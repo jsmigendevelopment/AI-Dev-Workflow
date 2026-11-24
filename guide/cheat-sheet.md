@@ -43,7 +43,7 @@ You rarely need these. The four commands call them for you.
 |---|---|---|
 | `/grill` | `$grill` | You want to be interviewed before a big feature, without a full kickoff |
 | `/research` | `$research` | A decision is crucial, unclear and costly to undo. It asks first: it uses your strongest model. |
-| `/wireframes` | `$wireframes` | You want to see, or change, the screens before they're built. It asks first: it uses your strongest model. |
+| `/wireframes` | `$wireframes` | You want to see, or change, the screens before they're built. Layout first, then the detailed design, which asks first: it uses your strongest model. |
 | `/pyramid` | `$pyramid` | You want to plan the slices and passes, or re-plan at a pass gate. It asks first too. |
 | `/issues` | `$issues` | You have a plan, feedback or a bug to turn into issues |
 | `/coordinate` | `$coordinate` | You want the build loop to start on the ready issues |
@@ -81,7 +81,8 @@ You rarely need these. The four commands call them for you.
 |---|---|---|
 | 🗣️ Your live thread (the loop) | Everyday · low | Opus 5.5 low |
 | 🔥 Grill, planning chat | Everyday · medium | Opus 5.5 medium |
-| 🏛️ CTO: research, pyramid, schema, API, wireframes | **Strongest · high** | Fable 5.2 high |
+| ✏️ Wireframes stage 1, layout | Everyday · medium | Opus 5.5 medium |
+| 🏛️ CTO: research, pyramid, schema, API, wireframes stage 2 | **Strongest · high** | Fable 5.2 high |
 | 📋 Writing issues from the plan | Everyday · medium | Opus 5.5 medium |
 | 🔨 Build an issue | Everyday · low at complexity 1–4, medium at 5–7 or from pass 2 | Opus 5.5 low / medium |
 | 🔍 Code review | Never below the builder | Opus 5.5 low / medium |

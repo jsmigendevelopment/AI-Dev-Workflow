@@ -102,7 +102,7 @@ Asked whether a plan is thin enough, or handed one that someone else wrote? Run 
 
 - Every step, in every pass, ends with something a person can **try.** If they can't, it isn't a step yet.
 - Don't start pass 2 of anything until pass 1 of the core works.
-- A big feature with new screens: run `wireframes` for them and get the approval before you slice it.
+- A big feature with new screens: run both `wireframes` stages for them and get the approval before you slice it.
 - Everything above the current pass is an outline. It gets steps only at its gate.
 - A pass ends at the pass gate: a fresh audit and cleanup start at once, the person tries it, then a re-plan here. See the References table.
 
