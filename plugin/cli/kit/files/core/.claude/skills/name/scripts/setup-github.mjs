@@ -17,13 +17,16 @@
 //   Enterprise:  Team, plus environment protection rules on private repos, such as a required
 //                reviewer before a production deploy. Public repos get them on every plan.
 // It reads the repo from the git remote and calls only the REST API (no GraphQL, no `gh repo view`).
-// Main always requires the `agent-files` check, on every level. On Full automation the weakening
-// review's pass comment is what turns it green (#103, `automation`'s references/full.md).
+// Main requires the `agent-files` check on every level, once .github/workflows/agent-files.yml is on the
+// default branch (required-checks.mjs says why). Run this again after the pull request that adds it
+// merges, or on a repo upgrading from the old ci.yml job: it adds the check to the existing rules.
+// On Full automation the weakening review's pass is what turns it green (#103, `automation`'s references/full.md).
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
+import { GUARD_WORKFLOW, addAgentFiles, requiredChecks } from "./required-checks.mjs";
 
 const PLANS = ["free", "team", "enterprise"];
 const args = process.argv.slice(2);
@@ -115,7 +118,7 @@ const labels = [
   ["pass:1", "1d76db"], ["pass:2", "5319e7"], ["pass:3", "8b5cf6"],
   ["slice:core", "8b5cf6"], ["slice:support", "bfd4f2"],
   ["lane:tiny", "c2e0c6"], ["lane:normal", "0e8a16"], ["lane:risky", "b60205"],
-  ["status:ready", "0e8a16"], ["status:in-progress", "fbca04"], ["needs-human", "d93f0b"], ["human-approved", "5319e7"],
+  ["status:ready", "0e8a16"], ["status:in-progress", "fbca04"], ["needs-human", "d93f0b"], ["human-approved", "5319e7"], ["weakening-reviewed", "c5def5"],
 ];
 await step("labels", ANY, () => {
   for (const [name, color] of labels) run(["label", "create", name, "--color", color, "--force", "--repo", repo]);
@@ -136,9 +139,25 @@ await step("secret scanning + push protection", SECRET_PROTECTION, () =>
 // 4. Rules on main: pull requests only, no force push or delete, green checks required.
 //    No approval required: GitHub won't let the author approve their own pull request.
 //    A free private repo relies on the kit's blocked git commands instead.
+const hasGuard = (() => {
+  try {
+    run(["api", `repos/${repo}/contents/${GUARD_WORKFLOW}`]);
+    return true;
+  } catch {
+    return false; // not on the default branch yet: agent-files is added on a later run
+  }
+})();
 await step("rules on main", TEAM, () => {
   const existing = JSON.parse(run(["api", `repos/${repo}/rulesets`]));
-  if (existing.some((r) => r.name === "protect-main")) return "already there";
+  const mine = existing.find((r) => r.name === "protect-main");
+  if (mine) {
+    const full = JSON.parse(run(["api", `repos/${repo}/rulesets/${mine.id}`]));
+    const rules = addAgentFiles(full.rules ?? [], hasGuard);
+    if (!rules) return "already there";
+    const { name, target, enforcement, conditions, bypass_actors } = full;
+    api("PUT", `repos/${repo}/rulesets/${mine.id}`, { name, target, enforcement, conditions, bypass_actors, rules });
+    return "added the agent-files check";
+  }
   api("POST", `repos/${repo}/rulesets`, {
     name: "protect-main",
     target: "branch",
@@ -148,10 +167,12 @@ await step("rules on main", TEAM, () => {
       { type: "deletion" },
       { type: "non_fast_forward" },
       { type: "pull_request", parameters: { required_approving_review_count: 0, dismiss_stale_reviews_on_push: false, require_code_owner_review: false, require_last_push_approval: false, required_review_thread_resolution: false } },
-      { type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: [{ context: "checks" }, { context: "secrets" }, { context: "agent-files" }] } },
+      { type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: requiredChecks(hasGuard) } },
     ],
   });
 });
+
+if (!hasGuard) results.push(["note", "rules on main", "", `agent-files isn't required yet: ${GUARD_WORKFLOW} isn't on the default branch. Run this again once it merges.`]);
 
 // 5. Environments. `test` and `production` deploy from main only. Put production secrets
 //    in the production environment only.

@@ -41,7 +41,7 @@ The platform comes first, because everything else depends on it.
     - State: local `useState` first, then typed search params for anything shareable, then **Zustand** only for complex shared client state. Server data in TanStack Query, forms in **TanStack Form**, tables in **TanStack Table**. The other TanStack defaults (charts, Markdown, highlighting, long lists, shortcuts) are in the table below: confirm them as defaults, install none until a feature needs it.
     - Drizzle, snake_case plural tables, `created_at` and `updated_at`, an index on every foreign key. The ID: **UUIDv7 or ULID**, made on the server. Ask which.
     - Money: one `Money` type in integer minor units plus the currency. Rounding: half-even for splitting and tax, unless they want another rule.
-    - Time: instants in UTC. Ask the format: **ISO 8601 (recommended: readable in logs and the database) or epoch milliseconds**, one for the project. Temporal where supported, else `date-fns` with `@date-fns/tz` (until research confirms).
+    - Time: instants in UTC. Ask the format: **ISO 8601 or epoch milliseconds**, one for the project. Temporal where supported, else `date-fns` with `@date-fns/tz` (until research confirms).
     - A public API under `/api/v1`, if anything outside the web app will call it, with OpenAPI built from the Zod schemas in CI.
     - The error system with request IDs, `ErrorState` and `EmptyState`, the one logger (logs to Workers Logs and Logpush, until research confirms), a health endpoint, an audit table, feature flags, the event registry and `track()`.
     - Env: local, test, preview and production, one typed env schema, every variable in `.env.example` (`guide/environments.md` in the kit).

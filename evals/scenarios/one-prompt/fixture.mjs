@@ -14,5 +14,6 @@ grill = "auto"
 `;
 
 export function build(dir) {
-  repo(dir, { "README.md": "# flatshare\n", "docs/profile.toml": PROFILE });
+  const start = repo(dir, { "README.md": "# flatshare\n", "docs/profile.toml": PROFILE });
+  return { start };
 }

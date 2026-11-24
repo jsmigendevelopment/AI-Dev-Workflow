@@ -24,14 +24,17 @@ Each one is parked, not waited on. Record it under "Waiting on you" in `docs/sta
 
 ## The weakening review (#103)
 
-A pull request that changes the agents' rules or check code (`AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/`, `.codex/`, `.github/`) gets no `needs-human` label on Full. It gets one more fresh review instead.
+A pull request that changes the agents' rules, check code or the level (`AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/`, `.codex/`, `.github/`, `docs/stack.md`) gets no `needs-human` label on Full. It gets one more fresh review instead.
 
 1. Start a fresh agent: *"Use the `pr-review` skill as the weakening review of pull request <n> at <sha>."* It reads only the diff and the issue, and answers one question: **does this weaken, skip or delete any check or rule?** For example, a removed or loosened test, a raised budget, a lint rule turned off, a hook removed, or an `eslint-disable` or `skip` with no issue number.
-2. **No:** it comments exactly `Weakening review: pass @ <full head sha>` on the pull request. The comment starts an `agent-files` run, but that one reports on the default branch. Re-run the pull request's own `agent-files` run (`gh run rerun <run id> --failed`), so the required check on the head commit passes.
-   The workflow (`agent-files.yml`) reads only comments from logins with write, maintain or admin access, and the latest verdict at the head commit wins. A comment with both a pass and a fail line counts as a fail.
+2. **No:** it comments exactly `Weakening review: pass @ <full head sha>` on the pull request, then adds the no-op label `weakening-reviewed` (remove it first if it's there). The label starts a fresh `agent-files` run on the head. The comment's own run reports on the default branch, so it can't turn the pull request green.
+   The workflow (`agent-files.yml`) reads only comments from logins with write, maintain or admin access. A fail at that commit sticks: any fail comment beats every pass, edited or not. A comment with both lines counts as a fail.
 3. **Yes,** and the issue didn't ask for it: it comments `Weakening review: fail @ <sha>` with the lines. The merge is refused on every level, and the findings go back to a builder.
 4. A new commit needs a new pass.
+5. **Before the merge,** `coordinate` runs `node .agents/skills/coordinate/scripts/agent-files.mjs verify-run <n> --repo <owner>/<repo>`. It passes only when every `agent-files` check run on the head comes from `.github/workflows/agent-files.yml`, and the latest one, on a `pull_request_target` event, succeeded. A second workflow that reports a check named `agent-files` is refused. Exit 1: don't merge.
+
+**Slice 0, and a repo upgrading from the old `ci.yml` job:** the guard's workflow runs only once it's on the default branch, so `setup-github.mjs` requires `agent-files` only after `.github/workflows/agent-files.yml` is there. The pull request that adds it merges on the other checks and this review. Right after it merges, `coordinate` runs `setup-github.mjs` again, which adds the requirement, and sends an FYI.
 
 **Accepted risk (#103):** agents share the person's GitHub login, so the pass comment may come from that shared login. The guard can't tell a fresh review from the builder itself. The protection is the review being fresh and reading only the diff, so put the review session's link on the line after the verdict.
 
-**Done when** the pass comment names the head commit and the `agent-files` job is green, or the fail comment is posted and no merge happened.
+**Done when** the pass comment names the head commit and `verify-run` exits 0, or the fail comment is posted and no merge happened.
