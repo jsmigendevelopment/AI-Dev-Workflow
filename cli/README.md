@@ -186,7 +186,7 @@ Change it any time with `/automation`. → [Pings, the board and automation](htt
 
 At every risk and automation level, the agent stops and asks before:
 
-- deleting or moving real data
+- deleting or migrating real data
 - touching production settings, secrets or `.env` files
 - deploying to production or making the app public
 - spending money or signing up for a paid service
