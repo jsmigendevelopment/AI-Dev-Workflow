@@ -4,6 +4,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-24
+
 ### Changed
 
 - **Wireframes start earlier, in two stages, screen by screen (#80).** Stage 1, the grey-box layout, starts in the background when the grill's main-flow topic ends, on the everyday model at medium effort; later topics add screens and the MVP cut drops them. Stage 2, the detailed UI and UX (tokens, states, spacing, motion, the light and dark prototype), starts once look and feel is answered, on the strongest tier at high effort, asking first. Each screen is shown as it's done with "What would you change?". Approval is still one row for the full stage-2 set, before the tech grill. `idea`, `grill`, `routing`, `join`, `pyramid`, the consistency check, the templates, the README, the cheat sheet and the `wireframe-gate` fixture follow.
@@ -174,7 +176,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - The first kit: `AGENTS.md`, skills for the product grill, the tech grill, research, the tracer-bullet pyramid, issues, model routing, the build loop, reviews and browser tests, plus templates and a guide.
 - Skills live in `.agents/skills` for Codex and are copied to `.claude/skills` for Claude Code. CI checks the copies match.
 
-[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.3.0...v0.4.0
