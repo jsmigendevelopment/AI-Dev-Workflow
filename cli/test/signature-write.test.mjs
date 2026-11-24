@@ -63,6 +63,14 @@ test("AC-4: WHEN the end marker's sha256 matches the block THEN --write replaces
   assert.equal(read(dir, "README.md"), after);
 });
 
+test("AC-4: WHEN an editor trims trailing spaces from a --markdown block THEN its sha256 still matches", () => {
+  const { code, after, dir } = write("# T\n", ["--markdown"]);
+  assert.equal(code, 0);
+  assert.doesNotMatch(after, /[ \t]$/m, "no line ends in a space");
+  put(dir, "README.md", after.replace(/[ \t]+$/gm, ""));
+  assert.match(run(["--write", "README.md", "--markdown"], PROFILE, { dir }).out, /already up to date/);
+});
+
 test("AC-4: WHEN an end marker has no sha256 and the block is one this profile renders, in any mode, THEN --write replaces it and adds the sha256", () => {
   for (const mode of [[], ["--style", "compact"], ["--markdown"], ["--markdown", "--style", "compact"]]) {
     for (const theme of ["professional", "personal"]) {

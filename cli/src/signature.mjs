@@ -33,10 +33,10 @@ const KEYCAP = "[0-9]\\uFE0F?\\u20E3";
 const TEXT_CHAR = new RegExp(`${FLAG}|${KEYCAP}|[\\p{L}\\p{N} .,!?'’\\-–:;()&+]|${EMOJI}(?:\\u200D${EMOJI})*`, "gu");
 const TEXT_ALLOWED = "letters, numbers, emoji, single spaces and . , ! ? ' ’ - – : ; ( ) & +";
 // Letters and marks that render blank, so a value can hide a character from whoever reads it.
-const INVISIBLE = /[͏ᅟᅠ᠋-᠏⠀ㅤﾠ]/u;
+const INVISIBLE = /[\u034F\u115F\u1160\u180B-\u180F\u2800\u3164\uFFA0]/u;
 // GitHub autolinks these even in allowed text. A colon before a space or the end ("Note:") is fine.
 const BARE_URL = /[a-z][a-z0-9+.-]*:(?!\s|$)|www\./i;
-// Checked with markdown-it 14.1.0 and linkify on: it links "evil.com", "evil️.com", "🔥.ws" and
+// Checked with markdown-it 14.1.0 and linkify on: it links "evil.com", "evil\uFE0F.com", "🔥.ws" and
 // "1️⃣.com", but not text inside a link. So text refuses a full stop between two characters (Node.js
 // too), and a link label, always inside a link, may hold one.
 const TIGHT_STOP = /\S\.\S/u;
@@ -55,6 +55,8 @@ function valueProblems(name, text, kind) {
   const [bad] = text.replace(TEXT_CHAR, "");
   if (bad && /\p{M}/u.test(bad)) found.push(`${name} holds a combining mark (${hex(bad)}) that isn't part of a letter or an emoji. Type the letter itself.`);
   else if (bad) found.push(`${name} holds ${JSON.stringify(bad)}. Text may hold only ${TEXT_ALLOWED}.`);
+  const unassigned = /\p{Cn}/u.exec(text)?.[0];
+  if (unassigned) found.push(`${name} holds an unassigned character (${hex(unassigned)}): no font draws it the same way. Take it out.`);
   const invisible = INVISIBLE.exec(text)?.[0];
   if (invisible) found.push(`${name} holds an invisible character (${hex(invisible)}). Take it out.`);
   if (/^ | $| {2}/.test(text)) found.push(`${name} has a leading, trailing or double space.`);
@@ -191,7 +193,8 @@ function markdown(v, style) {
   }
   // The display line and the signoff each start a line, so their first character is escaped too.
   const sub = [v.display && mdLine(v.display), v.tagline && (v.display ? mdText(v.tagline) : mdLine(v.tagline))].filter(Boolean).join(" · ");
-  const blocks = [mark, `Built by ${name}${sub ? `  \n${sub}` : ""}`, links, v.signoff && mdLine(v.signoff)];
+  // A backslash hard break, not two trailing spaces: an editor that trims them would break the sha256.
+  const blocks = [mark, `Built by ${name}${sub ? `\\\n${sub}` : ""}`, links, v.signoff && mdLine(v.signoff)];
   return blocks.filter(Boolean).join("\n\n");
 }
 

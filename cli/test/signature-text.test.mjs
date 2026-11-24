@@ -68,7 +68,7 @@ test("AC-5: WHEN a colon is followed by a space or ends the value THEN it is ord
 });
 
 test("AC-6: WHEN text holds letters, numbers, emoji and the allowed punctuation THEN it passes in every mode", () => {
-  const profile = swap(TAGLINE, "tagline = \"Café 🌱 ✔️ – it’s 1, 2; (yes) & more + ok? Sure!\"");
+  const profile = swap(TAGLINE, "tagline = \"Café 🌱 ✔\uFE0F – it’s 1, 2; (yes) & more + ok? Sure!\"");
   for (const mode of [[], ["--style", "compact"], ["--markdown"]]) assert.equal(run(mode, profile).code, 0, mode.join(" "));
 });
 
@@ -82,12 +82,12 @@ test("AC-5: WHEN text holds a full stop with a character on both sides THEN it i
     [swap('display = "ada"', 'display = "ѡѡѡ.com"'), /personal\.display holds a full stop/],
     [swap('mark_alt = "Ada Dev monogram"', 'mark_alt = "x2.dev logo"'), /mark_alt holds a full stop/],
     // The review's probes: a label ending in a mark, an invisible joiner or an emoji.
-    [tagline("evil️.com"), STOP],
-    [tagline("evil͏.com"), STOP],
+    [tagline("evil\uFE0F.com"), STOP],
+    [tagline("evil\u034F.com"), STOP],
     [tagline("eviĺ.com"), STOP],
-    [tagline("eviĺ.com"), STOP],
+    [tagline("evil\u0301.com"), STOP],
     [tagline("\u{1F525}.ws"), STOP],
-    [tagline("1️⃣.com"), STOP],
+    [tagline("1\uFE0F\u20E3.com"), STOP],
     [tagline("\u{1F1FA}\u{1F1F8}.com"), STOP],
     // The accepted cost: tech names and version numbers go in a link label, or lose the dot.
     [tagline("Built with Node.js"), STOP],
@@ -105,17 +105,17 @@ test("AC-5: WHEN a full stop is followed by a space or ends the value, or sits i
 });
 
 test("AC-6: WHEN text is decomposed THEN it is checked and printed as NFC", () => {
-  assert.match(passes(tagline("Café")), /<sub>Ada Dev · Café<\/sub>/);
+  assert.match(passes(tagline("Cafe\u0301")), /<sub>Ada Dev · Café<\/sub>/);
 });
 
 test("AC-6: WHEN a combining mark is left after NFC, or an invisible character is used, THEN it is refused", () => {
   const cases = [
-    [tagline("a️"), /tagline holds a combining mark \(U\+FE0F\)/],
-    [tagline("a︎"), /tagline holds a combining mark \(U\+FE0E\)/],
+    [tagline("a\uFE0F"), /tagline holds a combining mark \(U\+FE0F\)/],
+    [tagline("a\uFE0E"), /tagline holds a combining mark \(U\+FE0E\)/],
     [tagline("a\u{E0100}"), /tagline holds a combining mark \(U\+E0100\)/],
-    [tagline("é́́"), /tagline holds a combining mark \(U\+0301\)/],
-    [tagline("a⃣"), /tagline holds a combining mark \(U\+20E3\)/],
-    [tagline("कि"), /tagline holds a combining mark \(U\+093F\)/],
+    [tagline("e\u0301\u0301\u0301"), /tagline holds a combining mark \(U\+0301\)/],
+    [tagline("a\u20E3"), /tagline holds a combining mark \(U\+20E3\)/],
+    [tagline("क\u093F"), /tagline holds a combining mark \(U\+093F\)/],
   ];
   for (const char of ["034F", "180B", "180C", "180D", "180E", "180F", "3164", "115F", "1160", "FFA0", "2800"]) {
     cases.push([tagline(`a\\u${char}b`), new RegExp(`tagline holds an invisible character \\(U\\+${char}\\)`)]);
@@ -123,16 +123,22 @@ test("AC-6: WHEN a combining mark is left after NFC, or an invisible character i
   for (const [profile, message] of cases) refusedEverywhere(profile, message);
 });
 
+test("AC-6: WHEN any text value holds an unassigned code point THEN it is refused", () => {
+  refusedEverywhere(tagline("a\\U0001FFFDb"), /^ {2}tagline holds an unassigned character \(U\+1FFFD\)/m);
+  refusedEverywhere(swap('label = "Blog"', 'label = "Blog\\U0001FFFD"'), /links\[1\]\.label holds an unassigned character \(U\+1FFFD\)/);
+  refusedEverywhere(swap('mark_alt = "Ada Dev monogram"', 'mark_alt = "\\U0001FFFD"'), /mark_alt holds an unassigned character/);
+});
+
 test("AC-6: WHEN text holds skin-tone, joined, keycap or flag emoji THEN it passes", () => {
-  const text = "Coder \u{1F469}‍\u{1F4BB} \u{1F44D}\u{1F3FD} ❤️‍\u{1F525} 1️⃣ \u{1F1FA}\u{1F1F8}\u{1F1EB}\u{1F1F7}"
-    + " \u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F} \u{1F3F4}‍☠️";
+  const text = "Coder \u{1F469}\u200D\u{1F4BB} \u{1F44D}\u{1F3FD} ❤\uFE0F\u200D\u{1F525} 1\uFE0F\u20E3 \u{1F1FA}\u{1F1F8}\u{1F1EB}\u{1F1F7}"
+    + " \u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F} \u{1F3F4}\u200D☠\uFE0F";
   assert.ok(passes(tagline(text)).includes(`<sub>Ada Dev · ${text}</sub>`));
 });
 
 test("AC-6: WHEN an emoji piece stands alone, or a flag isn't in its exact form, THEN it is refused", () => {
   const cases = [
-    [tagline("w‍ww"), /tagline holds "‍"/],
-    [tagline("\u{1F469}‍"), /tagline holds "‍"/],
+    [tagline("w\u200Dww"), /tagline holds "\u200D"/],
+    [tagline("\u{1F469}\u200D"), /tagline holds "\u200D"/],
     [tagline("a\u{1F3FD}"), /tagline holds "\u{1F3FD}"/u],
     [tagline("\u{1F1FA}"), /tagline holds "\u{1F1FA}"/u],
     [tagline("\u{1F1FA}\u{1F1F8}\u{1F1EB}"), /tagline holds "\u{1F1EB}"/u],

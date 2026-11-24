@@ -23,7 +23,7 @@ test("AC-1: the home profile is read when the project has none, and --markdown p
   assert.equal(out, [
     "[![Ada Dev monogram](https://example.com/mark.svg)](https://example.com)",
     "",
-    "Built by **[Ada Example](https://example.com)**  ",
+    "Built by **[Ada Example](https://example.com)**\\",
     "Ada Dev · Software engineer",
     "",
     "[Site](https://example.com) · [Blog](https://example.com/blog/) · [GitHub](https://github.com/example)",
@@ -146,7 +146,7 @@ test("AC-6: WHEN --markdown values start a line with list or setext syntax THEN 
     assert.equal(out.split("\n").at(-1), want);
   }
   const { out } = run(["--markdown"], swap('display = "Ada Dev"', 'display = "---"'));
-  assert.match(out, /\*\* {2}\n\\--- · Software engineer\n/, "no setext heading");
+  assert.match(out, /\*\*\\\n\\--- · Software engineer\n/, "no setext heading");
 });
 
 test("AC-7: WHEN there is no [me.signature] THEN the command says how to add one and exits 3, apart from a refused value's 1", () => {
