@@ -23,7 +23,8 @@ const EMAIL = /mailto:|[^\s@<>"'()/]+@[^\s@<>"'()/]+\.[a-z]{2,}/i;
 // A newline ends an HTML block in Markdown, so the rest of a value would render as Markdown.
 const CONTROL = /[\u0000-\u001f\u007f]/;
 // GitHub autolinks these in text, escaped or not, which would add links the guards never saw.
-const BARE_URL = /[a-z][a-z0-9+.-]*:|www\.|\/\//i;
+// A colon before a space or the end ("Builder: web apps", "Note:") is ordinary text.
+const BARE_URL = /[a-z][a-z0-9+.-]*:(?!\s|$)|www\.|\/\//i;
 
 // The checks for one string value, by what the value is for.
 function valueProblems(name, text, kind) {

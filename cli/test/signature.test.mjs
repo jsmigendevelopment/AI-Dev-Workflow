@@ -139,6 +139,10 @@ test("AC-5: WHEN a value holds an email or a mailto: link, or a URL isn't https:
     [PROFILE.replace('signoff = "Build it right."', 'signoff = "data:text/html,hi"'), /signoff.*URL.*data:/],
     [PROFILE.replace('mark_alt = "Ada Dev monogram"', 'mark_alt = "//evil.example"'), /mark_alt.*URL/],
     [PROFILE.replace('display = "ada"', 'display = "HTTPS://evil.example"'), /personal\.display.*URL/],
+    [PROFILE.replace('tagline = "Software engineer"', 'tagline = "javascript:alert(1)"'), /tagline.*URL.*javascript:/],
+    [PROFILE.replace('tagline = "Software engineer"', 'tagline = "http:x"'), /tagline.*URL.*http:/],
+    [PROFILE.replace('tagline = "Software engineer"', 'tagline = "mailto:a"'), /tagline.*(email|URL)/],
+    [PROFILE.replace('tagline = "Software engineer"', 'tagline = "data:x"'), /tagline.*URL.*data:/],
   ];
   for (const [profile, message] of cases) {
     for (const mode of [[], ["--markdown"], ["--style", "compact"]]) {
@@ -213,6 +217,18 @@ test("AC-5: WHEN any mode renders THEN no URL appears but the profile's own, and
       // In CommonMark a blank line ends an HTML block, and the rest renders as Markdown.
       if (!mode.includes("--markdown")) assert.doesNotMatch(out, /\n[ \t]*\n/, "one HTML block");
     }
+  }
+});
+
+test("AC-5: WHEN a colon is followed by a space or ends the value THEN it is ordinary text, in every mode", () => {
+  const profile = PROFILE.replace('tagline = "Software engineer"', 'tagline = "Builder: web apps"')
+    .replace('signoff = "Build it right."', 'signoff = "Note:"')
+    .replace('compact_signoff = "Go build."', 'compact_signoff = "Note:"');
+  for (const mode of [[], ["--style", "compact"], ["--markdown"]]) {
+    const { code, out, err } = run(mode, profile);
+    assert.equal(code, 0, `${mode.join(" ")} ${err}`);
+    if (mode[0] !== "--style") assert.match(out, /Builder: web apps/);
+    assert.match(out, /Note:/);
   }
 });
 
