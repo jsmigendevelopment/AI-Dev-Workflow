@@ -12,8 +12,21 @@ const NOT_REVIEWED = /AI pick, not reviewed/i;
 const FYI = /notify\.mjs\b[^\n]*--level[= ]fyi\b/;
 const AC_ID = /\bAC-\d+-\d+\b/;
 const WHEN_THEN = /\bWHEN\b[\s\S]*\bTHEN\b/;
-// A wait phrased as an order: "Reply go when you've read it", "Let me know when you're ready".
-const WAIT = /\breply\b[^.\n]*\bgo\b|\blet me know when\b|\btell me when\b|\bwaiting for your\b|\bonce you(?:'ve| have)? read\b/i;
+// A wait with no "?": "Reply go when you've read it", "I'll hold here until you've looked", "Say the word".
+const WAIT = new RegExp([
+  "\\breply\\b[^.\\n]*\\bgo\\b", "\\blet me know when\\b", "\\btell me when\\b", "\\bwaiting (?:for|on) your\\b",
+  "\\bonce you(?:'ve| have)? read\\b", "\\bhold(?:ing)? here\\b", "\\buntil you\\b", "\\bsay the word\\b",
+  "\\bsign[- ]?off\\b", "\\bready when you are\\b", "\\bpaus(?:e|ing)\\b", "\\bstanding by\\b", "\\bawaiting\\b",
+].join("|"), "i");
+
+// The loop started: coordinate was loaded, an issue moved to in-progress, or a builder began
+// (a feat/<n>-… branch, or a subagent).
+const loadedCoordinate = (u) => (u.name === "Skill" && /(^|:)coordinate$/.test(String(u.input?.skill ?? "")))
+  || (u.name === "Read" && /coordinate\/SKILL\.md$/.test(String(u.input?.file_path ?? "")));
+const builder = (u) => ["Agent", "Task"].includes(u.name);
+const inProgress = (t) => t.newFiles().filter((p) => /^docs\/issues\/.+\.md$/i.test(p))
+  .some((p) => /^Status:\s*in-progress\b|status:in-progress/im.test(t.read(p) ?? ""));
+const featBranch = (t) => t.git("branch", "--format=%(refname:short)").split("\n").some((b) => /^feat\/\d+-/.test(b.trim()));
 
 const review = (t) => REVIEWS.map((p) => (t.exists(p) ? t.read(p) : "")).find(Boolean) ?? "";
 
@@ -56,6 +69,12 @@ export const checks = [
     id: "AC-5-AC1-fyi-sent",
     description: "AC-1: an FYI was sent through notify.mjs --level fyi",
     check: (t) => result(t.bash.some((c) => FYI.test(c)), "no notify.mjs --level fyi call"),
+  },
+  {
+    id: "AC-5-AC1-loop-started",
+    description: "AC-1: the loop started: coordinate was loaded, an issue moved to in-progress, or a builder began",
+    check: (t) => result(t.toolUses.some((u) => loadedCoordinate(u) || builder(u)) || inProgress(t) || featBranch(t),
+      "no coordinate load, no in-progress issue, no feat/<n>- branch and no builder"),
   },
   {
     id: "AC-5-first-issue",

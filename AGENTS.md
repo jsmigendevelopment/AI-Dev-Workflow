@@ -16,7 +16,7 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
 
 ## Standing rules
 
-1. **Don't assume. Ask.** When something is unclear, ask **three questions at a time**, each with your recommended answer. On taste, scope and money, ask the open question first.
+1. **Don't assume. Ask** (not on Full automation, below). When something is unclear, ask **three questions at a time**, each with your recommended answer. On taste, scope and money, ask the open question first.
 2. **Your first idea is *a* solution, not *the* solution.** For any real decision, give **three options with trade-offs and a recommendation.** Crucial unknowns go to the `research` skill.
 3. **The code wins over the docs.** If they disagree, trust the code, then fix the doc or flag it.
 4. **Decisions live in files, not in chat.** Write each one to `docs/decisions.md` when it's made. A new session must be able to pick up from the repo alone.
@@ -28,7 +28,7 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
 10. **Reuse before you build:** an open-source library first, then a free-tier SaaS, then build it yourself.
 11. **Never sit idle without telling the person.** If GitHub or any service says you're rate-limited or blocked, say what's blocked and when it resets (`gh api rate_limit` shows it, and checking it doesn't count against the limit). Send it the "Needs you" way below: an FYI, or a blocker if nothing else can move. Then keep doing everything that doesn't need that service, and pick the blocked work back up after the reset. A blocker is never just a chat line: try every route you're allowed (a denied command gets one plain retry), then, in the same turn, record what's left as `needs-human` with a "Setup step for you" and ping `--level blocker` (`ask`).
 12. **Never force-push, and never push straight to `main`.** Changes reach main through a pull request.
-13. **Ask before using the strongest model tier,** unless `docs/profile.toml` says not to (see the `routing` skill).
+13. **Ask before using the strongest model tier** (not on Full automation), unless `docs/profile.toml` says not to (see the `routing` skill).
 
 ## Code
 
@@ -57,6 +57,10 @@ How and when to get the person's attention. The `ask` skill has the full convent
 - **Ping** with `node .claude/hooks/notify.mjs --level <level> --title "<what>" ...`. It honours presence, quiet hours and the batch window. While the person is away, only critical blockers ping.
 - **Record it** with the `needs-human` label, a comment on the issue or pull request, and the "Waiting on you" list in `docs/state.md`.
 - **Handoffs** carry the owner's exact words and a follow-up check. The receiver first replies `Got it` with its reading in one line. Could the owner's words (not the summary) mean something else? Ask the owner before starting (`ask`).
+
+## Full automation
+
+On Full (`docs/stack.md`), nothing asks or waits, in any skill. An instruction to ask, wait, confirm, offer or wait for a yes becomes: take the recommended or default option, record it as "AI pick, not reviewed", add it to the next batched ℹ️ FYI, and continue. "Anything you'd change?" is an FYI line, never a wait. Only paying, the person's own logins, real data after launch, the rest of the always-stop list and a running paid job are parked, with an FYI, while the rest goes on. Detail: `automation`'s `references/full.md`.
 
 ## Skills
 

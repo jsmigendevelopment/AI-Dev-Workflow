@@ -32,4 +32,4 @@ Then finish the pass's Gate record row in `docs/pyramid.md`: date, feedback issu
 
 ## After the MVP's last pass
 
-The MVP is complete on the test site. It is not launched. Run steps 1 to 3 the same way. In step 4, ask the person what's next: the first layer of the hourglass, more cleanup, or nothing yet. Then say: *"MVP complete; launch is your call."* Launch follows the always-stop list. Never start it because the pyramid ended.
+The MVP is complete on the test site. It is not launched. Run steps 1 to 3 the same way. In step 4, ask the person what's next: the first layer of the hourglass, more cleanup, or nothing yet. On Full, start the first hourglass layer, with an FYI. Then say: *"MVP complete; launch is your call."* Launch follows the always-stop list. Never start it because the pyramid ended.

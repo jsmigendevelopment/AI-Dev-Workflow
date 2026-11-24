@@ -13,7 +13,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 ## Steps
 
-0. **Load the person's profile.** If `~/.onrails/profile.toml` (or `~/.ai-dev-workflow/profile.toml`, its folder's name before the rename) exists and this project has no `docs/profile.toml`, copy it in with `npx onrails profile copy`. Copying by hand? Replace `[research] library` and `library_path` with `# <key>: set in your personal profile only`: they name a private repo. If neither exists, offer once to make one from `templates/profile.toml`: *"Want a personal profile so I stop asking the same questions every app?"* Everything in the profile is a default you confirm, not a question you ask.
+0. **Load the person's profile.** If `~/.onrails/profile.toml` (or `~/.ai-dev-workflow/profile.toml`, its folder's name before the rename) exists and this project has no `docs/profile.toml`, copy it in with `npx onrails profile copy`. Copying by hand? Replace `[research] library` and `library_path` with `# <key>: set in your personal profile only`: they name a private repo. If neither exists, offer once to make one from `templates/profile.toml`: *"Want a personal profile so I stop asking the same questions every app?"* Everything in the profile is a default you confirm, not a question you ask. On Full, don't offer a profile: use the project's or none.
    - **Then ask the first question: the automation level** (see `automation`). Show this table first, and say in one line each how it differs from the risk dial (asked later, in the tech grill): *the automation level is how much agents do without you; the risk dial is how careful each merge is.*
 
    | Level | Agents do | You do |
@@ -26,7 +26,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
    - The profile's `[defaults] automation` is the suggested pick. Full picked? Say `automation`'s one-prompt line. Write the answer to `kickoff/decisions.md`. `stack` copies it into the "Automation level" section of `docs/stack.md` in step 7.
    - **Then ask: "Full grill or auto grill?"** In one line each: *full: I ask you about three questions at a time, topic by topic. Auto: you answer four questions, I make every other pick with two alternatives, and you review it all at once.* Full is the suggested pick for a first-time user. The profile's `[defaults] grill` overrides that. Write the answer to `kickoff/decisions.md`.
 
-1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter.
+1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter. On Full, the pitch came with `/idea`: play it back and go on, without waiting.
 
 2. **Product grill.** Open `grill` and run its product topics. Auto grill? `grill` loads `references/auto.md`: the seed questions, the self-grill, then the review. The review also picks the name shortlist's winner and the stage-1 layout. Until the repo exists, the notes live in a local `kickoff/` folder: `grill-log.md`, `decisions.md`, `features.md` and `vision.md`, each started from this skill's `templates/`, plus `kickoff/research/README.md` from `templates/research-index.md`, so the first dossier has a home.
    - **Background work starts here.** At the end of the main-flow topic, the grill starts the competitor scan (`kickoff/research/competitors.md`, ready by the MVP topic) and `wireframes` stage 1, the layout. Once look and feel is answered, it starts stage 2, the detailed UI and UX. Each screen is shown as it's done (full grill; in auto mode, hold screens for the review). No way to run them in the background? Draw stage 1 after the grill and stage 2 after step 5.
@@ -62,6 +62,8 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
    - **when they'll first see it:** running locally at the start of slice 0, before CI; on the test site once slice 0 merges, and what still has to happen before then;
    - that each merged step comes with a line on what to try, and feedback can come any time;
    - that at the end of a pass the loop keeps going on fixes and cleanup, and the next pass is planned only once they've tried it. On Full: once `qa` has tried it and the re-plan is done (`pass-gate.md`).
+
+   On Full, send this as the FYI and end with the loop starting, not a question.
 
    **Then start the loop.** Automation level not Hands-on? Open `coordinate` now, without asking, and say so in one line: *"Starting the build loop: it builds every ready issue in order and shows you each step."* "Go ahead", "start" or "yes" always means the loop, never one issue. Build one issue at a time only on Hands-on, or when the person says those words. **Done when** `coordinate` is running, or the level is Hands-on and the person knows which issue to ask for first.
 

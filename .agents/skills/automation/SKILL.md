@@ -50,7 +50,8 @@ On Full, `/idea "<pitch>"` runs the whole kickoff with no person step:
 - **Naming, the stack** (the recommended picks), **the pyramid, the issues and the loop** follow, with no question.
 - **A missing key or account** parks only what needs it, as a "Waiting on you" record. The loop goes on.
 - **The person steers any time,** in the review or in chat. A changed one-way door becomes a re-plan issue that names what it costs to change.
-- **Still never:** the always-stop list.
+- **Still never:** the always-stop list. What needs the person (paying, their own logins, real data after launch, a running paid job) is parked with an FYI; the rest goes on.
+- **One rule for every skill:** `references/full.md`. Any ask, wait, confirm or offer becomes the recommended pick, "AI pick, not reviewed" and an FYI line. Rule and check changes get the weakening review instead of the person.
 
 Recommended and Hands-on keep every wait: the review and the wireframe approval.
 
@@ -70,6 +71,12 @@ Recommended and Hands-on keep every wait: the review and the wireframe approval.
 - **Full → Recommended once real users arrive,** or when the risk dial moves to careful. Say it at `/back` and when an issue first touches real user data.
 - **Hands-on → Recommended** when the person says they're tired of merging by hand.
 - Never switch on your own. Suggest it, and let the person say yes.
+
+## References
+
+| File | Load when |
+|---|---|
+| `references/full.md` | The level is Full, and a skill says to ask, wait, confirm, offer or wait for a yes; or a pull request changes agent rules or check code. |
 
 ## Who reads it
 

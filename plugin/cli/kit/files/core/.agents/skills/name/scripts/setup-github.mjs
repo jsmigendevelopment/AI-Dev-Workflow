@@ -17,6 +17,8 @@
 //   Enterprise:  Team, plus environment protection rules on private repos, such as a required
 //                reviewer before a production deploy. Public repos get them on every plan.
 // It reads the repo from the git remote and calls only the REST API (no GraphQL, no `gh repo view`).
+// On Full automation (the Level line in docs/stack.md), main doesn't require the `agent-files` check:
+// the weakening review stands in for the person there (#103, `automation`'s references/full.md).
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -131,6 +133,11 @@ await step("secret scanning + push protection", SECRET_PROTECTION, () =>
   }),
 );
 
+// Full automation? Read from docs/stack.md at the repo's top level.
+const stackFile = join(git(["rev-parse", "--show-toplevel"]), "docs", "stack.md");
+const FULL = existsSync(stackFile) && /\*\*Level:\*\*\s*`?full\b/i.test(readFileSync(stackFile, "utf8"));
+const requiredChecks = ["checks", "secrets", ...(FULL ? [] : ["agent-files"])].map((context) => ({ context }));
+
 // 4. Rules on main: pull requests only, no force push or delete, green checks required.
 //    No approval required: GitHub won't let the author approve their own pull request.
 //    A free private repo relies on the kit's blocked git commands instead.
@@ -146,10 +153,12 @@ await step("rules on main", TEAM, () => {
       { type: "deletion" },
       { type: "non_fast_forward" },
       { type: "pull_request", parameters: { required_approving_review_count: 0, dismiss_stale_reviews_on_push: false, require_code_owner_review: false, require_last_push_approval: false, required_review_thread_resolution: false } },
-      { type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: [{ context: "checks" }, { context: "secrets" }, { context: "agent-files" }] } },
+      { type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: requiredChecks } },
     ],
   });
 });
+
+if (FULL) results.push(["note", "rules on main", "", "Full automation: agent-files isn't required; the weakening review stands in"]);
 
 // 5. Environments. `test` and `production` deploy from main only. Put production secrets
 //    in the production environment only.

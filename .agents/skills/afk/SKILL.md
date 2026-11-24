@@ -13,12 +13,14 @@ description: Use when the person is stepping away and wants the build loop to ke
    - **Check the automation level** in `docs/stack.md` (see `automation`):
      - **Hands-on:** no loop. Write the state note (step 5) and stop.
      - **Recommended:** the overnight loop is off. For a long break, ask: *"Keep building while you're away, or finish what's in flight and stop?"* Recommend keep building if main is green.
-     - **Full:** keep building.
+     - **Full:** keep building. Ask nothing in this skill: take each recommended answer (`automation`'s `references/full.md`).
 
 2. **Check usage** (see "Checking usage" below). Count the ready issues and in-flight pull requests. If the queue could hit a limit before the person is back, ask what to do when it does:
    - **wait for the reset and carry on** (recommended);
    - **shrink the queue:** only the top-priority issues;
    - **finish what's in flight, then stop** and leave a report.
+
+   On Full, don't ask: wait for the reset and carry on (the sweep timer), and say so in the FYI.
 
    **Never switch, spread or fall back to another account to get around a limit.** Accounts are a fixed split (`[accounts]` in the profile): at a limit, that account's work waits for the reset. Providers' terms can treat moving work as account rotation, and it puts the person's accounts at risk. With more than one account, check each one's usage and ask this per account.
 
@@ -49,11 +51,11 @@ description: Use when the person is stepping away and wants the build loop to ke
 
 - **Keep going:** build, check, review and merge to main, deploy to **test**, smoke-test.
 - **Never:** deploy to production, touch production settings or secrets, delete or migrate real data, or spend money.
-- **No migrations or new dependencies,** unless the issue was already approved for them.
+- **No migrations or new dependencies,** unless the issue was already approved for them. On Full they're allowed; every review still runs.
 - **Anything that needs the person:** use the `ask` skill at its level, label it `needs-human`, and move on. Don't wait. While the person is away, `notify.mjs` holds every ping except critical blockers (production down, a live security hole).
 - **New issues:** only for bugs the checks find, a pass gate's audit and cleanup pick, and the retro's findings at the hard stop. Feedback the person left before going: something wrong or slow in what's built is an issue; something missing is a row in `docs/features.md`, never an issue. Don't invent features.
 - **Main goes red:** stop merging, file a bug, and keep building only on branches.
-- **A pass is done:** follow `coordinate`'s "End of a pass": run the gate's audit and cleanup pick, and build that gate work. Start nothing from the next pass. When the gate work runs out, stop, and write it to the `/afk` section. The person's try-out and the re-plan wait for them.
+- **A pass is done:** follow `coordinate`'s "End of a pass": run the gate's audit and cleanup pick, and build that gate work. Start nothing from the next pass. When the gate work runs out, stop, and write it to the `/afk` section. The person's try-out and the re-plan wait for them. On Full they don't: `qa` tries it, the re-plan runs, and the next pass starts (`../pyramid/references/pass-gate.md`).
 - **An issue fails twice** (a builder that dies or a rejected check, counted together): park it.
 - **Another account's job:** don't run it here. Write a ready-to-paste prompt for that account's cloud session (`routing`'s `references/accounts.md`) to the `/afk` section as an ℹ️ FYI.
 - **An account hits its usage limit:** its work waits for the reset, with an ℹ️ FYI and the reset time in `docs/state.md`. It never moves to another account.

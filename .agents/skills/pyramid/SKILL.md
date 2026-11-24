@@ -26,7 +26,7 @@ pass 1  Works ████ ████  ████   ████ ███�
               sup. sup.  CORE   sup. sup.
 ```
 
-- **The MVP is 3 passes.** More needs a written reason in `docs/decisions.md` and the person's yes. Never more than 4.
+- **The MVP is 3 passes.** More needs a written reason in `docs/decisions.md` and the person's yes (on Full, the reason and an FYI). Never more than 4.
 - **The core slice is the tallest column.** Supporting slices stop once they serve the core.
 - **The end of pass 3 is "MVP complete" on the test site. It is not launch.** Launch is the person's call, on the always-stop list, any time after.
 
@@ -34,7 +34,7 @@ pass 1  Works ████ ████  ████   ████ ███�
 
 Only the core, the supporting slices the core can't work without, and the floor (sign-in, who sees what, deleting personal data). Test each slice: **does the core work without it?** Yes? It's not in the MVP.
 
-- A non-core "must" the person insists on: ask once, plainly. Still a must? It goes in as a supporting slice with the role `insisted`, capped at pass 1 or 2. Record the decision.
+- A non-core "must" the person insists on: ask once, plainly (on Full, keep it, capped as below, with an FYI). Still a must? It goes in as a supporting slice with the role `insisted`, capped at pass 1 or 2. Record the decision.
 - Everything else in `docs/features.md` waits for the top half of the hourglass, below.
 
 ## After the MVP: the hourglass
@@ -76,7 +76,7 @@ pass 1  ████ ████ ████ ████ ████
      - **On Full automation, ask nothing.** `gh` signed in? Run it without `--dry-run`, and put the results in an ℹ️ FYI. Not signed in? Run local mode (`../coordinate/references/local-mode.md`) and list `gh auth login` in the FYI.
 2. **Seed data and test users.** Once the schema is designed (step 4), the first step that adds a table also adds a seed script and **two test users**, so `qa` can always sign in and check that one user can't see another's data.
 3. **List the slices** from `docs/mvp.md`. One slice is one thing a user can do, end to end. Name the **core.** Keep only slices that pass "does the core work without it?". Not every app needs auth.
-4. **Design what the slices share.** Start from the approved screens and tokens in `docs/design.md` and `docs/wireframes/index.html`. No approval row in `docs/decisions.md`? Stop and run `wireframes` first. On Full automation, a `Wireframes: AI pick, not reviewed` row counts as the approval. Apply the tokens to the UI kit's theme, then write the schema and the API contracts the screens need. A screen that must change goes back through `wireframes` for approval. Builders follow this design. They don't invent their own.
+4. **Design what the slices share.** Start from the approved screens and tokens in `docs/design.md` and `docs/wireframes/index.html`. No approval row in `docs/decisions.md`? Stop and run `wireframes` first. On Full automation, a `Wireframes: AI pick, not reviewed` row counts as the approval. Apply the tokens to the UI kit's theme, then write the schema and the API contracts the screens need. A screen that must change goes back through `wireframes` for approval. On Full, the changed screen is "AI pick, not reviewed" with an FYI, and the plan goes on. Builders follow this design. They don't invent their own.
 5. **Outline every pass.** For each: the milestone name, its slices, and one line per slice on what "better" means.
 6. **Cut the current pass into steps,** and only the current pass. For each of its slices, list the smallest changes a person can try, and put each through the thin test below. Order them: slice 0 first, then the step that proves the riskiest idea, usually in the core. Fill in "After" only where one step truly needs another, so steps that don't can be built at the same time.
 7. **Write `docs/pyramid.md`** from the `idea` skill's template: the steps go in its steps table, and the current pass is marked `building`.

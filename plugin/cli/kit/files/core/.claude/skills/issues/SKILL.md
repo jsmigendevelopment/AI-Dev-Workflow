@@ -9,6 +9,8 @@ A builder knows only what the issue says, plus `AGENTS.md` and `docs/design.md`.
 
 Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the everyday model at medium effort. The design decisions are already made, so don't redesign here. If the plan has a gap, it's a ⏳ decision: write the issues you can, and use the `ask` skill for the gap. A gap in the MVP core is a 🛑 blocker.
 
+**On Full automation,** the CTO decides every gap instead: a plan gap, an MVP-core gap, a `[NEEDS CLARIFICATION]` marker and a consistency-check gap. Record each as "AI pick, not reviewed" in `docs/decisions.md`, write the issue, and list them in one ℹ️ FYI.
+
 **Hands-on** automation: write the issues and stop. Don't add `status:ready` unless the person asks. They pick what gets built.
 
 ## Steps

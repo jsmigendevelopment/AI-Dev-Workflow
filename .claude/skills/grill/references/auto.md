@@ -2,7 +2,7 @@
 
 The AI grills itself, then the person reviews everything in one sitting. The topics, their order, the floor and the log are the same as the full grill. Only who answers first changes.
 
-**On Full automation** (the level in `kickoff/decisions.md`), nothing waits on the person. Each step's "On Full" line says what changes. Recommended and Hands-on keep every wait.
+**On Full automation** (the level in `kickoff/decisions.md`, or in `docs/stack.md` once the folder has moved), nothing waits on the person. Each step's "On Full" line says what changes. Recommended and Hands-on keep every wait.
 
 ## 1. Recommend a high-end run
 
@@ -91,7 +91,7 @@ Change any row in plain words. "Looks good" accepts the rest.
 
 - End every `Pick:` line and the look-and-feel picks with "AI pick, not reviewed". Set every AI row's source in `grill-log.md`, and every originator in `decisions.md`, to **AI pick, not reviewed**.
 - Send one ℹ️ FYI with the link, the seed guesses first: `node .claude/hooks/notify.mjs --level fyi --title "Kickoff review: AI picks, not reviewed" --message "<the guesses>. Change any pick, any time." --link kickoff/review.md`.
-- Say in chat, in one line, where the review is and that you're going on. Ask nothing. Go to step 6.
+- Don't show the review in chat: no `Question:` lines and no "Change any row". Say in one line where it is and that you're going on. Go to step 6.
 
 **Done when** `review.md` has a door block for each of the five doors, the person has answered every door on its own, and they've replied on the table. On Full: `review.md` has the five door blocks, every pick says "AI pick, not reviewed", and the FYI was sent.
 

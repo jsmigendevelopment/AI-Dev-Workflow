@@ -16,7 +16,7 @@ Before the repo exists, write to `kickoff/` instead of `docs/`. `name` moves it.
 
 ## Screen by screen
 
-At both stages, draw one screen at a time. When it's done, show it: open the prototype at its `#id` in a browser if you can, or give the full path (double-click it, or drag it into a browser). One line on what it is, then ask: *"What would you change?"* Start the next screen at once. Fold the answer into its screen while the next one draws. Never hold screens back for the whole set.
+At both stages, draw one screen at a time. When it's done, show it: open the prototype at its `#id` in a browser if you can, or give the full path (double-click it, or drag it into a browser). One line on what it is, then ask: *"What would you change?"* (on Full, at either stage: *"Tell me any time"*, no wait). Start the next screen at once. Fold the answer into its screen while the next one draws. Never hold screens back for the whole set.
 
 Auto grill is the one exception: in auto mode, hold screens for the review (`grill`'s `references/auto.md`). On Full automation, auto grill holds them too, and nothing waits on the review.
 
@@ -36,7 +36,7 @@ One file, `docs/wireframes/index.html`. Stage 1 starts it; stage 2 details it.
 3. **Draw each screen,** screen by screen: an ASCII sketch under "Screens" in `design.md` (what's on it, what each action does), and a grey-box section in the prototype. System font, greys only.
 4. **Follow the grill.** A new `must` feature or a floor item (sign-in, delete my data) adds or changes a screen. The MVP cut drops the screens the MVP doesn't need. Say what changed.
 
-**Done when** every screen the MVP needs is sketched and in the prototype, and the person has seen each one.
+**Done when** every screen the MVP needs is sketched and in the prototype, and the person has seen each one. On Full: and the review's FYI links them.
 
 ## Stage 2: detailed UI and UX
 
@@ -57,5 +57,5 @@ One file, `docs/wireframes/index.html`. Stage 1 starts it; stage 2 details it.
 ## Rules
 
 - **Approval is once, for the full stage-2 set.** Per-screen comments are feedback, not approval.
-- **A changed screen goes back through approval.** Redraw, show, and add a new approval row. The old row stays. On Full, a screen the agents change at a re-plan gets a `Wireframes: AI pick, not reviewed` row and an ℹ️ FYI instead.
+- **A changed screen goes back through approval.** Redraw, show, and add a new approval row. The old row stays. On Full, a screen the agents change, in the first plan, during a pass or at a re-plan, gets a `Wireframes: AI pick, not reviewed` row and an ℹ️ FYI instead.
 - **New screens later** (in `/join` or a big feature): both stages, for the new screens only, in the same prototype. Stage 1 once the flow is clear, stage 2 once the look is agreed.
