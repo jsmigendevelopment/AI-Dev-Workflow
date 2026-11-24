@@ -190,6 +190,7 @@ At every risk and automation level, the agent stops and asks before:
 - touching production settings, secrets or `.env` files
 - deploying to production or making the app public
 - spending money or signing up for a paid service
+- stopping or restarting a running strongest-tier job on its own call. "Not yet" means new work only; your "stop it" stops it at once
 
 ### Security reviews
 
@@ -225,7 +226,7 @@ The [`secrets`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/
 
 ### Tests that the skills change behaviour
 
-[`evals/`](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md) holds fifteen small scenarios, one per rule that matters most: the grill asks before it builds, no force push or push to main, keys never in chat or git, test first inside the fence, a reviewer catches a weakened test, the wireframe gate, asking before the strongest model, a plan cut into thin steps you can try, a plan cut by layer sent back, the auto grill surfacing a one-way door, slice 0 showing the running app before CI, a blocker recorded instead of left in chat, a handoff answered with a reading, "go ahead" building more than one issue, and a blocked issue not stopping the next one. Each runs in Claude Code twice, with the kit and without, and checks what the agent did from its transcript and files, never from another model's opinion. A scenario passes only if the kit made the difference. CI runs them on Claude Haiku 5.5 when a skill, `AGENTS.md`, the plugin or a script changes. A full run cost about $0.16 when measured in 2026-11. Not every scenario passes on that model yet: [the evals README](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md#cost-controls) says which. `npm run evals` runs them locally with your own login.
+[`evals/`](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md) holds seventeen small scenarios, one per rule that matters most: the grill asks before it builds, no force push or push to main, keys never in chat or git, test first inside the fence, a reviewer catches a weakened test, the wireframe gate, asking before the strongest model, a plan cut into thin steps you can try, a plan cut by layer sent back, the auto grill surfacing a one-way door, slice 0 showing the running app before CI, a blocker recorded instead of left in chat, a handoff answered with a reading, "go ahead" building more than one issue, a blocked issue not stopping the next one, "not yet" leaving a running strongest-tier job alone, and "stop it" stopping it. Each runs in Claude Code twice, with the kit and without, and checks what the agent did from its transcript and files, never from another model's opinion. A scenario passes only if the kit made the difference. CI runs them on Claude Haiku 5.5 when a skill, `AGENTS.md`, the plugin or a script changes. A full run cost about $0.16 when measured in 2026-11. Not every scenario passes on that model yet: [the evals README](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md#cost-controls) says which. `npm run evals` runs them locally with your own login.
 
 ### And the rest
 
