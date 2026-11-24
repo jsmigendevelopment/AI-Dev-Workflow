@@ -11,6 +11,7 @@
 //   node worklog.mjs active                 throttled heartbeat (prompt hook): at most every 5 min
 //   node worklog.mjs presence [afk <note> | back | announced]   read or set ~/.onrails/presence.json
 //        afk flags: --until <hard stop, ISO time> --merge "<what may merge>" --pings "<what pings>"
+//                   --open-ended: no hard stop (Full automation), so the away never goes stale
 //   node worklog.mjs presence --shared '<Presence row JSON>'   read local, then the sheet's copy
 //   node worklog.mjs presence sheet         the Presence tab's values, for the Google Sheets connector
 //   node worklog.mjs report [--days N]      hours per day for this project (default 7 days)
@@ -104,10 +105,13 @@ function machine() {
 }
 
 // An away past its hard stop, or older than a day, counts as unknown: the session that set it may be dead.
+// An open-ended away (Full automation, no hard stop) only ends with /back.
 const STALE_MS = 24 * 3600e3;
 function isStale(p) {
   const now = Date.now();
-  return p.status === "away" && ((p.until && Date.parse(p.until) < now) || now - Date.parse(p.since) > STALE_MS);
+  if (p.status !== "away") return false;
+  if (p.until) return Date.parse(p.until) < now;
+  return !p.openEnded && now - Date.parse(p.since) > STALE_MS;
 }
 const view = (p) => (isStale(p) ? { ...p, status: "unknown", stale: true } : p);
 
@@ -118,6 +122,7 @@ function afkArgs(args) {
     const [flag, value] = [args[i], args[i + 1]];
     if (flag === "--until" && Date.parse(value)) { out.until = new Date(Date.parse(value)).toISOString(); i++; }
     else if (flag === "--merge" || flag === "--pings") { out.rules[flag.slice(2)] = value; i++; }
+    else if (flag === "--open-ended") out.openEnded = true;
     else out.note.push(flag);
   }
   return { ...out, note: out.note.join(" ") };
@@ -128,7 +133,7 @@ function setPresence(status, afk = { note: "", rules: {} }) {
   if (status === "here" && prev.status !== "away") return prev;
   const since = new Date().toISOString();
   const next = status === "away"
-    ? { status, since, until: afk.until, rules: Object.keys(afk.rules).length ? afk.rules : undefined, machine: machine(), note: afk.note || undefined, project: basename(projectRoot()) }
+    ? { status, since, until: afk.until, openEnded: afk.until ? undefined : afk.openEnded, rules: Object.keys(afk.rules).length ? afk.rules : undefined, machine: machine(), note: afk.note || undefined, project: basename(projectRoot()) }
     : { status, since, returnedAt: since, machine: machine(), awayNote: prev.note, awaySince: prev.since };
   mkdirSync(HOME_DIR, { recursive: true });
   writeFileSync(PRESENCE, JSON.stringify(next) + "\n");

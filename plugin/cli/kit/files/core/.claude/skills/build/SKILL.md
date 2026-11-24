@@ -42,8 +42,8 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 13. **Handing work on?** Anything you pass to another session is a handoff: write it down with the owner's exact words and schedule the follow-up (`../ask/references/handoffs.md`).
    - **No pull request** when your brief says "Local mode", or there's no GitHub remote or API: commit on the branch, push it if there's a remote, and give its head commit. `coordinate`'s local mode reviews and merges it (`../coordinate/references/local-mode.md`).
 14. **Finish:** `node .agents/skills/coordinate/scripts/board.mjs event finished issue=<n>`.
-    - **In the loop** (your brief came from a coordinator): exit. Don't wait for the review.
-    - **Run alone:** give the try line, then keep the loop moving. Hands-on? Stop and report. Otherwise open `coordinate` and run it from here. It reads the "Sweep timer" line in `docs/state.md` first and arms one only if none is live. It takes your branch, if you made one, through review and merge, and starts the next ready issue. Stop only on a 🛑 blocker with nothing else that can move. **Done when** the next ready issue has started, or you said why nothing can.
+    - **In the loop** (your brief came from a coordinator, or you are the coordinator building it yourself in local mode): exit, or go back to the coordinator's step. Don't wait for the review, and don't reopen `coordinate`.
+    - **Run alone:** give the try line, then keep the loop moving. Hands-on? Stop and report. Otherwise open `coordinate` and run it from here. It arms a sweep timer only if `timer.mjs should-arm` says none is live. It takes your branch, if you made one, through review and merge, and starts the next ready issue. Stop only on a 🛑 blocker with nothing else that can move. **Done when** the next ready issue has started, or you said why nothing can.
 
 ## Show it
 

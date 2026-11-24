@@ -1,7 +1,7 @@
 // AC-5 of #101, for AC-4: stuck isn't stopped. The blocked issue is parked and recorded, and the
 // independent one is built in the same run. With no remote, the approved #3 is merged locally (AC-3).
 import { result } from "../../lib/checks.mjs";
-import { built, onMain, versions } from "../../lib/local-issues.mjs";
+import { built, mergedExactly, versions } from "../../lib/local-issues.mjs";
 import { BLOCKED } from "./fixture.mjs";
 
 const PARKED = /needs-human|^Status:\s*blocked/im;
@@ -19,8 +19,8 @@ export const checks = [
   },
   {
     id: "AC-5-AC3-local-merge",
-    description: "AC-3: #3's reviewed commit is on local main: merged locally, with no remote",
-    check: (t) => result(onMain(t, t.meta.reviewedSha), "#3's reviewed commit isn't on main"),
+    description: "AC-3: #3's reviewed commit itself is merged into local main (on its first-parent line, or a merge's parent), with no remote",
+    check: (t) => result(mergedExactly(t, t.meta.reviewedSha), "main has no merge of #3's reviewed sha itself"),
   },
 ];
 

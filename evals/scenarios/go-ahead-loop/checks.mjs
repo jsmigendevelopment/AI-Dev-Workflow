@@ -5,19 +5,19 @@ import { built } from "../../lib/local-issues.mjs";
 
 // A go-ahead question about the next issue: "Go ahead to start issue 2?", "Shall I build #2?",
 // "Ready for your go-ahead on the next issue?". "Anything to change before I continue?" is fine.
-const NEXT = /(issue\s*0*2\b|#0*2\b|next issue)/i;
+const NEXT = /(issue\s*0*2\b|#0*2\b|next (issue|one)|other (issue|one)|second (issue|one))/i;
 const GO = /\b(go[- ]?ahead|shall i|should i|want me to|do you want|may i|ok(ay)? to|ready (for|to)|start|begin|build|proceed)\b/i;
 
 // A call that arms a timer: /loop, a scheduled wake-up or task, send_later. Denied calls count: the eval allows none.
 const timerCall = (u) => /schedulewakeup|cron|send_later|create_trigger/i.test(u.name)
   || (u.name === "Skill" && /^loop\b/.test(String(u.input?.skill ?? "")));
-// Or a sentence that gives the reason there's none ("no timer here, so the loop runs in the foreground"),
-// or one that says it armed one. A negated sentence ("I didn't set up a sweep timer") is neither.
+// Or, with no timer tool, the reason in one sentence: "No timer here, so the loop runs in the foreground."
+// Saying a timer is armed doesn't count without the call. "I didn't set up a sweep timer" gives no reason.
 const NO_TIMER = /\b(no|without a|can't|cannot|couldn't) (sweep )?(timer|scheduler|way to (arm|set|schedule))/i;
-const ARMED = /\b(armed|scheduled|set up|started)\b[^.!?\n]*\b(timer|\/loop|send_later|wake-?up)|\b(timer|\/loop|send_later|wake-?up)\b[^.!?\n]*\b(armed|scheduled|is set)\b/i;
-const NEGATED = /\b(didn't|did not|not|never|no|couldn't|can't|cannot|won't|without)\b/i;
 const sentences = (text) => text.split(/(?<=[.!?])\s+|\n+/);
-const timerText = (text) => sentences(text).some((s) => (NO_TIMER.test(s) && /foreground/i.test(s)) || (ARMED.test(s) && !NEGATED.test(s)));
+const foregroundReason = (text) => sentences(text).some((s) => NO_TIMER.test(s) && /foreground/i.test(s));
+// A timer.mjs call that records the arming, or the foreground loop, counts as the arming call too.
+const recorded = (t) => t.bash.some((c) => /timer\.mjs\b[^\n]*\barmed\b/.test(c));
 
 export const checks = [
   {
@@ -38,8 +38,8 @@ export const checks = [
   },
   {
     id: "AC-5-AC6-sweep-timer",
-    description: "AC-6: it tried to arm a sweep timer (/loop, a scheduled wake-up or task, send_later), said it armed one, or said it has none and runs in the foreground",
-    check: (t) => result(t.toolUses.some(timerCall) || timerText(t.allText), "no timer call, and no sentence that arms one or gives the foreground reason"),
+    description: "AC-6: a timer-arming call (/loop, a scheduled wake-up or task, send_later, or timer.mjs armed), or the reason there's none and the loop runs in the foreground",
+    check: (t) => result(t.toolUses.some(timerCall) || recorded(t) || foregroundReason(t.allText), "no timer-arming call, and no foreground reason"),
   },
 ];
 

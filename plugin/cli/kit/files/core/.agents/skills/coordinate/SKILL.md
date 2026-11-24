@@ -9,27 +9,23 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 ## Start
 
-1. **One sweep timer, recorded.** The live timer is one line in `docs/state.md`:
+1. **One sweep timer,** every 10 minutes. Hands-on? Skip it: the loop runs only the run the person asked for. `scripts/timer.mjs` keeps the timer in the `Sweep timer:` line of `docs/state.md`. Never edit that line by hand. `T` below is `node .agents/skills/coordinate/scripts/timer.mjs`.
+   - **A firing** (the turn says *"Sweep timer fired <tag>"*): run `T fired <tag>`, then the sweep. Step 10 re-arms only if `fired` exited 0.
+   - **Any other start** (the person, an event, `build`, `back`): run `T should-arm`. Exit 0: arm one. Exit 1: arm nothing.
+   - **To arm:** make a tag, `sweep-<UTC time>`. Set the timer with the message *"Sweep timer fired <tag>: run one coordinate sweep."*, then `T armed <kind> <tag>+<tool's id> <minutes>`, at the line's interval (10 at first).
+     - One-shot: a cloud session's `send_later` (its scheduled tasks usually run hourly at best), a Claude Code scheduled wake-up.
+     - Repeating: Claude Code `/loop 10m` with that message, a recurring scheduled task, Codex's recurring task.
+     - None at all: sweep, wait 10 minutes, sweep, in the foreground. `T armed foreground <tag> 10`, and say so once.
+   - **To stop:** cancel it by the tool's id from `T status`, then `T cancelled`.
 
-   ```text
-   Sweep timer: <send_later | wake-up | /loop | scheduled task | foreground> · <id> · next <time, UTC> · every <10 | 30> min
-   ```
-
-   - **Read the line first.** A timer is live when the line exists and its next time is no more than 5 minutes past. Live? Leave it alone. None, or past due by more than 5 minutes (dead)? Arm one and write the line.
-   - **Repeating** (Claude Code `/loop 10m`, a recurring scheduled task, Codex's recurring task): armed once. Its id is the job's id. Update "next" each time it fires.
-   - **One-shot** (a cloud session's `send_later`, a Claude Code scheduled wake-up): its message is *"Sweep timer fired: run one coordinate sweep."* Only that firing re-arms it, at the end of its sweep (step 10). A sweep started by an event never arms one.
-   - **In a cloud session,** use `send_later`: its scheduled tasks usually run hourly at best.
-   - **No timer at all?** Run the loop in the foreground (sweep, wait 10 minutes, sweep), write `Sweep timer: foreground`, and say so once.
-   - **Change the interval, or stop:** cancel the recorded one by its id first, then arm the new one and rewrite the line.
-
-   **Done when** the line names one live timer with its id, or says `foreground`, and the person knows which.
+   **Done when** `T status` prints `live`, or the level is Hands-on.
 2. **Pick the mode.** Load `references/local-mode.md` when the repo has no remote at all, the remote isn't GitHub, or the GitHub API is rate-limited ("Go easy on the GitHub API"). Every step below still applies; that file says where each one reads and writes instead.
 
 ## The loop
 
 1. **Check presence and the automation level.**
    - Run `node .agents/skills/afk/scripts/worklog.mjs presence`. If the profile sets `[board] sheet` and you have the Google Sheets connector, read the Presence tab first and pass it with `--shared` (see "The Presence tab" in `board.md`). If the status is `away`, follow the `afk` skill's unattended rules on this pass, and its `rules` for what may merge and what pings. `unknown` (a stale away) means normal rules; add an ℹ️ FYI once.
-   - An `/afk` section in `docs/state.md` with a hard stop that has passed? Follow `afk`'s hard stop now: no merges.
+   - **Past a hard stop:** presence is `away`, or `unknown` because its hard stop passed, and the `/afk` section in `docs/state.md` is still open (`/back` hasn't ended it)? Follow `afk`'s hard stop: merge nothing, start nothing, arm nothing, and note new pushes for `/back`.
    - Read "Automation level" in `docs/stack.md` (see the `automation` skill). If the loop is off (hands-on), run only when the person asked for this run, never merge, and open pull requests only if they said so.
 
    - **Can the next merge reach the test site?** Check, by name only, that the deploy's secrets exist (`gh secret list --env test`, and whatever `secrets` lists for the stack). If one is missing, don't wait until a deploy fails: raise a 🛑 blocker for the deploy now (the `ask` skill), with the `secrets` checklist as the next action and the time it takes. Keep building what doesn't need it.
@@ -83,10 +79,10 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
     - **orphan check:** from the lists you already fetched, find every `handoff` record with no `Got it ·` receipt, or past its "check by" time with no result, and every stale claim. Each one not yet on "Waiting on you" is a ⏳ decision through `ask`;
     - run `node .claude/hooks/notify.mjs --flush`, so batched decisions go out.
 
-    - **Under `/afk`:** every second sweep, run the watchdog checks in `afk`. Past the hard stop the person set? Go to `afk`'s hard stop, even with work left.
+    - **Under `/afk`:** every second sweep, run the watchdog checks in `afk`.
     - **The sweep timer** (Start, step 1). Work left means ready, in-flight, parked or gate issues, or a reply still awaited.
-      - Work left, and this sweep is a one-shot's own firing: arm the next one and rewrite the line. A repeating timer: update "next" only.
-      - None left: cancel the timer by its id, write `Sweep timer: none · cancelled <time>`, say *"No work left; the loop has stopped."* and report.
+      - Work left, a one-shot, and `T fired` exited 0 this sweep: arm the next one. Any other sweep arms nothing.
+      - None left: stop the timer (Start, step 1), say *"No work left; the loop has stopped."* and report.
 
     `board.md` in this folder has the exact commands. Then go back to step 1.
 
@@ -115,7 +111,7 @@ Every agent and every app on one account shares one hourly limit. Git pushes and
 - **Replies:** if anything is labelled `needs-human`, add one `gh issue list --label needs-human --json number,comments` to the sweep. A reply from the person answers it (see "Replies" in `ask`).
 - **Act on events, sweep every 10 minutes at most.** Never loop on a timer faster than that.
 - **Check `gh api rate_limit` before a sweep.** It's free. Read both `resources.core` and `resources.graphql`: `gh issue list` and `gh pr list` spend the GraphQL one.
-  - **Under 20% left on either:** sweep every 30 minutes and start no new builders. Cancel the timer by its id and arm one at 30 minutes (Start, step 1). Back above 20%: the same, back to 10.
+  - **Under 20% left on either:** sweep every 30 minutes and start no new builders: `T interval 30`. Back above 20%: `T interval 10`. A one-shot's next arm uses the new interval. A repeating timer: only on `changed`, stop it and arm one at the new interval (Start, step 1).
   - **Rate-limited:** `remaining` is 0 on either, or any `gh` call fails with a rate-limit 403 or 429. Switch to local mode (`references/local-mode.md`) until the later of the two `reset` times, or, for a secondary limit, until its `retry-after` seconds have passed. Follow rule 11 in `AGENTS.md`: an ℹ️ FYI with that time.
   - **Save each sweep's lists** where local mode reads them: the cache in `board.md`, "Render".
 

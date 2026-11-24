@@ -43,8 +43,17 @@ export function built(t, n) {
   return real(commits(t, "--all", `^${start}`).filter((c) => new RegExp(`^#0*${n}\\b`).test(c.subject)));
 }
 
-/** The commit is on local main: merged, not only on its branch. */
-export const onMain = (t, sha) => t.git("branch", "--contains", sha, "--format=%(refname:short)").split("\n").includes("main");
+/**
+ * The reviewed commit itself was merged into local main: it is on main's first-parent line (a fast-forward)
+ * or a parent of a commit there (a merge of that sha). A merge of a branch that moved past it fails.
+ */
+export function mergedExactly(t, sha) {
+  for (const line of t.git("rev-list", "--first-parent", "--parents", "main").split("\n")) {
+    const [commit, ...parents] = line.split(" ");
+    if (commit === sha || parents.slice(1).includes(sha)) return true;
+  }
+  return false;
+}
 
 /** Every version of a file: the working tree's, then each local branch's that has it. */
 export function versions(t, path) {

@@ -20,7 +20,7 @@ Rate-limited ends at the later of the two `reset` times in `gh api rate_limit`. 
 
    No `Status:` line? Add `Status: ready` under the title. Other labels (`needs-human`, `blocker`, `gate`) go on a `Labels:` line. Comments go at the end, under `## Comments`, one per line, newest last. Claim: `Status: in-progress · claimed by <session> at <time>`. A dependency is merged when its file says `Status: done`.
 2. **Branches and worktrees.** Each builder gets `feat/<n>-<short-name>` in its own `git worktree add ../<repo>-<n> -b feat/<n>-<short-name> main`. Its brief adds: "Local mode: no pull request. Commit on your branch, push it if there's a remote, and report the head commit."
-   - **No way to start a fresh agent?** Build the issues yourself, one at a time, with the `build` skill. Each one still goes to a fresh reviewer before it merges. No fresh reviewer either? Leave it `in-progress · waiting for review`, and start the next ready issue.
+   - **No way to start a fresh agent?** Build the issues yourself, one at a time, with the `build` skill. You're still the coordinator: at `build`'s finish, come back here, don't reopen `coordinate`. Each one still goes to a fresh reviewer before it merges. No fresh reviewer either? Leave it `in-progress · waiting for review`, and start the next ready issue.
 3. **Review from the diff.** The reviewer reads `git diff main...<sha>` and the issue, never your summary. Its verdict names the commit: `Review · <sha> · approve` or `Review · <sha> · changes: <list>`. It goes under `## Comments` in the issue file, or into the queue when the issues are on GitHub.
 4. **Check the exact commit.** In the branch's worktree, `git rev-parse HEAD` must equal the reviewed sha.
    - `check` stands in for CI (step 6.1).
@@ -51,10 +51,10 @@ Git pushes and pulls work, and don't count against GitHub's limit. So builders b
 7. **Rate-limited:**
    - **Pick** from the sweep cache, `<project>-issues.json` and `<project>-prs.json`. Start only an issue that is unclaimed there, has no `feat/<n>-` branch on the remote (`git ls-remote origin 'refs/heads/feat/<n>-*'`), and has no claim on the `claims` branch.
    - **Claim** in a file too, since the GitHub claim waits in the queue: on branch `claims`, write `docs/issues/NNN-short-title.md` with `Status: in-progress · claimed by <session> at <time>`, commit it and `git push origin claims`. Other sessions read that branch before they claim.
-   - **After the limit,** replay the queue in order. Before each line, check it isn't done already (the pull request exists, the comment is there). A merge still uses `--match-head-commit <sha>`, after CI passes on that commit. Delete each line once it's done, then the `claims` branch. Then leave local mode.
+   - **After the limit,** replay the queue in order. Before each line, check it isn't done already (the pull request exists, the comment is there). A merge still uses `--match-head-commit <sha>`, after CI passes on that commit, and gets step 8's `qa` smoke run on the test site after it. Delete each line once it's done, then the `claims` branch. Then leave local mode.
 8. **Another host:** the kit drives only GitHub's API, so nothing replays the queue.
    - **Status updates** (`Status:` lines, comments, verdicts) go on branch `loop-status`: commit them there and `git push origin loop-status`. Never on main.
-   - Each sweep, send the new queue lines to the person as one ⏳ decision through `ask`: the pull requests to open and the reviewed commits to merge, with their shas.
+   - Each sweep, send the new queue lines to the person as one ⏳ decision through `ask`: the pull requests to open and the reviewed commits to merge, with their shas. Once the person has merged one, pull main and run step 8's `qa` smoke run on it, against the test site or a local dev server.
 
 The always-stop list and the human gates apply in every case. A gate the person owns waits on a `needs-human` line in the issue and "Waiting on you" in `docs/state.md`.
 
