@@ -86,7 +86,7 @@ It installs the rules and skills, keeps your files and offers to open Claude Cod
 
 ## 🤔 What it is, and why
 
-AI agents follow your instructions. Where you leave a gap, they guess. It can take the first fix that works, invent UI components or build extra features. Add onRails to your project to set the rules and check its work.
+AI agents follow your instructions. Where you leave a gap, they guess. They can take the first fix that works, invent UI components or build extra features. Add onRails to your project to set the rules and check its work.
 
 | Part | What it is | When it applies |
 |---|---|---|
