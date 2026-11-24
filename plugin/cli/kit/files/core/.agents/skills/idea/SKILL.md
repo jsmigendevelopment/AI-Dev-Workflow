@@ -11,7 +11,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 ## Steps
 
-0. **Load the person's profile.** If `~/.onrails/profile.toml` (or `~/.ai-dev-workflow/profile.toml`, its folder's name before the rename) exists and this project has no `docs/profile.toml`, copy it in (create `docs/`). If neither exists, offer once to make one from `templates/profile.toml`: *"Want a personal profile so I stop asking the same questions every app?"* Everything in the profile is a default you confirm, not a question you ask.
+0. **Load the person's profile.** If `~/.onrails/profile.toml` (or `~/.ai-dev-workflow/profile.toml`, its folder's name before the rename) exists and this project has no `docs/profile.toml`, copy it in with `npx onrails profile copy`. Copying by hand? Replace `[research] library` and `library_path` with `# <key>: set in your personal profile only`: they name a private repo. If neither exists, offer once to make one from `templates/profile.toml`: *"Want a personal profile so I stop asking the same questions every app?"* Everything in the profile is a default you confirm, not a question you ask.
    - **Then ask the first question: the automation level** (see `automation`). Show this table first, and say in one line each how it differs from the risk dial (asked later, in the tech grill): *the automation level is how much agents do without you; the risk dial is how careful each merge is.*
 
    | Level | Agents do | You do |

@@ -54,6 +54,13 @@ creative = ""                   # e.g. "ChatGPT, top model"
 second_opinion = ""             # another vendor's model for risky reviews
 ask_before_strongest = true     # ask before starting anything on the strongest tier
 
+[research]
+# A private repo that every deep research is captured to, across projects (the research skill).
+# library and library_path are personal: profile copy and init never write them into a project.
+library = ""                    # owner/repo of your research library; must be private. Make one: npx onrails research-library init <dir>
+library_path = ""               # optional: a local clone of it, so captures skip the clone
+offered = false                 # true once an agent offered to make one, so it never asks again
+
 [worklog]
 # Track your work hours from session starts and ends, /back and /afk.
 # Kept in ~/.onrails/worklog/, never in a repo.

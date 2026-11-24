@@ -6,6 +6,7 @@ import { toNative, writeFile } from "./files.mjs";
 import { homeDir } from "./home.mjs";
 import { loadKit } from "./kit.mjs";
 import { askDefault, confirm } from "./prompt.mjs";
+import { stripPersonal } from "./research-library.mjs";
 
 export const TEMPLATE = ".agents/skills/idea/templates/profile.toml";
 export const profilePath = (home) => join(homeDir(home), "profile.toml");
@@ -57,7 +58,8 @@ export async function profileCopy(dir = ".", { home, ask, yes = false, log = con
   const from = profilePath(home);
   if (!existsSync(from)) return log("No profile yet. Run: npx onrails profile init"), 1;
   const to = toNative(resolve(dir), "docs/profile.toml");
-  const data = readFileSync(from);
+  // The research library's name and path stay personal: a project can be public.
+  const data = Buffer.from(stripPersonal(readFileSync(from, "utf8")));
   if (existsSync(to)) {
     if (readFileSync(to).equals(data)) return log(`${to} is already up to date.`), 0;
     if (!yes && !(await confirm(ask, `${to} already exists. Replace it with your profile?`))) return log("Kept it."), 0;
@@ -72,6 +74,6 @@ export function copyProfileIfMissing(projectDir, { home } = {}) {
   const from = profilePath(home);
   const to = toNative(projectDir, "docs/profile.toml");
   if (!existsSync(from) || existsSync(to)) return false;
-  writeFile(to, readFileSync(from));
+  writeFile(to, stripPersonal(readFileSync(from, "utf8")));
   return true;
 }

@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **A research library across projects (#75).** Every deep research (any `research` run, anything on the strongest tier, "deep research", "research properly", "dig into") is captured to the person's private library as a pull request, with no question. The library says where things go in `research-library.json` (`research-library/1`, schema in `research/references/library.schema.json`): the report, store, provenance, briefs and data paths with `{slug}` placeholders, the index entries, the provenance schema, its check commands and `private: true`. The `research` skill gains step 9 and `references/library.md`: check the repo is private with `gh` and refuse a public one, write the entry where the manifest says, run its checks, open the pull request. No library? Offer once to make a private one, and record a no. `research/scripts/research-library.mjs` validates the manifest, resolves paths, writes index entries and checks privacy. `npx onrails research-library init <dir>` copies the template library (`templates/research-library/`: README with the standard, manifest, schemas, checker, a manifest-aware wrapper and CI that fails if the repo turns public). The profile gains `[research] library`, `library_path` and `offered`. The first two are personal: `profile copy` and `init` replace them with a comment in `docs/profile.toml`, agents read them from `~/.onrails/profile.toml` only, and `doctor` flags a project copy that has them. `routing` gains the capture row. 16 tests.
+
 ### Changed
 
 - **Install the plugin for your whole account.** The README, the cheat sheet and `init --global` now use `claude plugin install core@onrails --scope user` from a terminal, and say to pick "user" when installing from inside Claude Code. A project install only works in one folder, which is why `/or:` was missing in new threads.

@@ -84,8 +84,15 @@ function bundleAddons(dir, outDir) {
   return addons;
 }
 
-// Every file of plugin/cli/, as { "/" path: data }. Same layout as this package, core kit only.
-function pluginFiles(version, coreFiles) {
+// Each folder of templates/ (for example research-library), as { name: { path: data } }.
+function collectTemplates() {
+  const dir = join(REPO, "templates");
+  const names = existsSync(dir) ? readdirSync(dir).filter((n) => statSync(join(dir, n)).isDirectory()).sort() : [];
+  return Object.fromEntries(names.map((name) => [name, collect(join(dir, name), walk(join(dir, name), skip))]));
+}
+
+// Every file of plugin/cli/, as { "/" path: data }. Same layout as this package, core kit and templates.
+function pluginFiles(version, coreFiles, templateFiles) {
   const out = {};
   for (const path of walk(join(CLI, "src"))) out[`src/${path}`] = readFileSync(toNative(join(CLI, "src"), path));
   out["bin/cli.mjs"] = readFileSync(join(CLI, "bin", "cli.mjs"));
@@ -99,7 +106,15 @@ function pluginFiles(version, coreFiles) {
     out[`kit/files/core/${storedName(path)}`] = data;
     core[path] = hash(data);
   }
-  out["kit/manifest.json"] = Buffer.from(JSON.stringify({ kitVersion: version, core, packs: {}, addons: {} }, null, 2) + "\n");
+  const templates = {};
+  for (const [name, files] of Object.entries(templateFiles)) {
+    templates[name] = {};
+    for (const [path, data] of Object.entries(files)) {
+      out[`kit/files/templates/${name}/${storedName(path)}`] = data;
+      templates[name][path] = hash(data);
+    }
+  }
+  out["kit/manifest.json"] = Buffer.from(JSON.stringify({ kitVersion: version, core, packs: {}, addons: {}, templates }, null, 2) + "\n");
   return out;
 }
 
@@ -117,7 +132,8 @@ function checkPlugin(want) {
 
 const version = readJson(join(CLI, "package.json")).version;
 const coreFiles = collect(REPO, CORE);
-const plugin = pluginFiles(version, coreFiles);
+const templateFiles = collectTemplates();
+const plugin = pluginFiles(version, coreFiles, templateFiles);
 if (process.argv.includes("--check")) {
   checkPlugin(plugin);
   process.exit(0);
@@ -136,9 +152,11 @@ for (const name of stackNames.sort()) {
   if (existsSync(addonDir)) addons[name] = bundleAddons(addonDir, join(OUT, "files", "addons", name));
 }
 
+const templates = Object.fromEntries(Object.entries(templateFiles).map(([name, files]) => [name, store(files, join(OUT, "files", "templates", name))]));
+
 // npm ships LICENSE on its own but not NOTICE, so it goes in kit/, which is in "files".
 writeFile(join(OUT, "NOTICE"), readFileSync(join(REPO, "NOTICE")));
-writeFile(join(OUT, "manifest.json"), JSON.stringify({ kitVersion: version, core, packs, addons }, null, 2) + "\n");
+writeFile(join(OUT, "manifest.json"), JSON.stringify({ kitVersion: version, core, packs, addons, templates }, null, 2) + "\n");
 const packCount = Object.values(packs).reduce((n, p) => n + Object.keys(p.files).length, 0);
 const addonCount = Object.values(addons).reduce((n, a) => n + Object.keys(a).length, 0);
 console.log(`bundled kit v${version}: ${Object.keys(core).length} core files, ${Object.keys(packs).length} pack(s) with ${packCount} files, ${addonCount} add-on(s) -> cli/kit/`);

@@ -7,6 +7,7 @@ import { readJson, toNative, walk } from "./files.mjs";
 import { OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
 import { projectManifestName, readProjectManifest } from "./sync.mjs";
 import { MARKS } from "./marks.mjs";
+import { personalValues } from "./research-library.mjs";
 
 function sameTree(a, b) {
   const fa = walk(a), fb = walk(b);
@@ -53,6 +54,7 @@ export function projectChecks(projectDir, { kitDir, sys }) {
   add(state ? OK : INFO, state ? "docs/state.md present" : "No docs/state.md yet: type /idea for a new app or /join for an existing repo");
 
   checks.push(...researchChecks(projectDir));
+  checks.push(...profileChecks(projectDir));
   checks.push(...envChecks(projectDir, MARKS));
   const deps = projectDeps(projectDir);
   if (deps["@playwright/test"]) checks.push(playwrightCheck(projectDir, sys));
@@ -73,6 +75,18 @@ function researchChecks(projectDir) {
   return [{
     status: FAIL, required: false, label: `${stale.length} stale research dossier(s): ${list}`,
     fix: "Re-check each with the research skill, or mark it superseded in docs/research/README.md",
+  }];
+}
+
+// The research library's name and path are personal (research-library.mjs). A project copy must not hold them.
+function profileChecks(projectDir) {
+  const path = join(projectDir, "docs", "profile.toml");
+  if (!existsSync(path)) return [];
+  const keys = Object.keys(personalValues(readFileSync(path, "utf8")));
+  if (!keys.length) return [];
+  return [{
+    status: MARKS.FAIL, required: false, label: `docs/profile.toml sets [research] ${keys.join(" and ")}, which names your private research library`,
+    fix: "Delete them from docs/profile.toml; keep them in ~/.onrails/profile.toml only. Agents ignore the project's copy",
   }];
 }
 

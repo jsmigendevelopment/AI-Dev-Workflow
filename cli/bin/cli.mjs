@@ -8,6 +8,7 @@ import { doctorFix } from "../src/fix.mjs";
 import { initGlobal } from "../src/global.mjs";
 import { offerHomeMove } from "../src/home.mjs";
 import { init } from "../src/init.mjs";
+import { libraryInit } from "../src/library-init.mjs";
 import { profileCopy, profileInit, profileShow } from "../src/profile.mjs";
 import { terminalAsk } from "../src/prompt.mjs";
 import { entryCommand, offerStart } from "../src/start.mjs";
@@ -38,6 +39,8 @@ Usage:
   npx onrails profile init [--yes]        make ~/.onrails/profile.toml
   npx onrails profile show                print your profile
   npx onrails profile copy [dir]          copy it into <dir>/docs/profile.toml
+  npx onrails research-library init <dir> copy the template research library into <dir>
+                                          (then make it a private repo; see the research skill)
   npx onrails --version | --help
 
 Your own files are never overwritten: the kit's copy goes next to yours as <file>.onrails-new.
@@ -88,6 +91,9 @@ async function run(command, args, flags, { ask, yes }) {
       }
       if (!args[0]) return fail("Name a pack, or run: npx onrails add --list");
       return addPack(args[0], args[1], { force: flags.has("--force") });
+    case "research-library":
+      if (args[0] !== "init") return fail(`Unknown research-library command: ${args[0] ?? ""} (use init)`);
+      return libraryInit(args[1]);
     default: return fail(`Unknown command: ${command ?? ""}`);
   }
 }
