@@ -10,7 +10,7 @@ Agents work in many threads at once. You shouldn't have to watch any of them. Th
 
 | Level | Means | You get |
 |---|---|---|
-| 🛑 **Blocker** | It can't go on without you: the always-stop list, an unclear MVP core, a critical security finding, production down, or nothing else can move. | A ping right away. The agent keeps doing other safe work. |
+| 🛑 **Blocker** | It can't go on without you: the always-stop list, an unclear MVP core (not on Full automation: auto grill guesses it and goes on), a critical security finding, production down, or nothing else can move. | A ping right away. The agent keeps doing other safe work. |
 | ⏳ **Decision** | It needs your call, but other work can move: a schema or API gate, taste, scope or money, a stuck review, an unclear issue, a stale claim. | One batched ping at most every 30 minutes. The issue gets the `needs-human` label. |
 | ℹ️ **FYI** | Merged and ready to try, usage, a rate limit and when it resets. | No ping. It's on the board and in `/back`. |
 

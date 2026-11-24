@@ -50,7 +50,7 @@ The owner's rules. Lint catches some. `build` follows them all and `pr-review` c
 
 How and when to get the person's attention. The `ask` skill has the full convention and the message template.
 
-- 🛑 **Blocker:** the always-stop list, an unclear MVP core, a critical security finding, production down, or nothing else can move. Stop that one thing, ping now, keep doing other safe work.
+- 🛑 **Blocker:** the always-stop list, an unclear MVP core (on Full automation, auto grill guesses it, records "AI pick, not reviewed" and goes on), a critical security finding, production down, or nothing else can move. Stop that one thing, ping now, keep doing other safe work.
 - ⏳ **Decision:** a gate the risk dial asks for, taste, scope or money, the review cap, an unclear issue, a stale claim. Label it `needs-human`, keep going. Pings are batched.
 - ℹ️ **FYI:** ready to try, usage, a rate limit and its reset. Never interrupts. It shows on the board and at `/back`.
 - **Never interrupt** for what the repo, the docs or the profile can answer, or to ask permission for what the issue already says.
