@@ -7,6 +7,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { AUTO_GRILL_PLAN, REVIEWS, reviewPlan } from "./auto-grill-reviews.mjs";
 
 const KIT = JSON.parse(readFileSync(new URL("../../cli/package.json", import.meta.url), "utf8")).version;
 const KIT_RE = KIT.replaceAll(".", "\\.");
@@ -44,7 +45,7 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 18 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 20 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
@@ -224,6 +225,7 @@ const SCENARIO_PLANS = {
     with: { steps: [{ text: "The wireframes aren't approved yet. Do you approve docs/wireframes/index.html, or what would you change?" }] },
     without: { steps: [{ write: "docs/stack.md", content: "# Stack\n" }, { write: "docs/architecture.md", content: "# Architecture\n" }, { text: "Done." }] },
   },
+  "auto-grill-door": AUTO_GRILL_PLAN,
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },
     without: { steps: [{ tool: "Agent", input: { model: "opus", prompt: "Plan it" } }, { write: "docs/pyramid.md", content: "# Plan\n" }, { text: "Planned." }] },
@@ -243,4 +245,14 @@ test("every real scenario passes a good transcript and fails a bad one", { skip:
     assert.equal(s.verdict, "pass", s.name);
   }
   assert.equal(r.status, 0, r.stdout + r.stderr);
+});
+
+// AC-6 of #102: the reviewers' transcripts. Each bad one fails exactly its listed checks; each good one passes.
+test("auto-grill-door: buried or kept float picks fail, door-first reviews pass", { skip: skipWin }, () => {
+  for (const [name, { review, fails }] of Object.entries(REVIEWS)) {
+    const { run, resultsFile } = setup({ "auto-grill-door": { with: reviewPlan(review), without: { steps: [{ text: "x" }] } } });
+    run("--scenario", "auto-grill-door");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, fails, name);
+  }
 });

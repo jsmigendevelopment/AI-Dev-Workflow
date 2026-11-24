@@ -2,12 +2,21 @@
 
 The person's answers, word for word where it matters. Agents check the plan against this file.
 
+Mode: full | auto
+
+## Provenance
+
+- Model and effort: <model> at <effort> (recommended: yes | no, and why)
+
+Every answer has a source, from the labels in `grill`'s "Keep the record": person, default, AI, AI pick, approved at review, or changed at review.
+
 ## Coverage map
 
 About 10 questions per topic, fewer if answers come fast. Move on after three rounds with nothing new, or two "don't know" answers. End each topic with a 3-line summary. Floor items are never skipped, and the MVP's core is never defaulted.
 
 **New project**
 
+- [ ] Auto mode only: seed questions, self-grill, review shown, every door confirmed
 - [ ] 1. Who and why
 - [ ] 2. The main flow
 - [ ] Wireframes stage 1 started (layout, background)
@@ -37,11 +46,27 @@ About 10 questions per topic, fewer if answers come fast. Move on after three ro
 **Q1.** 
 **Recommended:** 
 **Answer:** 
+**Source:** person
 
 **Q2.** 
 **Recommended:** 
 **Answer:** 
+**Source:** person
 
 **Q3.** 
 **Recommended:** 
 **Answer:** 
+**Source:** person
+
+## Auto grill
+
+Auto mode only. The seed answers go in the rounds above. One row per decision from the self-grill. Start a one-way door's topic with "door:". Each door needs its own yes at the review.
+
+| Topic | Decision | Pick | Alternatives | Reason | Depends on | Source |
+|---|---|---|---|---|---|---|
+| | | | | | | AI pick |
+
+### What moved at review
+
+| Topic | Was | Now | Why |
+|---|---|---|---|
