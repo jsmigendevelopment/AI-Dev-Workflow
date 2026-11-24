@@ -25,7 +25,7 @@ export function absolute(target, fromDir) {
 
 export function rewrite(markdown, fromDir) {
   return markdown
-    .replace(/(src|href)="([^"]+)"/g, (_, attr, url) => `${attr}="${absolute(url, fromDir)}"`)
+    .replace(/(src|href|srcset)="([^"]+)"/g, (_, attr, url) => `${attr}="${absolute(url, fromDir)}"`)
     .replace(/\]\(([^)\s]+)\)/g, (_, url) => `](${absolute(url, fromDir)})`);
 }
 

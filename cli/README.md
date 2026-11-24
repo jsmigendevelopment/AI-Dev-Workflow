@@ -1,7 +1,7 @@
 <!-- Made by scripts/npm-readme.mjs from README.md and cli/CLI.md. Edit those, then run it. -->
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/banner-dark.svg">
   <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/banner.svg" alt="onRails: put your AI on rails. A train passes Pitch, Grill, Slice and Ship at golden hour. By Jay Smigen, JS Dev." width="960">
 </picture>
 
@@ -101,7 +101,7 @@ See the [principles](https://github.com/jsmigendevelopment/onRails/blob/main/gui
 ## 🔁 What a run looks like
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/how-it-works-dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/how-it-works-dark.svg">
   <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/how-it-works.svg" alt="Plan once from pitch through issues. Then coordinate, build, run CI and code review, check the preview, review risky changes, merge to test and smoke test. Failed checks go back to Build. Your test site feedback becomes new issues." width="960">
 </picture>
 
@@ -128,7 +128,7 @@ Plan once. Each step saves to files, so you can stop any time and pick up with `
 ### How the build is sliced: the tracer-bullet pyramid
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/tracer-bullet-pyramid-dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/tracer-bullet-pyramid-dark.svg">
   <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/tracer-bullet-pyramid.svg" alt="Three passes narrow toward the core: Works covers every slice, Real deepens the core and key support, and Ready polishes the core. A gate sits between passes." width="960">
 </picture>
 
@@ -350,7 +350,7 @@ The strongest model at high effort takes more time and usage. The cheapest model
 ## 📚 Guides
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/cheat-sheet-dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/cheat-sheet-dark.svg">
   <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/cheat-sheet.svg" alt="Cheat sheet: /idea for a new app, /join for a repo that needs setup, /back to resume work and /afk to step away. In Codex, use $ instead of /." width="960">
 </picture>
 
