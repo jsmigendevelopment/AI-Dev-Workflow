@@ -32,6 +32,7 @@ Everything else gets three options with trade-offs and a recommendation, decided
 
    Done when the library's checks pass and the pull request is open, or the refusal or the "no" is recorded.
 10. **Bring back the recommendation, not the whole dossier.** The person decides. The decision goes into `docs/decisions.md` with a link to the dossier.
+   - **On Full automation,** step 2 runs on the current model, with no ask. The CTO decides from the dossier, records it as "AI pick, not reviewed" with the link, and sends an ℹ️ FYI.
 
 ## Rules
 

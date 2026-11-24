@@ -99,7 +99,7 @@ Change any row in plain words. "Looks good" accepts the rest.
 
 When the person changes a pick, re-check every pick that depends on it (the "Depends on" column, and anything else it breaks). Redo the ones that no longer fit. Show what moved in a table: Topic · Was · Now · Why. A door that moved needs its own yes again.
 
-**A door changed after the build started** (on any level) becomes a re-plan issue, not an edit. Open `issues` and write one titled "Re-plan: <door>". Its body opens with **Cost to change:** the door's "Cost to change later" line, updated with what's built on it now: the modules, the data, the issues already merged. Then the picks that move, from the table above. Label it `needs-human` and confirm the cost with the person through `ask`. It would delete or migrate real data? That's the always-stop list: a 🛑 blocker.
+**A door changed after the build started** becomes a "Re-plan: <door>" issue that opens with **Cost to change:** (`issues`, "From feedback or bugs"). Put the "What moved" table in it.
 
 **Done when** every pick that depends on a changed one was re-checked, and the "What moved" table is shown. A door changed after the build started: the re-plan issue exists and names its cost.
 

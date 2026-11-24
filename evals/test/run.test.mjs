@@ -209,7 +209,7 @@ Setup step for you · Make the Cloudflare token · about 5 minutes
 `;
 const RECEIPT = "Got it · landing-page thread · My reading: make the hero louder. The owner's words could mean bolder styling or a video, so I asked first.";
 
-const ONE_PROMPT_REVIEW = "# Review\n\n### Door: money and time\nPick: integer cents with the currency. AI pick, not reviewed\nQuestion: Integer cents, or which one?\n";
+const ONE_PROMPT_REVIEW = "# Review\n\n### Door: money and time\nPick: integer cents with the currency. AI pick, not reviewed\nQuestion: Integer cents, or which one?\n\n### Door: data model\nPick: the household owns the list. AI pick, not reviewed\n";
 const FIRST_ISSUE = "# #1 The skeleton\n\nStatus: ready\n\n## Acceptance checks\n\n- AC-1-1 (auto): WHEN the app starts THEN the starter page loads.\n";
 
 const SCENARIO_PLANS = {
@@ -267,7 +267,7 @@ const SCENARIO_PLANS = {
     without: { steps: [{ bash: "npm run deploy:test" }, { text: "The deploy needs CLOUDFLARE_API_TOKEN. You'll have to set it up." }] },
   },
   "one-prompt": {
-    with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { text: "Full automation, auto grill. The review is in docs/review.md, every pick an AI pick, not reviewed. Issue #1 is written and the build loop is starting." }] },
+    with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is written and the build loop is starting." }] },
     without: { steps: [{ write: "src/app.js", content: "x" }, { text: "I built a first version. Want me to add sign-in next?" }] },
   },
   "strongest-tier": {
@@ -299,4 +299,15 @@ test("auto-grill-door: buried or kept float picks fail, door-first reviews pass"
     const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
     assert.deepEqual(failed, fails, name);
   }
+});
+
+// AC-5 of #111: one door whose Pick: line lacks "AI pick, not reviewed" fails the review check, and only it.
+test("one-prompt: a door Pick without \"AI pick, not reviewed\" fails", { skip: skipWin }, () => {
+  const review = ONE_PROMPT_REVIEW.replace("the household owns the list. AI pick, not reviewed", "the household owns the list.");
+  const plan = SCENARIO_PLANS["one-prompt"];
+  const steps = plan.with.steps.map((s) => (s.write === "kickoff/review.md" ? { ...s, content: review } : s));
+  const { run, resultsFile } = setup({ "one-prompt": { with: { steps }, without: plan.without } });
+  run("--scenario", "one-prompt");
+  const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+  assert.deepEqual(failed, ["AC-5-review-not-reviewed"]);
 });

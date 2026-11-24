@@ -97,6 +97,7 @@ Steps 1 to 3 run once per gate. Each leaves a mark: step 1 the `gate` status, st
 3. Start the gate's audit, then its cleanup pick (steps 1 and 2 there). Their findings become issues labelled `gate`. Mark it: `audit started <date>` in the row's Audit cell.
 4. Keep the loop going on `gate` issues only. Feedback that something built is wrong or slow becomes a `gate` issue and joins them. Something missing is a new idea: a row in `docs/features.md`, which waits for the re-plan.
 5. No `gate` issue left to build? Then wait. The next pass's steps start only after the person has tried it and the re-plan has marked that pass `building`.
+   - **On Full automation, don't wait.** Step 2 is an ℹ️ FYI, not a decision. `qa` tries the pass in the person's place, the CTO re-plans from its findings plus the audit, and the next pass starts (`pass-gate.md`, "On Full automation").
 
 **Done when** the next pass is marked `building`, or the gate work has run out and the ask is waiting.
 

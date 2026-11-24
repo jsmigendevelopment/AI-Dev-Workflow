@@ -32,7 +32,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
    - **Background work starts here.** At the end of the main-flow topic, the grill starts the competitor scan (`kickoff/research/competitors.md`, ready by the MVP topic) and `wireframes` stage 1, the layout. Once look and feel is answered, it starts stage 2, the detailed UI and UX. Each screen is shown as it's done (full grill; in auto mode, hold screens for the review). No way to run them in the background? Draw stage 1 after the grill and stage 2 after step 5.
    - If the person needs a break, save and stop. `/back` resumes from the grill log.
 
-3. **Find the MVP.** This is the grill's MVP topic: **the one core piece that makes this app stand out,** made as good as possible, plus only the thin supporting slices it can't work without. Test each: *does the core work without it?* **The core is never filled in with a default.** If the person won't choose, stop here and say so. Write `kickoff/mvp.md` from `templates/mvp.md`.
+3. **Find the MVP.** This is the grill's MVP topic: **the one core piece that makes this app stand out,** made as good as possible, plus only the thin supporting slices it can't work without. Test each: *does the core work without it?* **The core is never filled in with a default.** If the person won't choose, stop here and say so. **On Full,** auto grill guesses the core from the pitch, records it as "AI pick, not reviewed", and goes on: never stop here. Write `kickoff/mvp.md` from `templates/mvp.md`.
 
 4. **Other accounts?** While stage 2 draws, ask once whether the person uses more than one Claude or Codex account, and which projects or jobs belong to each. On a yes, give one "Setup step for you" per account to sign it in from their terminal, then write `[accounts]` in the profile. `routing`'s `references/accounts.md` has the questions, the verified commands and the rule: a fixed split, never by usage. On Full, skip it and use this account.
 
@@ -40,7 +40,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 6. **Approve the wireframes.** Revise the full stage-2 set until the person says yes (`wireframes` stage 2, steps 5 and 6). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row. Auto grill doesn't skip it. **On Full,** skip the wait: record the row as "AI pick, not reviewed" (`wireframes` stage 2, step 6) and go on.
 
-7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. After an auto grill, the one-way doors confirmed at the review are answers, not questions. On Full, take the recommended picks with no question round. Crucial unknowns go to `research` first. It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
+7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. After an auto grill, the one-way doors confirmed at the review are answers, not questions. On Full, take the recommended picks with no question round. Crucial unknowns go to `research` first (on Full, it decides and sends an FYI). It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
 
 8. **Fill in the project facts** at the bottom of `AGENTS.md`.
 

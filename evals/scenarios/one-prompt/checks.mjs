@@ -13,6 +13,19 @@ const AC_ID = /\bAC-\d+-\d+\b/;
 const WHEN_THEN = /\bWHEN\b[\s\S]*\bTHEN\b/;
 
 const review = (t) => REVIEWS.map((p) => (t.exists(p) ? t.read(p) : "")).find(Boolean) ?? "";
+
+/** The Pick: line of each door block, or "" for a door with none. */
+function doorPicks(text) {
+  const picks = [];
+  let inDoor = false;
+  for (const line of text.split("\n")) {
+    if (/^###\s+Door:/i.test(line)) { picks.push(""); inDoor = true; continue; }
+    if (/^#{1,3}\s/.test(line)) { inDoor = false; continue; }
+    const pick = inDoor && line.match(/^Pick:\s*(.*)$/i);
+    if (pick) picks[picks.length - 1] = pick[1];
+  }
+  return picks;
+}
 const issueFiles = (t) => t.newFiles().filter((p) => /^docs\/issues\/(?!README).+\.md$/i.test(p));
 
 export const checks = [
@@ -26,11 +39,14 @@ export const checks = [
   },
   {
     id: "AC-5-review-not-reviewed",
-    description: "The review (kickoff/review.md or docs/review.md) has its door blocks and marks the picks \"AI pick, not reviewed\"",
+    description: "The review (kickoff/review.md or docs/review.md) has door blocks, and every door's Pick: line says \"AI pick, not reviewed\"",
     check: (t) => {
       const text = review(t);
       if (!text) return result(false, "no review.md in kickoff/ or docs/");
-      return result(/^###\s+Door:/im.test(text) && NOT_REVIEWED.test(text), "no '### Door:' block, or no \"AI pick, not reviewed\"");
+      const picks = doorPicks(text);
+      if (!picks.length) return result(false, "no '### Door:' block");
+      const bare = picks.filter((p) => !NOT_REVIEWED.test(p));
+      return result(bare.length === 0, `${bare.length} of ${picks.length} door Pick: line(s) without "AI pick, not reviewed"`);
     },
   },
   {

@@ -5,7 +5,7 @@ description: Use when planning how to build an app or a big feature, or checking
 
 # Pyramid: see it working early, then make it great
 
-This is CTO work. Run it on the strongest model at high effort. Ask first, unless the profile says not to or the person already said yes (see `routing`). It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next on a cheaper model.
+This is CTO work. Run it on the strongest model at high effort. Ask first, unless the profile says not to or the person already said yes (see `routing`). On Full automation: use the current model, record it in `docs/decisions.md`, and don't ask. It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next on a cheaper model.
 
 ## Why
 
@@ -73,9 +73,10 @@ pass 1  ████ ████ ████ ████ ████
      2. Run `node .agents/skills/name/scripts/setup-github.mjs --dry-run` and show them the list.
      3. Say in one line what it does (labels, Dependabot, secret scanning, rules on main, a production environment that waits for them) and ask: *"Set this up now?"*
      4. On a yes, run it without `--dry-run` and show the results, including anything skipped because of their plan.
+     - **On Full automation, ask nothing.** `gh` signed in? Run it without `--dry-run`, and put the results in an ℹ️ FYI. Not signed in? Run local mode (`../coordinate/references/local-mode.md`) and list `gh auth login` in the FYI.
 2. **Seed data and test users.** Once the schema is designed (step 4), the first step that adds a table also adds a seed script and **two test users**, so `qa` can always sign in and check that one user can't see another's data.
 3. **List the slices** from `docs/mvp.md`. One slice is one thing a user can do, end to end. Name the **core.** Keep only slices that pass "does the core work without it?". Not every app needs auth.
-4. **Design what the slices share.** Start from the approved screens and tokens in `docs/design.md` and `docs/wireframes/index.html`. No approval row in `docs/decisions.md`? Stop and run `wireframes` first. Apply the tokens to the UI kit's theme, then write the schema and the API contracts the screens need. A screen that must change goes back through `wireframes` for approval. Builders follow this design. They don't invent their own.
+4. **Design what the slices share.** Start from the approved screens and tokens in `docs/design.md` and `docs/wireframes/index.html`. No approval row in `docs/decisions.md`? Stop and run `wireframes` first. On Full automation, a `Wireframes: AI pick, not reviewed` row counts as the approval. Apply the tokens to the UI kit's theme, then write the schema and the API contracts the screens need. A screen that must change goes back through `wireframes` for approval. Builders follow this design. They don't invent their own.
 5. **Outline every pass.** For each: the milestone name, its slices, and one line per slice on what "better" means.
 6. **Cut the current pass into steps,** and only the current pass. For each of its slices, list the smallest changes a person can try, and put each through the thin test below. Order them: slice 0 first, then the step that proves the riskiest idea, usually in the core. Fill in "After" only where one step truly needs another, so steps that don't can be built at the same time.
 7. **Write `docs/pyramid.md`** from the `idea` skill's template: the steps go in its steps table, and the current pass is marked `building`.
