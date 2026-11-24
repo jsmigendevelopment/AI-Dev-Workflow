@@ -1,0 +1,1 @@
+Build issue #1, slice 0. It's in docs/issues/1.md. There's no GitHub or Cloudflare in this folder, so skip the board, the push, the pull request and the deploy: commit on a branch and tell me when it's done. I'm on the laptop this folder is on.

@@ -2,7 +2,7 @@
 
 ## Slice 0: the skeleton
 
-- [ ] The app runs locally
+- [ ] The app runs locally, and the person has seen it
 - [ ] CI runs every check on every pull request
 - [ ] Boundary check on
 - [ ] Main deploys to test. Test URL: 
@@ -39,7 +39,7 @@ Pass 3 done = **MVP complete on the test site.** Not launch. Launch is the perso
 
 | # | Step | Slice | Try it | Size | After |
 |---|---|---|---|---|---|
-| 1 | The skeleton | slice 0 | Open the test URL: the starter page loads | 5 · sets up the app, CI and the test deploy | |
+| 1 | The skeleton | slice 0 | Open http://localhost:3000, then the test URL: the starter page shows the app's name | 5 · sets up the app, CI and the test deploy | |
 
 ## Done means
 

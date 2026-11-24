@@ -41,7 +41,7 @@ description: Use when the person is stepping away and wants the build loop to ke
    - the limit choice;
    - the hard stop.
 
-   Commit it. If the session dies at 3 a.m., this note is all `/back` will have.
+   Commit it. If the session dies at 3 a.m., this note is all `/back` will have. Stop the dev server if this session started it.
 
 6. **Run the loop** (`coordinate`) under the rules below. For every merge, add one line to "Merged while away" in `docs/state.md`, next to the "To try" line `coordinate` writes.
 

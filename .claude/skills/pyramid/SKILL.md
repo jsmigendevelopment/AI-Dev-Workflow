@@ -1,6 +1,6 @@
 ---
 name: pyramid
-description: Use when planning how to build an app or a big feature, or checking how a plan is sliced ("plan the build", "break this into milestones", "how should we slice this", "plan the next pass", "is this plan thin enough") - the CTO step. Plans slice 0 (the skeleton with CI and a test deploy), cuts the MVP into vertical tracer-bullet slices, stacks them into three passes (Works, Real, Ready), cuts only the current pass into thin steps a person can try, checks the cut with a script, designs the schema and API from the approved wireframes, and re-plans at each pass gate.
+description: Use when planning how to build an app or a big feature, or checking how a plan is sliced ("plan the build", "break this into milestones", "how should we slice this", "plan the next pass", "is this plan thin enough") - the CTO step. Plans slice 0 (the running app first, then CI and a test deploy), cuts the MVP into vertical tracer-bullet slices, stacks them into three passes (Works, Real, Ready), cuts only the current pass into thin steps a person can try, checks the cut with a script, designs the schema and API from the approved wireframes, and re-plans at each pass gate.
 ---
 
 # Pyramid: see it working early, then make it great
@@ -61,7 +61,8 @@ pass 1  ████ ████ ████ ████ ████
 
 1. **Slice 0, the skeleton.** Before any feature:
    - If there's a stack pack for the chosen stack (a `stack-<name>` skill), open it and apply it. For the default web stack that's `stack-tanstack-start`. Otherwise set up the same things by hand.
-   - The app runs, and every command in the check contract works.
+   - **First, the person sees it run.** Start the dev server and show them the starter page (`build`, "Show it"): "The app runs at http://localhost:3000. You'll see the starter page with your app's name." Keys not set? Run it on the fakes. Only then set up CI, secrets and the test deploy.
+   - Every command in the check contract works.
    - Lint enforces the code rules a tool can check (see `AGENTS.md`), and there's a generator that makes a new module from the example one. Write its command in "Commands that work here" in `AGENTS.md`.
    - CI runs on every pull request: checks, secret scan and agent-file guard (start from `templates/ci.yml` in the `idea` skill), plus the issue-link check from the stack pack.
    - **Set up in the skeleton** (see `guide/app-conventions.md` in the kit): the error system with request IDs and structured logs, a health endpoint, `/api/v1`, UTC times and money in cents, the ID strategy and standard columns, the audit log, feature flags, `object_action` event names, breakpoints and a type scale in the tokens, per-module `copy.ts`, and generators for module, route, section and component. A stack pack should ship these. Without one, build them by hand.

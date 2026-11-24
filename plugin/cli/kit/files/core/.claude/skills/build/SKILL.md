@@ -32,11 +32,28 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 8. **Write it the owner's way:** follow "Code rules" below. Installing a package? Open the `dependencies` skill and verify it first.
 9. **Update the docs** your change makes wrong, in the same pull request.
 10. **Run every check** in "Commands that work here" in `AGENTS.md`: lint, typecheck, the boundary check, tests and build. All of it must pass.
-11. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body, the issue's try line, and, for each AC ID, the test file that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
+11. **Show it.** Did the step change what the person sees? Follow "Show it" below, and put the look in your report and the pull request.
+12. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body, the issue's try line, and, for each AC ID, the test file that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
    - Aim for under about 400 changed lines, not counting lockfiles and generated files. Bigger? Split it, or label it `large-pr` and say why.
    - **Hands-on** automation (see "Automation level" in `docs/stack.md`)? Don't open it unless the person said to. Push the branch and tell them its name and the check results.
    - Then add `node .agents/skills/coordinate/scripts/board.mjs event pr-opened issue=<n> pr=<n> title="..."`.
-12. **Finish:** `node .agents/skills/coordinate/scripts/board.mjs event finished issue=<n>`, then exit. Don't wait for the review.
+13. **Finish:** `node .agents/skills/coordinate/scripts/board.mjs event finished issue=<n>`, then exit. Don't wait for the review.
+
+## Show it
+
+The person steers by looking. Show each visible step as soon as it renders, on top of the test site, not instead of it.
+
+1. **Start the dev server in the background.** Use the dev command and port from "Commands that work here" in `AGENTS.md`, or the stack pack's (`stack-tanstack-start`: `pnpm dev`, http://localhost:3000). Say it's running. Keep it running while the person is here. Stop it at the end of the session and at `/afk`. A builder in the loop stops it before it exits.
+2. **Keys missing? Run on the fakes:** the memory repositories and test keys. Name each part that is faked or off: "Sign-in is off until the Clerk keys are set." The first look never waits on `secrets`.
+3. **Give the person a way to look.**
+   - **On their machine:** the link, the page to open and the try line. "The app runs at http://localhost:3000. Open /list: the seeded items show."
+   - **In a cloud session** (Claude Code sets `CLAUDE_CODE_REMOTE=true`), they can't open this machine's localhost. Give both:
+     - screenshots of the page, desktop and phone, light and dark, from the browser the session has. With Playwright: `pnpm exec playwright screenshot --device="iPhone 13" --color-scheme=dark <url> phone-dark.png`;
+     - the command for their machine: `git fetch && git switch <branch>`, then `pnpm install && pnpm dev`, and the link.
+   - **A preview or the test site exists?** Link it too.
+4. **Ask what to change:** "Anything you'd change?" An answer is feedback (`back`, step 9), so they can steer now.
+
+**Done when** the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question.
 
 ## Code rules
 

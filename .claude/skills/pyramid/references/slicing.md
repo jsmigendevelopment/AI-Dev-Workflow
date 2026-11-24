@@ -49,7 +49,7 @@ Take them in order. Stop at the first one that gives steps of size 4 or under.
 ## What isn't a step
 
 - **A layer:** "the schema", "the API", "the components".
-- **Set-up with nothing to see.** It rides in the first step that shows something. Slice 0 is the one exception, and its try line is "the test URL loads".
+- **Set-up with nothing to see.** It rides in the first step that shows something. Slice 0 is the one exception, and its try line is "it runs locally, then the test URL loads".
 - **Tests on their own.** Every step brings its own tests.
 - **A refactor on its own.** Cleanup has its place at the pass gate.
 - **"Look into X."** An open question goes to `research`.

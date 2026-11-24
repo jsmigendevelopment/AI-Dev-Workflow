@@ -50,12 +50,12 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
    - List every account and key the first test deploy needs (for the default stack: a Cloudflare login and a Clerk app), plus the ones later slices add, marked "later".
    - Say it plainly: *"The test site can't go live until these are set. It takes about 10 minutes. Want to do it now?"*
    - Wire them through the `secrets` checklist. Values never go in the chat. If they'll do it themselves, that's `pnpm connect` in their own terminal, about 10 minutes; check the result by name with `pnpm connect --dry-run`.
-   - If they say later: write each missing one to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the first deploy, and say building will continue but nothing will be visible on the test site until then.
+   - If they say later: write each missing one to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the first deploy, and say building will continue and the app runs locally on its fakes, but the test site stays dark until then.
 
 12. **Hand off.** Write `docs/state.md` from `templates/state.md`. Then tell the person, in under 10 lines:
    - what's planned;
    - which issue goes first;
-   - **when they'll first see something on the test site** (usually right after slice 0 merges), and what still has to happen before then;
+   - **when they'll first see it:** running locally at the start of slice 0, before CI; on the test site once slice 0 merges, and what still has to happen before then;
    - that each merged step comes with a line on what to try, and feedback can come any time;
    - that at the end of a pass the loop keeps going on fixes and cleanup, and the next pass is planned only once they've tried it;
    - whether to start the build loop now (`coordinate`) or build one issue at a time.
