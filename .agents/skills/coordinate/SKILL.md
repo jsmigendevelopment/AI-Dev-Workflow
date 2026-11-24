@@ -37,7 +37,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
    Then, for every pick:
    - skip anything whose dependencies aren't merged;
-   - skip anything with a `[NEEDS CLARIFICATION]` marker or a complexity above 7, and take its `status:ready` off. A marker goes to the person (`ask`); a big issue goes back to `issues` to split;
+   - skip anything with a `[NEEDS CLARIFICATION]` marker or a complexity above 7, and take its `status:ready` off. A marker goes to the person (`ask`); on Full the CTO decides it, records "AI pick, not reviewed", and sends an FYI (`issues`). A big issue goes back to `issues` to split;
    - skip anything claimed, unless the claim is **stale**: older than 2 hours with no new commit on its branch. That's a ⏳ decision (the `ask` skill): ask before you retake it, and keep going on other work. On Full, retake it and say so in the FYI (#104).
    - order by priority;
    - start as many as can run **without touching the same modules,** up to the limit: "In flight at once" in `docs/stack.md`, or 3 if it's not set. In flight means claimed and not yet merged. Claimed work parked on the person counts too: its pull request waits for their merge, or it is labelled `needs-human`. A `needs-human` issue nobody has claimed doesn't count. (Hands-on has no loop: its limit of 1 is the one builder the person starts.) At the limit, finish before you start: get a waiting pull request through its checks first. If everything in flight waits on the person, start nothing new; batch the asks and say so in the report.
@@ -59,7 +59,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
    2. **Code review.** A fresh agent with "**Use the `pr-review` skill**", plus the issue's stack skill, if it has one. It runs from main and reads the change with `gh pr diff`.
    3. **Acceptance** (normal and risky lanes): a fresh agent with "**Use the `qa` skill, before-merge mode.**"
    4. **Security review** (risky lane only): a fresh agent with "**Use the `pr-security` skill.**"
-   5. **Human gate:** if the issue's risk flags, the risk dial or the automation level say the person merges this lane, it's a ⏳ decision: use the `ask` skill and move on to other work. Put the preview link and the issue's try line in the message, so the person can check it by using it. The more careful of the dial and the automation level wins.
+   5. **Human gate:** if the issue's risk flags, the risk dial or the automation level say the person merges this lane, it's a ⏳ decision: use the `ask` skill and move on to other work. Put the preview link and the issue's try line in the message, so the person can check it by using it. The more careful of the dial and the automation level wins. On Full there's no human gate: a careful dial adds a review here instead (another fresh `pr-review`, or `pr-security` for schema and access changes), never the person (#103).
 
    A failure sends the findings back to a fresh builder. **After two rejected rounds on one issue (three at complexity 6–7), it's a ⏳ decision** (the review cap): use `ask`, add a `failed` board event, stop work on it, and pick the next ready issue. A verdict stands until the commit changes. Never re-run a reviewer to get a different answer.
 

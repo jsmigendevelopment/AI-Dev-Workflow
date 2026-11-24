@@ -1,0 +1,53 @@
+name: agent-files
+# The agent-file guard: a pull request that changes the agents' rules or check code (AGENTS.md,
+# CLAUDE.md, .agents/, .claude/, .codex/, .github/) needs the `human-approved` label. On Full
+# automation (docs/stack.md on the base branch), a "Weakening review: pass @ <head sha>" comment
+# from someone with write access passes it instead (#103).
+#
+# Why this is safe, and why it's its own file:
+# - pull_request_target and issue_comment run this file as it is on the default branch, never the
+#   pull request's copy. So a pull request can't edit the guard, its script or the level it reads.
+# - It checks out the base only, and runs only the base's guard script. No code from the pull
+#   request is checked out or run. Its changed files, labels and comments are read as data
+#   through the API.
+# - The token is read-only (the permissions below), and the checkout keeps no credentials.
+# An issue_comment run reports on the default branch, not on the pull request's head commit, so
+# the required check turns green when the pull_request_target run is re-run after the comment.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  issue_comment:
+    types: [created, edited, deleted]
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+jobs:
+  agent-files:
+    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Agent rule files need a human, or on Full the weakening review
+        env:
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number || github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          guard=.agents/skills/coordinate/scripts/agent-files.mjs
+          if [ -f "$guard" ]; then
+            node "$guard" --pr "$PR"
+            exit 0
+          fi
+          # No guard script on the base yet: the label rule only. Renames count both names.
+          changed=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[] | .filename, (.previous_filename // empty)' \
+            | grep -E '^(AGENTS\.md|CLAUDE\.md|\.agents/|\.claude/|\.codex/|\.github/)' || true)
+          labels=$(gh api "repos/$REPO/issues/$PR/labels" --jq '.[].name')
+          if [ -n "$changed" ] && ! printf '%s\n' "$labels" | grep -qx 'human-approved'; then
+            echo "These files change the agents' rules and need the human-approved label:"
+            echo "$changed"
+            exit 1
+          fi

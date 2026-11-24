@@ -64,7 +64,7 @@ pass 1  ████ ████ ████ ████ ████
    - **First, the person sees it run.** Start the dev server and show them the starter page (`build`, "Show it"): "The app runs at http://localhost:3000. You'll see the starter page with your app's name." Keys not set? Run it on the fakes. Only then set up CI, secrets and the test deploy.
    - Every command in the check contract works.
    - Lint enforces the code rules a tool can check (see `AGENTS.md`), and there's a generator that makes a new module from the example one. Write its command in "Commands that work here" in `AGENTS.md`.
-   - CI runs on every pull request: checks, secret scan and agent-file guard (start from `templates/ci.yml` in the `idea` skill), plus the issue-link check from the stack pack.
+   - CI runs on every pull request: checks, secret scan and agent-file guard (start from `templates/ci.yml` and `templates/agent-files.yml` in the `idea` skill), plus the issue-link check from the stack pack.
    - **Set up in the skeleton** (see `guide/app-conventions.md` in the kit): the error system with request IDs and structured logs, a health endpoint, `/api/v1`, UTC times and money in cents, the ID strategy and standard columns, the audit log, feature flags, `object_action` event names, breakpoints and a type scale in the tokens, per-module `copy.ts`, and generators for module, route, section and component. A stack pack should ship these. Without one, build them by hand.
    - Main deploys to test, and there's a preview per pull request if the host offers one. Record the test URL in `AGENTS.md`.
    - Open `secrets` and wire every key the stack needs.

@@ -10,7 +10,7 @@ Two separate dials. Explain both in one sentence each when you ask:
 - **The automation level** says how much agents do without you: run the loop, open pull requests, merge, keep going overnight.
 - **The risk dial** says how careful each merge is: which changes you must read first (schema, API, every merge).
 
-When the two disagree, the more careful one wins. Full automation with a careful dial still waits for you on schema changes.
+When the two disagree, the more careful one wins. On Full automation the dial only adds reviews, never a person gate (#103): a careful dial gets schema changes an extra review, not your wait.
 
 ## The four levels
 

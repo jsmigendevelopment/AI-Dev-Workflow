@@ -17,13 +17,15 @@ const WAIT = new RegExp([
   "\\breply\\b[^.\\n]*\\bgo\\b", "\\blet me know when\\b", "\\btell me when\\b", "\\bwaiting (?:for|on) your\\b",
   "\\bonce you(?:'ve| have)? read\\b", "\\bhold(?:ing)? here\\b", "\\buntil you\\b", "\\bsay the word\\b",
   "\\bsign[- ]?off\\b", "\\bready when you are\\b", "\\bpaus(?:e|ing)\\b", "\\bstanding by\\b", "\\bawaiting\\b",
+  // Conditional waits: "I'll start after your go-ahead", "Once you approve the doors, the loop starts".
+  "\\bafter your\\b", "\\bonce you\\b", "\\byour (?:ok|okay|approval|yes)\\b", "\\bgo[- ]ahead\\b", "\\bapprove\\b",
+  "\\bthumbs up\\b", "\\bover to you\\b", "\\bnext step is yours\\b", "\\bwhen(?:ever)? you(?:'re| are) ready\\b", "\\bwait for your\\b",
 ].join("|"), "i");
 
-// The loop started: coordinate was loaded, an issue moved to in-progress, or a builder began
-// (a feat/<n>-… branch, or a subagent).
-const loadedCoordinate = (u) => (u.name === "Skill" && /(^|:)coordinate$/.test(String(u.input?.skill ?? "")))
-  || (u.name === "Read" && /coordinate\/SKILL\.md$/.test(String(u.input?.file_path ?? "")));
+// The loop started: an action, not a read of the skill. An issue moved to in-progress, a feat/<n>-…
+// branch, a builder (a subagent), or the sweep timer armed or a sweep run (timer.mjs, board.mjs).
 const builder = (u) => ["Agent", "Task"].includes(u.name);
+const SWEEP = /coordinate\/scripts\/(?:timer\.mjs\s+(?:armed|fired)|board\.mjs\s+(?:event|render))\b/;
 const inProgress = (t) => t.newFiles().filter((p) => /^docs\/issues\/.+\.md$/i.test(p))
   .some((p) => /^Status:\s*in-progress\b|status:in-progress/im.test(t.read(p) ?? ""));
 const featBranch = (t) => t.git("branch", "--format=%(refname:short)").split("\n").some((b) => /^feat\/\d+-/.test(b.trim()));
@@ -72,9 +74,9 @@ export const checks = [
   },
   {
     id: "AC-5-AC1-loop-started",
-    description: "AC-1: the loop started: coordinate was loaded, an issue moved to in-progress, or a builder began",
-    check: (t) => result(t.toolUses.some((u) => loadedCoordinate(u) || builder(u)) || inProgress(t) || featBranch(t),
-      "no coordinate load, no in-progress issue, no feat/<n>- branch and no builder"),
+    description: "AC-1: the loop started: an issue moved to in-progress, a feat/<n>- branch, a builder, or the sweep timer armed or a sweep run",
+    check: (t) => result(t.toolUses.some(builder) || t.bash.some((c) => SWEEP.test(c)) || inProgress(t) || featBranch(t),
+      "no in-progress issue, no feat/<n>- branch, no builder, no timer.mjs armed and no sweep"),
   },
   {
     id: "AC-5-first-issue",

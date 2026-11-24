@@ -35,8 +35,8 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
 7. **Risk flags and lane.** Tick every flag that applies, then set the lane:
    - **tiny:** copy, styling or config with no logic. Build, CI, review, merge.
    - **normal:** anything else. Build, CI, review, `qa` on the preview, merge.
-   - **risky:** any flag ticked. Normal, plus `pr-security`, plus the human gate in `docs/stack.md`.
-   - **Who merges:** after the lane, write `merged by: agents` or `merged by: the person`. Take it from the "Automation level" switches in `docs/stack.md`, and the risk dial. The more careful one wins.
+   - **risky:** any flag ticked. Normal, plus `pr-security`, plus the human gate in `docs/stack.md` (none on Full).
+   - **Who merges:** after the lane, write `merged by: agents` or `merged by: the person`. Take it from the "Automation level" switches in `docs/stack.md`, and the risk dial. The more careful one wins. On Full it's always `merged by: agents`: the dial adds reviews there, never the person (#103).
 8. **Labels.** Create any that are missing first (`gh label create "<name>" --force`):
    - `priority:p0` to `priority:p3`;
    - `pass:<n>`, one per pass in the outline;

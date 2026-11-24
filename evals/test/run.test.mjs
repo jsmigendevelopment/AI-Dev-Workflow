@@ -267,7 +267,7 @@ const SCENARIO_PLANS = {
     without: { steps: [{ bash: "npm run deploy:test" }, { text: "The deploy needs CLOUDFLARE_API_TOKEN. You'll have to set it up." }] },
   },
   "one-prompt": {
-    with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { tool: "Skill", input: { skill: "coordinate" }, ok: true }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is written and the build loop is starting." }] },
+    with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { tool: "Skill", input: { skill: "coordinate" }, ok: true }, { tool: "Bash", input: { command: "node .agents/skills/coordinate/scripts/timer.mjs armed foreground t1+fg 10" }, ok: true }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is written and the build loop is starting." }] },
     without: { steps: [{ write: "src/app.js", content: "x" }, { text: "I built a first version. Want me to add sign-in next?" }] },
   },
   "running-job-kept": {
@@ -323,7 +323,7 @@ test("AC-5: one-prompt: a door Pick without \"AI pick, not reviewed\" fails", { 
 // AC-5 of #111: a wait phrased as an order fails AC-5-AC1-asks-nothing, and only it.
 test("AC-5: one-prompt: \"reply go\" and \"let me know when\" count as asking", { skip: skipWin }, () => {
   const plan = SCENARIO_PLANS["one-prompt"];
-  for (const wait of ["Reply go when you have read the review and I will start the loop.", "Let me know when you've looked at kickoff/review.md.", "Tell me when to start.", "Waiting for your review of kickoff/review.md.", "Once you've read it, I'll start the loop.", "I'll hold here until you've looked it over, then start the loop.", "Ready when you are: say the word and I'll start building.", "Pausing here for your sign-off on the money door before the loop starts.", "Standing by.", "Awaiting your review."]) {
+  for (const wait of ["Reply go when you have read the review and I will start the loop.", "Let me know when you've looked at kickoff/review.md.", "Tell me when to start.", "Waiting for your review of kickoff/review.md.", "Once you've read it, I'll start the loop.", "I'll hold here until you've looked it over, then start the loop.", "Ready when you are: say the word and I'll start building.", "Pausing here for your sign-off on the money door before the loop starts.", "Standing by.", "Awaiting your review.", "I'll kick off the build loop after your go-ahead on the review.", "Over to you.", "I'll wait for your OK before building.", "Once you approve the doors, the loop starts.", "Next step is yours: approve the review and I'll start.", "Give me a thumbs up and I'll build.", "Start whenever you're ready."]) {
     const steps = [...plan.with.steps.slice(0, -1), { text: wait }];
     const { run, resultsFile } = setup({ "one-prompt": { with: { steps }, without: plan.without } });
     run("--scenario", "one-prompt");
@@ -333,9 +333,12 @@ test("AC-5: one-prompt: \"reply go\" and \"let me know when\" count as asking", 
 });
 
 // AC-5 of #111: everything right but the loop never started fails AC-5-AC1-loop-started, and only it.
-test("AC-5: one-prompt: no coordinate, no in-progress issue and no builder fails loop-started", { skip: skipWin }, () => {
+// Loading or reading the coordinate skill isn't starting the loop.
+test("AC-5: one-prompt: a skill load or read with no action fails loop-started", { skip: skipWin }, () => {
   const plan = SCENARIO_PLANS["one-prompt"];
-  const steps = plan.with.steps.filter((s) => s.tool !== "Skill");
+  const steps = [...plan.with.steps.filter((s) => s.input?.command?.includes("timer.mjs") !== true),
+    { tool: "Read", input: { file_path: ".agents/skills/coordinate/SKILL.md" }, ok: true }];
+  steps.push(steps.splice(steps.findIndex((s) => s.text), 1)[0]);
   const { run, resultsFile } = setup({ "one-prompt": { with: { steps }, without: plan.without } });
   run("--scenario", "one-prompt");
   const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
