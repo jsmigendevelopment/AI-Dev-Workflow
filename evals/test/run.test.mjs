@@ -8,6 +8,9 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const KIT = JSON.parse(readFileSync(new URL("../../cli/package.json", import.meta.url), "utf8")).version;
+const KIT_RE = KIT.replaceAll(".", "\\.");
+
 const RUN = fileURLToPath(new URL("../run.mjs", import.meta.url));
 const FAKE = fileURLToPath(new URL("./fake-claude.mjs", import.meta.url));
 const TEST_SCENARIOS = fileURLToPath(new URL("./scenarios", import.meta.url));
@@ -74,9 +77,9 @@ test("pass: with the kit passes, without fails a check; costs and tokens are sum
   assert.equal(runRecord.totals.costUsd, 0.1); // 2 x 0.02 + 2 x 0.03
   assert.deepEqual(runRecord.totals.tokens, { input: 400, output: 200, cacheRead: 4000, cacheWrite: 800 });
   assert.equal(runRecord.model, "claude-haiku-5-5");
-  assert.equal(runRecord.kitVersion, "0.4.0");
+  assert.equal(runRecord.kitVersion, KIT);
   assert.ok(alpha.arms.with.durationMs >= 0);
-  assert.match(readdirSync(results).join(" "), /\d{4}-\d\d-\d\d-claude-haiku-5-5-0\.4\.0\.json/);
+  assert.match(readdirSync(results).join(" "), new RegExp(`\\d{4}-\\d\\d-\\d\\d-claude-haiku-5-5-${KIT_RE}\\.json`));
   assert.match(r.stdout, /Estimated cost: \*\*\$0\.1000\*\*/);
   assert.match(r.stdout, /Check by hand/);
   // The arm is real: the kit is installed for "with" only, and each arm gets its own call.

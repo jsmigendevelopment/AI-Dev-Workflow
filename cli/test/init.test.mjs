@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { init } from "../src/init.mjs";
+import { readFileSync } from "node:fs";
 import { exists, logger, put, read, tmp } from "./helpers.mjs";
+
+const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
 test("init into an empty folder installs the kit and a manifest", () => {
   const dir = tmp();
@@ -12,7 +15,7 @@ test("init into an empty folder installs the kit and a manifest", () => {
     ".github/ISSUE_TEMPLATE/slice.md"]) assert.ok(exists(dir, path), path);
   assert.ok(!exists(dir, "stacks"), "stack packs are not installed by init");
   const manifest = JSON.parse(read(dir, ".onrails.json"));
-  assert.equal(manifest.kitVersion, "0.4.0");
+  assert.equal(manifest.kitVersion, version);
   assert.match(manifest.files["AGENTS.md"], /^[0-9a-f]{64}$/);
   assert.ok(!(".onrails.json" in manifest.files));
   assert.match(log.text(), /\/idea/);

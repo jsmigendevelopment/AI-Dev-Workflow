@@ -1,7 +1,7 @@
 {
-  "kitVersion": "0.4.0",
+  "kitVersion": "0.5.0",
   "core": {
-    "AGENTS.md": "294d3551dcf0f19d2f4c302ec36dbbcd046c56f513bcccf5543cd64d63d93fea",
+    "AGENTS.md": "65a19fdc378c766b6ccac541bf077efcf431c3d335bb1272d6eae9c7972dfb21",
     "CLAUDE.md": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
     ".agents/skills/a11y/SKILL.md": "34b6bda2c230f486a5fd59b67bcd70704b48e0c54eccdbdb2cdd71f667fc7dbe",
     ".agents/skills/afk/SKILL.md": "c4619fc9c240fd0ee2b4914bf465eb67b41736433e1ba98ec9b4364d97648565",
