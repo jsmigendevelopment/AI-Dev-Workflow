@@ -84,7 +84,7 @@
     <path d="M813 417v76M591 417v37"/>
     <path d="M813 455H377q-8 0-8-8v-29" marker-end="url(#retry)"/>
   </g>
-  <text x="386" y="446" font-size="14" fill="#a3a4b8">A failed check goes back to Build</text>
+  <text x="386" y="478" font-size="14" fill="#a3a4b8">A failed check goes back to Build</text>
     <rect x="46.5" y="350.5" width="201" height="64" rx="14" fill="#12121c" stroke="#262636"/>
     <circle cx="60" cy="368" r="3" fill="#a78bfa"/>
     <text x="70" y="375" font-size="17" font-weight="730">Coordinate</text>
