@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- **Install the plugin for your whole account.** The README, the cheat sheet and `init --global` now use `claude plugin install core@onrails --scope user` from a terminal, and say to pick "user" when installing from inside Claude Code. A project install only works in one folder, which is why `/or:` was missing in new threads.
+
 ## [0.5.0] - 2026-11-24
 
 ### Added

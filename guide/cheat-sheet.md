@@ -20,15 +20,16 @@
 - **`/idea`** is the project's own skill. It works once the kit is installed in the project, with or without the plugin.
 - With both, either one runs the project's copy. The project copy wins.
 
-Install the plugin once, in Claude Code:
+Install the plugin once, for your whole account, from a terminal:
 
-```text
-/plugin marketplace add jsmigendevelopment/onRails
-/plugin install core@onrails
-/reload-plugins
+```bash
+claude plugin marketplace add jsmigendevelopment/onRails
+claude plugin install core@onrails --scope user
 ```
 
-Codex: `codex plugin marketplace add jsmigendevelopment/onRails`, then `codex plugin add or@onrails`. Updates are by hand (`claude plugin update core@onrails`). Cloud sessions don't load personal plugins; they use the repo's skills. Don't mix the plugin with `init --global`. → [README](../README.md#install-as-a-plugin)
+Inside Claude Code instead? `/plugin marketplace add …` then `/plugin install core@onrails`, and **pick "user"** as the scope. A project install only works in that folder.
+
+Codex: `codex plugin marketplace add jsmigendevelopment/onRails`, then `codex plugin add or@onrails`. Updates are by hand (`claude plugin marketplace update onrails`, then `claude plugin update core@onrails`). Cloud sessions don't load personal plugins; they use the repo's skills. Don't mix the plugin with `init --global`. → [README](../README.md#install-as-a-plugin)
 
 **Adding the kit to an app you already have?** → [Step by step](add-to-existing-app.md)
 

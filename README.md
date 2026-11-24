@@ -51,13 +51,16 @@ You need Node 22 or newer, and Claude Code or Codex.
 
 ### Install as a plugin
 
-This is the way that works today. In Claude Code:
+Install it **for your whole account** (user scope), so `/or:` works in every folder. From a terminal:
 
-```text
-/plugin marketplace add jsmigendevelopment/onRails
-/plugin install core@onrails
-/reload-plugins
+```bash
+claude plugin marketplace add jsmigendevelopment/onRails
+claude plugin install core@onrails --scope user
 ```
+
+Then start a new Claude Code session. Check it with `claude plugin list`: you should see `core@onrails` with scope `user`.
+
+Already inside Claude Code? `/plugin marketplace add jsmigendevelopment/onRails`, then `/plugin install core@onrails`, and **pick "user" when it asks for a scope.** A project or local install only works in that one folder. Then run `/reload-plugins`.
 
 Now you have `/or:idea`, `/or:join`, `/or:back` and `/or:afk` in any folder. The first time you use one in a folder, it asks to install the kit there. The kit ships inside the plugin, so it needs no npm. It never overwrites a file of yours.
 
@@ -70,7 +73,8 @@ codex plugin add or@onrails
 
 Then type `$idea` or `$join`.
 
-- **Updates are by hand:** `claude plugin update core@onrails` (Codex: `codex plugin marketplace upgrade onrails`).
+- **Updates are by hand:** `claude plugin marketplace update onrails`, then `claude plugin update core@onrails` (Codex: `codex plugin marketplace upgrade onrails`).
+- **"Marketplace 'onrails' not found"?** It was added inside one project, not for your account. Run the two install commands above.
 - **The project's copy wins.** Once the kit is in a folder, the commands run the project's skills. The plugin only gets you started.
 - **Cloud sessions don't load your personal plugins.** They use the repo's own skills, so nothing breaks.
 

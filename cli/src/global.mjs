@@ -32,10 +32,10 @@ function entryFiles(kit) {
 }
 
 export const PLUGIN_TIP = [
-  "Tip: the plugin is now the recommended way to get /idea in any folder. In Claude Code:",
-  "  /plugin marketplace add jsmigendevelopment/onRails",
-  "  /plugin install core@onrails",
-  "  /reload-plugins",
+  "Tip: the plugin is now the recommended way to get /idea in any folder. From a terminal:",
+  "  claude plugin marketplace add jsmigendevelopment/onRails",
+  "  claude plugin install core@onrails --scope user",
+  "Then start a new Claude Code session.",
   "Use the plugin or init --global, not both. To switch, delete idea, join, back and afk from",
   "~/.claude/skills and ~/.agents/skills.",
 ];
