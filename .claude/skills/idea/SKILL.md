@@ -68,4 +68,4 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 - `docs/decisions.md` has a "Wireframes approved" row whose hash matches `docs/wireframes/index.html`.
 - `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md` exits 0. An empty plan fails it: the Slices table lists the slices, the current pass has steps, and every slice that pass covers has at least one.
 - Every pass 1 issue has a try line, WHEN/THEN acceptance checks with IDs, a fence, dependencies, risk flags, a lane, a complexity score, a priority and a `Skills:` line, and the consistency check found no open gap.
-- The person has seen the plan and said go.
+- The person has seen and approved the plan. Their "go" is the approval, not a separate start: the loop starts by itself (step 12).

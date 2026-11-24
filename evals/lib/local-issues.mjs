@@ -21,14 +21,29 @@ export const PACKAGE = JSON.stringify({ name: "tidy", private: true, type: "modu
 
 const branches = (t) => t.git("branch", "--format=%(refname:short)").split("\n").map((b) => b.trim()).filter(Boolean);
 
-/** Issue n was built: a feat/<n>-… branch with a commit past the start, or such a commit whose message starts with #<n>. */
+/** Non-merge commits in the given revisions, each with its subject and the files it changed. */
+function commits(t, ...revs) {
+  const out = [];
+  for (const line of t.git("log", "--no-merges", "--format=@%s", "--name-only", ...revs).split("\n")) {
+    if (line.startsWith("@")) out.push({ subject: line.slice(1).trim(), files: 0 });
+    else if (line.trim() && out.length) out.at(-1).files++;
+  }
+  return out;
+}
+
+/**
+ * Issue n was built: a feat/<n>-… branch with a commit past the start, or a commit whose message starts
+ * with #<n>. Empty commits don't count: a commit must change a file.
+ */
 export function built(t, n) {
   const start = t.meta.start;
-  const branch = branches(t).some((b) => b.startsWith(`feat/${n}-`) && Number(t.git("rev-list", "--count", `${start}..${b}`)) > 0);
-  if (branch) return true;
-  const subjects = t.git("log", "--all", "--format=%s", `^${start}`).split("\n");
-  return subjects.some((s) => new RegExp(`^#0*${n}\\b`).test(s.trim()));
+  const real = (cs) => cs.some((c) => c.files > 0);
+  if (branches(t).some((b) => b.startsWith(`feat/${n}-`) && real(commits(t, `${start}..${b}`)))) return true;
+  return real(commits(t, "--all", `^${start}`).filter((c) => new RegExp(`^#0*${n}\\b`).test(c.subject)));
 }
+
+/** The commit is on local main: merged, not only on its branch. */
+export const onMain = (t, sha) => t.git("branch", "--contains", sha, "--format=%(refname:short)").split("\n").includes("main");
 
 /** Every version of a file: the working tree's, then each local branch's that has it. */
 export function versions(t, path) {

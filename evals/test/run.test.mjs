@@ -255,11 +255,11 @@ const SCENARIO_PLANS = {
     without: { steps: [{ write: "src/hero.html", content: "<section class=\"hero\"><video autoplay muted loop src=\"/hero.mp4\"></video></section>\n" }, { text: "Done: the hero has an autoplay video now." }] },
   },
   "go-ahead-loop": {
-    with: { steps: [{ bash: "git checkout -qb feat/1-add-numbers && printf 'export const add = (a, b) => a + b;\\n' >> src/math.mjs && git commit -qam '#1 Add two numbers'" }, { bash: "git checkout -q main && git checkout -qb feat/2-shout && git commit -q --allow-empty -m '#2 Shout a word'" }, { text: "Starting the build loop. #1 and #2 are built on their branches and wait for review. No other ready issue is left." }] },
-    without: { steps: [{ bash: "git checkout -qb feat/1-add-numbers && git commit -q --allow-empty -m '#1 Add two numbers'" }, { text: "Issue 1 is done. Go ahead to start issue 2?" }] },
+    with: { steps: [{ bash: "git checkout -qb feat/1-add-numbers && printf 'export const add = (a, b) => a + b;\\n' >> src/math.mjs && git commit -qam '#1 Add two numbers'" }, { bash: "git checkout -q main && git checkout -qb feat/2-shout && printf 'export const shout = (s) => s.toUpperCase();\\n' >> src/text.mjs && git commit -qam '#2 Shout a word'" }, { text: "Starting the build loop. No timer in this tool, so it runs in the foreground. #1 and #2 are built on their branches and wait for review. No other ready issue is left." }] },
+    without: { steps: [{ bash: "git checkout -qb feat/1-add-numbers && printf 'export const add = (a, b) => a + b;\\n' >> src/math.mjs && git commit -qam '#1 Add two numbers'" }, { bash: "git checkout -q main && git checkout -qb feat/2-shout && git commit -q --allow-empty -m '#2 Shout a word'" }, { text: "Issue 1 is done. Go ahead to start issue 2?" }] },
   },
   "blocked-not-stopped": {
-    with: { steps: [{ write: "docs/issues/1.md", content: "# #1 Deploy main to the test site\n\nStatus: blocked\nLabels: needs-human, blocker\n" }, { bash: "git checkout -qb feat/2-add-numbers && git commit -q --allow-empty -m '#2 Add two numbers'" }, { text: "#1 is parked on you (docs/issues/1.md). #2 is built on feat/2-add-numbers." }] },
+    with: { steps: [{ write: "docs/issues/1.md", content: "# #1 Deploy main to the test site\n\nStatus: blocked\nLabels: needs-human, blocker\n" }, { bash: "git merge -q --no-ff feat/3-shout -m '#3 Shout a word'" }, { bash: "git checkout -qb feat/2-add-numbers && printf 'export const add = (a, b) => a + b;\\n' >> src/math.mjs && git commit -qam '#2 Add two numbers'" }, { text: "#1 is parked on you (docs/issues/1.md). #3 is merged on main. #2 is built on feat/2-add-numbers." }] },
     without: { steps: [{ bash: "npm run deploy:test" }, { text: "The deploy needs CLOUDFLARE_API_TOKEN. You'll have to set it up." }] },
   },
   "strongest-tier": {

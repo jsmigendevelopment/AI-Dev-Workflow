@@ -9,8 +9,14 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 ## Start
 
-1. **Arm the sweep timer:** every 10 minutes, with what your tool has. Claude Code: `/loop 10m` with "Run one coordinate sweep", or a scheduled wake-up. A cloud session: `send_later` in 10 minutes, or a scheduled task. Codex: its scheduled or recurring task. Re-arm it at the end of every sweep (step 10). Say once which one you armed. No timer at all? Run the loop in the foreground (sweep, wait 10 minutes, sweep) and say so once. **Done when** a timer is armed, or the foreground loop is running and the person knows why.
-2. **Pick the mode.** No GitHub remote, or `gh api rate_limit` shows the API at 0? Run local mode: load `references/local-mode.md`. Every step below still applies; that file says where each one reads and writes instead.
+1. **Arm the sweep timer:** one sweep every 10 minutes, with what your tool has. Two kinds:
+   - **Repeating** (Claude Code `/loop 10m` with "Run one coordinate sweep", a recurring scheduled task, Codex's recurring task): arm it **once**. Never arm a second one. Cancel it when no work is left (step 10).
+   - **One-shot** (a cloud session's `send_later`, a Claude Code scheduled wake-up): arm it now, and re-arm it at the end of every sweep.
+   - **In a cloud session,** use `send_later` in 10 minutes. Its scheduled tasks usually run hourly at best.
+   - **No timer at all?** Run the loop in the foreground (sweep, wait 10 minutes, sweep) and say so once.
+
+   Say once which one you armed. **Done when** exactly one timer is armed, or the foreground loop is running and the person knows why.
+2. **Pick the mode.** Load `references/local-mode.md` when the repo has no remote at all, the remote isn't GitHub, or the GitHub API is rate-limited ("Go easy on the GitHub API"). Every step below still applies; that file says where each one reads and writes instead.
 
 ## The loop
 
@@ -69,7 +75,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
     - **orphan check:** from the lists you already fetched, find every `handoff` record with no `Got it ·` receipt, or past its "check by" time with no result, and every stale claim. Each one not yet on "Waiting on you" is a ⏳ decision through `ask`;
     - run `node .claude/hooks/notify.mjs --flush`, so batched decisions go out.
 
-    - **Re-arm the sweep timer** (Start, step 1). Work left means ready, in-flight, parked or gate issues. None left, and nothing waits on a reply? Don't re-arm: say *"No work left; the loop has stopped."* and report.
+    - **The sweep timer** (Start, step 1). Work left means ready, in-flight, parked or gate issues, or a reply still awaited. Work left: re-arm a one-shot timer; leave a repeating one alone. None left: cancel a repeating timer, don't re-arm a one-shot, say *"No work left; the loop has stopped."* and report.
 
     `board.md` in this folder has the exact commands. Then go back to step 1.
 
@@ -97,7 +103,9 @@ Every agent and every app on one account shares one hourly limit. Git pushes and
 - **One batched read per sweep:** a single `gh issue list` and a single `gh pr list`, using `--json` with only the fields you need (labels, assignees, head commit, check status, and the fields in `board.md` so the board can use the same output). Don't fetch issues or pull requests one by one.
 - **Replies:** if anything is labelled `needs-human`, add one `gh issue list --label needs-human --json number,comments` to the sweep. A reply from the person answers it (see "Replies" in `ask`).
 - **Act on events, sweep every 10 minutes at most.** Never loop on a timer faster than that.
-- **Check `gh api rate_limit` before a sweep.** It's free. Under 20% left: sweep every 30 minutes and start no new builders. At zero: switch to local mode until the reset (`references/local-mode.md`), and follow rule 11 in `AGENTS.md`: an ℹ️ FYI with the reset time.
+- **Check `gh api rate_limit` before a sweep.** It's free. Read both `resources.core` and `resources.graphql`: `gh issue list` and `gh pr list` spend the GraphQL one.
+  - **Under 20% left on either:** sweep every 30 minutes and start no new builders. Change the timer: re-arm a one-shot for 30 minutes, or cancel a repeating one and arm one at 30 minutes. Back above 20%: return to 10.
+  - **Rate-limited:** `remaining` is 0 on either, or any `gh` call fails with a rate-limit 403 or 429. Switch to local mode until the later of the two `reset` times (`references/local-mode.md`). Follow rule 11 in `AGENTS.md`: an ℹ️ FYI with that reset time.
 
 ## Rules
 
@@ -112,4 +120,4 @@ Every agent and every app on one account shares one hourly limit. Git pushes and
 | File | Load when |
 |---|---|
 | `board.md` | Step 10, or any board, sheet or Presence tab command. |
-| `references/local-mode.md` | Start, step 2: no GitHub remote, or the API is rate-limited. |
+| `references/local-mode.md` | Start, step 2: no remote, a remote that isn't GitHub, or GitHub's API is rate-limited. |
