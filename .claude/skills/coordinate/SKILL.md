@@ -33,6 +33,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
    - Use whatever your tool offers: background agents with worktree isolation, a headless run in a git worktree (`claude -p`, `codex exec`), or cloud sessions.
    - **Where:** cloud first when `[sessions] prefer = "cloud"` and the job can run there (`routing`, "Where a job runs").
    - **Whose account:** the profile has `[accounts]`? Find the account that owns this job (`routing`'s `references/accounts.md`). Not this session's? Don't run it here. Write a ready-to-paste prompt for that account's session, or a cloud session on it, as an ℹ️ FYI. Comment it on the issue once, label it `account:<key>`, and skip it on later sweeps until that session claims it.
+   - **Every brief is a handoff** (`../ask/references/handoffs.md`). The claim comment is its record: add the owner's exact words when they asked in chat, next to your summary, and a "check by" time. Schedule the follow-up with the session's scheduling tool, or leave it to step 10. The builder's first comment is its receipt: `Got it ·` and its reading in one line. A reading that differs from the owner's words goes to the owner, not to you.
 
 5. **Act when something reports back:** a finished agent, a new pull request, or a check result. Sweep the board every 10 minutes only as a safety net. A builder's report has a look (`build`, "Show it": the screenshot links on `screenshots/pr-<n>` and the branch command)? Pass those links to the person now and ask *"Anything you'd change?"*, so they can steer before the merge. Note on the pull request that you asked. An answer is feedback (`back`, step 9).
    - **You own the person's dev server and the fixed port.** One server, in your own checkout, on the fixed port from "Commands that work here". Builders use free ports. It runs main, or the branch you're showing. Restart it after each merge, so the link stays live. Stop it at the end of the session and at `/afk`. In a cloud session, start no server: nobody can open it. Pass the screenshots and the command instead.
@@ -59,6 +60,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
     - render the board from the lists you already fetched;
     - clean up screenshots: list `git ls-remote origin 'refs/heads/screenshots/*'`. Delete each one whose pull request closed without a merge, and each `screenshots/<branch>` whose `<branch>` is gone from origin. Once the test site is live, delete each one whose pull request merged too. Same command and same "if `gh` refuses" as step 9;
     - if the profile sets `[board] sheet` and you have the Google Sheets connector, write the rows (one clear, one write);
+    - **orphan check:** from the lists you already fetched, find every `handoff` record with no `Got it ·` receipt, or past its "check by" time with no result, and every stale claim. Each one not yet on "Waiting on you" is a ⏳ decision through `ask`;
     - run `node .claude/hooks/notify.mjs --flush`, so batched decisions go out.
 
     `board.md` in this folder has the exact commands. Then go back to step 1.

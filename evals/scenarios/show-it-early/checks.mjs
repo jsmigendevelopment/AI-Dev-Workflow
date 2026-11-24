@@ -1,5 +1,5 @@
 // build and pyramid: slice 0 shows the running app, with its link, before any CI work (#99, AC-5).
-import { result } from "../../lib/checks.mjs";
+import { failedIds, result } from "../../lib/checks.mjs";
 
 // A command that runs a dev server: at the start of the command, or after ; && || | or (, with any
 // `nohup`, `timeout N` or VAR=value in front, the package manager then `dev` or `run dev` (npm start and
@@ -8,16 +8,6 @@ const DEV = /(^|[;&|(])\s*(nohup\s+|timeout\s+\S+\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\
 const LINK = /(localhost|127\.0\.0\.1):3000/;
 // A file written into .github/workflows: a redirect, tee or cp aimed there. Reads (`ls ... 2>/dev/null`) and mkdir don't count.
 const CI_WRITE = />>?\s*["']?\S*\.github\/workflows\/|\btee\s+(-a\s+)?["']?\S*\.github\/workflows\/|\bcp\b[^\n;&|]*\s["']?\S*\.github\/workflows\/?\S*(?=\s*($|[;&|]))/;
-
-/** Ids of tool calls whose result was an error: denied by the permission mode, or a command that failed. */
-function failedIds(events) {
-  const failed = new Set();
-  for (const e of events) {
-    if (e.type !== "user" || !Array.isArray(e.message?.content)) continue;
-    for (const b of e.message.content) if (b.type === "tool_result" && b.is_error) failed.add(b.tool_use_id);
-  }
-  return failed;
-}
 
 /** What happened, in order: "dev" (the server started), "link" (said to the person), "ci" (a CI file written). Errored calls don't count. */
 function timeline(events) {
