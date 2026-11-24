@@ -63,6 +63,14 @@ test("an away past its hard stop, or older than 24 hours, counts as unknown", ()
   assert.equal(presence(home).status, "away");
 });
 
+test("an open-ended away (Full automation, no hard stop) never goes stale; a hard stop still wins", () => {
+  const home = tmp();
+  assert.equal(presence(home, "afk", "weekend", "--open-ended").openEnded, true);
+  put(home, ".onrails/presence.json", JSON.stringify({ status: "away", since: hoursAgo(60), openEnded: true }));
+  assert.equal(presence(home).status, "away");
+  assert.equal(presence(tmp(), "afk", "night", "--open-ended", "--until", new Date(Date.now() + 3600e3).toISOString()).openEnded, undefined);
+});
+
 test("presence back clears a stale away and flags it for the report", () => {
   const home = tmp();
   put(home, ".onrails/presence.json", JSON.stringify({ status: "away", since: hoursAgo(30) }));

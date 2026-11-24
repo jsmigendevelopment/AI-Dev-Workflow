@@ -1,0 +1,1 @@
+Build the ready issues. There's no GitHub in this folder: the issues are the files in docs/issues/. I already ran `npm run deploy:test` and it said CLOUDFLARE_API_TOKEN is not set. The shell here runs one plain command at a time (git, node, npm, ls, cat, mkdir or grep; no echo, no && or ;).

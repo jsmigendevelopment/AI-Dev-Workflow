@@ -27,7 +27,7 @@ description: Use when the person is stepping away and wants the build loop to ke
    - agents have **test credentials only;**
    - main's checks are green.
 
-4. **Mark yourself away and tell the other threads.** Run `node .agents/skills/afk/scripts/worklog.mjs presence afk "<how long> · <one line on what you were doing>" --until <the hard stop, ISO time in UTC> --merge "<what may merge>" --pings "<what pings>"`. Use the rules you just set, for example `--merge "normal lane, to test" --pings "critical only"`. That writes `~/.onrails/presence.json`, which every loop on this machine reads before each sweep. It also logs the time, if the work log is on.
+4. **Mark yourself away and tell the other threads.** Run `node .agents/skills/afk/scripts/worklog.mjs presence afk "<how long> · <one line on what you were doing>" --until <the hard stop, ISO time in UTC> --merge "<what may merge>" --pings "<what pings>"`. No hard stop (Full automation, none set)? Pass `--open-ended` instead of `--until`: that away never goes stale. Use the rules you just set, for example `--merge "normal lane, to test" --pings "critical only"`. That writes `~/.onrails/presence.json`, which every loop on this machine reads before each sweep. It also logs the time, if the work log is on.
    - **Sheet:** if the profile sets `[board] sheet` and you have the Google Sheets connector, write the Presence tab (see "The Presence tab" in `../coordinate/board.md`). That's how cloud sessions learn you're away. A failed write is an ℹ️ FYI, never a blocker.
    - **No sheet:** say in one line that cloud sessions on other machines won't know you're away.
 
@@ -39,7 +39,7 @@ description: Use when the person is stepping away and wants the build loop to ke
    - the commit on main;
    - the queue;
    - the limit choice;
-   - the hard stop.
+   - the hard stop, or "none".
 
    Commit it. If the session dies at 3 a.m., this note is all `/back` will have. Stop the dev server if this session started it.
 
@@ -62,13 +62,16 @@ description: Use when the person is stepping away and wants the build loop to ke
 
 ## Watchdog and hard stop (long)
 
-- **Every 20 minutes:**
+- **The watchdog rides the sweep:** one timer, the sweep timer. Before you go, `node .agents/skills/coordinate/scripts/timer.mjs should-arm` must exit 1 (a live timer). Exit 0 (none, or dead)? Start `coordinate`: it cancels a dead one and arms one. Every second sweep (about 20 minutes), `coordinate` runs these checks:
   - any builder with no new commit in 20 minutes is stuck, so park its issue (don't blindly restart it);
   - check usage;
   - check that main is green;
   - check `gh api rate_limit`.
-- Something has to wake the session to run the watchdog: in Claude Code, a scheduled wake-up or the built-in `/loop`. If your tool has neither, run the loop in the foreground until the queue is empty.
-- **Hard stop:** at the time the person sets (default: 10 hours), or when the queue is empty, or the pass is done and its gate work has run out. Then run the retro (the "Retro" section in `back`), write the final state with its findings to `docs/state.md`, and stop. Kit drafts wait there for the person.
+- **No work left** (`coordinate`, step 10: nothing ready, in flight, parked or at a gate): the loop stops on its own.
+- **Hard stop:** the time the person set. On Full automation there's none unless they set one. On the other levels, the default is 10 hours. At the hard stop, even with work left:
+  - stop the sweep timer (`coordinate`, "Start", step 1), and stop merging. Start no new builders. Pull requests still in review, and builders that finish and push, wait for `/back`;
+  - run the retro once (the "Retro" section in `back`), and write `Retro done <time>` in the `/afk` section, so a later wake doesn't run it again;
+  - write the final state with its findings to `docs/state.md`, and stop. Kit drafts wait there for the person.
 
 ## Checking usage
 

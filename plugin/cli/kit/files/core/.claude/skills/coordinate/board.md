@@ -33,12 +33,12 @@ JSON works too: `event started '{"issue":12,"title":"Notes list"}'`. If the home
 
 ## Render
 
-After each sweep, save the two lists you already fetched to temp files outside the repo, then render:
+After each sweep, save the two lists you already fetched to the cache, then render. The cache is the board's folder: the `board` path from `board.mjs path`, without its file name. Local mode reads these same files while GitHub is rate-limited (`references/local-mode.md`).
 
 ```bash
-gh issue list --state open --limit 200 --json number,title,labels,url,updatedAt > <tmp>/issues.json
-gh pr list --state open --json number,title,url,headRefName,labels,isDraft,updatedAt > <tmp>/prs.json
-node .agents/skills/coordinate/scripts/board.mjs render --github <tmp>/issues.json --github <tmp>/prs.json
+gh issue list --state open --limit 200 --json number,title,labels,url,updatedAt > <cache>/<project>-issues.json
+gh pr list --state open --json number,title,url,headRefName,labels,isDraft,updatedAt > <cache>/<project>-prs.json
+node .agents/skills/coordinate/scripts/board.mjs render --github <cache>/<project>-issues.json --github <cache>/<project>-prs.json
 ```
 
 These are the sweep's own batched reads, not extra ones. The board then shows:
@@ -76,7 +76,7 @@ Formatting is never sent again. Values change, the rules stay.
 **Every sweep,** write the values. That's one clear and one write, nothing more:
 
 ```bash
-node .agents/skills/coordinate/scripts/board.mjs rows --github <tmp>/issues.json --github <tmp>/prs.json
+node .agents/skills/coordinate/scripts/board.mjs rows --github <cache>/<project>-issues.json --github <cache>/<project>-prs.json
 ```
 
 1. It prints `clearRange`, `range`, `valueInputOption` and `values`.

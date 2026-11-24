@@ -71,7 +71,7 @@ One issue, one branch (`feat/<n>-short-name` or `fix/<n>-short-name`), one pull 
 
 ## No GitHub yet?
 
-Write each issue as `docs/issues/NNN-short-title.md` from the same template, and move them to GitHub once there's a remote.
+Write each issue as `docs/issues/NNN-short-title.md` from the same template, with `Status: ready` under its title. `coordinate`'s local mode reads that file and line. Move them to GitHub once there's a remote.
 
 ## From feedback or bugs
 

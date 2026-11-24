@@ -58,8 +58,9 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
    - which issue goes first;
    - **when they'll first see it:** running locally at the start of slice 0, before CI; on the test site once slice 0 merges, and what still has to happen before then;
    - that each merged step comes with a line on what to try, and feedback can come any time;
-   - that at the end of a pass the loop keeps going on fixes and cleanup, and the next pass is planned only once they've tried it;
-   - whether to start the build loop now (`coordinate`) or build one issue at a time.
+   - that at the end of a pass the loop keeps going on fixes and cleanup, and the next pass is planned only once they've tried it.
+
+   **Then start the loop.** Automation level not Hands-on? Open `coordinate` now, without asking, and say so in one line: *"Starting the build loop: it builds every ready issue in order and shows you each step."* "Go ahead", "start" or "yes" always means the loop, never one issue. Build one issue at a time only on Hands-on, or when the person says those words. **Done when** `coordinate` is running, or the level is Hands-on and the person knows which issue to ask for first.
 
 ## Done when
 
@@ -67,4 +68,4 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 - `docs/decisions.md` has a "Wireframes approved" row whose hash matches `docs/wireframes/index.html`.
 - `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md` exits 0. An empty plan fails it: the Slices table lists the slices, the current pass has steps, and every slice that pass covers has at least one.
 - Every pass 1 issue has a try line, WHEN/THEN acceptance checks with IDs, a fence, dependencies, risk flags, a lane, a complexity score, a priority and a `Skills:` line, and the consistency check found no open gap.
-- The person has seen the plan and said go.
+- The person has seen and approved the plan. Their "go" is the approval, not a separate start: the loop starts by itself (step 12).
