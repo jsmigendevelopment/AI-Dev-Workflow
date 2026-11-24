@@ -1,0 +1,1217 @@
+{
+  "runs": [
+    {
+      "startedAt": "2026-11-23T11:47:44.303Z",
+      "finishedAt": "2026-11-23T11:49:46.972Z",
+      "model": "claude-haiku-5-5",
+      "kitVersion": "0.4.0",
+      "claudeCodeVersion": "2.1.330",
+      "limits": {
+        "maxTurns": 12,
+        "timeoutSec": 240,
+        "maxBudgetUsd": 0.5,
+        "maxRuns": 18
+      },
+      "auth": "login",
+      "scenarios": [
+        {
+          "name": "coarse-plan-rejected",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": true
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": true
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 35091,
+              "tokens": {
+                "input": 10,
+                "output": 6404,
+                "cacheRead": 141081,
+                "cacheWrite": 24940
+              },
+              "costUsd": 0.00960181,
+              "numTurns": 7,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": false,
+                  "detail": "nothing about trying a step"
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": false,
+                  "detail": "check-plan.mjs was never run"
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 12120,
+              "tokens": {
+                "input": 4,
+                "output": 1861,
+                "cacheRead": 33595,
+                "cacheWrite": 7508
+              },
+              "costUsd": 0.0027684499999999996,
+              "numTurns": 2,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "It also says Household and Cost split have no step in pass 1.",
+            "It offers a thinner cut: steps like \"add an item\" and \"tick an item off\", each with a try line."
+          ],
+          "warnings": []
+        },
+        {
+          "name": "plan-thin-steps",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": true
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": true
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": true
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": true
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 87153,
+              "tokens": {
+                "input": 14,
+                "output": 16360,
+                "cacheRead": 261513,
+                "cacheWrite": 46654
+              },
+              "costUsd": 0.02012733,
+              "numTurns": 11,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": false,
+                  "detail": "no steps table in docs/pyramid.md"
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": false,
+                  "detail": "0 step(s)"
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 42137,
+              "tokens": {
+                "input": 10,
+                "output": 7035,
+                "cacheRead": 99888,
+                "cacheWrite": 16172
+              },
+              "costUsd": 0.00775178,
+              "numTurns": 13,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "Each try line names a real action and what shows, not \"it works\".",
+            "The core slice (the shared list) has the most steps.",
+            "Pass 2 and pass 3 are an outline only."
+          ],
+          "warnings": []
+        }
+      ],
+      "totals": {
+        "runs": 4,
+        "costUsd": 0.040249,
+        "costUnknown": 0,
+        "durationMs": 176501,
+        "tokens": {
+          "input": 38,
+          "output": 31660,
+          "cacheRead": 536077,
+          "cacheWrite": 95274
+        }
+      },
+      "exitCode": 0
+    },
+    {
+      "startedAt": "2026-11-23T11:49:47.024Z",
+      "finishedAt": "2026-11-23T11:52:32.995Z",
+      "model": "claude-haiku-5-5",
+      "kitVersion": "0.4.0",
+      "claudeCodeVersion": "2.1.330",
+      "limits": {
+        "maxTurns": 12,
+        "timeoutSec": 240,
+        "maxBudgetUsd": 0.5,
+        "maxRuns": 18
+      },
+      "auth": "login",
+      "scenarios": [
+        {
+          "name": "coarse-plan-rejected",
+          "verdict": "fail",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": true
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": false,
+                  "detail": "check-plan.mjs was never run"
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 20682,
+              "tokens": {
+                "input": 4,
+                "output": 3588,
+                "cacheRead": 41285,
+                "cacheWrite": 15728
+              },
+              "costUsd": 0.00535285,
+              "numTurns": 3,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": false,
+                  "detail": "nothing about trying a step"
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": false,
+                  "detail": "check-plan.mjs was never run"
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 15258,
+              "tokens": {
+                "input": 4,
+                "output": 2280,
+                "cacheRead": 33597,
+                "cacheWrite": 7530
+              },
+              "costUsd": 0.00298237,
+              "numTurns": 2,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "It also says Household and Cost split have no step in pass 1.",
+            "It offers a thinner cut: steps like \"add an item\" and \"tick an item off\", each with a try line."
+          ],
+          "warnings": []
+        },
+        {
+          "name": "plan-thin-steps",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": true
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": true
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": true
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": true
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 144877,
+              "tokens": {
+                "input": 14,
+                "output": 29032,
+                "cacheRead": 275739,
+                "cacheWrite": 59766
+              },
+              "costUsd": 0.029227990000000002,
+              "numTurns": 22,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": false,
+                  "detail": "no steps table in docs/pyramid.md"
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": false,
+                  "detail": "0 step(s)"
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 73045,
+              "tokens": {
+                "input": 10,
+                "output": 14689,
+                "cacheRead": 100705,
+                "cacheWrite": 23787
+              },
+              "costUsd": 0.013109949999999999,
+              "numTurns": 15,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "Each try line names a real action and what shows, not \"it works\".",
+            "The core slice (the shared list) has the most steps.",
+            "Pass 2 and pass 3 are an outline only."
+          ],
+          "warnings": []
+        }
+      ],
+      "totals": {
+        "runs": 4,
+        "costUsd": 0.050673,
+        "costUnknown": 0,
+        "durationMs": 253862,
+        "tokens": {
+          "input": 32,
+          "output": 49589,
+          "cacheRead": 451326,
+          "cacheWrite": 106811
+        }
+      },
+      "exitCode": 1
+    },
+    {
+      "startedAt": "2026-11-23T11:52:33.041Z",
+      "finishedAt": "2026-11-23T11:54:54.912Z",
+      "model": "claude-haiku-5-5",
+      "kitVersion": "0.4.0",
+      "claudeCodeVersion": "2.1.330",
+      "limits": {
+        "maxTurns": 12,
+        "timeoutSec": 240,
+        "maxBudgetUsd": 0.5,
+        "maxRuns": 18
+      },
+      "auth": "login",
+      "scenarios": [
+        {
+          "name": "coarse-plan-rejected",
+          "verdict": "fail",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": true
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": false,
+                  "detail": "check-plan.mjs was never run"
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 23776,
+              "tokens": {
+                "input": 4,
+                "output": 4118,
+                "cacheRead": 41283,
+                "cacheWrite": 15640
+              },
+              "costUsd": 0.0056002299999999994,
+              "numTurns": 3,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": false,
+                  "detail": "nothing about trying a step"
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": false,
+                  "detail": "check-plan.mjs was never run"
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 13368,
+              "tokens": {
+                "input": 4,
+                "output": 2048,
+                "cacheRead": 33597,
+                "cacheWrite": 7511
+              },
+              "costUsd": 0.00286257,
+              "numTurns": 2,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "It also says Household and Cost split have no step in pass 1.",
+            "It offers a thinner cut: steps like \"add an item\" and \"tick an item off\", each with a try line."
+          ],
+          "warnings": []
+        },
+        {
+          "name": "plan-thin-steps",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": true
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": true
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": true
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": true
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 117644,
+              "tokens": {
+                "input": 20,
+                "output": 22837,
+                "cacheRead": 458980,
+                "cacheWrite": 56652
+              },
+              "costUsd": 0.0273407,
+              "numTurns": 22,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": false,
+                  "detail": "no steps table in docs/pyramid.md"
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": false,
+                  "detail": "0 step(s)"
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 45400,
+              "tokens": {
+                "input": 10,
+                "output": 7749,
+                "cacheRead": 100766,
+                "cacheWrite": 17066
+              },
+              "costUsd": 0.008296360000000001,
+              "numTurns": 13,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "Each try line names a real action and what shows, not \"it works\".",
+            "The core slice (the shared list) has the most steps.",
+            "Pass 2 and pass 3 are an outline only."
+          ],
+          "warnings": []
+        }
+      ],
+      "totals": {
+        "runs": 4,
+        "costUsd": 0.0441,
+        "costUnknown": 0,
+        "durationMs": 200188,
+        "tokens": {
+          "input": 38,
+          "output": 36752,
+          "cacheRead": 634626,
+          "cacheWrite": 96869
+        }
+      },
+      "exitCode": 1
+    },
+    {
+      "startedAt": "2026-11-23T11:54:54.954Z",
+      "finishedAt": "2026-11-23T11:56:57.826Z",
+      "model": "claude-haiku-5-5",
+      "kitVersion": "0.4.0",
+      "claudeCodeVersion": "2.1.330",
+      "limits": {
+        "maxTurns": 12,
+        "timeoutSec": 240,
+        "maxBudgetUsd": 0.5,
+        "maxRuns": 18
+      },
+      "auth": "login",
+      "scenarios": [
+        {
+          "name": "coarse-plan-rejected",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": true
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": true
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 22182,
+              "tokens": {
+                "input": 6,
+                "output": 3888,
+                "cacheRead": 74117,
+                "cacheWrite": 19914
+              },
+              "costUsd": 0.00666857,
+              "numTurns": 6,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": false,
+                  "detail": "nothing about trying a step"
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": false,
+                  "detail": "check-plan.mjs was never run"
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 12319,
+              "tokens": {
+                "input": 4,
+                "output": 2013,
+                "cacheRead": 33594,
+                "cacheWrite": 7682
+              },
+              "costUsd": 0.0028792400000000004,
+              "numTurns": 2,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "It also says Household and Cost split have no step in pass 1.",
+            "It offers a thinner cut: steps like \"add an item\" and \"tick an item off\", each with a try line."
+          ],
+          "warnings": []
+        },
+        {
+          "name": "plan-thin-steps",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": true
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": true
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": true
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": true
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 100384,
+              "tokens": {
+                "input": 14,
+                "output": 20604,
+                "cacheRead": 236864,
+                "cacheWrite": 51568
+              },
+              "costUsd": 0.02298564,
+              "numTurns": 23,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": false,
+                  "detail": "no steps table in docs/pyramid.md"
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": false,
+                  "detail": "0 step(s)"
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 45448,
+              "tokens": {
+                "input": 10,
+                "output": 8081,
+                "cacheRead": 100548,
+                "cacheWrite": 17352
+              },
+              "costUsd": 0.008517380000000001,
+              "numTurns": 13,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "Each try line names a real action and what shows, not \"it works\".",
+            "The core slice (the shared list) has the most steps.",
+            "Pass 2 and pass 3 are an outline only."
+          ],
+          "warnings": []
+        }
+      ],
+      "totals": {
+        "runs": 4,
+        "costUsd": 0.041051,
+        "costUnknown": 0,
+        "durationMs": 180333,
+        "tokens": {
+          "input": 34,
+          "output": 34586,
+          "cacheRead": 445123,
+          "cacheWrite": 96516
+        }
+      },
+      "exitCode": 0
+    },
+    {
+      "startedAt": "2026-11-23T11:56:57.863Z",
+      "finishedAt": "2026-11-23T12:00:10.980Z",
+      "model": "claude-haiku-5-5",
+      "kitVersion": "0.4.0",
+      "claudeCodeVersion": "2.1.330",
+      "limits": {
+        "maxTurns": 12,
+        "timeoutSec": 240,
+        "maxBudgetUsd": 0.5,
+        "maxRuns": 18
+      },
+      "auth": "login",
+      "scenarios": [
+        {
+          "name": "coarse-plan-rejected",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": true
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": true
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 42981,
+              "tokens": {
+                "input": 10,
+                "output": 7588,
+                "cacheRead": 149533,
+                "cacheWrite": 32427
+              },
+              "costUsd": 0.011775730000000002,
+              "numTurns": 8,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": true
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": false,
+                  "detail": "check-plan.mjs was never run"
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 20058,
+              "tokens": {
+                "input": 8,
+                "output": 3266,
+                "cacheRead": 77377,
+                "cacheWrite": 10568
+              },
+              "costUsd": 0.00452117,
+              "numTurns": 7,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "It also says Household and Cost split have no step in pass 1.",
+            "It offers a thinner cut: steps like \"add an item\" and \"tick an item off\", each with a try line."
+          ],
+          "warnings": []
+        },
+        {
+          "name": "plan-thin-steps",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": true
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": true
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": true
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": true
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 149788,
+              "tokens": {
+                "input": 16,
+                "output": 30183,
+                "cacheRead": 327802,
+                "cacheWrite": 68581
+              },
+              "costUsd": 0.03208732,
+              "numTurns": 27,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": false,
+                  "detail": "no steps table in docs/pyramid.md"
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": false,
+                  "detail": "0 step(s)"
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 63914,
+              "tokens": {
+                "input": 10,
+                "output": 11940,
+                "cacheRead": 100543,
+                "cacheWrite": 20925
+              },
+              "costUsd": 0.011161429999999998,
+              "numTurns": 14,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "Each try line names a real action and what shows, not \"it works\".",
+            "The core slice (the shared list) has the most steps.",
+            "Pass 2 and pass 3 are an outline only."
+          ],
+          "warnings": []
+        }
+      ],
+      "totals": {
+        "runs": 4,
+        "costUsd": 0.059546,
+        "costUnknown": 0,
+        "durationMs": 276741,
+        "tokens": {
+          "input": 44,
+          "output": 52977,
+          "cacheRead": 655255,
+          "cacheWrite": 132501
+        }
+      },
+      "exitCode": 0
+    },
+    {
+      "startedAt": "2026-11-23T12:00:11.018Z",
+      "finishedAt": "2026-11-23T12:03:18.450Z",
+      "model": "claude-haiku-5-5",
+      "kitVersion": "0.4.0",
+      "claudeCodeVersion": "2.1.330",
+      "limits": {
+        "maxTurns": 12,
+        "timeoutSec": 240,
+        "maxBudgetUsd": 0.5,
+        "maxRuns": 18
+      },
+      "auth": "login",
+      "scenarios": [
+        {
+          "name": "coarse-plan-rejected",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": true
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": true
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 29055,
+              "tokens": {
+                "input": 8,
+                "output": 5052,
+                "cacheRead": 106058,
+                "cacheWrite": 22578
+              },
+              "costUsd": 0.00810298,
+              "numTurns": 7,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "not-accepted",
+                  "pass": true
+                },
+                {
+                  "id": "names-the-layers",
+                  "pass": true
+                },
+                {
+                  "id": "asks-for-try-lines",
+                  "pass": false,
+                  "detail": "nothing about trying a step"
+                },
+                {
+                  "id": "ran-the-checker",
+                  "pass": false,
+                  "detail": "check-plan.mjs was never run"
+                },
+                {
+                  "id": "no-edits",
+                  "pass": true
+                }
+              ],
+              "durationMs": 15752,
+              "tokens": {
+                "input": 6,
+                "output": 2545,
+                "cacheRead": 54888,
+                "cacheWrite": 9789
+              },
+              "costUsd": 0.00377978,
+              "numTurns": 3,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "It also says Household and Cost split have no step in pass 1.",
+            "It offers a thinner cut: steps like \"add an item\" and \"tick an item off\", each with a try line."
+          ],
+          "warnings": []
+        },
+        {
+          "name": "plan-thin-steps",
+          "verdict": "pass",
+          "arms": {
+            "with": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": true
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": true
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": true
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": true
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 158008,
+              "tokens": {
+                "input": 18,
+                "output": 32335,
+                "cacheRead": 407613,
+                "cacheWrite": 63618
+              },
+              "costUsd": 0.03296903,
+              "numTurns": 24,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            },
+            "without": {
+              "status": "ok",
+              "checks": [
+                {
+                  "id": "steps-table",
+                  "pass": false,
+                  "detail": "no steps table in docs/pyramid.md"
+                },
+                {
+                  "id": "two-steps-per-slice",
+                  "pass": false,
+                  "detail": "0 step(s)"
+                },
+                {
+                  "id": "every-step-tryable",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "steps-are-small",
+                  "pass": false,
+                  "detail": "plan: no steps table. The current pass needs one with the columns: # | step | slice | try it | size | after"
+                },
+                {
+                  "id": "no-code",
+                  "pass": true
+                }
+              ],
+              "durationMs": 43403,
+              "tokens": {
+                "input": 10,
+                "output": 7785,
+                "cacheRead": 99464,
+                "cacheWrite": 16692
+              },
+              "costUsd": 0.008226540000000001,
+              "numTurns": 13,
+              "subtype": "success",
+              "claudeCodeVersion": "2.1.330"
+            }
+          },
+          "manual": [
+            "Each try line names a real action and what shows, not \"it works\".",
+            "The core slice (the shared list) has the most steps.",
+            "Pass 2 and pass 3 are an outline only."
+          ],
+          "warnings": []
+        }
+      ],
+      "totals": {
+        "runs": 4,
+        "costUsd": 0.053078,
+        "costUnknown": 0,
+        "durationMs": 246218,
+        "tokens": {
+          "input": 42,
+          "output": 47717,
+          "cacheRead": 668023,
+          "cacheWrite": 112677
+        }
+      },
+      "exitCode": 0
+    }
+  ]
+}

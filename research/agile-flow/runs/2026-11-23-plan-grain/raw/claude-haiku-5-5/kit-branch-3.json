@@ -1,0 +1,17 @@
+{
+  "arm": "kit-branch",
+  "model": "claude-haiku-5-5",
+  "iteration": 3,
+  "status": "ok",
+  "subtype": "success",
+  "turns": 21,
+  "costUsd": 0.026669619999999998,
+  "durationMs": 120398,
+  "tokens": {
+    "input": 16,
+    "output": 24242,
+    "cacheRead": 339042,
+    "cacheWrite": 55783
+  },
+  "finished": "2026-11-23T11:04:53.083Z"
+}

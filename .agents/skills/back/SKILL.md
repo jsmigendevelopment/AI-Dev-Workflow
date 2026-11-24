@@ -14,7 +14,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 1. **Read the board first.** Run `node .agents/skills/coordinate/scripts/board.mjs render --print`. It shows what needs the person, what's being built and in review, what merged today, and the FYIs, from every thread on this machine. If the profile sets `[board] sheet` and you have the Google Sheets connector, rewrite the project's tab once (see `../coordinate/board.md`). No sheet set and you have the connector? Offer one, once.
 
 2. **Read the state.** Read `docs/state.md`, and if it exists, the `/afk` section in it: when the person left, the commit on main, the queue and the rules set.
-   - Read the pass status in `docs/pyramid.md`. A pass at `gate`? Load `../pyramid/references/pass-gate.md`. Running it is the first triage option. The MVP's last pass done and production still "Coming soon"? Say: *"MVP complete; launch is your call."* Never start the launch yourself.
+   - Read the pass status in `docs/pyramid.md`. A pass at `gate`? Load `../pyramid/references/pass-gate.md`. The loop has been doing its audit and cleanup. The person's part, trying it and the re-plan, is the first triage option. The MVP's last pass done and production still "Coming soon"? Say: *"MVP complete; launch is your call."* Never start the launch yourself.
    - List stale research: `node .agents/skills/research/scripts/check-research.mjs docs/research --stale`.
    - No `docs/state.md`, but a `grill-log.md` in `kickoff/` or `docs/`? A paused kickoff. Resume `/idea` at the first line its coverage map hasn't ticked.
 
@@ -30,6 +30,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 5. **Usage.** If the person uses Claude Code, check what's left (see "Checking usage" in `afk`) and report the percentage used and when it resets.
 
 6. **Report, sized to the time away.** After a short break, 3 lines. After a night, at most 10 lines: counts plus the top three in each, with links to the rest.
+   - **To try:** the "To try" list in `docs/state.md`, newest first: what to do and what they'll see, with the test link.
    - **Merged:** split into *checked and passed*, *checked and failed*, and *not checked yet*, with test links.
    - **Failed or parked,** and why.
    - **Waiting on you,** most important first: 🛑 blockers, then ⏳ decisions, each with its recommended answer, from the board and the "Waiting on you" list in `docs/state.md`. Then run `node .claude/hooks/notify.mjs --clear`, so held pings don't fire now that they've been seen.
@@ -41,14 +42,14 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 7. **Retro, after a long run.** The person was away for the night or longer, or the loop merged or parked 5 or more issues since the last retro? Run the retro below, unless the `/afk` section in `docs/state.md` already has one for this run. Then show its findings in the report.
 
 8. **Triage.** Offer three options with your pick first:
-   - a pass at `gate`: run the pass gate (the right pick then);
-   - try the three riskiest merges first (usually the right pick otherwise);
+   - a pass at `gate`: try it, then re-plan the next pass (the right pick then);
+   - try what's on "To try", riskiest first (usually the right pick otherwise);
    - clear the `needs-human` list;
    - start or keep running `coordinate`.
 
    On full automation and the app now has real users? Suggest switching to Recommended (the `automation` skill).
 
-9. **Feedback becomes issues.** As the person tries things, open `issues` and write one issue per point. Don't fix things inline unless they're tiny.
+9. **Feedback becomes issues or ideas.** As the person tries things, sort each point. Something wrong or slow in what's built: open `issues` and write one issue for it, and the loop builds the fix in the current pass (labelled `gate` while a gate runs). Something missing is a new idea: add a row to `docs/features.md`, and the next re-plan places it. Don't fix things inline unless they're tiny. Take a line off "To try" once they've tried it.
 
 10. **Before the session ends,** update `docs/state.md`. Overwrite it, keep it under 30 lines, and leave it so a brand-new session could take over.
 
@@ -56,10 +57,10 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
 A short look back, so the next run goes better. `/afk` runs it at the hard stop too.
 
-1. **Read the record, not your memory:** the board, `docs/state.md`, the merged and parked issues, failed checks, rejected reviews and `needs-human` items since the last retro.
+1. **Read the record, not your memory:** the board, `docs/state.md`, the merged and parked issues, failed checks, rejected reviews and `needs-human` items since the last retro. Add the flow numbers: `gh pr list --state merged --limit 200 --json number,createdAt,mergedAt,additions,deletions,headRefName > <tmp>/merged.json`, then `node .agents/skills/coordinate/scripts/flow.mjs --github <tmp>/merged.json`.
 2. **Ask three questions:**
    - **What went wrong?** A failed check, a rejected review, a parked issue, a bug that reached test.
-   - **What was slow?** An issue that took many rounds, a long hunt for a file or a fact, a wait on a limit.
+   - **What was slow?** An issue that took many rounds, a long hunt for a file or a fact, a wait on a limit. In the flow numbers: the longest gap between merges and what caused it, and the slowest pull requests.
    - **What did the person do by hand?** A setup step, a fix, a command, an answer the docs should have had.
 3. **Keep at most 5 findings,** worst first. Each one names where it happened: an issue, a pull request or a commit. Drop any you can't point to. A finding is not a feature request.
 4. **Pick the fix that fails loudly.** A mistake a tool could catch gets a check (a lint rule, a test, a CI step), not a new line in `AGENTS.md`. A missing fact gets a pointer from a file the agent already reads.

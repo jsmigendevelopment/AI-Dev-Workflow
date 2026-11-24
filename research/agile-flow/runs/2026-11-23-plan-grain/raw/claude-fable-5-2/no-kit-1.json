@@ -1,0 +1,17 @@
+{
+  "arm": "no-kit",
+  "model": "claude-fable-5-2",
+  "iteration": 1,
+  "status": "ok",
+  "subtype": "success",
+  "turns": 15,
+  "costUsd": 0.5746282,
+  "durationMs": 81808,
+  "tokens": {
+    "input": 10,
+    "output": 7115,
+    "cacheRead": 102541,
+    "cacheWrite": 16840
+  },
+  "finished": "2026-11-23T11:08:41.238Z"
+}

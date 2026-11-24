@@ -1,6 +1,6 @@
 ---
 name: coordinate
-description: Use when the person says to start the build loop, run the coordinator, or build the ready issues ("start the loop", "build the ready issues", "run the coordinator", "keep building") - claims ready issues by priority, dependencies and conflicts, starts one fresh builder per issue, sends each pull request through CI, review, an acceptance check on the preview and, for risky changes, a security review, merges the exact checked commit, smoke-tests the test environment, and reports.
+description: Use when the person says to start the build loop, run the coordinator, or build the ready issues ("start the loop", "build the ready issues", "run the coordinator", "keep building") - claims ready issues by priority, dependencies and conflicts, keeps only a few in flight, starts one fresh builder per issue, sends each pull request through CI, review, an acceptance check on the preview and, for risky changes, a security review, merges the exact checked commit, smoke-tests the test environment, tells the person what to try, keeps going at a pass gate, and reports.
 ---
 
 # Coordinate: the build → check → merge loop
@@ -15,13 +15,17 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
    - **Can the next merge reach the test site?** Check, by name only, that the deploy's secrets exist (`gh secret list --env test`, and whatever `secrets` lists for the stack). If one is missing, don't wait until a deploy fails: raise a 🛑 blocker for the deploy now (the `ask` skill), with the `secrets` checklist as the next action and the time it takes. Keep building what doesn't need it.
 
-2. **Pick work.** From `status:ready` issues in the current pass (the one marked `building` in `docs/pyramid.md`):
-   - every issue in the pass's milestone closed? The pass is done. Go to "End of a pass";
+2. **Pick work.** Read the pass status in `docs/pyramid.md` first:
+   - a pass at `gate`: its gate has started. Go to "End of a pass", which skips every step already marked done, and pick only issues labelled `gate`;
+   - a pass at `building` with every issue in its milestone closed: the pass is done. Go to "End of a pass", step 1;
+   - otherwise, pick from the `status:ready` issues in the pass marked `building`.
+
+   Then, for every pick:
    - skip anything whose dependencies aren't merged;
    - skip anything with a `[NEEDS CLARIFICATION]` marker or a complexity above 7, and take its `status:ready` off. A marker goes to the person (`ask`); a big issue goes back to `issues` to split;
    - skip anything claimed, unless the claim is **stale**: older than 2 hours with no new commit on its branch. That's a ⏳ decision (the `ask` skill): ask before you retake it, and keep going on other work.
    - order by priority;
-   - start as many as can run **without touching the same modules.**
+   - start as many as can run **without touching the same modules,** up to the limit: "In flight at once" in `docs/stack.md`, or 3 if it's not set. In flight means claimed and not yet merged. Claimed work parked on the person counts too: its pull request waits for their merge, or it is labelled `needs-human`. A `needs-human` issue nobody has claimed doesn't count. (Hands-on has no loop: its limit of 1 is the one builder the person starts.) At the limit, finish before you start: get a waiting pull request through its checks first. If everything in flight waits on the person, start nothing new; batch the asks and say so in the report.
 
 3. **Claim it.** Label it `status:in-progress` and comment `Claimed by <session name> at <time>`. Check the claim again just before starting. Other people's agents may share the repo.
 
@@ -35,7 +39,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
    2. **Code review.** A fresh agent with "**Use the `pr-review` skill**", plus the issue's stack skill, if it has one. It runs from main and reads the change with `gh pr diff`.
    3. **Acceptance** (normal and risky lanes): a fresh agent with "**Use the `qa` skill, before-merge mode.**"
    4. **Security review** (risky lane only): a fresh agent with "**Use the `pr-security` skill.**"
-   5. **Human gate:** if the issue's risk flags, the risk dial or the automation level say the person merges this lane, it's a ⏳ decision: use the `ask` skill and move on to other work. The more careful of the dial and the automation level wins.
+   5. **Human gate:** if the issue's risk flags, the risk dial or the automation level say the person merges this lane, it's a ⏳ decision: use the `ask` skill and move on to other work. Put the preview link and the issue's try line in the message, so the person can check it by using it. The more careful of the dial and the automation level wins.
 
    A failure sends the findings back to a fresh builder. **After two rejected rounds on one issue (three at complexity 6–7), it's a ⏳ decision** (the review cap): use `ask`, add a `failed` board event, and stop work on it. A verdict stands until the commit changes. Never re-run a reviewer to get a different answer.
 
@@ -46,7 +50,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 8. **After the merge,** main deploys to test. Start a fresh agent with "**Use the `qa` skill, smoke mode.**" If it fails, open a bug issue.
 
-9. **Record it.** Write one line to `docs/state.md` for every merge, and add a board event: `node .agents/skills/coordinate/scripts/board.mjs event merged issue=<n> pr=<n> title="..."`.
+9. **Record it.** For every merge, add one line to "To try" in `docs/state.md`: the pull request, the issue and its try line. Add a board event: `node .agents/skills/coordinate/scripts/board.mjs event merged issue=<n> pr=<n> title="..."`.
 
 10. **End of sweep:**
     - render the board from the lists you already fetched;
@@ -57,10 +61,17 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 ## End of a pass
 
-1. Start no new builders.
-2. Mark the pass `gate` in `docs/pyramid.md`, and write "Pass <N> done; gate waiting" to `docs/state.md`. Under `/afk`, write it to the `/afk` section too.
-3. Send a ⏳ decision through `ask`: *"Pass <N> is done; try it on the test site."* with the test URL.
-4. Wait. The gate runs with the person, in `/back` or when they say they tried it: `../pyramid/references/pass-gate.md`. Start building again only once the next pass is marked `building`.
+The loop doesn't stop at a gate. It does the parts that need no person, and builds what they find. Load `../pyramid/references/pass-gate.md`.
+
+Steps 1 to 3 run once per gate. Each leaves a mark: step 1 the `gate` status, step 2 `ask sent` and step 3 `audit started`, both in the pass's Gate record row. Before each step, look for its mark. Found? Skip the step. So a pass at `gate` with both marks goes straight to step 4, and the ask and the audit never run twice.
+
+1. Mark the pass `gate` in `docs/pyramid.md`, add its row to "Gate record" with today's date, and write "Pass <N> done; gate running" to `docs/state.md`. Under `/afk`, write it to the `/afk` section too.
+2. Send a ⏳ decision through `ask`: *"Pass <N> is done; try it on the test site."* with the test URL and the "To try" list. Mark it: `ask sent <date>` in the row's Feedback issues cell.
+3. Start the gate's audit, then its cleanup pick (steps 1 and 2 there). Their findings become issues labelled `gate`. Mark it: `audit started <date>` in the row's Audit cell.
+4. Keep the loop going on `gate` issues only. Feedback that something built is wrong or slow becomes a `gate` issue and joins them. Something missing is a new idea: a row in `docs/features.md`, which waits for the re-plan.
+5. No `gate` issue left to build? Then wait. The next pass's steps start only after the person has tried it and the re-plan has marked that pass `building`.
+
+**Done when** the next pass is marked `building`, or the gate work has run out and the ask is waiting.
 
 After the MVP's last pass, the message is *"MVP complete on the test site; launch is your call."* The loop never launches.
 

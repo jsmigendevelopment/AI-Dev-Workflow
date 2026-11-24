@@ -1,6 +1,6 @@
 # State
 
-The handoff note between sessions. Keep it under 30 lines. Overwrite it, don't append.
+The handoff note between sessions. Keep it under 30 lines, not counting "To try". Overwrite it, don't append.
 
 - **Updated:** 
 - **Phase:** grill / planning / building pass N / polishing
@@ -13,6 +13,11 @@ The handoff note between sessions. Keep it under 30 lines. Overwrite it, don't a
 ## Waiting on you
 
 <!-- most important first, one line each (the ask skill): 🛑 #16 · test deploy key missing · since 08:31 -->
+
+## To try
+
+<!-- one line per merged step the person hasn't tried yet, newest first: #31 · #12 Add an item · Type "milk" and press Enter: it shows at the top.
+     The coordinator adds a line at each merge. /back takes it off once the person has tried it. -->
 
 ## /afk (only while the person is away)
 

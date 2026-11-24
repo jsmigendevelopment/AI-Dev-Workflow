@@ -32,7 +32,7 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 8. **Write it the owner's way:** follow "Code rules" below. Installing a package? Open the `dependencies` skill and verify it first.
 9. **Update the docs** your change makes wrong, in the same pull request.
 10. **Run every check** in "Commands that work here" in `AGENTS.md`: lint, typecheck, the boundary check, tests and build. All of it must pass.
-11. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body and, for each AC ID, the test file that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
+11. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body, the issue's try line, and, for each AC ID, the test file that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
    - Aim for under about 400 changed lines, not counting lockfiles and generated files. Bigger? Split it, or label it `large-pr` and say why.
    - **Hands-on** automation (see "Automation level" in `docs/stack.md`)? Don't open it unless the person said to. Push the branch and tell them its name and the check results.
    - Then add `node .agents/skills/coordinate/scripts/board.mjs event pr-opened issue=<n> pr=<n> title="..."`.

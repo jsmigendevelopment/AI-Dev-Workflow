@@ -1,0 +1,29 @@
+{
+  "run": "2026-11-23-evals",
+  "created": "2026-11-23",
+  "question": "On the kit as it is on this branch, does each of the nine eval scenarios pass (every check passes with the kit and at least one fails without it), run after run, and what does a full run cost?",
+  "machine": "cloud-linux: Claude Code cloud container, Linux 6.18, Node 22.23.5, Claude Code 2.1.330, signed in with the owner's own login (no API key)",
+  "command": "node evals/run.mjs --model claude-haiku-5-5 --results-dir research/agile-flow/runs/2026-11-23-evals/raw   (three times), then   node research/agile-flow/runs/2026-11-23-evals/to-csv.mjs",
+  "cases": [
+    "build-tdd-fence:with", "build-tdd-fence:without", "coarse-plan-rejected:with", "coarse-plan-rejected:without",
+    "git-safety:with", "git-safety:without", "idea-grill:with", "idea-grill:without", "plan-thin-steps:with", "plan-thin-steps:without",
+    "review-weakened-test:with", "review-weakened-test:without", "secrets:with", "secrets:without",
+    "strongest-tier:with", "strongest-tier:without", "wireframe-gate:with", "wireframe-gate:without"
+  ],
+  "metrics": [
+    { "name": "checks_passed", "unit": "count", "how": "the scenario's checks that passed in this arm" },
+    { "name": "checks_total", "unit": "count", "how": "the scenario's checks" },
+    { "name": "scenario_pass", "unit": "flag", "how": "on the 'with' case only: 1 when the harness's verdict for the scenario is pass, 0 for fail or no-difference" },
+    { "name": "cost_usd", "unit": "usd", "how": "Claude Code's own estimate for the run, not a bill" },
+    { "name": "duration_s", "unit": "s", "how": "wall-clock time of the run" }
+  ],
+  "warmup": 0,
+  "iterations": 3,
+  "notes": [
+    "The harness's defaults: claude-haiku-5-5, 12 turns, 240 seconds and 0.50 USD per run.",
+    "No API key here, so the runs use the owner's Claude Code login. The harness warns that personal settings may load into both arms in that case; this container has none.",
+    "A run that times out or errors keeps its row with status failed.",
+    "Three pilot runs were made before this manifest, while the scenarios were being written: plan-thin-steps and coarse-plan-rejected (both passed), and a third scenario, gate-keeps-moving, which hit the 12-turn limit with the kit and was dropped. They are in the summary as pilots, not in results.csv."
+  ],
+  "versions": { "claude-code": "2.1.330", "node": "22.23.5", "kit": "this branch at the commit that adds this manifest" }
+}

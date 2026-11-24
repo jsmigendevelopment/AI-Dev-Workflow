@@ -44,7 +44,7 @@ You can't pick a stack before you know whether it's a website, a phone app or a 
 
 ## 7. See it working early.
 
-Tracer bullets give you something to try after the first slice, so you can steer while it's cheap. The pyramid stacks passes so the core gets the most love.
+Tracer bullets give you something to try after the first slice, so you can steer while it's cheap. The pyramid stacks passes so the core gets the most love. Each pass is cut into thin steps, each one something you can try, so changes keep reaching the test site instead of landing in a few big lumps.
 
 ## 8. Remove yourself from everything except intent and taste.
 

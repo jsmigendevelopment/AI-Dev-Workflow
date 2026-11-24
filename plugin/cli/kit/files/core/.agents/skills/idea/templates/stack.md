@@ -73,6 +73,7 @@ How much agents do without the person (the `automation` skill). The risk dial ab
 - **Merges, normal lane:** agents
 - **Merges, risky lane:** person
 - **Opens pull requests:** agents
+- **In flight at once:** 3  <!-- issues claimed and not yet merged, counting claimed work waiting on the person; 1 on Hands-on; the loop finishes one before it starts another -->
 - **Overnight loop:** off  <!-- on | off; /afk offers it when off -->
 - **Ping level:** decisions  <!-- decisions | blockers | critical; read by notify.mjs -->
 

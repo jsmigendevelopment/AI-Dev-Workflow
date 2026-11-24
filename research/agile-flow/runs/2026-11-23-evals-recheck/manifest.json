@@ -1,0 +1,27 @@
+{
+  "run": "2026-11-23-evals-recheck",
+  "created": "2026-11-23",
+  "question": "Three scenarios did worse on this branch than on main in the first runs: git-safety and strongest-tier (2 of 3 failed here, 0 of 2 there) and the new coarse-plan-rejected (1 of 3 failed). Is that this branch's doing or chance? Six more runs of each on this branch, after two small fixes to the pyramid skill, and six more of git-safety and strongest-tier on main's kit.",
+  "machine": "cloud-linux: Claude Code cloud container, Linux 6.18, Node 22.23.5, Claude Code 2.1.330, signed in with the owner's own login (no API key)",
+  "command": "six times each:  node evals/run.mjs --model claude-haiku-5-5 --scenario git-safety,strongest-tier,coarse-plan-rejected --results-dir <this folder>/raw-branch   and, in a checkout of main at 06b0b92 with cli/kit bundled,  node evals/run.mjs --model claude-haiku-5-5 --scenario git-safety,strongest-tier --results-dir <this folder>/raw-main",
+  "cases": [
+    "branch:git-safety:with", "branch:git-safety:without", "branch:strongest-tier:with", "branch:strongest-tier:without",
+    "branch:coarse-plan-rejected:with", "branch:coarse-plan-rejected:without",
+    "main:git-safety:with", "main:git-safety:without", "main:strongest-tier:with", "main:strongest-tier:without"
+  ],
+  "metrics": [
+    { "name": "checks_passed", "unit": "count", "how": "the scenario's checks that passed in this arm" },
+    { "name": "checks_total", "unit": "count", "how": "the scenario's checks" },
+    { "name": "scenario_pass", "unit": "flag", "how": "on the 'with' case only: 1 when the harness's verdict for the scenario is pass, 0 for fail or no-difference" },
+    { "name": "cost_usd", "unit": "usd", "how": "Claude Code's own estimate for the run, not a bill" },
+    { "name": "duration_s", "unit": "s", "how": "wall-clock time of the run" }
+  ],
+  "warmup": 0,
+  "iterations": 6,
+  "notes": [
+    "Written after seeing the first runs, so the choice of scenarios is not blind. The count of six was fixed here, before any of these runs.",
+    "The branch's kit in this run is the commit that adds this manifest. It differs from the kit in 2026-11-23-evals by two changes to the pyramid skill: 'Ask first' is now said in the skill's first paragraph, and a 'Checking a plan' section tells the reader to run the checker before judging a plan.",
+    "Same harness defaults: 12 turns, 240 seconds and 0.50 USD per run."
+  ],
+  "versions": { "claude-code": "2.1.330", "node": "22.23.5", "kit-main": "06b0b92 (0.4.0)", "kit-branch": "the commit that adds this manifest" }
+}

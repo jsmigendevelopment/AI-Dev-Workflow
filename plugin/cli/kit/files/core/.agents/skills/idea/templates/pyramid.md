@@ -10,7 +10,7 @@
 
 ## Slices
 
-Only slices the core can't work without. Role: core, support, or insisted (a non-core must the person kept; pass 1 or 2 only).
+Only slices the core can't work without. Role: core, support, or insisted (a non-core must the person kept; pass 1 or 2 only). A slice is a column of the pyramid. Each pass cuts it into steps, below.
 
 | Slice | Role | What a person can do after pass 1 |
 |---|---|---|
@@ -29,15 +29,34 @@ Status: `outline`, `building`, `gate`, `done`. One pass is `building` at a time.
 
 Pass 3 done = **MVP complete on the test site.** Not launch. Launch is the person's call.
 
-## Current pass: detail
+## Current pass: steps
 
-<!-- Only the pass marked building. Slices in order of priority and dependency, and what each must do. -->
+<!-- Only the pass marked building. One row per step, in build order. One step is one issue and one pull request.
+     Try it: what the person does on the test site, and what they see. No try line, no step.
+     Size: the issue's complexity, 1 to 10. 4 or under is thin. A 5 to 7 says why it can't be cut: "5 · <reason>". At most one step in three.
+     After: the numbers of the steps that must merge first. Empty when none.
+     Check it: node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md -->
+
+| # | Step | Slice | Try it | Size | After |
+|---|---|---|---|---|---|
+| 1 | The skeleton | slice 0 | Open the test URL: the starter page loads | 5 · sets up the app, CI and the test deploy | |
+
+## Done means
+
+A step is done when all of this is true, and not before:
+
+- every `auto` acceptance check has a passing test that carries its ID;
+- CI is green on the merged commit, and the lane's reviews passed on that same commit;
+- it's merged to main, live on the test site, and the smoke test passed;
+- its try line is on the "To try" list in `docs/state.md`.
+
+A pass is done when every one of its steps is done.
 
 ## Gate record
 
-| Pass | Date | Feedback issues | Audit | Cleanup issues | Re-plan |
-|---|---|---|---|---|---|
-|  |  |  |  |  |  |
+| Pass | Date | Feedback issues | Audit | Cleanup issues | Flow | Re-plan |
+|---|---|---|---|---|---|---|
+|  |  |  |  |  | <!-- steps merged · median hours from pull request to merge · longest gap between merges --> |  |
 
 ## Debt
 

@@ -22,3 +22,6 @@ Treat it as strong hints, not laws, and **re-test anything you rely on when your
 | AI-built apps in production | 91% of 200 deployed apps with mostly AI-written commits had a validated vulnerability, broken access control in 64%. | Published |
 | Per-action approval prompts | People approve 93–97% of them, so they mostly add clicks. Approve the intent and the result instead. | Vendor data |
 | Shouting at the model | Vendors now advise dropping "think hard", capitalised "IMPORTANT" and "keep going". | Vendor guidance |
+| Thin steps in the plan | Asked to plan the same app, a small model listed a median of 12 steps the person could try for pass 1 with the thin test and the plan checker, against 5 with the kit as it was. The planning model: 14 against 8. One app, 5 and 3 runs per arm. | My test (`research/agile-flow.md`) |
+| Small changes are easier to review | At Google the median change is 24 lines, and first feedback comes in under an hour for small changes against about 5 hours for very large ones. At Microsoft, the more files in a change, the smaller the share of useful review comments. | Published |
+| A model checking its own plan | With one model as planner and checker, self-checking made plans worse. A sound outside checker made them better. Measured on planning puzzles, not code. | Published |

@@ -41,10 +41,10 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 8. **Fill in the project facts** at the bottom of `AGENTS.md`.
 
-9. **Plan the build.** This is CTO work: the strongest model, high effort (see `routing`). Open `pyramid`. It plans slice 0 (the skeleton), outlines all three passes, details pass 1, and designs the schema and API from the approved wireframes. It writes `docs/pyramid.md` and `docs/design.md`.
+9. **Plan the build.** This is CTO work: the strongest model, high effort (see `routing`). Open `pyramid`. It plans slice 0 (the skeleton), outlines all three passes, cuts pass 1 into thin steps the person can try, checks the cut with its script, and designs the schema and API from the approved wireframes. It writes `docs/pyramid.md` and `docs/design.md`.
    - If you're not on the strongest model, stop. Update `docs/state.md` and tell the person: "Start a new session on your strongest model and type `/back` to plan the build."
 
-10. **Write the issues.** Everyday model, medium effort. Open `issues` for pass 1 only, and run its consistency check (its last step). Gaps become issues or questions for the person before step 12.
+10. **Write the issues.** Everyday model, medium effort. Open `issues` for pass 1 only: one issue per step. Run its consistency check (its last step). Gaps become issues or questions for the person before step 12.
 
 11. **Keys and accounts, before any building.** Open `secrets` now, not when a deploy is stuck. Nothing reaches the test site until these exist, so ask while the person is still here:
    - List every account and key the first test deploy needs (for the default stack: a Cloudflare login and a Clerk app), plus the ones later slices add, marked "later".
@@ -56,12 +56,14 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
    - what's planned;
    - which issue goes first;
    - **when they'll first see something on the test site** (usually right after slice 0 merges), and what still has to happen before then;
-   - that the loop stops after each pass so they can try it, and the next pass is planned only then;
+   - that each merged step comes with a line on what to try, and feedback can come any time;
+   - that at the end of a pass the loop keeps going on fixes and cleanup, and the next pass is planned only once they've tried it;
    - whether to start the build loop now (`coordinate`) or build one issue at a time.
 
 ## Done when
 
 - `docs/` holds the vision, features, MVP, decisions, stack, architecture, security policy, design, wireframes, pyramid, state and `research/README.md`.
 - `docs/decisions.md` has a "Wireframes approved" row whose hash matches `docs/wireframes/index.html`.
-- Every pass 1 issue has WHEN/THEN acceptance checks with IDs, a fence, dependencies, risk flags, a lane, a complexity score, a priority and a `Skills:` line, and the consistency check found no open gap.
+- `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md` exits 0. An empty plan fails it: the Slices table lists the slices, the current pass has steps, and every slice that pass covers has at least one.
+- Every pass 1 issue has a try line, WHEN/THEN acceptance checks with IDs, a fence, dependencies, risk flags, a lane, a complexity score, a priority and a `Skills:` line, and the consistency check found no open gap.
 - The person has seen the plan and said go.

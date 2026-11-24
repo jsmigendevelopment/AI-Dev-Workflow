@@ -1,0 +1,27 @@
+{
+  "run": "2026-11-23-evals-main",
+  "created": "2026-11-23",
+  "question": "On the kit as it is on main (06b0b92), how do its seven eval scenarios do on claude-haiku-5-5, run after run? This is the baseline that tells a regression on this branch from a scenario that already fails or shows no difference on main.",
+  "machine": "cloud-linux: Claude Code cloud container, Linux 6.18, Node 22.23.5, Claude Code 2.1.330, signed in with the owner's own login (no API key)",
+  "command": "in a checkout of main at 06b0b92 with cli/kit bundled:  node evals/run.mjs --model claude-haiku-5-5 --results-dir <this folder>/raw   (three times), then   node research/agile-flow/runs/2026-11-23-evals/to-csv.mjs 2026-11-23-evals-main",
+  "cases": [
+    "build-tdd-fence:with", "build-tdd-fence:without", "git-safety:with", "git-safety:without", "idea-grill:with", "idea-grill:without",
+    "review-weakened-test:with", "review-weakened-test:without", "secrets:with", "secrets:without",
+    "strongest-tier:with", "strongest-tier:without", "wireframe-gate:with", "wireframe-gate:without"
+  ],
+  "metrics": [
+    { "name": "checks_passed", "unit": "count", "how": "the scenario's checks that passed in this arm" },
+    { "name": "checks_total", "unit": "count", "how": "the scenario's checks" },
+    { "name": "scenario_pass", "unit": "flag", "how": "on the 'with' case only: 1 when the harness's verdict for the scenario is pass, 0 for fail or no-difference" },
+    { "name": "cost_usd", "unit": "usd", "how": "Claude Code's own estimate for the run, not a bill" },
+    { "name": "duration_s", "unit": "s", "how": "wall-clock time of the run" }
+  ],
+  "warmup": 0,
+  "iterations": 3,
+  "notes": [
+    "Written after the first of the three runs of 2026-11-23-evals, which showed three of the seven older scenarios not passing on this branch (build-tdd-fence, review-weakened-test, wireframe-gate). That first result is why this baseline exists, so it was not planned blind.",
+    "Same harness defaults as that run: 12 turns, 240 seconds and 0.50 USD per run. The harness and scenarios are main's own.",
+    "The 'without' arm is the same in both runs: no kit. Only the 'with' arm differs."
+  ],
+  "versions": { "claude-code": "2.1.330", "node": "22.23.5", "kit": "06b0b92 (0.4.0)" }
+}
