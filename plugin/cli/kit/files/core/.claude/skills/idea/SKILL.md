@@ -53,15 +53,15 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
    - List every account and key the first test deploy needs (for the default stack: a Cloudflare login and a Clerk app), plus the ones later slices add, marked "later".
    - Say it plainly: *"The test site can't go live until these are set. It takes about 10 minutes. Want to do it now?"*
    - Wire them through the `secrets` checklist. Values never go in the chat. If they'll do it themselves, that's `pnpm connect` in their own terminal, about 10 minutes; check the result by name with `pnpm connect --dry-run`.
-   - On Full, don't ask: treat it as "later", and list the missing ones in one ℹ️ FYI.
-   - If they say later: write each missing one to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the first deploy, and say building will continue and the app runs locally on its fakes, but the test site stays dark until then.
+   - On Full, don't ask: record each missing one under "Waiting on you" as a parked item, not a 🛑 blocker, and list them all in one ℹ️ FYI. The app runs on its fakes.
+   - Otherwise, if they say later: write each missing one to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the first deploy, and say building will continue and the app runs locally on its fakes, but the test site stays dark until then.
 
 12. **Hand off.** Write `docs/state.md` from `templates/state.md`. Then tell the person, in under 10 lines:
    - what's planned;
    - which issue goes first;
    - **when they'll first see it:** running locally at the start of slice 0, before CI; on the test site once slice 0 merges, and what still has to happen before then;
    - that each merged step comes with a line on what to try, and feedback can come any time;
-   - that at the end of a pass the loop keeps going on fixes and cleanup, and the next pass is planned only once they've tried it.
+   - that at the end of a pass the loop keeps going on fixes and cleanup, and the next pass is planned only once they've tried it. On Full: once `qa` has tried it and the re-plan is done (`pass-gate.md`).
 
    **Then start the loop.** Automation level not Hands-on? Open `coordinate` now, without asking, and say so in one line: *"Starting the build loop: it builds every ready issue in order and shows you each step."* "Go ahead", "start" or "yes" always means the loop, never one issue. Build one issue at a time only on Hands-on, or when the person says those words. **Done when** `coordinate` is running, or the level is Hands-on and the person knows which issue to ask for first.
 

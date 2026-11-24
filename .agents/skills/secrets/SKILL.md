@@ -26,6 +26,8 @@ When a step adds a service, it adds its variables here in this format.
 
 **When:** right after the issues are written, before the build starts (`idea` step 11 and `join`), so the first deploy is never stuck waiting on a key. Don't wait to be asked.
 
+**On Full automation, ask nothing.** Do step 1, then skip steps 2 to 5: run on the fakes, list each missing key as a "Setup step for you" under "Waiting on you" in `docs/state.md`, send one ℹ️ FYI with the list, and go on.
+
 1. **List what's needed.** Read `.env.example` and show a table of the name, what it's for, where to get it, which environments, and whether it's secret. Mention any accounts to create first (for example Cloudflare, Clerk, Stripe).
 
 2. **Ask once:** *"Do you want to set the keys up yourself, or should I wire them for you? Yourself means running one command in your own terminal that walks you through it. Either way, you'll type the values into a local file or a prompt, never into this chat."*

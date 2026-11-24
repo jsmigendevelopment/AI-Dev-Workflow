@@ -17,7 +17,7 @@ An interruption costs the person their focus. Silence costs the project hours. T
 
 | Level | When | What you do |
 |---|---|---|
-| 🛑 **Blocker** | Anything on the always-stop list in `AGENTS.md`. The MVP core is unclear. A critical security finding. Production is down. Nothing else can move. | Stop that one thing. Ping now. Keep doing other safe work. |
+| 🛑 **Blocker** | Anything on the always-stop list in `AGENTS.md`. The MVP core is unclear (not on Full automation: auto grill guesses it and goes on). A critical security finding. Production is down. Nothing else can move. | Stop that one thing. Ping now. Keep doing other safe work. |
 | ⏳ **Decision** | A schema or API gate the risk dial asks for. Taste, scope or money. The review cap was hit. An unclear issue. A stale claim. | Label it `needs-human`. Keep going on other work. The ping is batched: at most one every `batch_minutes` (profile, default 30). |
 | ℹ️ **FYI** | Merged and ready to try. Usage. A rate limit and when it resets. | Never interrupts. It goes on the board and shows at `/back`. |
 

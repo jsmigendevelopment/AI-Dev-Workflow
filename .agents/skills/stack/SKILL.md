@@ -7,7 +7,7 @@ description: Use to decide how an app gets built ("what stack should we use", "p
 
 The person shouldn't need to know any of this. For each area, give your **recommended pick, why it fits this product, and one or two alternatives.** A beginner says "go with your picks." An expert changes whatever they want. Keep rounds at three questions.
 
-**On Full automation, ask nothing.** Take every recommended pick, and the one-way doors from the review. Mark each row in `docs/stack.md` **AI pick, not reviewed**. A step only the person can do (a login app for Cloudflare Access, a key) becomes a "Setup step for you" in "Waiting on you" (`ask`), and the work goes on. Production stays on the always-stop list.
+**On Full automation, ask nothing.** Take every recommended pick, and the one-way doors from the review. The risk dial is Move fast unless the profile's `risk_dial` says otherwise. The time format is ISO 8601. Mark each row in `docs/stack.md` **AI pick, not reviewed**. A step only the person can do (a login app for Cloudflare Access, a key) becomes a "Setup step for you" in "Waiting on you" (`ask`), and the work goes on. Production stays on the always-stop list.
 
 ## Order
 
@@ -41,7 +41,7 @@ The platform comes first, because everything else depends on it.
     - State: local `useState` first, then typed search params for anything shareable, then **Zustand** only for complex shared client state. Server data in TanStack Query, forms in **TanStack Form**, tables in **TanStack Table**. The other TanStack defaults (charts, Markdown, highlighting, long lists, shortcuts) are in the table below: confirm them as defaults, install none until a feature needs it.
     - Drizzle, snake_case plural tables, `created_at` and `updated_at`, an index on every foreign key. The ID: **UUIDv7 or ULID**, made on the server. Ask which.
     - Money: one `Money` type in integer minor units plus the currency. Rounding: half-even for splitting and tax, unless they want another rule.
-    - Time: instants in UTC. Ask the format: **ISO 8601 or epoch milliseconds**, one for the project. Temporal where supported, else `date-fns` with `@date-fns/tz` (until research confirms).
+    - Time: instants in UTC. Ask the format: **ISO 8601 (recommended: readable in logs and the database) or epoch milliseconds**, one for the project. Temporal where supported, else `date-fns` with `@date-fns/tz` (until research confirms).
     - A public API under `/api/v1`, if anything outside the web app will call it, with OpenAPI built from the Zod schemas in CI.
     - The error system with request IDs, `ErrorState` and `EmptyState`, the one logger (logs to Workers Logs and Logpush, until research confirms), a health endpoint, an audit table, feature flags, the event registry and `track()`.
     - Env: local, test, preview and production, one typed env schema, every variable in `.env.example` (`guide/environments.md` in the kit).

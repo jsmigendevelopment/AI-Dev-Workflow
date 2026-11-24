@@ -68,4 +68,7 @@ test("a scenario's own limits replace the defaults, and a flag still wins", () =
   const flagged = withLimits(parseArgs(["--max-turns", "5"]), limits);
   assert.equal(flagged.maxTurns, 5);
   assert.equal(flagged.timeoutSec, 600);
+  assert.equal(withLimits(parseArgs([]), { maxBudgetUsd: 1.5 }).maxBudgetUsd, 1.5);
+  assert.equal(withLimits(parseArgs([]), { maxBudgetUsd: 9 }).maxBudgetUsd, 2, "a scenario's budget stops at the cap");
+  assert.equal(withLimits(parseArgs(["--max-budget-usd", "0.2"]), { maxBudgetUsd: 1.5 }).maxBudgetUsd, 0.2);
 });

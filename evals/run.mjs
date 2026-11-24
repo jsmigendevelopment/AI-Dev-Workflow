@@ -121,7 +121,7 @@ function dryRun(scenarios, opts, version) {
   console.log(`Command (prompt on stdin): ${opts.claude} ${args.map((a) => (/[\s(*,]/.test(a) ? JSON.stringify(a) : a)).join(" ")}`);
   for (const s of scenarios) {
     const own = withLimits(opts, s.limits);
-    if (own.maxTurns !== opts.maxTurns || own.timeoutSec !== opts.timeoutSec) console.log(`  ${s.name}: its own limits, ${own.maxTurns} turns, ${own.timeoutSec} s`);
+    if (["maxTurns", "timeoutSec", "maxBudgetUsd"].some((k) => own[k] !== opts[k])) console.log(`  ${s.name}: its own limits, ${own.maxTurns} turns, ${own.timeoutSec} s, $${own.maxBudgetUsd} budget`);
     for (const arm of ["with", "without"]) console.log(`  ${s.name} [${arm}]: ${s.checks.length} check(s): ${s.checks.map((c) => c.id).join(", ")}`);
   }
   console.log(`Results would go to ${join(opts.resultsDir, resultsName(new Date().toISOString().slice(0, 10), opts.model, version))}.json`);

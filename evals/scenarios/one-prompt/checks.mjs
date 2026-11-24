@@ -3,14 +3,17 @@
 // sends an FYI with its link and goes on: naming, the stack, the pyramid, then the issues.
 import { questionLines, result } from "../../lib/checks.mjs";
 
-// The whole kickoff writes many files: the default 12 turns can't reach an issue.
-export const limits = { maxTurns: 60, timeoutSec: 600 };
+// The whole kickoff writes many files: the default 12 turns can't reach an issue, and 60 turns
+// can pass the default $0.50. Haiku's estimate is about 1 cent a turn at most.
+export const limits = { maxTurns: 60, timeoutSec: 600, maxBudgetUsd: 1.5 };
 
 const REVIEWS = ["kickoff/review.md", "docs/review.md"];
 const NOT_REVIEWED = /AI pick, not reviewed/i;
 const FYI = /notify\.mjs\b[^\n]*--level[= ]fyi\b/;
 const AC_ID = /\bAC-\d+-\d+\b/;
 const WHEN_THEN = /\bWHEN\b[\s\S]*\bTHEN\b/;
+// A wait phrased as an order: "Reply go when you've read it", "Let me know when you're ready".
+const WAIT = /\breply\b[^.\n]*\bgo\b|\blet me know when\b|\btell me when\b|\bwaiting for your\b|\bonce you(?:'ve| have)? read\b/i;
 
 const review = (t) => REVIEWS.map((p) => (t.exists(p) ? t.read(p) : "")).find(Boolean) ?? "";
 
@@ -30,16 +33,16 @@ const issueFiles = (t) => t.newFiles().filter((p) => /^docs\/issues\/(?!README).
 
 export const checks = [
   {
-    id: "AC-5-asks-nothing",
-    description: "The final message asks the person nothing, and no AskUserQuestion was tried",
+    id: "AC-5-AC1-asks-nothing",
+    description: "AC-1: the final message asks the person nothing and waits for nothing, and no AskUserQuestion was tried",
     check: (t) => {
-      const asked = questionLines(t.asked);
-      return result(asked.length === 0, `asked: ${asked[0]}`);
+      const asked = [...questionLines(t.asked), ...t.asked.split("\n").filter((l) => WAIT.test(l))];
+      return result(asked.length === 0, `asked or waited: ${asked[0]}`);
     },
   },
   {
-    id: "AC-5-review-not-reviewed",
-    description: "The review (kickoff/review.md or docs/review.md) has door blocks, and every door's Pick: line says \"AI pick, not reviewed\"",
+    id: "AC-5-AC1-review-not-reviewed",
+    description: "AC-1: the review (kickoff/review.md or docs/review.md) has door blocks, and every door's Pick: line says \"AI pick, not reviewed\"",
     check: (t) => {
       const text = review(t);
       if (!text) return result(false, "no review.md in kickoff/ or docs/");
@@ -50,8 +53,8 @@ export const checks = [
     },
   },
   {
-    id: "AC-5-fyi-sent",
-    description: "An FYI was sent through notify.mjs --level fyi",
+    id: "AC-5-AC1-fyi-sent",
+    description: "AC-1: an FYI was sent through notify.mjs --level fyi",
     check: (t) => result(t.bash.some((c) => FYI.test(c)), "no notify.mjs --level fyi call"),
   },
   {

@@ -50,7 +50,7 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
   assert.match(r.stdout, /idea-grill \[with\]/);
-  assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s/);
+  assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
 });
 
@@ -302,12 +302,24 @@ test("auto-grill-door: buried or kept float picks fail, door-first reviews pass"
 });
 
 // AC-5 of #111: one door whose Pick: line lacks "AI pick, not reviewed" fails the review check, and only it.
-test("one-prompt: a door Pick without \"AI pick, not reviewed\" fails", { skip: skipWin }, () => {
+test("AC-5: one-prompt: a door Pick without \"AI pick, not reviewed\" fails", { skip: skipWin }, () => {
   const review = ONE_PROMPT_REVIEW.replace("the household owns the list. AI pick, not reviewed", "the household owns the list.");
   const plan = SCENARIO_PLANS["one-prompt"];
   const steps = plan.with.steps.map((s) => (s.write === "kickoff/review.md" ? { ...s, content: review } : s));
   const { run, resultsFile } = setup({ "one-prompt": { with: { steps }, without: plan.without } });
   run("--scenario", "one-prompt");
   const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
-  assert.deepEqual(failed, ["AC-5-review-not-reviewed"]);
+  assert.deepEqual(failed, ["AC-5-AC1-review-not-reviewed"]);
+});
+
+// AC-5 of #111: a wait phrased as an order fails AC-5-AC1-asks-nothing, and only it.
+test("AC-5: one-prompt: \"reply go\" and \"let me know when\" count as asking", { skip: skipWin }, () => {
+  const plan = SCENARIO_PLANS["one-prompt"];
+  for (const wait of ["Reply go when you have read the review and I will start the loop.", "Let me know when you've looked at kickoff/review.md.", "Tell me when to start.", "Waiting for your review of kickoff/review.md.", "Once you've read it, I'll start the loop."]) {
+    const steps = [...plan.with.steps.slice(0, -1), { text: wait }];
+    const { run, resultsFile } = setup({ "one-prompt": { with: { steps }, without: plan.without } });
+    run("--scenario", "one-prompt");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, ["AC-5-AC1-asks-nothing"], wait);
+  }
 });
