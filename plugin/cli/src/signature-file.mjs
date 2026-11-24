@@ -30,6 +30,24 @@ function markerLines(lines) {
   return { starts, ends, openFence: fence ? fenceLine : null };
 }
 
+// The tags the renderer writes, attributes in double quotes.
+const OWN_TAG = /<\/?(?:p|a|b|br|sub|img)(?: [a-z]+="[^"<>]*")*>/g;
+const MD_START = /^(?:\[!\[|Built by \*\*\[|By \*\*\[)/;
+
+// Whether the lines between the markers are a block this command writes (or blank, with nothing to
+// lose): one <p align="center"> with only its own tags, or Markdown, which never holds < or >.
+// A quoted marker pairs with text that isn't (a </pre> or --> in between), and is refused.
+function isOwnBlock(inner) {
+  const text = inner.join("\n");
+  if (!text.trim()) return true;
+  if (inner[0].startsWith('<p align="center">')) {
+    const one = (tag) => text.split(tag).length === 2;
+    return text.endsWith("</p>") && one("<p ") && one("</p>") && !inner.some((line) => !line.trim())
+      && !/[<>]/.test(text.replace(OWN_TAG, ""));
+  }
+  return MD_START.test(inner[0]) && !/[<>]/.test(text);
+}
+
 // The text with the block between the markers, or with `---` and the block added at the end, in
 // the file's own line ending. The signature is always the file's ending: a pair counts only when
 // its end marker is the last non-blank line. Anything else with markers throws rather than guess,
@@ -44,7 +62,8 @@ function placeSignature(text, block) {
   }
   if (!starts.length && !ends.length) {
     const eol = lines.length > 1 && lines[0].endsWith("\r") ? "\r\n" : "\n";
-    const body = text.trimEnd();
+    // Only what a line ending leaves: a non-breaking space at the very end is the person's text.
+    const body = text.replace(/[ \t\r\n]+$/, "");
     const wrapped = blockLines.join(eol);
     return body ? `${body}${eol}${eol}---${eol}${eol}${wrapped}${eol}` : `${wrapped}${eol}`;
   }
@@ -54,6 +73,9 @@ function placeSignature(text, block) {
   if (ends[0] < starts[0]) throw new Error(`its signature end marker comes before the start marker. ${fix}`);
   if (ends[0] !== lines.findLastIndex((line) => line.trim() !== "")) {
     throw new Error(`text follows its signature end marker, and the signature must be the file's ending. Move the block to the end, or remove markers that are only examples. ${fix}`);
+  }
+  if (!isOwnBlock(lines.slice(starts[0] + 1, ends[0]).map((line) => line.replace(/\r$/, "")))) {
+    throw new Error(`the text between its signature markers isn't a signature this command writes, so replacing it could delete your text (a marker quoted in <pre> or a comment, say). ${fix}`);
   }
   const cr = lines[starts[0]].endsWith("\r") ? "\r" : "";
   const endCr = lines[ends[0]].endsWith("\r") ? "\r" : "";

@@ -24,10 +24,15 @@ const LABEL = "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
 const PLAIN_URL = new RegExp(`^https://${LABEL}(\\.${LABEL})+(/[A-Za-z0-9._~/-]*)?$`);
 // What text may hold: letters, marks, numbers, emoji, single spaces and this punctuation. Everything
 // else (@, #, <, *, [, /, ...) could start Markdown, HTML or a link, so it's refused, not escaped.
-const TEXT_CHAR = /[\p{L}\p{M}\p{N} .,!?'’\-–:;()&+]|\p{Extended_Pictographic}️?/gu;
+// An emoji may carry a skin tone and join others (👩‍💻), but a joiner or skin tone alone is refused.
+const EMOJI = "\\p{Extended_Pictographic}\\uFE0F?\\p{Emoji_Modifier}?";
+const TEXT_CHAR = new RegExp(`[\\p{L}\\p{M}\\p{N} .,!?'’\\-–:;()&+]|${EMOJI}(?:\\u200D${EMOJI})*`, "gu");
 const TEXT_ALLOWED = "letters, numbers, emoji, single spaces and . , ! ? ' ’ - – : ; ( ) & +";
 // GitHub autolinks these even in allowed text. A colon before a space or the end ("Note:") is fine.
 const BARE_URL = /[a-z][a-z0-9+.-]*:(?!\s|$)|www\./i;
+// Fuzzy linkifiers (markdown-it's, which some npm renderers have used) also link a bare "evil.com",
+// so a word, a full stop and two letters is refused. "Ship it. Now" and "2.0" stay text.
+const BARE_DOMAIN = /[\p{L}\p{N}-]+\.\p{L}{2,}/u;
 
 // The checks for one string value, by what the value is for.
 function valueProblems(name, text, kind) {
@@ -43,6 +48,8 @@ function valueProblems(name, text, kind) {
   if (bad) found.push(`${name} holds ${JSON.stringify([...bad][0])}. Text may hold only ${TEXT_ALLOWED}.`);
   if (/^ | $| {2}/.test(text)) found.push(`${name} has a leading, trailing or double space.`);
   if (BARE_URL.test(text)) found.push(`${name} holds a URL or a "scheme:" (${BARE_URL.exec(text)[0]}). Put links in links, not in text.`);
+  const domain = BARE_DOMAIN.exec(text)?.[0];
+  if (domain) found.push(`${name} holds what looks like a domain (${domain}). Put links in links, or put a space after the full stop.`);
   return found;
 }
 

@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- **Signature follow-ups (#93).** `signature --write` refuses unless the text between the markers is a block it writes (or blank), so a quoted marker can't make it delete text. With no markers, it trims only spaces, tabs and line breaks from the end. Text refuses bare domains such as `evil.com`, which some Markdown renderers link. Skin-tone and joined emoji (👍🏽, 👩‍💻) are allowed; a lone joiner or skin tone is still refused. The TOML reader refuses a key set twice in a link's `{ }` table. The template says what text may hold.
+
 ## [0.5.3] - 2026-11-24
 
 ### Added

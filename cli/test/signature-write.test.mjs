@@ -8,6 +8,8 @@ import { exists, put, read, tmp } from "./helpers.mjs";
 import { END, FULL, PROFILE, START, crlf, run } from "./signature-fixture.mjs";
 
 const BLOCK = `${START}\n${FULL}\n${END}\n`;
+// An earlier compact block, as --write leaves it between the markers.
+const OLD = '<p align="center">By <a href="https://example.com"><b>Old Name</b></a></p>';
 
 // Writes text to a fresh README.md, runs --write, and returns { code, err, after, dir }.
 function write(text, args = []) {
@@ -50,6 +52,42 @@ test("AC-4: WHEN the markers are broken, or text follows the end marker, THEN --
   }
 });
 
+test("AC-4: WHEN the text between the markers isn't a block this command writes THEN --write refuses and writes nothing", () => {
+  const damaged = [
+    // A quoted start marker, the real one lost: pairing them would delete the text in between.
+    `# T\n<pre>\n${START}\n</pre>\nmy precious text\n${END}\n`,
+    `# T\n<!--\n${START}\n-->\nmy precious text\n${END}\n`,
+    `# T\n\n${START}\nmy notes\n${END}\n`,
+    `# T\n\n${START}\n<p align="center">\n  Built by me\n</p>\n</details>\n${END}\n`,
+    `# T\n\n${START}\n<p align="center">\n\n  Built by me\n</p>\n${END}\n`,
+    `# T\n\n${START}\nBuilt by **[Ada](https://example.com)**\n<em>kept</em>\n${END}\n`,
+  ];
+  for (const text of damaged) {
+    const { code, err, after } = write(text);
+    assert.equal(code, 1, text);
+    assert.match(err, /isn't a signature this command writes/);
+    assert.match(err, /Nothing was written/);
+    assert.equal(after, text, "nothing written");
+  }
+});
+
+test("AC-4: WHEN the markers hold any block this command writes, or nothing, THEN --write replaces it", () => {
+  for (const mode of [[], ["--style", "compact"], ["--markdown"], ["--markdown", "--style", "compact"]]) {
+    const { code, dir } = write("# T\n", mode);
+    assert.equal(code, 0, mode.join(" "));
+    assert.equal(run(["--write", "README.md", "--theme", "personal"], PROFILE, { dir }).code, 0, mode.join(" "));
+    assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0, mode.join(" "));
+    assert.equal(read(dir, "README.md"), `# T\n\n---\n\n${BLOCK}`, mode.join(" "));
+  }
+  assert.equal(write(`# T\n\n${START}\n${END}\n`).after, `# T\n\n${BLOCK}`);
+  assert.equal(write(`# T\n\n${START}\n\n${END}\n`).after, `# T\n\n${BLOCK}`);
+});
+
+test("AC-4: WHEN there are no markers THEN only spaces, tabs and line breaks are trimmed from the end", () => {
+  assert.equal(write("hello\u00a0").after, `hello\u00a0\n\n---\n\n${BLOCK}`);
+  assert.equal(write("hello\u2003 \t\n\n").after, `hello\u2003\n\n---\n\n${BLOCK}`);
+});
+
 test("AC-4: WHEN the file ends inside a code fence THEN --write refuses, so it never appends inside the fence", () => {
   const texts = [
     `- item\n  \`\`\`\n  code\n\n${START}\nold\n${END}\n`,
@@ -69,7 +107,7 @@ test("AC-4: WHEN a marker is quoted inline THEN it is left alone, and the text o
   assert.equal(write(quoted).after, `${quoted.trimEnd()}${crlf(`\n\n---\n\n${BLOCK}`)}`, "a CRLF file stays CRLF");
 
   const before = "Intro  \r\n\t<em>keep</em>\n\n", after = "\n\n  \n";
-  assert.equal(write(`${before}${START}\nold\n${END}${after}`).after, `${before}${START}\n${FULL}\n${END}${after}`);
+  assert.equal(write(`${before}${START}\n${OLD}\n${END}${after}`).after, `${before}${START}\n${FULL}\n${END}${after}`);
 });
 
 test("AC-4: WHEN a marker pair sits inside a fenced code block THEN it is ignored", () => {
@@ -92,7 +130,7 @@ test("AC-4: WHEN a marker pair is indented THEN it is ignored: a 4-space code bl
 });
 
 test("AC-4: WHEN a line of backticks has a backtick in its info string THEN it doesn't open a fence", () => {
-  const text = `# T\n\n\`\`\` a\`b\n\n${START}\nold\n${END}\n`;
+  const text = `# T\n\n\`\`\` a\`b\n\n${START}\n${OLD}\n${END}\n`;
   assert.equal(write(text).after, `# T\n\n\`\`\` a\`b\n\n${BLOCK}`, "the real markers are replaced");
 });
 
@@ -101,7 +139,7 @@ test("AC-4: WHEN the file uses CRLF THEN the marker lines and the block keep CRL
   assert.equal(once, crlf(`a\nb\n\n---\n\n${BLOCK}`));
   assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
   assert.equal(read(dir, "README.md"), once);
-  assert.equal(write(crlf(`a\n\n${START}\nold\n${END}\n`)).after, crlf(`a\n\n${BLOCK}`));
+  assert.equal(write(crlf(`a\n\n${START}\n${OLD}\n${END}\n`)).after, crlf(`a\n\n${BLOCK}`));
 });
 
 test("--write to a folder fails clearly with 1", () => {
@@ -146,13 +184,15 @@ test('the TOML reader refuses """ strings and text after a value, with 1 and a c
   assert.match(afterList.err, /links: unexpected text after the value: "extra"/);
 });
 
-test("the TOML reader refuses unknown, dotted and duplicate keys, [[me.signature.links]] and an inline me table, with 1", () => {
+test("the TOML reader refuses unknown, dotted and duplicate keys (in a link too), [[me.signature.links]] and an inline me table, with 1", () => {
   const cases = [
     [PROFILE.replace('tagline = "Software engineer"', 'taglne = "Software engineer"'), /\[me\.signature\] taglne: not a signature key\. Did you mean tagline\?/],
     [PROFILE.replace('[me]\nname = "Ada"', '[me]\nname = "Ada"\nsignature.name = "Ada"'), /signature\.name: dotted signature keys aren't supported/],
     [`me.signature.name = "Ada"\n${PROFILE}`, /me\.signature\.name: dotted signature keys aren't supported/],
     [PROFILE.replace('display = "Ada Dev"', "mark.size = 3"), /\[me\.signature\] mark\.size: dotted keys aren't supported/],
     [PROFILE.replace('display = "Ada Dev"', 'display = "Ada Dev"\ndisplay = "Again"'), /\[me\.signature\] display: set twice/],
+    [PROFILE.replace('{ label = "Site", url = "https://example.com" }', '{ label = "Site", url = "https://example.com", label = "Evil" }'),
+      /\[me\.signature\] links: label is set twice in one \{ \} table\. Keep one\./],
     [`${PROFILE}\n[[me.signature.links]]\nlabel = "x"\nurl = "https://example.com"\n`, /\[\[me\.signature\.links\]\] isn't supported/],
     [`${PROFILE}\n[me.signature.work]\nname = "x"\n`, /\[me\.signature\.work\] isn't a signature table/],
     ['me = { signature = { name = "Ada", name_url = "https://example.com" } }\n', /inline tables aren't supported here\. Use a \[me\.signature\] table/],
