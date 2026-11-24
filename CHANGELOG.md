@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **Auto grill (#102).** `/idea` now opens with "Full grill or auto grill?" (profile default `[defaults] grill = "full"`). In auto mode the person answers four seed questions (the pitch, who it's for, the one core thing, anything never wanted), and the AI grills itself on every topic and floor item with three options, a pick and a reason, drafting stage-1 wireframes (two layouts of the core screen) and a checked name shortlist alongside. One review follows, written to `kickoff/review.md` in a fixed format: the one-way doors (data model, auth and access, hosting and the database, money and time, module boundaries) first, each confirmed on its own; then look and feel with the layouts and names; then one table for the rest. A change re-checks the picks that depend on it and shows what moved. The grill log gains a provenance line (model and effort) and a source on every answer. `routing` gains an "Auto grill" row and model table. The wireframe approval gate still holds. New eval `auto-grill-door` parses that file: a seeded bad money pick must get its own door block, a fixed pick and its own question. The evals' default run cap goes from 18 to 20 to fit it.
+
 ### Changed
 
 - **Signature follow-ups (#93).** `signature --write` now writes the end marker as `<!-- onrails:signature end sha256=<hex> -->`, the sha256 of the block. A later run replaces the block only when that hash matches, or, for an older block with no hash, when the block equals a render of the current profile (any theme, style or mode). Anything else is refused, so a quoted marker or a hand edit is never deleted. With no markers, it trims only spaces, tabs and line breaks from the end. Text is normalized to NFC, and any combining mark left over is refused, apart from the parts of an emoji. Invisible fillers (U+034F, U+115F, U+1160, U+180B to U+180F, U+2800, U+3164, U+FFA0) are refused. Skin-tone, joined, keycap and flag emoji are allowed, and a lone piece is refused. The TOML reader refuses a key set twice in a link's `{ }` table.

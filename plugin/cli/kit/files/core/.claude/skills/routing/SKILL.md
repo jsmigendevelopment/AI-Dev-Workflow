@@ -20,7 +20,7 @@ Fill in this column with what *you* have. The example column shows one working s
 | **Creative** | art, visuals, names, very creative ideas | ChatGPT, top model |
 | **Second opinion** | a second reviewer on risky changes | Another vendor's model |
 
-Effort is a second dial on every model: **low**, **medium** or **high**.
+Effort is a second dial on every model: **low**, **medium** or **high**. Some models add **extra-high**.
 
 ## Jobs
 
@@ -28,6 +28,7 @@ Effort is a second dial on every model: **low**, **medium** or **high**.
 |---|---|
 | The live thread you talk to all day (coordinator) | Everyday · **low**. Medium once the app is in good shape. Speed matters more than depth here. |
 | Grill and planning chat | Everyday · medium |
+| **Auto grill:** the self-grill and its review | **Strongest · high, or Everyday · high or extra-high.** It makes every early decision. Recommend it plainly, then ask under the first rule below. Models: "Auto grill" below. |
 | Competitor scan (background, during the grill) | Everyday · medium. Broad searching, not design, so it doesn't ask first. |
 | Wireframes stage 1, layout (background, from the grill's main-flow topic) | Everyday · medium. Grey boxes, not design, so it doesn't ask first. |
 | Wireframes stage 2, detailed UI and UX (background, from the look-and-feel topic) | **Strongest · high** |
@@ -40,6 +41,17 @@ Effort is a second dial on every model: **low**, **medium** or **high**.
 | Code review (`pr-review`) | Everyday · **never below the builder's effort** |
 | Security review (`pr-security`), risky lane only | Everyday, one step above the code reviewer. Add a second-opinion reviewer when the change touches personal data or money. |
 | Acceptance and browser checks (`qa`) | Everyday · low |
+
+## Auto grill
+
+Recommend a run from this table when the person picks auto grill. Ask before the strongest tier, as the rules say. The model names are the example setup (checked 2026-11). Map them to your own tiers.
+
+| | Claude | ChatGPT / Codex |
+|---|---|---|
+| **Fine for most people** | Opus 5.5 at high or extra-high effort | GPT-6.2 Sol at high or extra-high effort |
+| **Best result** | Fable 5.2 at high effort | GPT-6.2 Astra at extra-high effort |
+
+Can't switch models in this session? Say so once, carry on with the current model, and write the model and effort used to the grill log's provenance.
 
 ## Where a job runs
 
