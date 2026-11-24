@@ -104,8 +104,9 @@ function machine() {
   return hostname();
 }
 
-// An away past its hard stop, or older than a day, counts as unknown: the session that set it may be dead.
-// An open-ended away (Full automation, no hard stop) only ends with /back.
+// An away with a hard stop counts as unknown once that time passes. One with no hard stop counts as unknown
+// after a day, since the session that set it may be dead, unless it's open-ended (Full automation): that
+// only ends with /back.
 const STALE_MS = 24 * 3600e3;
 function isStale(p) {
   const now = Date.now();

@@ -25,7 +25,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
    - claimed issues;
    - **the orphan sweep:** every open `needs-human` item, every `handoff` record with no `Got it ·` receipt or past its "check by" time, and every stale claim (over 2 hours with no new commits). List each one under "Waiting on you", even if nothing else mentions it (`../ask/references/handoffs.md`);
    - whether main's checks are green;
-   - **the sweep timer:** `node .agents/skills/coordinate/scripts/timer.mjs status`. Live? Leave it, even if another session armed it. `none` while the loop should run (not Hands-on, work left)? Say so. `coordinate` arms one when it starts (`should-arm`).
+   - **the sweep timer:** `node .agents/skills/coordinate/scripts/timer.mjs should-arm`. Exit 1: a live timer, maybe another session's; leave it. Exit 0 (none, or dead) while the loop should run (not Hands-on, work left)? Say so. On Full automation, start `coordinate` now, unless the person says stop: it cancels a dead timer and arms one (`coordinate`, "Start", step 1).
 
 4. **Who else is working?** Look for claims and branches from sessions that weren't yours, then ask: *"Is anyone else, or any other agent, working on this repo right now?"* Record the answer in `state.md`.
 

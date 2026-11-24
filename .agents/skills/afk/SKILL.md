@@ -62,7 +62,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 
 ## Watchdog and hard stop (long)
 
-- **The watchdog rides the sweep:** one timer, the sweep timer. Before you go, `node .agents/skills/coordinate/scripts/timer.mjs status` must print `live`. Otherwise start `coordinate`: it arms one. Every second sweep (about 20 minutes), `coordinate` runs these checks:
+- **The watchdog rides the sweep:** one timer, the sweep timer. Before you go, `node .agents/skills/coordinate/scripts/timer.mjs should-arm` must exit 1 (a live timer). Exit 0 (none, or dead)? Start `coordinate`: it cancels a dead one and arms one. Every second sweep (about 20 minutes), `coordinate` runs these checks:
   - any builder with no new commit in 20 minutes is stuck, so park its issue (don't blindly restart it);
   - check usage;
   - check that main is green;

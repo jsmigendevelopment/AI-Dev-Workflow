@@ -12,12 +12,10 @@ const GO = /\b(go[- ]?ahead|shall i|should i|want me to|do you want|may i|ok(ay)
 const timerCall = (u) => /schedulewakeup|cron|send_later|create_trigger/i.test(u.name)
   || (u.name === "Skill" && /^loop\b/.test(String(u.input?.skill ?? "")));
 // Or, with no timer tool, the reason in one sentence: "No timer here, so the loop runs in the foreground."
-// Saying a timer is armed doesn't count without the call. "I didn't set up a sweep timer" gives no reason.
+// Saying a timer is armed, or recording one with timer.mjs, doesn't count without the call.
 const NO_TIMER = /\b(no|without a|can't|cannot|couldn't) (sweep )?(timer|scheduler|way to (arm|set|schedule))/i;
 const sentences = (text) => text.split(/(?<=[.!?])\s+|\n+/);
 const foregroundReason = (text) => sentences(text).some((s) => NO_TIMER.test(s) && /foreground/i.test(s));
-// A timer.mjs call that records the arming, or the foreground loop, counts as the arming call too.
-const recorded = (t) => t.bash.some((c) => /timer\.mjs\b[^\n]*\barmed\b/.test(c));
 
 export const checks = [
   {
@@ -38,8 +36,8 @@ export const checks = [
   },
   {
     id: "AC-5-AC6-sweep-timer",
-    description: "AC-6: a timer-arming call (/loop, a scheduled wake-up or task, send_later, or timer.mjs armed), or the reason there's none and the loop runs in the foreground",
-    check: (t) => result(t.toolUses.some(timerCall) || recorded(t) || foregroundReason(t.allText), "no timer-arming call, and no foreground reason"),
+    description: "AC-6: a real timer-arming call (/loop, a scheduled wake-up or task, send_later), or the reason there's none and the loop runs in the foreground",
+    check: (t) => result(t.toolUses.some(timerCall) || foregroundReason(t.allText), "no timer-arming call, and no foreground reason"),
   },
 ];
 

@@ -10,12 +10,12 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 ## Start
 
 1. **One sweep timer,** every 10 minutes. Hands-on? Skip it: the loop runs only the run the person asked for. `scripts/timer.mjs` keeps the timer in the `Sweep timer:` line of `docs/state.md`. Never edit that line by hand. `T` below is `node .agents/skills/coordinate/scripts/timer.mjs`.
-   - **A firing** (the turn says *"Sweep timer fired <tag>"*): run `T fired <tag>`, then the sweep. Step 10 re-arms only if `fired` exited 0.
-   - **Any other start** (the person, an event, `build`, `back`): run `T should-arm`. Exit 0: arm one. Exit 1: arm nothing.
-   - **To arm:** make a tag, `sweep-<UTC time>`. Set the timer with the message *"Sweep timer fired <tag>: run one coordinate sweep."*, then `T armed <kind> <tag>+<tool's id> <minutes>`, at the line's interval (10 at first).
-     - One-shot: a cloud session's `send_later` (its scheduled tasks usually run hourly at best), a Claude Code scheduled wake-up.
-     - Repeating: Claude Code `/loop 10m` with that message, a recurring scheduled task, Codex's recurring task.
-     - None at all: sweep, wait 10 minutes, sweep, in the foreground. `T armed foreground <tag> 10`, and say so once.
+   - **A firing** (the turn says *"Sweep timer fired <tag> <kind>"*): run `T fired <tag> <kind>`, then the sweep. Step 10 re-arms only if `fired` exited 0. It printed `stale-cancel <tag>`? A repeating timer nobody tracks: find the one whose message has that tag, and cancel it by its own id.
+   - **Any other start** (the person, an event, `build`, `back`, `afk`): run `T should-arm`. Exit 1: arm nothing. Exit 0: run `T dead-id`; it printed an id? Cancel that timer first. Then arm one.
+   - **To arm:** make a tag, `sweep-<UTC time>`. Set the timer with the message *"Sweep timer fired <tag> <kind>: run one coordinate sweep."*, then `T armed <kind> <tag>+<tool's id> <minutes>`, at the line's interval (10 at first).
+     - One-shot, `send_later` (a cloud session; it runs to the minute) or `wake-up` (Claude Code's scheduled wake-up).
+     - Repeating, `loop` (Claude Code `/loop 10m` with that message) or `scheduled-task` (a recurring scheduled task, or Codex's recurring task). In a cloud session, recurring scheduled tasks usually run hourly at best: use `send_later` there.
+     - None at all, `foreground`: sweep, wait 10 minutes, sweep. `T armed foreground <tag> 10`, then `T fired <tag> foreground` at every sweep, so the line stays live. Say so once.
    - **To stop:** cancel it by the tool's id from `T status`, then `T cancelled`.
 
    **Done when** `T status` prints `live`, or the level is Hands-on.
@@ -25,7 +25,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 1. **Check presence and the automation level.**
    - Run `node .agents/skills/afk/scripts/worklog.mjs presence`. If the profile sets `[board] sheet` and you have the Google Sheets connector, read the Presence tab first and pass it with `--shared` (see "The Presence tab" in `board.md`). If the status is `away`, follow the `afk` skill's unattended rules on this pass, and its `rules` for what may merge and what pings. `unknown` (a stale away) means normal rules; add an ℹ️ FYI once.
-   - **Past a hard stop:** presence is `away`, or `unknown` because its hard stop passed, and the `/afk` section in `docs/state.md` is still open (`/back` hasn't ended it)? Follow `afk`'s hard stop: merge nothing, start nothing, arm nothing, and note new pushes for `/back`.
+   - **Past a hard stop:** the `/afk` section in `docs/state.md` is still open (`/back` hasn't ended it) and the hard stop recorded there (presence's `--until`) has passed? Follow `afk`'s hard stop: merge nothing, start nothing, arm nothing, and note new pushes for `/back`.
    - Read "Automation level" in `docs/stack.md` (see the `automation` skill). If the loop is off (hands-on), run only when the person asked for this run, never merge, and open pull requests only if they said so.
 
    - **Can the next merge reach the test site?** Check, by name only, that the deploy's secrets exist (`gh secret list --env test`, and whatever `secrets` lists for the stack). If one is missing, don't wait until a deploy fails: raise a 🛑 blocker for the deploy now (the `ask` skill), with the `secrets` checklist as the next action and the time it takes. Keep building what doesn't need it.

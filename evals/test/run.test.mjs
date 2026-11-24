@@ -56,7 +56,7 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
 test("bad flags and too many runs exit 2", () => {
   const { run } = setup({});
   assert.equal(run("--nope").status, 2);
-  assert.equal(run("--max-runs", "31").status, 2);
+  assert.equal(run("--max-runs", "41").status, 2);
   const capped = run("--scenarios-dir", TEST_SCENARIOS, "--max-runs", "3");
   assert.equal(capped.status, 2);
   assert.match(capped.stderr, /4 runs planned, above --max-runs 3/);

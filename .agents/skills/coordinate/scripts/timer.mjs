@@ -3,22 +3,29 @@
 // that opens the repo sees the same timer:
 //   Sweep timer: live · <kind> · <id> · every <n> min · next <ISO time, UTC>
 //   Sweep timer: none
+// A missing line goes right after a "## Loop" heading, or else the first heading.
 // No dependencies. Exit 0 means yes or done, 1 means no, 2 means a usage error.
-//   node timer.mjs status                         live <id> <kind> <interval> <next>, or none
-//   node timer.mjs should-arm                     0: no live timer, or past due by more than 3x its interval
+//   node timer.mjs status                         live|dead <id> <kind> <interval> <next>, or none
+//   node timer.mjs should-arm                     0: no timer, or dead (past due by more than 3x its interval)
+//   node timer.mjs dead-id                        0 and the tool id to cancel, when the recorded timer is dead
 //   node timer.mjs armed <kind> <id> <interval>   writes the line; next = now + interval minutes
-//   node timer.mjs fired <tag>                    0: the line names this timer (next moves on); 1: stale or duplicate
+//   node timer.mjs fired <tag> [kind]             0: the line names this timer (next moves on); 1: stale or duplicate,
+//                                                 and for a repeating kind it prints stale-cancel <tag>
 //   node timer.mjs interval <10|30>               rewrites the interval only; prints changed or same
 //   node timer.mjs cancelled                      writes none
-// An id is <tag>+<tool id>. The tag is yours and goes in the firing message ("Sweep timer fired <tag>"),
-// because the message is set before the tool returns its own id, which you need to cancel the timer.
+// Kinds: send_later and wake-up are one-shots; loop and scheduled-task repeat; foreground is the
+// foreground loop. An id is <tag>+<tool id>. The tag is yours and goes in the firing message
+// ("Sweep timer fired <tag> <kind>"), because the message is set before the tool returns its own id,
+// which you need to cancel the timer.
 // --file <path> (default docs/state.md) and --now <ISO time> (for tests) work with every command.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const MINUTE = 6e4;
-const LINE = /^[-*]?\s*(\*\*)?Sweep timer:(\*\*)?[^\n]*$/m;
+// [ \t], not \s: the match must not eat the blank line above it.
+const LINE = /^[ \t]*[-*]?[ \t]*(\*\*)?Sweep timer:(\*\*)?[^\n]*$/m;
+const REPEATING = new Set(["loop", "scheduled-task"]);
 const LIVE = /Sweep timer:(?:\*\*)?\s*live · (\S+) · (\S+) · every (\d+) min · next (\S+)/;
 
 /** The timer in a state file's text: { kind, id, interval, next } or null. */
@@ -30,11 +37,15 @@ export function parse(text) {
 /** The line for a timer, or for none. */
 export const format = (t) => (t ? `Sweep timer: live · ${t.kind} · ${t.id} · every ${t.interval} min · next ${t.next}` : "Sweep timer: none");
 
-/** The text with its Sweep timer line replaced, or added at the end. */
+/** The text with its Sweep timer line replaced, or added after the "## Loop" or first heading, never at the end. */
 export function withLine(text, timer) {
   const line = format(timer);
   if (LINE.test(text)) return text.replace(LINE, line);
-  return `${text.replace(/\n*$/, "")}\n\n${line}\n`;
+  const heading = /^## Loop\b[^\n]*$/m.exec(text) ?? /^#[^\n]*$/m.exec(text);
+  if (!heading) return `${line}\n\n${text}`;
+  const end = heading.index + heading[0].length;
+  const rest = text.slice(end).replace(/^\n+/, "");
+  return `${text.slice(0, end)}\n\n${line}\n${rest ? `\n${rest}` : ""}`;
 }
 
 /** True when there's no live timer, or it is past due by more than 3 times its interval. */
@@ -47,6 +58,7 @@ export function shouldArm(timer, now) {
 const at = (now, minutes) => new Date(now + minutes * MINUTE).toISOString().replace(/\.\d{3}Z$/, "Z");
 const SAFE = /^[A-Za-z0-9_./:+-]+$/;
 const tagOf = (id) => id.split("+")[0];
+const toolId = (id) => (id.includes("+") ? id.slice(id.indexOf("+") + 1) : id);
 
 /** Runs one command on the state text. Returns { code, out, text } where text is the new file, if it changed. */
 export function run(args, text, now) {
@@ -55,7 +67,12 @@ export function run(args, text, now) {
   const usage = (out) => ({ code: 2, out });
   switch (cmd) {
     case "status":
-      return { code: 0, out: timer ? `live ${timer.id} ${timer.kind} ${timer.interval} ${timer.next}` : "none" };
+      if (!timer) return { code: 0, out: "none" };
+      return { code: 0, out: `${shouldArm(timer, now) ? "dead" : "live"} ${timer.id} ${timer.kind} ${timer.interval} ${timer.next}` };
+    case "dead-id":
+      if (!timer || !shouldArm(timer, now)) return { code: 1, out: timer ? `live ${timer.id}: nothing to cancel` : "none: nothing to cancel" };
+      if (timer.kind === "foreground") return { code: 1, out: "dead foreground loop: nothing to cancel" };
+      return { code: 0, out: toolId(timer.id) };
     case "should-arm":
       return shouldArm(timer, now) ? { code: 0, out: timer ? "arm: the recorded timer is dead" : "arm: no timer" } : { code: 1, out: `live ${timer.id}: arm nothing` };
     case "armed": {
@@ -66,9 +83,12 @@ export function run(args, text, now) {
       return { code: 0, out: format(next), text: withLine(text, next) };
     }
     case "fired": {
-      const [id] = rest;
-      if (!id) return usage("fired <id>");
-      if (!timer || (timer.id !== id && tagOf(timer.id) !== id)) return { code: 1, out: `stale: ${id} isn't the live timer. Do the sweep, arm nothing.` };
+      const [id, kind] = rest;
+      if (!id) return usage("fired <tag> [kind]");
+      if (!timer || (timer.id !== id && tagOf(timer.id) !== id)) {
+        if (REPEATING.has(kind)) return { code: 1, out: `stale-cancel ${id}` };
+        return { code: 1, out: `stale: ${id} isn't the live timer. Do the sweep, arm nothing.` };
+      }
       const next = { ...timer, next: at(now, timer.interval) };
       return { code: 0, out: format(next), text: withLine(text, next) };
     }
@@ -82,7 +102,7 @@ export function run(args, text, now) {
     case "cancelled":
       return { code: 0, out: "Sweep timer: none", text: withLine(text, null) };
     default:
-      return usage("status | should-arm | armed <kind> <id> <interval-min> | fired <id> | interval <10|30> | cancelled");
+      return usage("status | should-arm | dead-id | armed <kind> <id> <interval-min> | fired <tag> [kind] | interval <10|30> | cancelled");
   }
 }
 
