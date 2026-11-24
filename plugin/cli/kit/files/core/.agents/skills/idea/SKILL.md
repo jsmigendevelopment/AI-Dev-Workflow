@@ -32,6 +32,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 3. **Find the MVP.** This is the grill's MVP topic: **the one core piece that makes this app stand out,** made as good as possible, plus only the thin supporting slices it can't work without. Test each: *does the core work without it?* **The core is never filled in with a default.** If the person won't choose, stop here and say so. Write `kickoff/mvp.md` from `templates/mvp.md`.
 
 4. **Start the wireframes.** Once the person confirms the product grill, start `wireframes` in the background: the strongest tier, high effort (see `routing`). Ask first unless the profile says not to. No way to run it in the background? Draw them after step 5.
+   - **Then, while they draw: other accounts?** Ask once whether the person uses more than one Claude or Codex account, and which projects or jobs belong to each. On a yes, give one "Setup step for you" per account to sign it in from their terminal, then write `[accounts]` in the profile. `routing`'s `references/accounts.md` has the questions, the verified commands and the rule: a fixed split, never by usage.
 
 5. **Intermission: name it and make the repo,** while the wireframes draw. Open `name`. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
 

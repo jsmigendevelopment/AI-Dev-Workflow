@@ -27,7 +27,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
 4. **Who else is working?** Look for claims and branches from sessions that weren't yours, then ask: *"Is anyone else, or any other agent, working on this repo right now?"* Record the answer in `state.md`.
 
-5. **Usage.** If the person uses Claude Code, check what's left (see "Checking usage" in `afk`) and report the percentage used and when it resets.
+5. **Usage.** If the person uses Claude Code, check what's left (see "Checking usage" in `afk`) and report the percentage used and when it resets. The profile has `[accounts]`? Report each account: usage and reset where you can see it, and its waiting work (jobs held at its limit, and ready-to-paste prompts not yet started).
 
 6. **Report, sized to the time away.** After a short break, 3 lines. After a night, at most 10 lines: counts plus the top three in each, with links to the rest.
    - **To try:** the "To try" list in `docs/state.md`, newest first: what to do and what they'll see, with the test link.
@@ -35,7 +35,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
    - **Failed or parked,** and why.
    - **Waiting on you,** most important first: 🛑 blockers, then ⏳ decisions, each with its recommended answer, from the board and the "Waiting on you" list in `docs/state.md`. Then run `node .claude/hooks/notify.mjs --clear`, so held pings don't fire now that they've been seen.
    - **FYI:** ready to try, usage, rate limits, and stale research dossiers, each with its re-check date. Offer to re-check one before a decision leans on it.
-   - **Usage** used, and when it resets.
+   - **Usage** used, and when it resets. Per account, if there's more than one, with its waiting work.
    - **Still running.**
    - **Anyone else** who touched the repo.
 

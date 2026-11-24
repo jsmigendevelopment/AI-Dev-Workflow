@@ -93,3 +93,30 @@ machine = ""                    # a label for this machine on the Presence tab, 
 grill_questions_per_topic = 10
 afk_hard_stop_hours = 10
 browser_check = "playwright, then my own browser"   # or "playwright only"
+
+[sessions]
+prefer = "cloud"                # cloud | local. Unattended work (overnight, research, reviews, builders) starts in a cloud session.
+                                # Work that needs this machine (simulators, a signed-in browser, local files, hardware) runs here anyway.
+
+[accounts]
+# More than one subscription account? Each one owns its projects and jobs: a fixed split you set.
+# Never by usage. At a limit, that account's work waits for its reset; it never moves to another
+# account. Providers' terms can treat that as account rotation, and it puts your accounts at risk.
+# Empty: every job runs on the account you're signed in with. /idea and /join ask, and walk you
+# through signing each one in (the routing skill's references/accounts.md).
+# One table per account. jobs: live, cto, research, build, review, evals, overnight, or "*".
+# projects: repo names, or "*" for every project no other account names.
+#
+# [accounts.personal]
+# label = "Personal Max"
+# tool = "claude"                      # claude | codex
+# config_dir = "~/.claude"             # its CLAUDE_CONFIG_DIR (claude) or CODEX_HOME (codex)
+# projects = ["*"]
+# jobs = ["*"]
+#
+# [accounts.client]
+# label = "Client team plan"
+# tool = "claude"
+# config_dir = "~/.claude-client"
+# projects = ["client-portal"]
+# jobs = ["*"]
