@@ -1,50 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 396" width="1280" height="396" font-family="Inter, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
-  <title>Cheat sheet: four commands</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 406" width="960" height="406" font-family="system-ui, -apple-system, Segoe UI, sans-serif" fill="#0f1020">
+  <title>Cheat sheet</title>
+  <desc>Four commands: idea for a new app, join for an existing repo, back to resume, and afk to step away.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#070b1a"/>
-      <stop offset="1" stop-color="#17133a"/>
+    <linearGradient id="bg" x2="1" y2="1">
+      <stop stop-color="#fff8ef"/><stop offset=".56" stop-color="#f7f7fb"/>
     </linearGradient>
-    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#60a5fa"/>
-      <stop offset="1" stop-color="#a78bfa"/>
+    <linearGradient id="brand">
+      <stop stop-color="#7c3aed"/><stop offset="1" stop-color="#2563eb"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.9" cy="0.1" r="0.6">
-      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.3"/>
-      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    <radialGradient id="warm">
+      <stop stop-color="#ffd39c" stop-opacity=".29"/>
+      <stop offset=".52" stop-color="#f2a3bb" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#f2a3bb" stop-opacity="0"/>
     </radialGradient>
-  </defs>
-  <rect width="1280" height="396" rx="24" fill="url(#bg)"/>
-  <rect width="1280" height="396" rx="24" fill="url(#glow)"/>
-  <text x="64" y="92" fill="url(#ink)" font-size="52" font-weight="800" letter-spacing="-1">Cheat sheet</text>
-  <text x="66" y="134" fill="#9ca3af" font-size="20">Four commands. Type them in Claude Code with / or in Codex with $.</text>
 
-  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
-    <g transform="translate(64 176)">
-      <rect width="266" height="168" rx="16" fill="#111735" stroke="#3b82f6"/>
-      <text x="24" y="62" fill="#ffffff" font-size="40" font-weight="700">/idea</text>
+  </defs>
+  <rect x=".5" y=".5" width="959" height="405" rx="23.5" fill="url(#bg)" stroke="#e4e4ee"/>
+  <ellipse cx="760" cy="85" rx="197" ry="82" fill="url(#warm)"/>
+  <path d="M30 32h4v38h-4z" fill="url(#brand)"/>
+  <text x="47" y="48" font-size="27" font-weight="780" letter-spacing="-.65">Cheat sheet</text>
+  <text x="48" y="75" font-size="16" fill="#55566b">Type / in Claude Code or $ in Codex.</text>
+  <g transform="translate(24 101)">
+    <rect x=".5" y=".5" width="448" height="132" rx="18" fill="#ffffff" stroke="#e4e4ee"/>
+    <rect x="18.5" y="18.5" width="37" height="37" rx="10" fill="#fdeedd" stroke="#f3dfcb"/>
+    <path d="M20 29v-3c0-3 6-5 6-11a7 7 0 0 0-14 0c0 6 6 8 6 11v3m-2 4h6" transform="translate(18 18)" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="68" y="45" font-size="20" font-weight="750">I have an idea</text>
+    <g font-size="20" font-weight="720" font-family="ui-monospace, SFMono-Regular, Consolas, monospace">
+      <text x="19" y="82" fill="#7c3aed">/idea</text>
+      <text x="101" y="82" fill="#2563eb">$idea</text>
     </g>
-    <g transform="translate(350 176)">
-      <rect width="266" height="168" rx="16" fill="#111735" stroke="#6366f1"/>
-      <text x="24" y="62" fill="#ffffff" font-size="40" font-weight="700">/join</text>
-    </g>
-    <g transform="translate(636 176)">
-      <rect width="266" height="168" rx="16" fill="#111735" stroke="#818cf8"/>
-      <text x="24" y="62" fill="#ffffff" font-size="40" font-weight="700">/back</text>
-    </g>
-    <g transform="translate(922 176)">
-      <rect width="294" height="168" rx="16" fill="#111735" stroke="#a78bfa"/>
-      <text x="24" y="62" fill="#ffffff" font-size="40" font-weight="700">/afk</text>
-    </g>
+    <text x="19" y="110" font-size="16" fill="#55566b">Turn an idea into a planned repo.</text>
   </g>
-  <g fill="#cbd5e1" font-size="18">
-    <text x="88" y="296">I have an idea</text>
-    <text x="88" y="324" fill="#6b7280" font-size="15">idea → planned repo</text>
-    <text x="374" y="296">I'm new to this repo</text>
-    <text x="374" y="324" fill="#6b7280" font-size="15">repo → understood</text>
-    <text x="660" y="296">I'm starting or back</text>
-    <text x="660" y="324" fill="#6b7280" font-size="15">what changed, what's next</text>
-    <text x="946" y="296">I'm stepping away</text>
-    <text x="946" y="324" fill="#6b7280" font-size="15">the loop keeps building</text>
+  <g transform="translate(487 101)">
+    <rect x=".5" y=".5" width="448" height="132" rx="18" fill="#ffffff" stroke="#e4e4ee"/>
+    <rect x="18.5" y="18.5" width="37" height="37" rx="10" fill="#fdeedd" stroke="#f3dfcb"/>
+    <path d="M19 7a12 12 0 1 0 0 24 12 12 0 0 0 0-24z m4 8-2 6-6 2 2-6z" transform="translate(18 18)" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="68" y="45" font-size="20" font-weight="750">I’m new to this repo</text>
+    <g font-size="20" font-weight="720" font-family="ui-monospace, SFMono-Regular, Consolas, monospace">
+      <text x="19" y="82" fill="#7c3aed">/join</text>
+      <text x="101" y="82" fill="#2563eb">$join</text>
+    </g>
+    <text x="19" y="110" font-size="16" fill="#55566b">Learn how an existing repo works.</text>
+  </g>
+  <g transform="translate(24 250)">
+    <rect x=".5" y=".5" width="448" height="132" rx="18" fill="#ffffff" stroke="#e4e4ee"/>
+    <rect x="18.5" y="18.5" width="37" height="37" rx="10" fill="#fdeedd" stroke="#f3dfcb"/>
+    <path d="M19 13a6 6 0 1 0 0 12 6 6 0 0 0 0-12zm0-5v2m0 18v2M8 19h2m18 0h2M11 11l2 2m12 12 2 2m0-16-2 2M13 25l-2 2" transform="translate(18 18)" fill="none" stroke="#a63407" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="68" y="45" font-size="20" font-weight="750">I’m starting or back</text>
+    <g font-size="20" font-weight="720" font-family="ui-monospace, SFMono-Regular, Consolas, monospace">
+      <text x="19" y="82" fill="#7c3aed">/back</text>
+      <text x="101" y="82" fill="#2563eb">$back</text>
+    </g>
+    <text x="19" y="110" font-size="16" fill="#55566b">See what changed and what to do next.</text>
+  </g>
+  <g transform="translate(487 250)">
+    <rect x=".5" y=".5" width="448" height="132" rx="18" fill="#ffffff" stroke="#e4e4ee"/>
+    <rect x="18.5" y="18.5" width="37" height="37" rx="10" fill="#fdeedd" stroke="#f3dfcb"/>
+    <path d="M27 24A11 11 0 0 1 14 10a10 10 0 1 0 13 14z" transform="translate(18 18)" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="68" y="45" font-size="20" font-weight="750">I’m stepping away</text>
+    <g font-size="20" font-weight="720" font-family="ui-monospace, SFMono-Regular, Consolas, monospace">
+      <text x="19" y="82" fill="#7c3aed">/afk</text>
+      <text x="101" y="82" fill="#2563eb">$afk</text>
+    </g>
+    <text x="19" y="110" font-size="16" fill="#55566b">The loop keeps building until a hard stop.</text>
   </g>
 </svg>

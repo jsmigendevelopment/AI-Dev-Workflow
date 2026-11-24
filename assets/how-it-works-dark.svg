@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 738" width="960" height="738" font-family="system-ui, -apple-system, Segoe UI, sans-serif" fill="#f2f2f7">
+  <title>How it works</title>
+  <desc>Plan a project once, then build ready issues in a loop. A failed check goes back to Build. Feedback becomes new issues.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1">
+      <stop stop-color="#170d1c"/><stop offset=".56" stop-color="#0a0a12"/>
+    </linearGradient>
+    <linearGradient id="brand">
+      <stop stop-color="#a78bfa"/><stop offset="1" stop-color="#60a5fa"/>
+    </linearGradient>
+    <radialGradient id="warm">
+      <stop stop-color="#c2410c" stop-opacity=".29"/>
+      <stop offset=".52" stop-color="#a3125c" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#a3125c" stop-opacity="0"/>
+    </radialGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M1 1l7 4-7 4" fill="none" stroke="#a78bfa" stroke-width="1.7" stroke-linejoin="round"/>
+    </marker>
+    <marker id="feedback" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M1 1l7 4-7 4" fill="none" stroke="#ffb454" stroke-width="1.7" stroke-linejoin="round"/>
+    </marker>
+    <marker id="retry" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M1 1l7 4-7 4" fill="none" stroke="#f87171" stroke-width="1.7" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect x=".5" y=".5" width="959" height="737" rx="23.5" fill="url(#bg)" stroke="#262636"/>
+  <ellipse cx="760" cy="85" rx="197" ry="82" fill="url(#warm)"/>
+  <path d="M30 32h4v38h-4z" fill="url(#brand)"/>
+  <text x="47" y="48" font-size="27" font-weight="780" letter-spacing="-.65">How it works</text>
+  <text x="48" y="75" font-size="16" fill="#a3a4b8">Plan the project once. The build loop takes issues through checks and out to the test site.</text>
+  <!-- One set of stations for planning, one loop for delivery. -->
+  <rect x="24.5" y="97.5" width="895" height="166" rx="18" fill="#12121c" stroke="#262636"/>
+  <text x="47" y="127" font-size="19" font-weight="750">Plan once</text>
+  <text x="153" y="127" font-size="15" fill="#a3a4b8">The agent asks. You decide.</text>
+  <path d="M49 163h846M49 167h846" fill="none" stroke="url(#brand)" stroke-width="1.4" stroke-linecap="round"/>
+  <g text-anchor="middle">
+      <circle cx="93" cy="165" r="8" fill="#12121c" stroke="#a78bfa" stroke-width="2"/>
+      <circle cx="93" cy="165" r="3" fill="#a78bfa"/>
+      <text x="93" y="197" font-size="17" font-weight="730">Pitch</text>
+      <text x="93" y="218" fill="#a3a4b8" font-size="14">In your words</text>
+      <circle cx="222" cy="165" r="8" fill="#12121c" stroke="#a78bfa" stroke-width="2"/>
+      <circle cx="222" cy="165" r="3" fill="#a78bfa"/>
+      <text x="222" y="197" font-size="17" font-weight="730">Product grill</text>
+      <text x="222" y="218" fill="#a3a4b8" font-size="14">3 questions</text><text x="222" y="235" fill="#a3a4b8" font-size="14">at a time</text>
+      <circle cx="351" cy="165" r="8" fill="#12121c" stroke="#a78bfa" stroke-width="2"/>
+      <circle cx="351" cy="165" r="3" fill="#a78bfa"/>
+      <text x="351" y="197" font-size="17" font-weight="730">MVP</text>
+      <text x="351" y="218" fill="#a3a4b8" font-size="14">One core thing</text>
+      <circle cx="480" cy="165" r="8" fill="#12121c" stroke="#a78bfa" stroke-width="2"/>
+      <circle cx="480" cy="165" r="3" fill="#a78bfa"/>
+      <text x="480" y="197" font-size="17" font-weight="730">Wireframes</text>
+      <text x="480" y="218" fill="#a3a4b8" font-size="14">Name the repo</text><text x="480" y="235" fill="#a3a4b8" font-size="14">and approve</text>
+      <circle cx="609" cy="165" r="8" fill="#12121c" stroke="#60a5fa" stroke-width="2"/>
+      <circle cx="609" cy="165" r="3" fill="#60a5fa"/>
+      <text x="609" y="197" font-size="17" font-weight="730">Tech grill</text>
+      <text x="609" y="218" fill="#a3a4b8" font-size="14">Accept or swap</text>
+      <circle cx="738" cy="165" r="8" fill="#12121c" stroke="#60a5fa" stroke-width="2"/>
+      <circle cx="738" cy="165" r="3" fill="#60a5fa"/>
+      <text x="738" y="197" font-size="17" font-weight="730">CTO plan</text>
+      <text x="738" y="218" fill="#a3a4b8" font-size="14">Slices and design</text>
+      <circle cx="867" cy="165" r="8" fill="#12121c" stroke="#60a5fa" stroke-width="2"/>
+      <circle cx="867" cy="165" r="3" fill="#60a5fa"/>
+      <text x="867" y="197" font-size="17" font-weight="730">Issues</text>
+      <text x="867" y="218" fill="#a3a4b8" font-size="14">One per step</text>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <path d="M867 246v23q0 7-7 7H156q-9 0-9 9v60" stroke="#a78bfa" stroke-width="1.3" marker-end="url(#arrow)"/>
+    <path d="M891 641h41q8 0 8-8V173q0-8-8-8h-27" stroke="#ffb454" stroke-width="1.3" stroke-dasharray="4 5" marker-end="url(#feedback)"/>
+  </g>
+  <rect x="363.5" y="264.5" width="234" height="24" rx="12" fill="#2e1b36" stroke="#40263f"/>
+  <text x="480" y="281" text-anchor="middle" fill="#ffb454" font-size="14" font-weight="640">Ready issues · slice 0 first</text>
+
+  <rect x="24.5" y="295.5" width="895" height="284" rx="18" fill="#12121c" fill-opacity=".61" stroke="#262636"/>
+  <text x="47" y="326" font-size="19" font-weight="750">Build loop</text>
+  <text x="154" y="326" font-size="15" fill="#a3a4b8">Runs on its own and tells you when it needs you.</text>
+  <g fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)">
+    <path d="M250 382h14"/><path d="M472 382h14"/><path d="M694 382h14"/>
+    <path d="M875 417v76"/><path d="M708 529h-14"/><path d="M486 529h-14"/>
+    <path d="M264 529H157q-10 0-10-10V418"/>
+    <path d="M369 565v39"/>
+  </g>
+  <text x="165" y="519" fill="#a3a4b8" font-size="14">Next issue</text>
+  <g fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="3 4" stroke-linecap="round">
+    <path d="M813 417v76M591 417v37"/>
+    <path d="M813 455H377q-8 0-8-8v-29" marker-end="url(#retry)"/>
+  </g>
+  <text x="386" y="446" font-size="14" fill="#a3a4b8">A failed check goes back to Build</text>
+    <rect x="46.5" y="350.5" width="201" height="64" rx="14" fill="#12121c" stroke="#262636"/>
+    <circle cx="60" cy="368" r="3" fill="#a78bfa"/>
+    <text x="70" y="375" font-size="17" font-weight="730">Coordinate</text>
+    <text x="60" y="398" font-size="14" fill="#a3a4b8">Picks a ready issue</text>
+    <rect x="268.5" y="350.5" width="201" height="64" rx="14" fill="#12121c" stroke="#262636"/>
+    <circle cx="282" cy="368" r="3" fill="#a78bfa"/>
+    <text x="292" y="375" font-size="17" font-weight="730">Build</text>
+    <text x="282" y="398" font-size="14" fill="#a3a4b8">One fresh agent per issue</text>
+    <rect x="490.5" y="350.5" width="201" height="64" rx="14" fill="#12121c" stroke="#262636"/>
+    <circle cx="504" cy="368" r="3" fill="#60a5fa"/>
+    <text x="514" y="375" font-size="17" font-weight="730">CI + code review</text>
+    <text x="504" y="398" font-size="14" fill="#a3a4b8">Every pull request</text>
+    <rect x="712.5" y="350.5" width="201" height="64" rx="14" fill="#12121c" stroke="#262636"/>
+    <circle cx="726" cy="368" r="3" fill="#60a5fa"/>
+    <text x="736" y="375" font-size="17" font-weight="730">QA on the preview</text>
+    <text x="726" y="398" font-size="14" fill="#a3a4b8">Normal and risky lanes</text>
+    <rect x="712.5" y="497.5" width="201" height="64" rx="14" fill="#12121c" stroke="#262636"/>
+    <circle cx="726" cy="515" r="3" fill="#fbbf24"/>
+    <text x="736" y="522" font-size="17" font-weight="730">Security review</text>
+    <text x="726" y="545" font-size="14" fill="#a3a4b8">Risky lane only</text>
+    <rect x="490.5" y="497.5" width="201" height="64" rx="14" fill="#12121c" stroke="#262636"/>
+    <circle cx="504" cy="515" r="3" fill="#60a5fa"/>
+    <text x="514" y="522" font-size="17" font-weight="730">Merge → deploy</text>
+    <text x="504" y="545" font-size="14" fill="#a3a4b8">Checked commit, to test</text>
+    <rect x="268.5" y="497.5" width="201" height="64" rx="14" fill="#12121c" stroke="#262636"/>
+    <circle cx="282" cy="515" r="3" fill="#a78bfa"/>
+    <text x="292" y="522" font-size="17" font-weight="730">Smoke test</text>
+    <text x="282" y="545" font-size="14" fill="#a3a4b8">Main flow on the test site</text>
+
+  <rect x="24.5" y="607.5" width="895" height="67" rx="18" fill="#2e1b36" stroke="#40263f"/>
+  <circle cx="49" cy="641" r="6" fill="#4ade80"/>
+  <text x="65" y="647" font-size="18" font-weight="740">You try it on the test site</text>
+  <text x="397" y="647" font-size="16" fill="#a3a4b8">Your feedback becomes new issues.</text>
+  <g font-size="14" fill="#a3a4b8">
+    <text x="46" y="714" font-weight="740" fill="#f2f2f7">Lanes</text>
+    <text x="106" y="714">Tiny · CI + review</text>
+    <text x="298" y="714">Normal · adds QA</text>
+    <text x="518" y="714">Risky · adds security review + approval</text>
+  </g>
+</svg>

@@ -1,41 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" font-family="Inter, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
-  <title>onRails</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 260" width="960" height="260" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <title>onRails: put your AI on rails</title>
+  <desc>A violet-to-blue railway passes Pitch, Grill, Slice and Ship in the light of a golden sun.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#070b1a"/>
-      <stop offset="1" stop-color="#17133a"/>
+    <linearGradient id="sky" x2="1" y2="1">
+      <stop stop-color="#fbf7ff"/><stop offset=".54" stop-color="#f7f7fb"/><stop offset="1" stop-color="#fff8ef"/>
     </linearGradient>
-    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#60a5fa"/>
-      <stop offset="1" stop-color="#a78bfa"/>
+    <linearGradient id="brand">
+      <stop stop-color="#7c3aed"/><stop offset="1" stop-color="#2563eb"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.85" cy="0.2" r="0.6">
-      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.35"/>
-      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    <radialGradient id="light">
+      <stop stop-color="#ffb020" stop-opacity="0.37"/>
+      <stop offset=".58" stop-color="#f2a3bb" stop-opacity=".17"/>
+      <stop offset="1" stop-color="#f2a3bb" stop-opacity="0"/>
     </radialGradient>
+    <radialGradient id="orb" cx=".34" cy=".3" r=".74">
+      <stop stop-color="#fffbe6"/><stop offset=".22" stop-color="#ffd166"/>
+      <stop offset=".65" stop-color="#ff7a45"/><stop offset="1" stop-color="#d0186f"/>
+    </radialGradient>
+    <clipPath id="frame"><rect width="960" height="260" rx="24"/></clipPath>
+    <clipPath id="orb-edge"><circle cx="766" cy="100" r="65"/></clipPath>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M0 24V0H24" fill="none" stroke="#a59ed0" stroke-opacity=".20"/>
+    </pattern>
+    <path id="track" d="M460 188H581C622 188 634 177 658 155S696 120 744 120H921"/>
   </defs>
-  <rect width="1280" height="360" rx="24" fill="url(#bg)"/>
-  <rect width="1280" height="360" rx="24" fill="url(#glow)"/>
-  <!-- laser lines -->
-  <g stroke-linecap="round" opacity="0.55">
-    <line x1="1280" y1="40" x2="820" y2="360" stroke="#60a5fa" stroke-width="2"/>
-    <line x1="1280" y1="90" x2="900" y2="360" stroke="#818cf8" stroke-width="1.5"/>
-    <line x1="1280" y1="150" x2="990" y2="360" stroke="#a78bfa" stroke-width="1"/>
+  <g clip-path="url(#frame)">
+    <rect width="960" height="260" fill="url(#sky)"/>
+
+    <rect x="463" y="42" width="452" height="177" rx="15" fill="url(#grid)" opacity=".61"/>
+    <ellipse cx="766" cy="100" rx="152" ry="115" fill="url(#light)"/>
+    <circle cx="766" cy="100" r="75" fill="none" stroke="#a63407" stroke-opacity=".34" stroke-dasharray="2 6"/>
+    <circle cx="766" cy="100" r="65" fill="url(#orb)" opacity="0.9"/>
+    <g clip-path="url(#orb-edge)" fill="none" stroke="#fffbe6" stroke-linecap="round">
+      <path d="M701 115q65 -79.3 130 -24.7" stroke-opacity=".55" stroke-width="2"/>
+      <path d="M701 129q65 -71.5 130 -13.65" stroke-opacity=".35"/>
+    </g>
+
+    <path d="M485 151h104q36 0 62-23l31-27q14-12 37-12h29M543 209h63q39 0 66-30l12-14q19-21 48-21h174"
+          fill="none" stroke="#a59ed0" stroke-opacity=".56" stroke-linecap="round" stroke-dasharray="1 5"/>
+    <g fill="none" stroke-linecap="round">
+      <use href="#track" stroke="#e4e4ee" stroke-width="13"/>
+      <use href="#track" stroke="#ffffff" stroke-width="11"/>
+      <use href="#track" stroke="url(#brand)" stroke-width="7"/>
+      <use href="#track" stroke="#ffffff" stroke-width="3"/>
+      <use href="#track" stroke="#a59ed0" stroke-width="3" stroke-dasharray="1 6"/>
+    </g>
+    <g font-size="17" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round">
+      <circle cx="497" cy="188" r="6" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/><circle cx="497" cy="188" r="2" fill="#7c3aed" stroke="none"/><text x="497" y="217" fill="#0f1020">Pitch</text>
+<circle cx="609" cy="186" r="6" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/><circle cx="609" cy="186" r="2" fill="#7c3aed" stroke="none"/><text x="609" y="217" fill="#0f1020">Grill</text>
+<circle cx="721" cy="124" r="6" fill="#ffffff" stroke="#2563eb" stroke-width="2"/><circle cx="721" cy="124" r="2" fill="#2563eb" stroke="none"/><text x="721" y="105" fill="#0f1020">Slice</text>
+<circle cx="890" cy="120" r="6" fill="#ffffff" stroke="#2563eb" stroke-width="2"/><circle cx="890" cy="120" r="2" fill="#2563eb" stroke="none"/><text x="890" y="153" fill="#0f1020">Ship</text>
+
+    </g>
+    <!-- Overhead engine and carriage seen at Ship. -->
+    <g transform="translate(835 120)" stroke="#ffffff" stroke-width="1.5">
+      <path d="M-50 0H-38" stroke="#55566b" stroke-width="2"/>
+      <rect x="-76" y="-8" width="30" height="16" rx="5" fill="#7c3aed"/>
+      <path d="M-67-3v6m6-6v6m6-6v6" opacity=".8" stroke-linecap="round"/>
+      <path d="M-37-8H-8Q5-8 9 0Q5 8-8 8h-29q-5 0-5-5v-6q0-5 5-5Z" fill="url(#brand)"/>
+      <path d="M-9-4Q-2-4 1 0q-3 4-10 4Z" fill="#fffbe6" stroke="none"/>
+      <path d="M12 0h14" stroke="#a63407" stroke-opacity=".65" stroke-linecap="round"/>
+    </g>
+    <text x="43" y="127" font-size="91" font-weight="800" letter-spacing="-5" fill="url(#brand)">onRails</text>
+    <text x="48" y="173" font-size="32" font-weight="650" letter-spacing="-.65" fill="#0f1020">Put your AI on rails.</text>
+    <g transform="translate(46 193) scale(.47)">
+      <path fill="#c2410c" d="M8 10h22v26L14 52H5V42h5l10-10V20H8Z"/>
+      <path fill="#d0186f" d="M59 10H44L34 20v12l15 7v3H32L22 52h26l11-11V31l-15-7v-4h15Z"/>
+    </g>
+    <text x="81" y="214" font-size="19" font-weight="650" fill="#55566b">By Jay Smigen · JS Dev</text>
   </g>
-  <!-- mini pyramid -->
-  <g transform="translate(1000 120)">
-    <rect x="0" y="120" width="44" height="30" rx="5" fill="#1e3a8a" stroke="#3b82f6"/>
-    <rect x="50" y="120" width="44" height="30" rx="5" fill="#1e3a8a" stroke="#3b82f6"/>
-    <rect x="100" y="120" width="44" height="30" rx="5" fill="url(#ink)"/>
-    <rect x="150" y="120" width="44" height="30" rx="5" fill="#1e3a8a" stroke="#3b82f6"/>
-    <rect x="200" y="120" width="44" height="30" rx="5" fill="#1e3a8a" stroke="#3b82f6"/>
-    <rect x="50" y="84" width="44" height="30" rx="5" fill="#312e81" stroke="#6366f1"/>
-    <rect x="100" y="84" width="44" height="30" rx="5" fill="url(#ink)"/>
-    <rect x="150" y="84" width="44" height="30" rx="5" fill="#312e81" stroke="#6366f1"/>
-    <rect x="100" y="48" width="44" height="30" rx="5" fill="url(#ink)"/>
-  </g>
-  <text x="72" y="150" fill="url(#ink)" font-size="72" font-weight="800" letter-spacing="-1.5">onRails</text>
-  <text x="74" y="208" fill="#e5e7eb" font-size="30" font-weight="600">Put your AI on rails. Pitch. Grill. Slice. Ship.</text>
-  <text x="74" y="256" fill="#9ca3af" font-size="20">Rules, skills and a build loop for Claude Code and Codex. From a pitch to a deployed app.</text>
-  <text x="74" y="306" fill="#6b7280" font-size="16">by jay · jsmigen.dev</text>
+  <rect x=".5" y=".5" width="959" height="259" rx="23.5" fill="none" stroke="#e4e4ee"/>
 </svg>

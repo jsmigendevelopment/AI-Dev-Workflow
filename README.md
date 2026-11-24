@@ -1,36 +1,92 @@
-<p align="center">
-  <img src="assets/banner.svg" alt="onRails: put your AI on rails. Pitch. Grill. Slice. Ship." width="100%">
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <img src="assets/banner.svg" alt="onRails: put your AI on rails. A train passes Pitch, Grill, Slice and Ship at golden hour. By Jay Smigen, JS Dev." width="960">
+</picture>
 
-<p align="center">
-  <a href="https://www.npmjs.com/package/onrails"><img alt="npm" src="https://img.shields.io/npm/v/onrails?style=for-the-badge&color=f97316"></a>
-  <a href="#-install"><img alt="Works with Claude Code" src="https://img.shields.io/badge/works%20with-Claude%20Code-8b5cf6?style=for-the-badge"></a>
-  <a href="#-install"><img alt="Works with Codex" src="https://img.shields.io/badge/works%20with-Codex-3b82f6?style=for-the-badge"></a>
-  <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-22c55e?style=for-the-badge"></a>
-</p>
+**onRails** gives AI agents rules, skills and checks to plan, build, review and ship your app from the first pitch to deployment.
 
-<p align="center">
-  <b>Put your AI on rails.</b><br>
-  onRails takes an idea and has AI agents plan it, build it, review it and ship it, inside your rules. From a pitch to a deployed app.
-</p>
+## ⚡ Install
 
-<p align="center">
-  <a href="#-install">Install</a> ·
-  <a href="#-the-four-commands">Commands</a> ·
-  <a href="#-what-a-run-looks-like">A run</a> ·
-  <a href="#-guardrails">Guardrails</a> ·
-  <a href="#-stacks-and-add-ons">Stacks</a> ·
-  <a href="#-add-it-to-a-repo-you-already-have">Existing repo</a> ·
-  <a href="guide/cheat-sheet.md"><b>Cheat sheet</b></a>
-</p>
+Use Node 22 or newer with Claude Code or Codex.
 
----
+### Install as a plugin
+
+Run these two commands in a terminal to install onRails for your Claude Code account:
+
+```bash
+claude plugin marketplace add jsmigendevelopment/onRails
+claude plugin install core@onrails --scope user
+```
+
+Start a new Claude Code session. For other setups, see [Codex](#codex) or [npm](#from-npm).
+
+## 💬 The four commands
+
+| Claude Code | Codex | When to use it | What happens |
+|---|---|---|---|
+| [`/idea`](.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app. | Pitch → grill, with wireframes alongside → MVP → name → your approval → tech → plan → issues |
+| [`/join`](.agents/skills/join/SKILL.md) | `$join` | You're new to a repo that needs setup. | Map the repo → run it → ask you questions → write `AGENTS.md` and `docs/` |
+| [`/back`](.agents/skills/back/SKILL.md) | `$back` | You're starting work or coming back. | See what changed, who's working and what to do first. |
+| [`/afk`](.agents/skills/afk/SKILL.md) | `$afk` | You're stepping away. | Set a time → check usage and safety rules → keep building until a hard stop. |
+
+The other 25 skills run for you. To run one step yourself, see the [cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself).
+
+[![npm package version](https://img.shields.io/npm/v/onrails?style=flat-square&color=a63407)](https://www.npmjs.com/package/onrails)
+[![Works with Claude Code](https://img.shields.io/badge/works%20with-Claude%20Code-7c3aed?style=flat-square)](#-install)
+[![Works with Codex](https://img.shields.io/badge/works%20with-Codex-2563eb?style=flat-square)](#codex)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-55566b?style=flat-square)](LICENSE)
+
+[Install](#-install) · [Commands](#-the-four-commands) · [A run](#-what-a-run-looks-like) · [Guardrails](#-guardrails) · [Stacks](#-stacks-and-add-ons) · [Existing repo](#-add-it-to-a-repo-you-already-have) · [Cheat sheet](guide/cheat-sheet.md)
+
+## More install options
+
+### Claude Code
+
+Check the account install with `claude plugin list`. Look for `core@onrails` at `user` scope.
+
+Already in Claude Code? Run `/plugin marketplace add jsmigendevelopment/onRails`, then `/plugin install core@onrails`. Pick **user** when it asks for a scope, then run `/reload-plugins`. User scope works in any folder. Project and local scope work in that folder only.
+
+The first time you use a command in a folder, it asks to install the kit there. The plugin includes the kit and keeps your files. If another plugin or command uses the same name, use the prefix, as in `/or:idea`.
+
+### Codex
+
+Run these two commands in a terminal:
+
+```bash
+codex plugin marketplace add jsmigendevelopment/onRails
+codex plugin add or@onrails
+```
+
+Then type `$idea` or `$join`.
+
+- **Update the plugin by hand.** Run `claude plugin marketplace update onrails`, then `claude plugin update core@onrails`. In Codex, run `codex plugin marketplace upgrade onrails`.
+- **Marketplace 'onrails' not found?** The marketplace was added in a project. Run both install commands again for your account.
+- **The project's copy wins.** Once you install the kit in a folder, commands use that project's skills. Cloud sessions also use the repo's skills since they don't load personal plugins.
+- **The plugin works without npm.** Its CLI includes the rules and skills. Stack packs come from a clone or from GitHub at slice 0.
+
+### From npm
+
+Run this in your project folder:
+
+```bash
+npx onrails init
+```
+
+It installs the rules and skills, keeps your files and offers to open Claude Code or Codex with `/idea` (or `/join` if the folder already has code).
+
+| CLI command | What it does |
+|---|---|
+| `init [dir]` | Installs the kit, keeps your files and offers to start a session there. |
+| `update [dir] --dry-run` | Updates the kit and keeps files you changed. `--dry-run` shows the plan first. |
+| `doctor --fix` | Checks tools, sign-ins and env var names. Runs each offered fix after you type `y`. |
+| `profile init` | Saves things like your GitHub owner, naming style and models in your profile. |
+| `add <pack>` · `add <pack>/<add-on>` | Copies a stack pack or add-on into your project. `add --list` shows the packs. |
+
+[CLI reference](cli/README.md) · [Release steps for maintainers](RELEASING.md)
 
 ## 🤔 What it is, and why
 
-**AI is a program. It does what you tell it.** Where you say nothing, it guesses. It takes the first solution that works, invents its own UI components, and builds features nobody asked for.
-
-onRails is a kit you add to a project. It tells the agent what to do, and it checks the result. It has three parts:
+AI agents follow your instructions. Where you leave a gap, they guess. It can take the first fix that works, invent UI components or build extra features. Add onRails to your project to set the rules and check its work.
 
 | Part | What it is | When it applies |
 |---|---|---|
@@ -42,114 +98,43 @@ onRails is a kit you add to a project. It tells the agent what to do, and it che
 - **You stay in charge.** You pick the product, the core and the stack. Production, secrets, real data and money always wait for you.
 - **Nobody checks their own work.** One fresh agent builds an issue. Other fresh agents review it and test it.
 
-It works with Claude Code and Codex. Why it's built this way: [principles](guide/principles.md) and the [evidence](guide/evidence.md) behind them.
-
----
-
-## ⚡ Install
-
-You need Node 22 or newer, and Claude Code or Codex.
-
-### Install as a plugin
-
-Install it **for your whole account** (user scope), so the commands work in every folder. From a terminal:
-
-```bash
-claude plugin marketplace add jsmigendevelopment/onRails
-claude plugin install core@onrails --scope user
-```
-
-Then start a new Claude Code session. Check it with `claude plugin list`: you should see `core@onrails` with scope `user`.
-
-Already inside Claude Code? `/plugin marketplace add jsmigendevelopment/onRails`, then `/plugin install core@onrails`, and **pick "user" when it asks for a scope.** A project or local install only works in that one folder. Then run `/reload-plugins`.
-
-Now you have `/idea`, `/join`, `/back` and `/afk` in any folder. The prefixed form, `/or:idea`, still works. You need it only when another plugin or command uses the same name. The first time you use one in a folder, it asks to install the kit there. The kit ships inside the plugin, so it needs no npm. It never overwrites a file of yours.
-
-Codex, from a terminal:
-
-```bash
-codex plugin marketplace add jsmigendevelopment/onRails
-codex plugin add or@onrails
-```
-
-Then type `$idea` or `$join`.
-
-- **Updates are by hand:** `claude plugin marketplace update onrails`, then `claude plugin update core@onrails` (Codex: `codex plugin marketplace upgrade onrails`).
-- **"Marketplace 'onrails' not found"?** It was added inside one project, not for your account. Run the two install commands above.
-- **The project's copy wins.** Once the kit is in a folder, the commands run the project's skills. The plugin only gets you started.
-- **Cloud sessions don't load your personal plugins.** They use the repo's own skills, so nothing breaks.
-
-### From npm
-
-In the folder you want onRails in, run:
-
-```bash
-npx onrails init
-```
-
-It installs the rules and skills, then offers to open Claude Code or Codex with `/idea` (or `/join` if the folder already has code). Your own files are never overwritten.
-
-Maintainers: [RELEASING.md](RELEASING.md) says how releases are published.
-
-| CLI command | What it does |
-|---|---|
-| `init [dir]` | Installs the kit into a folder. Keeps every file you have. Then offers to start a session there. |
-| `update [dir] --dry-run` | Brings in a newer kit. Files you changed are kept. `--dry-run` shows the plan first. |
-| `doctor --fix` | Checks your tools, sign-ins and env var names. Offers a fix for each problem and runs it only after you type `y`. |
-| `profile init` | Saves what never changes for you (GitHub owner, naming style, models) in a personal profile. |
-| `add <pack>` · `add <pack>/<add-on>` | Copies a stack pack or an add-on into the project. `add --list` shows the packs. |
-
-The plugin's copy of the CLI carries the rules and skills only. The stack packs come from a clone, or from GitHub at slice 0. → [CLI reference](cli/README.md)
-
----
-
-## 💬 The four commands
-
-| | Claude Code | Codex | Type it when | What it does |
-|---|---|---|---|---|
-| 💡 | [**`/idea`**](.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app | Pitch → grill, wireframes drawn alongside → MVP → name → you approve → tech → plan → issues |
-| 🧭 | [**`/join`**](.agents/skills/join/SKILL.md) | `$join` | You're new to a repo that isn't set up | Map the repo → run it → grill you → write `AGENTS.md` and `docs/` |
-| ☀️ | [**`/back`**](.agents/skills/back/SKILL.md) | `$back` | You start work, or come back | What changed → who else is working → what to do first |
-| 🌙 | [**`/afk`**](.agents/skills/afk/SKILL.md) | `$afk` | You step away | How long? → usage check → safe rules → keeps building until a hard stop |
-
-That's all you type. The other 25 skills are called for you. Want to run one step yourself? → [Cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself)
-
----
+See the [principles](guide/principles.md) and [evidence](guide/evidence.md) behind the kit.
 
 ## 🔁 What a run looks like
 
-<p align="center">
-  <img src="assets/how-it-works.svg" alt="How it works. Plan, once per project: pitch, product grill, MVP, wireframes while naming the repo, tech grill, CTO plan, issues. Build loop: coordinate, build, CI and code review, QA on the preview, security review for risky changes, merge and deploy to test, smoke test, then the next issue. A failed check goes back to Build. You try it, and your feedback becomes new issues." width="100%">
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/how-it-works-dark.svg">
+  <img src="assets/how-it-works.svg" alt="Plan once from pitch through issues. Then coordinate, build, run CI and code review, check the preview, review risky changes, merge to test and smoke test. Failed checks go back to Build. Your test site feedback becomes new issues." width="960">
+</picture>
 
-You plan once. Every step saves to files, so you can stop any time and `/back` picks up where you stopped.
+Plan once. Each step saves to files, so you can stop any time and pick up with `/back`.
 
 | # | Step | What happens | Saved to `docs/` |
 |---|---|---|---|
-| 1 | **Pitch** | You describe the idea in your own words. It plays it back in 3–5 lines and says what's weak. | |
-| 2 | **Product grill** | Seven topics. Three questions a round, each with a recommended answer. It covers what people forget. Once the main flow is clear, wireframes start in the background: grey-box layouts on your everyday model, then the full design on your strongest (it asks first) once you've described the look. You see each screen as it's done. | `vision.md`, `features.md`, `decisions.md`, `wireframes/index.html`, `design.md` |
-| 3 | **MVP** | The one core piece that makes the app stand out. You pick it. It's never a default. | `mvp.md` |
-| 4 | **Name** | While the detailed screens finish: 5–7 name ideas, `git init`, and a GitHub repo if you say yes. | |
-| 5 | **You approve the screens** | The full detailed set, a clickable prototype in light and dark. "What would you change?" until you say yes. Nothing technical starts before. | `decisions.md` |
+| 1 | **Pitch** | You describe the idea in your own words. The agent repeats it in 3 to 5 lines and points out weak spots. | |
+| 2 | **Product grill** | Seven topics cover things people miss. Each round has three questions with suggested answers. Once the main flow is clear, your everyday model draws rough wireframes in the background. You describe the look, then the agent asks to use your strongest model for the full design. You see each screen as it's done. | `vision.md`, `features.md`, `decisions.md`, `wireframes/index.html`, `design.md` |
+| 3 | **MVP** | You pick the one thing that makes the app stand out. | `mvp.md` |
+| 4 | **Name** | While the screens finish, you get 5 to 7 names, `git init` and a GitHub repo if you say yes. | |
+| 5 | **You approve the screens** | Try the full set as a clickable light and dark prototype. The agent asks what to change and starts tech work after you approve. | `decisions.md` |
 | 6 | **Tech grill** | Platform, stack, data, auth, environments, CI and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
-| 7 | **Plan** | Your strongest model outlines three passes, cuts the first into thin steps you can each try, and designs the schema and API from your approved screens. A script checks the cut. It asks before it starts. | `pyramid.md`, `design.md` |
-| 8 | **Issues** | One per step, for the current pass only. Each has a line on what to try, WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
-| 9 | **Keys** | It lists every account and key the first deploy needs and walks you through them. About 10 minutes. | |
+| 7 | **Plan** | After you approve the strongest model, it outlines three passes, cuts the first into steps you can try, and designs the schema and API from the approved screens. A script checks the steps. | `pyramid.md`, `design.md` |
+| 8 | **Issues** | One per step in the current pass. Each says what to try, gives WHEN/THEN checks with IDs, and lists scope limits, dependencies, risks, a lane and a complexity score. A read-only check looks for gaps in the plan. | GitHub issues |
+| 9 | **Keys** | It lists the accounts and keys for the first deploy and helps you set them up in about 10 minutes. | |
 | 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue, three in flight at most (one on Hands-on). | `state.md`, a line on what to try per merge |
-| 11 | **Pass gate** | The loop doesn't stop at the end of a pass. A fresh audit checks the code against the plan and the screens, and the loop builds the fixes and some cleanup. You try it whenever you can. The next pass is planned once you have. | `pyramid.md` |
+| 11 | **Pass gate** | The loop keeps going. A fresh audit checks the code against the plan and screens. The loop fixes what it finds and does some cleanup. Try it when you can, then the agent plans the next pass. | `pyramid.md` |
 
 **What each pull request goes through:** build → CI → code review → QA on the preview → security review (risky changes only) → merge the exact commit that was checked → deploy to the test site → smoke test. A failed check goes back to a fresh builder. After two rejected rounds, the issue is parked and you're asked.
 
-**The test site is yours, not the world's.** On the default stack you choose who can open it: a Cloudflare Access sign-in, a password page, or nothing. Production starts as a "Coming soon" page. Going live is your call.
+**You control the test site.** The default stack lets you use Cloudflare Access, a password page or open access. Production starts on a “Coming soon” page. You decide when to go live.
 
-<details>
-<summary><b>How the build is sliced: the tracer-bullet pyramid</b></summary>
+### How the build is sliced: the tracer-bullet pyramid
 
-<p align="center">
-  <img src="assets/tracer-bullet-pyramid.svg" alt="The tracer-bullet pyramid: pass 1 covers every slice thinly, pass 2 the core and key supports, pass 3 only the core." width="100%">
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/tracer-bullet-pyramid-dark.svg">
+  <img src="assets/tracer-bullet-pyramid.svg" alt="Three passes narrow toward the core: Works covers every slice, Real deepens the core and key support, and Ready polishes the core. A gate sits between passes." width="960">
+</picture>
 
-The old way builds the whole schema, then the whole API, then the whole UI. You see nothing until the end. **Tracer bullets** are thin slices that each go all the way through. You can try something real after the first one, and steer while it's cheap.
+If you build the full schema, then the API, then the UI, there’s nothing to try until the end. **Tracer bullets** cut through all three in thin slices. Try the first slice and steer while changes are cheap.
 
 - **Slice 0** is the skeleton: the app runs, CI checks every pull request, and main deploys to test.
 - **The MVP is three passes:** Works (a thin tracer bullet through every slice), Real (the core goes deep), Ready (the core polished, plus speed, accessibility, SEO and the launch checklist).
@@ -160,13 +145,9 @@ The old way builds the whole schema, then the whole API, then the whole UI. You 
 - **The end of pass 3 is "MVP complete" on the test site, not launch.** Going live is your call, whenever you choose.
 - **After the MVP, an hourglass:** the shape turns upside down and widens. Each layer adds new features, each in thin, plus a pass on what's already there, the core every time. Same gate between layers.
 
-**If you know agile, this is it.** A step is a user story, sliced vertically. A slice is the activity its stories belong to. A pass or a layer is an iteration. The gate is the review, the retro and backlog refinement in one. `features.md` is the backlog. "Done means" in `pyramid.md` is the definition of done. Three in flight is the work-in-progress limit. The kit just makes agents follow it. → [The research behind it](research/agile-flow.md)
+**In agile terms**, a step is a user story sliced vertically. A slice is the activity its stories belong to. A pass or a layer is an iteration. The gate is the review, the retro and backlog refinement in one. `features.md` is the backlog. "Done means" in `pyramid.md` is the definition of done. Three in flight is the work-in-progress limit. The kit makes agents follow these rules. [The research behind it](research/agile-flow.md)
 
 → [The `pyramid` skill](.agents/skills/pyramid/SKILL.md)
-
-</details>
-
----
 
 ## 🔒 Guardrails
 
@@ -180,8 +161,8 @@ Every issue has a **lane**. The lane sets the checks.
 | **normal** | CI · code review · QA on the preview | Most issues |
 | **risky** | Normal · security review · you, unless you chose Full automation | Auth, secrets, personal data, money, migrations, new dependencies |
 
-- **The reviewer reads the diff, not the story.** It never reads the pull request description.
-- **A verdict names the commit.** The loop merges exactly that commit. A new commit needs a new review.
+- **The reviewer reads the diff.** It skips the pull request description.
+- **The review names the commit to merge.** A new commit needs a new review.
 - **A test is never weakened to pass.** The reviewer checks that too.
 
 ### Two dials
@@ -205,12 +186,12 @@ Change it any time with `/automation`. → [Pings, the board and automation](gui
 
 ### The always-stop list
 
-No dial and no level turns this off. An agent stops and asks you before:
+At every risk and automation level, the agent stops and asks before:
 
-- deleting or migrating real data;
-- touching production settings, secrets or `.env` files;
-- deploying to production, or making the app public;
-- spending money or signing up for a paid service.
+- deleting or moving real data
+- touching production settings, secrets or `.env` files
+- deploying to production or making the app public
+- spending money or signing up for a paid service
 
 ### Security reviews
 
@@ -258,11 +239,9 @@ The [`secrets`](.agents/skills/secrets/SKILL.md) skill lists each variable and w
 | **Every session starts informed** | A hook gives the session the branch, the last commit and `docs/state.md` before you type. Local files only. |
 | **Pings at three levels** | 🛑 Blocker: now. ⏳ Decision: batched. ℹ️ FYI: never interrupts. A desktop notification, or your phone if you set `NTFY_TOPIC`. |
 
----
-
 ## 📦 Stacks and add-ons
 
-The tech grill picks the stack with you. It shows its recommendation and the alternatives for each part, and you take them or swap any. For a web app, the recommendation is:
+The tech grill recommends a stack and shows the options for each part. Keep its picks or swap them. These are the web app defaults.
 
 | Part | Recommended | Or |
 |---|---|---|
@@ -302,7 +281,7 @@ A **stack pack** is that stack already working: configs, the folder skeleton, an
 
 No pack for your stack? The agent sets up the same things by hand, and offers to save the result as a new pack.
 
-The 7 **add-ons** are optional pieces for the `tanstack-start` pack. The tech grill offers one only when the app needs it. With no keys set, the app still builds and the feature stays off.
+The `tanstack-start` pack has 7 optional **add-ons**. The tech grill offers them as needed. Without keys, the app still builds and the add-on stays off.
 
 | Add-on | Adds | Lane |
 |---|---|---|
@@ -316,11 +295,9 @@ The 7 **add-ons** are optional pieces for the `tanstack-start` pack. The tech gr
 
 **The check contract:** every project has the same six commands, whatever the stack: `check`, `lint`, `typecheck`, `test`, `test:e2e`, `build`. The skills, CI and the loop call only those.
 
----
-
 ## 🧠 Model routing
 
-Using the strongest model on high effort for every job is slow and burns through your usage. Using the cheapest model for every job ships junk. So each job gets a **model tier** (which model) and an **effort** (how hard it thinks).
+The strongest model at high effort takes more time and usage. The cheapest model can miss things. onRails picks a **model tier** and an **effort level** for each job.
 
 | Job | Tier · effort | Example model |
 |---|---|---|
@@ -335,7 +312,7 @@ Using the strongest model on high effort for every job is slow and burns through
 | Browser checks | Everyday · low | Claude Opus 5.5 |
 | Art, visuals, names | Creative | ChatGPT |
 
-<sub>The example models were checked in 2026-11. Swap in your own: the tiers are what matter.</sub>
+<sub>The example models were checked in 2026-11. Pick your own models for each tier.</sub>
 
 - **It asks before it uses the strongest tier.** You can turn the question off in your profile.
 - **Start low.** Go up one step only after a failed check or a rejected review.
@@ -344,8 +321,6 @@ Using the strongest model on high effort for every job is slow and burns through
 **Accounts.** More than one Claude or Codex account, like a work one and a personal one? `/idea` and `/join` ask once, walk you through signing each in with its own config folder (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`), and write `[accounts]` in your profile. **It's a fixed split by job or project that you set, never by usage.** onRails never spreads, balances or moves work between accounts to get past a limit. At a limit, that account's work waits for its reset, and the session tells you the reset time. Why: providers' terms can treat moving work as account rotation, and it puts your accounts at risk. A job for another account gets a ready-to-paste prompt for that account's session. Unattended work starts in a cloud session first (`[sessions] prefer = "cloud"`). `npx onrails accounts` lists them.
 
 → [Job-by-job table](guide/cheat-sheet.md#-model-routing) · [The `routing` skill](.agents/skills/routing/SKILL.md)
-
----
 
 ## 🧭 Add it to a repo you already have
 
@@ -374,9 +349,12 @@ Using the strongest model on high effort for every job is slow and burns through
 
 → [Step by step, and how to review it as one pull request](guide/add-to-existing-app.md). Use `/join`, or run `npx onrails init` in the repo first.
 
----
-
 ## 📚 Guides
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/cheat-sheet-dark.svg">
+  <img src="assets/cheat-sheet.svg" alt="Cheat sheet: /idea for a new app, /join for a repo that needs setup, /back to resume work and /afk to step away. In Codex, use $ instead of /." width="960">
+</picture>
 
 | Guide | What's in it |
 |---|---|
@@ -389,8 +367,7 @@ Using the strongest model on high effort for every job is slow and burns through
 | [Plugin plan](research/plugin-plan.md) | Why the plugin works the way it does |
 | [Research](research/README.md) | [Foundations](research/foundations.md) · [Platform packs](research/platform-packs.md) · [Electron](research/electron-pack.md) · [Authorization](research/authorization.md) · [Agile flow](research/agile-flow.md) |
 
-<details>
-<summary><b>What's in this repo</b></summary>
+### What’s in this repo
 
 ```
 AGENTS.md                  ← rules every agent follows, every session (Codex + Claude)
@@ -420,19 +397,13 @@ scripts/check-research.mjs ← checks a research folder: index, provenance, labe
 | **Know-how**, named in issues (6) | `web-performance` · `web-security` · `seo` · `a11y` · `dependencies` · `writing-for-agents` |
 | **Stack packs** (2) | `stack-tanstack-start` · `stack-monorepo-expo` |
 
-</details>
-
----
-
 ## 🤝 Contributing
 
-Fixes and clearer words are always welcome. The kit is small on purpose, so a new skill, pack or add-on starts with an issue. → [CONTRIBUTING.md](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Changelog](CHANGELOG.md)
+Fixes and clearer words are welcome. To keep the kit small, start with an issue for a new skill, pack or add-on. [CONTRIBUTING.md](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Changelog](CHANGELOG.md)
 
-Found a security problem? Don't open a public issue. → [SECURITY.md](SECURITY.md)
+Report security problems privately. [SECURITY.md](SECURITY.md)
 
 ## 🙏 Credits
-
-onRails stands on other people's ideas.
 
 | Who | What onRails took |
 |---|---|
