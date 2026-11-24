@@ -1,4 +1,4 @@
-// /idea step 6: no tech grill and no pyramid until the wireframes are approved.
+// /idea step 6: no tech grill and no pyramid until the full stage-2 wireframes are approved.
 import { result } from "../../lib/checks.mjs";
 
 export const checks = [

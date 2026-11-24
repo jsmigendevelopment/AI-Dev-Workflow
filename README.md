@@ -106,7 +106,7 @@ The plugin's copy of the CLI carries the rules and skills only. The stack packs 
 
 | | Plugin | Kit in the project | Codex | Type it when | What it does |
 |---|---|---|---|---|---|
-| 💡 | **`/or:idea`** | [`/idea`](.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app | Pitch → grill → MVP → wireframes + name → you approve → tech → plan → issues |
+| 💡 | **`/or:idea`** | [`/idea`](.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app | Pitch → grill, wireframes drawn alongside → MVP → name → you approve → tech → plan → issues |
 | 🧭 | **`/or:join`** | [`/join`](.agents/skills/join/SKILL.md) | `$join` | You're new to a repo that isn't set up | Map the repo → run it → grill you → write `AGENTS.md` and `docs/` |
 | ☀️ | **`/or:back`** | [`/back`](.agents/skills/back/SKILL.md) | `$back` | You start work, or come back | What changed → who else is working → what to do first |
 | 🌙 | **`/or:afk`** | [`/afk`](.agents/skills/afk/SKILL.md) | `$afk` | You step away | How long? → usage check → safe rules → keeps building until a hard stop |
@@ -126,10 +126,10 @@ You plan once. Every step saves to files, so you can stop any time and `/or:back
 | # | Step | What happens | Saved to `docs/` |
 |---|---|---|---|
 | 1 | **Pitch** | You describe the idea in your own words. It plays it back in 3–5 lines and says what's weak. | |
-| 2 | **Product grill** | Seven topics. Three questions a round, each with a recommended answer. It covers what people forget. | `vision.md`, `features.md`, `decisions.md` |
+| 2 | **Product grill** | Seven topics. Three questions a round, each with a recommended answer. It covers what people forget. Once the main flow is clear, wireframes start in the background: grey-box layouts on your everyday model, then the full design on your strongest (it asks first) once you've described the look. You see each screen as it's done. | `vision.md`, `features.md`, `decisions.md`, `wireframes/index.html`, `design.md` |
 | 3 | **MVP** | The one core piece that makes the app stand out. You pick it. It's never a default. | `mvp.md` |
-| 4 | **Wireframes + name** | Your strongest model draws every screen in the background: a clickable prototype in light and dark, plus sketches. It asks first. Meanwhile: 5–7 name ideas, `git init`, and a GitHub repo if you say yes. | `wireframes/index.html`, `design.md` |
-| 5 | **You approve the screens** | "What would you change?" until you say yes. Nothing technical starts before. | `decisions.md` |
+| 4 | **Name** | While the detailed screens finish: 5–7 name ideas, `git init`, and a GitHub repo if you say yes. | |
+| 5 | **You approve the screens** | The full detailed set, a clickable prototype in light and dark. "What would you change?" until you say yes. Nothing technical starts before. | `decisions.md` |
 | 6 | **Tech grill** | Platform, stack, data, auth, environments, CI and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
 | 7 | **Plan** | Your strongest model outlines three passes, cuts the first into thin steps you can each try, and designs the schema and API from your approved screens. A script checks the cut. It asks before it starts. | `pyramid.md`, `design.md` |
 | 8 | **Issues** | One per step, for the current pass only. Each has a line on what to try, WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
@@ -325,7 +325,8 @@ Using the strongest model on high effort for every job is slow and burns through
 |---|---|---|
 | The thread you talk to all day (the loop) | Everyday · low | Claude Opus 5.5 |
 | Grill and planning chat | Everyday · medium | Claude Opus 5.5 |
-| **CTO work:** research, the pyramid, schema, API design, wireframes | **Strongest · high** | Claude Fable 5.2 |
+| Wireframes, stage 1: grey-box layout | Everyday · medium | Claude Opus 5.5 |
+| **CTO work:** research, the pyramid, schema, API design, wireframes stage 2 (the detailed design) | **Strongest · high** | Claude Fable 5.2 |
 | Writing issues from the plan | Everyday · medium | Claude Opus 5.5 |
 | Building an issue | Everyday · low at complexity 1–4, medium at 5–7 or from pass 2 | Claude Opus 5.5 |
 | Code review | Everyday · never below the builder | Claude Opus 5.5 |

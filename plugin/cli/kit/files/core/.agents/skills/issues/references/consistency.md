@@ -13,7 +13,7 @@ You check one pass's issues against the plan. You didn't write them. **Read only
 2. **Every issue is in the MVP** or the pass's plan. Name the ones that aren't.
 3. **Dependencies work:** each `Depends on #N` exists, says `Blocks` back, sits in this pass or an earlier one, and no chain loops back on itself.
 4. **Every screen** in `design.md` for this pass has a slice that builds it.
-5. **Every MVP screen has an approved wireframe:** it's in `design.md` "Screens" and in the prototype, and the latest "Wireframes approved" row in `decisions.md` matches `git hash-object docs/wireframes/index.html`.
+5. **Every MVP screen has an approved stage-2 wireframe:** it's detailed in `design.md` "Screens" and in the prototype (a grey-box stage-1 layout doesn't count), and the latest "Wireframes approved" row in `decisions.md` matches `git hash-object docs/wireframes/index.html`.
 6. **Every floor item** in `features.md` with a decision has an issue or a check that covers it (sign-in, who can see what, deleting personal data, and so on).
 7. **Acceptance checks:** every issue has them, in the form `AC-<issue>-<n>: WHEN … THEN …` with no repeated ID. No two checks, in one issue or across issues, ask for opposite results. None contradicts `decisions.md`.
 8. **No `[NEEDS CLARIFICATION]`** is left on an issue labelled `status:ready`. List every open marker either way.

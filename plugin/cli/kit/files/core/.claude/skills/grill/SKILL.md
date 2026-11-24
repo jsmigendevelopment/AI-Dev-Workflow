@@ -33,7 +33,8 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
 
 1. **Who and why:** users, the problem, what they do today, what success looks like.
 2. **The main flow:** one user's whole journey, step by step.
-   - **Then start the competitor scan in the background** (see `research`, "Competitor scan") and keep grilling. Don't wait for it.
+   - **Then start two jobs in the background** and keep grilling: the competitor scan (see `research`, "Competitor scan") and stage 1 of `wireframes`, the layout. Don't wait for either. Show each screen as it lands.
+   - **Feed the drawing.** At the end of topics 3, 4 and 5, tell it what changed: new `must` features and floor items add screens, and the MVP cut drops the ones it doesn't need.
 3. **Features:** the person's ideas, questions on each, then yours if they stall. Sort each into must, later or not now.
 4. **The floor:** every item on the floor checklist in `features.md` gets an answer or a recorded default. Never skipped.
 5. **The MVP:** open with the competitor scan, in five lines or fewer: what exists, what users complain about, and the gaps. Then ask: *"What will yours do that they don't?"* If the scan isn't back yet, say so and continue; revisit the MVP when it lands. The one core piece. Push for one. If they name five, ask which one they'd keep if they could keep only one. **The core is never defaulted.**
@@ -46,7 +47,7 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
    - How should the words sound: friendly, plain, formal, funny?
    - Anything to avoid: colours, styles, or a competitor's look?
 
-   Then sum it up in three lines. If they want visuals, offer a mood board or logo ideas on the creative tier (see `routing`). Write the answers to "Look and feel" in `design.md`. `wireframes` turns them into theme tokens and screens. A profile's `[design]` answers are defaults to confirm, not skip.
+   Then sum it up in three lines. If they want visuals, offer a mood board or logo ideas on the creative tier (see `routing`). Write the answers to "Look and feel" in `design.md`. Then start `wireframes` stage 2 in the background: the strongest tier, so ask first unless the profile says not to. A profile's `[design]` answers are defaults to confirm, not skip.
 7. **Confirm:** show back the vision, the main flow, the features, the MVP and the look and feel, and ask what's wrong with them.
 
 ### Existing-project topics (`/join`, or a big feature)
