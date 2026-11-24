@@ -7,7 +7,7 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readd
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { HELP, parseArgs } from "./lib/args.mjs";
+import { HELP, parseArgs, withLimits } from "./lib/args.mjs";
 import { claudeArgs, claudeEnv, runClaude } from "./lib/claude.mjs";
 import { git, listFiles, readText } from "./lib/fixture.mjs";
 import { appendResults, resultsName, summary, totals, verdict } from "./lib/report.mjs";
@@ -28,7 +28,7 @@ async function loadScenarios(dir, only) {
     const base = join(dir, name);
     const fixture = await import(pathToFileURL(join(base, "fixture.mjs")).href);
     const checks = await import(pathToFileURL(join(base, "checks.mjs")).href);
-    out.push({ name, prompt: readFileSync(join(base, "prompt.md"), "utf8").trim(), build: fixture.build, checks: checks.checks, manual: checks.manual ?? [] });
+    out.push({ name, prompt: readFileSync(join(base, "prompt.md"), "utf8").trim(), build: fixture.build, checks: checks.checks, manual: checks.manual ?? [], limits: checks.limits ?? {} });
   }
   return out;
 }
@@ -65,7 +65,8 @@ async function runChecks(scenario, ctx) {
   return results;
 }
 
-async function runArm(scenario, arm, opts, tmp) {
+async function runArm(scenario, arm, cliOpts, tmp) {
+  const opts = withLimits(cliOpts, scenario.limits);
   const armDir = join(tmp, arm);
   const repoDir = join(armDir, "repo");
   const home = join(armDir, "home");
@@ -105,7 +106,8 @@ async function runScenario(scenario, opts) {
   try {
     const [w, o] = await Promise.all([runArm(scenario, "with", opts, tmp), runArm(scenario, "without", opts, tmp)]);
     const arms = { with: w.arm, without: o.arm };
-    return { name: scenario.name, verdict: verdict(arms), arms, manual: scenario.manual, warnings: [...w.warnings, ...o.warnings] };
+    const own = Object.keys(scenario.limits ?? {}).length ? { limits: scenario.limits } : {};
+    return { name: scenario.name, verdict: verdict(arms), arms, ...own, manual: scenario.manual, warnings: [...w.warnings, ...o.warnings] };
   } finally {
     if (opts.keep) console.log(`kept ${tmp}`);
     else rmSync(tmp, { recursive: true, force: true });
@@ -118,6 +120,8 @@ function dryRun(scenarios, opts, version) {
   console.log(`Limits per run: ${opts.maxTurns} turns, ${opts.timeoutSec} s, $${opts.maxBudgetUsd} budget. Cap: ${opts.maxRuns} runs.`);
   console.log(`Command (prompt on stdin): ${opts.claude} ${args.map((a) => (/[\s(*,]/.test(a) ? JSON.stringify(a) : a)).join(" ")}`);
   for (const s of scenarios) {
+    const own = withLimits(opts, s.limits);
+    if (own.maxTurns !== opts.maxTurns || own.timeoutSec !== opts.timeoutSec) console.log(`  ${s.name}: its own limits, ${own.maxTurns} turns, ${own.timeoutSec} s`);
     for (const arm of ["with", "without"]) console.log(`  ${s.name} [${arm}]: ${s.checks.length} check(s): ${s.checks.map((c) => c.id).join(", ")}`);
   }
   console.log(`Results would go to ${join(opts.resultsDir, resultsName(new Date().toISOString().slice(0, 10), opts.model, version))}.json`);

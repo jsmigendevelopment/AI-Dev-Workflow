@@ -9,6 +9,8 @@ Naming waits until now because you can't name something before you know what it 
 
 ## Steps
 
+**On Full automation, ask nothing.** Take the review's pick (else your step 2 pick), a private repo, no licence, and the owner from `docs/profile.toml` or the signed-in `gh` account. `gh` signed in? Create the private repo in step 5 without asking. Not signed in? Carry on locally. Record each as "AI pick, not reviewed".
+
 1. **Ask about style first.** Does the person have a naming convention, a theme, or names they like? Does the domain or app-store name need to be free?
 
 2. **Suggest 5–7 names** in a table: the name, what it means, why it fits this product, and any risk you know of (an existing product, a hard spelling). Check every name against the competitor scan (`docs/research/competitors.md` or `kickoff/research/competitors.md`) and drop any that's close to a competitor's. Mark your pick. Don't claim a domain or trademark is free unless you actually checked.

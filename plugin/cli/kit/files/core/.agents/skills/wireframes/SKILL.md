@@ -10,7 +10,7 @@ Two stages, both in the background while the grill goes on.
 | Stage | Starts when | Tier · effort (see `routing`) | Draws |
 |---|---|---|---|
 | **1. Layout** | the grill's main-flow topic ends | Everyday · medium | every main-flow screen: structure and content, grey boxes, no theme |
-| **2. Detailed UI and UX** | the look-and-feel topic is answered | Strongest · high. Ask first unless the profile says not to. | the agreed layout as the full design: tokens, states, spacing, motion, interactions, light and dark |
+| **2. Detailed UI and UX** | the look-and-feel topic is answered | Strongest · high. Ask first unless the profile says not to. On Full automation, use the current model. | the agreed layout as the full design: tokens, states, spacing, motion, interactions, light and dark |
 
 Before the repo exists, write to `kickoff/` instead of `docs/`. `name` moves it.
 
@@ -18,7 +18,7 @@ Before the repo exists, write to `kickoff/` instead of `docs/`. `name` moves it.
 
 At both stages, draw one screen at a time. When it's done, show it: open the prototype at its `#id` in a browser if you can, or give the full path (double-click it, or drag it into a browser). One line on what it is, then ask: *"What would you change?"* Start the next screen at once. Fold the answer into its screen while the next one draws. Never hold screens back for the whole set.
 
-Auto grill is the one exception: in auto mode, hold screens for the review (`grill`'s `references/auto.md`).
+Auto grill is the one exception: in auto mode, hold screens for the review (`grill`'s `references/auto.md`). On Full automation, ask nothing: show each screen and draw on.
 
 ## The prototype
 
@@ -50,7 +50,9 @@ One file, `docs/wireframes/index.html`. Stage 1 starts it; stage 2 details it.
 5. **Revise until they say yes** to the full set. Change the sketches and the prototype together. A "yes" with changes is not a yes yet.
 6. **Record it.** Run `git hash-object docs/wireframes/index.html` (it works without a repo). Add a row to `decisions.md`: `Wireframes approved: <date>, <hash>`, with the screens covered. Commit both files if there's a repo.
 
-**Done when** every MVP screen and the core screen's states are detailed in `design.md` and the prototype, and `decisions.md` has an approval row whose hash matches the file.
+**On Full automation,** skip step 5's wait. Once the set is detailed, step 6's row reads `Wireframes: AI pick, not reviewed: <date>, <hash>`. Add the prototype's path to the review's FYI, or send one. A later change from the person is a changed screen (see "Rules").
+
+**Done when** every MVP screen and the core screen's states are detailed in `design.md` and the prototype, and `decisions.md` has an approval row (on Full, the "AI pick, not reviewed" row) whose hash matches the file.
 
 ## Rules
 

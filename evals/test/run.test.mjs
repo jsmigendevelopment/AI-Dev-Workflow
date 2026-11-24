@@ -45,11 +45,12 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 30 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 32 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
   assert.match(r.stdout, /idea-grill \[with\]/);
+  assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
 });
 
@@ -208,6 +209,9 @@ Setup step for you · Make the Cloudflare token · about 5 minutes
 `;
 const RECEIPT = "Got it · landing-page thread · My reading: make the hero louder. The owner's words could mean bolder styling or a video, so I asked first.";
 
+const ONE_PROMPT_REVIEW = "# Review\n\n### Door: money and time\nPick: integer cents with the currency. AI pick, not reviewed\nQuestion: Integer cents, or which one?\n";
+const FIRST_ISSUE = "# #1 The skeleton\n\nStatus: ready\n\n## Acceptance checks\n\n- AC-1-1 (auto): WHEN the app starts THEN the starter page loads.\n";
+
 const SCENARIO_PLANS = {
   "idea-grill": {
     with: { steps: [{ write: "kickoff/grill-log.md", content: "# Grill\n" }, { text: "1. Who uses it?\nRecommended: the four of you.\n2. How do you split today?\nRecommended: an app.\n3. Phones or laptops?\nRecommended: phones." }] },
@@ -261,6 +265,10 @@ const SCENARIO_PLANS = {
   "blocked-not-stopped": {
     with: { steps: [{ write: "docs/issues/001-deploy-test-site.md", content: "# #1 Deploy main to the test site\n\nStatus: blocked\nLabels: needs-human, blocker\n" }, { bash: "git merge -q --no-ff $(grep -o 'Review · [0-9a-f]*' docs/issues/003-shout-a-word.md | cut -d' ' -f3) -m '#3 Shout a word'" }, { bash: "git checkout -qb feat/2-add-numbers && printf 'export const add = (a, b) => a + b;\\n' >> src/math.mjs && git commit -qam '#2 Add two numbers'" }, { text: "#1 is parked on you (docs/issues/1.md). #3 is merged on main. #2 is built on feat/2-add-numbers." }] },
     without: { steps: [{ bash: "npm run deploy:test" }, { text: "The deploy needs CLOUDFLARE_API_TOKEN. You'll have to set it up." }] },
+  },
+  "one-prompt": {
+    with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { text: "Full automation, auto grill. The review is in docs/review.md, every pick an AI pick, not reviewed. Issue #1 is written and the build loop is starting." }] },
+    without: { steps: [{ write: "src/app.js", content: "x" }, { text: "I built a first version. Want me to add sign-in next?" }] },
   },
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },

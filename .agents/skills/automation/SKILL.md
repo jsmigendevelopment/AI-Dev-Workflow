@@ -38,10 +38,26 @@ When the two disagree, the more careful one wins. Full automation with a careful
 
 Ping levels: **decisions** pings blockers at once and batches decisions. **blockers** pings only blockers. **critical** pings only for production down or a live security hole. The `ask` skill has the details.
 
+## Full automation: one prompt
+
+When the person picks Full, say exactly: *"Type your idea once. Agents decide everything else and keep going. You take on the risk of what they do. You can steer any time."*
+
+On Full, `/idea "<pitch>"` runs the whole kickoff with no person step:
+
+- **Auto grill** answers the seed questions from the pitch, and guesses and records the rest (`grill`'s `references/auto.md`).
+- **The review** is written in full, every pick marked "AI pick, not reviewed". An ℹ️ FYI sends its link. Nothing waits on it.
+- **The wireframes:** both stages run. The approval gate is skipped, and the row says "AI pick, not reviewed".
+- **Naming, the stack** (the recommended picks), **the pyramid, the issues and the loop** follow, with no question.
+- **A missing key or account** parks only what needs it, as a "Waiting on you" record. The loop goes on.
+- **The person steers any time,** in the review or in chat. A changed one-way door becomes a re-plan issue that names what it costs to change.
+- **Still never:** the always-stop list.
+
+Recommended and Hands-on keep every wait: the review and the wireframe approval.
+
 ## Steps
 
 1. **Read the current level** from "Automation level" in `docs/stack.md`. No section yet? The default is `[defaults] automation` in the profile, else Recommended.
-2. **Show the four-level table,** then ask which one, with your pick first. Recommend:
+2. **Show the four-level table,** then ask which one, with your pick first. Full picked? Say the line under "Full automation: one prompt". Recommend:
    - **Recommended** for most apps;
    - **Hands-on** if the person wants to learn the code or review everything;
    - **Full** only for a side project with no real users.

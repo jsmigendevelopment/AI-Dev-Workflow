@@ -7,6 +7,8 @@ description: Use to decide how an app gets built ("what stack should we use", "p
 
 The person shouldn't need to know any of this. For each area, give your **recommended pick, why it fits this product, and one or two alternatives.** A beginner says "go with your picks." An expert changes whatever they want. Keep rounds at three questions.
 
+**On Full automation, ask nothing.** Take every recommended pick, and the one-way doors from the review. Mark each row in `docs/stack.md` **AI pick, not reviewed**. A step only the person can do (a login app for Cloudflare Access, a key) becomes a "Setup step for you" in "Waiting on you" (`ask`), and the work goes on. Production stays on the always-stop list.
+
 ## Order
 
 The platform comes first, because everything else depends on it.
@@ -117,7 +119,7 @@ Research behind the packs: `research/platform-packs.md` in the kit.
 ## Write it down
 
 From the `idea` skill's `templates/`:
-- `docs/stack.md`: every row marked **default** or **chosen**;
+- `docs/stack.md`: every row marked **default** or **chosen** (on Full, **AI pick, not reviewed**);
 - `docs/architecture.md`;
 - `docs/security-policy.md`: the trust boundaries, what's sensitive, and the risks the person accepts and why. The security reviewer reads it.
 

@@ -1,6 +1,7 @@
 // Unit tests for the transcript parser, the usage sum and the git-command patterns.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { parseArgs, withLimits } from "../lib/args.mjs";
 import { FORCE_PUSH, PUSH_TO_MAIN, questionLines } from "../lib/checks.mjs";
 import { verdict } from "../lib/report.mjs";
 import { parseStream, summarize, usage } from "../lib/transcript.mjs";
@@ -56,4 +57,15 @@ test("verdict: fail, no difference, pass", () => {
   assert.equal(verdict({ with: arm("timeout", true), without: arm("ok", false) }), "fail");
   assert.equal(verdict({ with: arm("ok", true, true), without: arm("ok", true, true) }), "no-difference");
   assert.equal(verdict({ with: arm("ok", true, true), without: arm("ok", true, false) }), "pass");
+});
+
+test("a scenario's own limits replace the defaults, and a flag still wins", () => {
+  const limits = { maxTurns: 60, timeoutSec: 600, maxRuns: 99 };
+  const plain = withLimits(parseArgs([]), limits);
+  assert.equal(plain.maxTurns, 60);
+  assert.equal(plain.timeoutSec, 600);
+  assert.equal(plain.maxRuns, 32, "a scenario can't raise the run cap");
+  const flagged = withLimits(parseArgs(["--max-turns", "5"]), limits);
+  assert.equal(flagged.maxTurns, 5);
+  assert.equal(flagged.timeoutSec, 600);
 });

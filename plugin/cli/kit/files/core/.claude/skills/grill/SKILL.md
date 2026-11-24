@@ -10,7 +10,7 @@ AI fills every gap with a guess. The grill finds the gaps first. A missed decisi
 ## Full or auto
 
 - **Full grill** (the default): you ask, round by round, as below.
-- **Auto grill:** you ask four seed questions, grill yourself on every topic, and show the person one review. Chosen in `/idea` step 0, or by `[defaults] grill = "auto"` in the profile. Load `references/auto.md` and follow it. The topics, the floor and the record below still apply.
+- **Auto grill:** you ask four seed questions, grill yourself on every topic, and show the person one review. Chosen in `/idea` step 0, or by `[defaults] grill = "auto"` in the profile. Load `references/auto.md` and follow it. The topics, the floor and the record below still apply. On Full automation, auto grill asks nothing and nothing waits on its review.
 
 ## How to ask
 
@@ -69,7 +69,7 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
 - The files live in `kickoff/` until the project has a repo, and in `docs/` after that. Start each from the templates in the `idea` skill's `templates/` folder.
 - After every round, append the questions, your recommendations and the answers to `grill-log.md`, in the person's own words where it matters.
 - Write each decision to `decisions.md` the moment it's made.
-- Label every answer's source in `grill-log.md`, and every decision's originator in `decisions.md`, with one of these: **person**, **default** (the person didn't know), **AI** (your idea, taken by the person), **AI pick, approved at review** or **changed at review** (auto grill). An auto grill draft says **AI pick** until the review.
+- Label every answer's source in `grill-log.md`, and every decision's originator in `decisions.md`, with one of these: **person**, **default** (the person didn't know), **AI** (your idea, taken by the person), **AI pick, approved at review** or **changed at review** (auto grill), or **AI pick, not reviewed** (auto grill on Full automation). An auto grill draft says **AI pick** until the review.
 - Keep the coverage map at the top of `grill-log.md` current. A new session resumes from it.
 
 ## When you hit an unknown
@@ -78,7 +78,7 @@ If neither of you knows the best answer, and the decision is crucial and expensi
 
 ## Done when
 
-Every topic is ticked and summarised, every floor item is answered, and the MVP's core was chosen by the person. In auto mode, also every one-way door was confirmed on its own.
+Every topic is ticked and summarised, every floor item is answered, and the MVP's core was chosen by the person. In auto mode, also every one-way door was confirmed on its own. On Full automation, the pitch or your best guess stands in for the person, and every pick says "AI pick, not reviewed".
 
 ## References
 
