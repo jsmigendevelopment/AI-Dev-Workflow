@@ -57,7 +57,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 10. **End of sweep:**
     - render the board from the lists you already fetched;
-    - clean up screenshots: list `git ls-remote origin 'refs/heads/screenshots/*'`. Delete each one whose pull request closed without a merge. Once the test site is live, delete each one whose pull request merged too. Same command and same "if `gh` refuses" as step 9;
+    - clean up screenshots: list `git ls-remote origin 'refs/heads/screenshots/*'`. Delete each one whose pull request closed without a merge, and each `screenshots/<branch>` whose `<branch>` is gone from origin. Once the test site is live, delete each one whose pull request merged too. Same command and same "if `gh` refuses" as step 9;
     - if the profile sets `[board] sheet` and you have the Google Sheets connector, write the rows (one clear, one write);
     - run `node .claude/hooks/notify.mjs --flush`, so batched decisions go out.
 

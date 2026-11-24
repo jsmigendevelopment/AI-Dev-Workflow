@@ -3,7 +3,8 @@
 // The test copies it as `claude` into a temp bin folder on PATH, next to a plan.json:
 //   { "<scenario>": { "with": <plan>, "without": <plan> }, "*": {...} }
 // A plan: { steps: [step], cost, tokens: { input, output, cacheRead, cacheWrite }, sleep, exit, noResult }
-// A step: { text } | { write: path, content } | { bash: command } | { tool: name, input }.
+// A step: { text } | { write: path, content } | { bash: command } | { tool: name, input, ok }.
+// A tool step's result is an error ("denied") unless ok is true; nothing runs either way.
 // The arm is "with" when the folder has .onrails.json; the scenario comes from the runner's
 // temp folder name (evals-<scenario>-XXXXXX/<arm>/repo). Every call is logged to calls.jsonl.
 import { execSync } from "node:child_process";
@@ -53,7 +54,7 @@ for (const step of plan.steps ?? []) {
     emit({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: [{ type: "text", text: out }] }] } });
   } else if (step.tool) {
     message([{ type: "tool_use", id, name: step.tool, input: step.input ?? {} }]);
-    emit({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: "denied", is_error: true }] } });
+    emit({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: step.ok ? "ok" : "denied", is_error: !step.ok }] } });
   }
 }
 

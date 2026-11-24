@@ -51,18 +51,19 @@ The person steers by looking. Show each visible step as soon as it renders, on t
 3. **Give the person a way to look.**
    - **On their machine:** the link, the page to open and the try line. "The app runs at http://localhost:3000. Open /list: the seeded items show."
    - **In a cloud session** (Claude Code sets `CLAUDE_CODE_REMOTE=true`) **or in the loop,** give both:
-     - four screenshots with Playwright's Chromium, written outside the checkout so `git add -A` never picks them up. Run `pnpm exec playwright install chromium` first if it's missing. `S=${TMPDIR:-/tmp}/shots-<n>`, then for each of `light` and `dark`:
+     - four screenshots with Playwright's Chromium, written outside the checkout so `git add -A` never picks them up. Run `pnpm exec playwright install chromium` first if it's missing. No Playwright in the project? Use `pnpm dlx playwright@<version> ...` with an exact version you checked on the registry (the stack pack's pin, if it has one), `install chromium` first; or skip the screenshots and give only the command. `S=${TMPDIR:-/tmp}/shots-<n>`, then for each of `light` and `dark`:
        - desktop: `pnpm exec playwright screenshot --viewport-size=1280,800 --color-scheme=light <url> $S/desktop-light.png`;
        - phone: `pnpm exec playwright screenshot --viewport-size=390,844 --color-scheme=light <url> $S/phone-light.png`;
      - the command for their machine: `git fetch && git switch <branch>`, then `pnpm install && pnpm dev`, and the link.
+   - **Public repo?** Check with `gh repo view --json visibility`. Public and the app not launched? Pushed screenshots show the unlaunched app to anyone. Say so once and ask whether they may be public (a ⏳ decision through `ask`; in the loop, put the question in your report). Until a yes is in `docs/decisions.md`, push nothing: give the screenshots in your report only, as local paths or images shown in the session.
    - **Get the screenshots to the person** once the pull request exists (step 12). They go on their own branch `B`: `screenshots/pr-<n>`, or `screenshots/<your branch>` when there's no pull request (Hands-on). Never on the pull request's branch or on main. `W=${TMPDIR:-/tmp}/shots-<n>-git`:
      1. `git ls-remote --exit-code origin refs/heads/B` exits 0 (a rerun)? `git fetch origin B:B`, then `git worktree add $W B`, and add a commit on top. Otherwise make it new: `git worktree add --orphan -b B $W`. Git older than 2.42: `git worktree add --detach $W && git -C $W switch --orphan B`.
-     2. `cp $S/*.png $W/`, commit there, `git -C $W push origin B`, then `git worktree remove $W`.
+     2. `cp $S/*.png $W/` and `git -C $W add -A`. `git -C $W diff --cached --quiet && echo unchanged`? Same screenshots as last time: skip the commit and the push. Otherwise commit there and `git -C $W push origin B`. Either way, `git worktree remove $W`.
      3. Post one comment on the pull request with each image: `![desktop light](https://github.com/<owner>/<repo>/blob/B/desktop-light.png?raw=true)`. Put the same links in your report. No pull request? Put the links and `https://github.com/<owner>/<repo>/tree/B` in your report.
    - **A preview or the test site exists?** Link it too.
 4. **Ask what to change:** "Anything you'd change?" An answer is feedback (`back`, step 9), so they can steer now.
 
-**Done when** built alone: the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question. In the loop: the screenshots are on `screenshots/pr-<n>`, the pull request has one comment with their links, nothing new is untracked in your checkout, your report has the links, the branch command, the try line and the faked parts, and your server is stopped.
+**Done when** built alone: the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question. In the loop: the screenshots are on `screenshots/pr-<n>` (or only in your report, on a public repo without a yes), the pull request has one comment with their links, nothing new is untracked in your checkout, your report has the links, the branch command, the try line and the faked parts, and your server is stopped.
 
 ## Code rules
 

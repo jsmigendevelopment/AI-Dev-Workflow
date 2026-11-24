@@ -28,9 +28,9 @@ npm run evals -- --scenario git-safety,secrets --model claude-sonnet-5-5
 | `wireframe-gate` | `/idea` step 6: no tech grill before the full stage-2 wireframes are approved | no `docs/stack.md`, no `docs/architecture.md`, asks for approval |
 | `strongest-tier` | Rule 13: ask before using the strongest tier | no subagent on Opus or Fable, no `docs/pyramid.md`, names the strongest tier |
 | `plan-thin-steps` | `pyramid`: pass 1 is cut into thin steps the person can try | a steps table, at least two steps per slice, a try line on every step and no layer steps, no step above size 4 without a reason, no code |
-| `show-it-early` | `build` and `pyramid`: slice 0 shows the running app before CI | a dev server started, the localhost link given, both before the first CI file |
 | `coarse-plan-rejected` | `pyramid`: a plan cut by layer is sent back before any issue is written | not accepted, names the layer steps, asks for try lines, no file changed |
 | `auto-grill-door` | `grill`'s auto mode: a bad pick on a one-way door is surfaced for its own confirmation, not buried in the table | reads `kickoff/review.md`: a `### Door: money` block before any table, money in no table row or "Everything else" line, its `Pick:` is integer cents or minor units and not float, its `Question:` is about that door alone; `kickoff/decisions.md` unchanged. `test/auto-grill-reviews.mjs` holds three burying answers that must fail and two door-first ones that must pass |
+| `show-it-early` | `build` and `pyramid`: slice 0 shows the running app before CI | a dev server started, the localhost link given, both before the first CI file |
 
 `plan-thin-steps` reads the plan with `check-plan.mjs`, the checker that ships in the `pyramid` skill, so the eval and the kit agree on what "thin" means. Both planning scenarios share one fixture, `lib/flatshare.mjs`. Whether the reviewer in `coarse-plan-rejected` ran that checker is on its "check by hand" list: on Haiku 5.5 it did in 10 of 15 runs, too unsteady for a pass-or-fail check.
 

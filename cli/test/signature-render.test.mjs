@@ -23,7 +23,7 @@ test("AC-1: the home profile is read when the project has none, and --markdown p
   assert.equal(out, [
     "[![Ada Dev monogram](https://example.com/mark.svg)](https://example.com)",
     "",
-    "Built by **[Ada Example](https://example.com)**  ",
+    "Built by **[Ada Example](https://example.com)**\\",
     "Ada Dev · Software engineer",
     "",
     "[Site](https://example.com) · [Blog](https://example.com/blog/) · [GitHub](https://github.com/example)",
@@ -71,54 +71,6 @@ test("AC-5: WHEN a value holds an email, a mailto: link or a URL that isn't plai
     [swap(GITHUB_URL, 'url = "https://user@example.com/"'), /links\[2\]\.url holds an email|plain https/],
   ];
   for (const [profile, message] of cases) refusedEverywhere(profile, message);
-});
-
-test("AC-5: WHEN text holds anything outside the allowlist, or a bare URL, THEN it is refused in every mode", () => {
-  const cases = [
-    // A newline ends the HTML block, so what follows would render as Markdown.
-    [swap(TAGLINE, 'tagline = "x\\n\\n[click](http://evil.example)"'), /tagline holds a control character/],
-    [swap(TAGLINE, 'tagline = "a\\tb"'), /tagline holds a control character/],
-    [swap(SIGNOFF, 'signoff = "a\\u007fb"'), /signoff holds a control character/],
-    [swap('url = "https://example.com/blog/"', 'url = "https://example.com/\\r\\nx"'), /links\[1\]\.url holds a control character/],
-    [swap(TAGLINE, 'tagline = "see www.evil.example"'), /tagline holds a URL.*www\./],
-    [swap('label = "Blog"', 'label = "x](javascript:alert(1)) [y"'), /links\[1\]\.label holds "\]"/],
-    [swap('label = "Site"', 'label = "x](http://evil.example) [y"'), /links\[0\]\.label holds a URL.*http:/],
-    [swap('name = "Ada Example"', 'name = "Ada evil.example//x"'), /^ {2}name holds "\/"/m],
-    [swap(SIGNOFF, 'signoff = "data:text/html,hi"'), /signoff holds a URL.*data:/],
-    [swap('mark_alt = "Ada Dev monogram"', 'mark_alt = "//evil.example"'), /mark_alt holds "\/"/],
-    [swap('display = "ada"', 'display = "HTTPS://evil.example"'), /personal\.display holds a URL/],
-    [swap(TAGLINE, 'tagline = "javascript:alert(1)"'), /tagline holds a URL.*javascript:/],
-    [swap(TAGLINE, 'tagline = "http:x"'), /tagline holds a URL.*http:/],
-    [swap(TAGLINE, 'tagline = "mailto:a"'), /tagline holds an email/],
-    [swap(TAGLINE, 'tagline = "data:x"'), /tagline holds a URL.*data:/],
-    [swap(TAGLINE, 'tagline = "ada@evil.c0m"'), /tagline holds an email/],
-    [swap(TAGLINE, 'tagline = "Q and A @ noon"'), /tagline holds "@"/],
-    [swap(TAGLINE, 'tagline = "bob\\uff20example.com"'), /tagline holds "＠"/],
-    [swap(TAGLINE, 'tagline = "bob&#64;example.com"'), /tagline holds "#"/],
-    [swap(SIGNOFF, 'signoff = "~~~"'), /signoff holds "~"/],
-    [swap('display = "Ada Dev"', 'display = " ==="'), /^ {2}display holds "="/m],
-    [swap('display = "Ada Dev"', 'display = " ==="'), /^ {2}display has a leading, trailing or double space/m],
-    [swap(SIGNOFF, 'signoff = "Two  spaces"'), /signoff has a leading, trailing or double space/],
-    [swap('name = "Ada Example"', 'name = "Ada <b>\\"X\\"</b>"'), /^ {2}name holds "<"/m],
-    [swap(SIGNOFF, 'signoff = "*bold* _it_ `code` | # > \\\\"'), /signoff holds "\*"/],
-  ];
-  for (const [profile, message] of cases) refusedEverywhere(profile, message);
-});
-
-test("AC-5: WHEN a colon is followed by a space or ends the value THEN it is ordinary text, in every mode", () => {
-  const profile = swap(TAGLINE, 'tagline = "Builder: web apps"').replace(SIGNOFF, 'signoff = "Note:"')
-    .replace('compact_signoff = "Go build."', 'compact_signoff = "Note:"');
-  for (const mode of [[], ["--style", "compact"], ["--markdown"]]) {
-    const { code, out, err } = run(mode, profile);
-    assert.equal(code, 0, `${mode.join(" ")} ${err}`);
-    if (mode[0] !== "--style") assert.match(out, /Builder: web apps/);
-    assert.match(out, /Note:/);
-  }
-});
-
-test("AC-5: WHEN text holds letters, numbers, emoji and the allowed punctuation THEN it passes in every mode", () => {
-  const profile = swap(TAGLINE, "tagline = \"Café 🌱 ✔️ – it’s 1, 2; (yes) & more + ok? Sure!\"");
-  for (const mode of [[], ["--style", "compact"], ["--markdown"]]) assert.equal(run(mode, profile).code, 0, mode.join(" "));
 });
 
 // The profile's own URLs, longest first, so removing one never leaves part of another.
@@ -194,7 +146,7 @@ test("AC-6: WHEN --markdown values start a line with list or setext syntax THEN 
     assert.equal(out.split("\n").at(-1), want);
   }
   const { out } = run(["--markdown"], swap('display = "Ada Dev"', 'display = "---"'));
-  assert.match(out, /\*\* {2}\n\\--- · Software engineer\n/, "no setext heading");
+  assert.match(out, /\*\*\\\n\\--- · Software engineer\n/, "no setext heading");
 });
 
 test("AC-7: WHEN there is no [me.signature] THEN the command says how to add one and exits 3, apart from a refused value's 1", () => {

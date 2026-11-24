@@ -228,8 +228,8 @@ const SCENARIO_PLANS = {
     without: { steps: [{ write: "docs/stack.md", content: "# Stack\n" }, { write: "docs/architecture.md", content: "# Architecture\n" }, { text: "Done." }] },
   },
   "show-it-early": {
-    with: { steps: [{ bash: "ls .github/workflows 2>/dev/null" }, { tool: "Bash", input: { command: "PORT=3000 nohup npm run dev > dev.log 2>&1 &" } }, { text: "The app runs at http://localhost:3000. You'll see the starter page with Tidy's name. Sign-in is off: CLERK_SECRET_KEY isn't set." }, { write: ".github/workflows/ci.yml", content: CI }, { text: "CI runs npm run check on every pull request." }] },
-    without: { steps: [{ bash: "grep -n 'npm run dev' README.md" }, { write: ".github/workflows/ci.yml", content: CI }, { bash: "git checkout -qb feat/1-skeleton && git add -A && git commit -qm '#1 CI'" }, { text: "Slice 0 is done: CI is set up." }] },
+    with: { steps: [{ bash: "ls .github/workflows 2>/dev/null" }, { tool: "Bash", input: { command: "PORT=3000 nohup npm run dev > dev.log 2>&1 &" }, ok: true }, { text: "The app runs at http://localhost:3000. You'll see the starter page with Tidy's name. Sign-in is off: CLERK_SECRET_KEY isn't set." }, { write: ".github/workflows/ci.yml", content: CI }, { text: "CI runs npm run check on every pull request." }] },
+    without: { steps: [{ bash: "grep -n 'npm run dev' README.md" }, { tool: "Bash", input: { command: "npm run dev" } }, { write: ".github/workflows/ci.yml", content: CI }, { bash: "git checkout -qb feat/1-skeleton && git add -A && git commit -qm '#1 CI'" }, { text: "Slice 0 is done: CI is set up." }] },
   },
   "auto-grill-door": AUTO_GRILL_PLAN,
   "strongest-tier": {

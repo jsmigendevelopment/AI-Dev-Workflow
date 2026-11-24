@@ -13,7 +13,9 @@ naming_style = ""               # e.g. "one lowercase word + one capitalised wor
 
 [me.signature]
 # The sign-off at the end of every README an agent writes: npx onrails signature --write README.md
-# It's public. Text holds only letters, numbers, emoji, single spaces and . , ! ? ' ’ - – : ; ( ) & +
+# It's public. Text holds only letters, numbers, emoji (skin tones, joined emoji, keycaps and flags too), single spaces
+# and . , ! ? ' ’ - – : ; ( ) & +. A full stop needs a space after it, so "example.com", "Node.js" and "2.0" are refused:
+# put tech names in a link label, or drop the dot.
 # URLs are plain https:// with a lowercase host: no port, query, fragment, % or &. A blank name means no signature.
 theme = "professional"          # professional | personal (personal applies [me.signature.personal] on top)
 style = "full"                  # full | compact (one line)

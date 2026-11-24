@@ -53,6 +53,7 @@ function readValue(s, i) {
       }
       const key = /^([A-Za-z0-9_-]+)\s*=/.exec(s.slice(i));
       if (!key) throw new Error(`expected key = value at "${s.slice(i, i + 20)}"`);
+      if (Object.hasOwn(out, key[1])) throw new Error(`${key[1]} is set twice in one { } table. Keep one.`);
       const [v, next] = readValue(s, i + key[0].length);
       out[key[1]] = v;
       i = next;

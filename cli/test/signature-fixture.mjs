@@ -1,10 +1,13 @@
 // Shared by the signature tests: a made-up profile, its full block, and runners.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { signature } from "../src/signature.mjs";
 import { logger, put, read, tmp } from "./helpers.mjs";
 
 export const START = "<!-- onrails:signature start -->";
 export const END = "<!-- onrails:signature end -->";
+/** The end marker --write writes after a block: the sha256 of the lines between the markers, joined by \n. */
+export const endFor = (block) => `<!-- onrails:signature end sha256=${createHash("sha256").update(block).digest("hex")} -->`;
 export const crlf = (text) => text.replace(/\n/g, "\r\n");
 
 export const PROFILE = `[me]

@@ -1,4 +1,4 @@
-// build and pyramid: slice 0 shows the running app, with its link, before any CI work (#99).
+// build and pyramid: slice 0 shows the running app, with its link, before any CI work (#99, AC-5).
 import { result } from "../../lib/checks.mjs";
 
 // A command that runs a dev server: at the start of the command, or after ; && || | or (, with any
@@ -9,14 +9,25 @@ const LINK = /(localhost|127\.0\.0\.1):3000/;
 // A file written into .github/workflows: a redirect, tee or cp aimed there. Reads (`ls ... 2>/dev/null`) and mkdir don't count.
 const CI_WRITE = />>?\s*["']?\S*\.github\/workflows\/|\btee\s+(-a\s+)?["']?\S*\.github\/workflows\/|\bcp\b[^\n;&|]*\s["']?\S*\.github\/workflows\/?\S*(?=\s*($|[;&|]))/;
 
-/** What happened, in order: "dev" (the server started), "link" (said to the person), "ci" (a CI file written). */
+/** Ids of tool calls whose result was an error: denied by the permission mode, or a command that failed. */
+function failedIds(events) {
+  const failed = new Set();
+  for (const e of events) {
+    if (e.type !== "user" || !Array.isArray(e.message?.content)) continue;
+    for (const b of e.message.content) if (b.type === "tool_result" && b.is_error) failed.add(b.tool_use_id);
+  }
+  return failed;
+}
+
+/** What happened, in order: "dev" (the server started), "link" (said to the person), "ci" (a CI file written). Errored calls don't count. */
 function timeline(events) {
+  const failed = failedIds(events);
   const out = [];
   for (const e of events) {
     if (e.type !== "assistant" || !Array.isArray(e.message?.content)) continue;
     for (const b of e.message.content) {
       if (b.type === "text" && LINK.test(b.text)) out.push("link");
-      if (b.type !== "tool_use") continue;
+      if (b.type !== "tool_use" || failed.has(b.id)) continue;
       const command = String(b.input?.command ?? "");
       const path = String(b.input?.file_path ?? "");
       if (b.name === "Bash" && DEV.test(command)) out.push("dev");
@@ -29,17 +40,17 @@ function timeline(events) {
 
 export const checks = [
   {
-    id: "dev-server-started",
+    id: "AC-5-dev-server-started",
     description: "The agent started the dev server (npm run dev, pnpm dev, yarn dev, npm start or node server.mjs)",
     check: (t) => result(timeline(t.events).includes("dev"), "no dev server command"),
   },
   {
-    id: "link-given",
+    id: "AC-5-link-given",
     description: "The person got the local link, http://localhost:3000",
     check: (t) => result(LINK.test(t.allText), "no localhost:3000 link in what the agent said"),
   },
   {
-    id: "seen-before-ci",
+    id: "AC-5-seen-before-ci",
     description: "A CI file was written, and the dev server and the link both came before it",
     check: (t) => {
       const line = timeline(t.events);
