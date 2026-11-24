@@ -11,14 +11,18 @@ A pass is done when every issue in its milestone is merged. The loop doesn't sto
 
    Report one line per finding, under 40 lines: `[gap|drift|shortcut] <what> · <file or screen> → <fix>`. The issue writer turns each finding into an issue labelled `gate`. **Done when** every finding is an issue, or the report says clean.
 2. **Cleanup.** Collect the debt: every "nice to have" finding in the pass's merged code reviews, the audit's drift and shortcuts, and the refactors builders noted. Pick the worst first. A gap is unfinished work, so every gap is picked. Cap the rest at about 20% of the pass that just ended, by issue count: one cleanup issue for every five. The rest stays listed under "Debt" in `docs/pyramid.md`. **Done when** the picked items are issues labelled `gate`, in the next pass's milestone.
-3. **The person tries it.** Any time, and it doesn't hold up steps 1 and 2. Give them the test URL and the "To try" list from `docs/state.md`: one line per step, what to do and what they'll see. Ask: *"What feels wrong, missing or slow?"* Each point becomes an issue through `issues` ("From feedback or bugs"). A point about what's already built is gate work: label it `gate`, and the loop builds it now. A new idea goes to `docs/features.md` for step 4. **Done when** they say they've tried enough and every point is an issue or a row.
+3. **The person tries it.** Any time, and it doesn't hold up steps 1 and 2. Give them the test URL and the "To try" list from `docs/state.md`: one line per step, what to do and what they'll see. Ask: *"What feels wrong, missing or slow?"* Sort each point:
+   - **Wrong or slow, in what's built:** gate work. It becomes an issue through `issues` ("From feedback or bugs"), labelled `gate`, and the loop builds it now.
+   - **Missing:** a new idea, so it's new scope. Add a row to `docs/features.md`. It waits for the re-plan in step 4. Never make it a `gate` issue.
+
+   **Done when** they say they've tried enough and every point is a `gate` issue or a `features.md` row.
 4. **Re-plan.** This is the CTO step: strongest tier, high effort. Ask first (see `routing`). It needs the person's go, not the end of the gate work. Open `pyramid`. Update the outline with what steps 1 to 3 taught, and cut the next pass into steps. Read the flow numbers first: `gh pr list --state merged --limit 200 --json number,createdAt,mergedAt,additions,deletions,headRefName > <tmp>/merged.json`, then `node .agents/skills/coordinate/scripts/flow.mjs --github <tmp>/merged.json`. A median pull request over about 200 changed lines, or most steps needing a second review round, means the last cut was too thick: cut thinner this time. Then `issues` writes the pass's issues and runs the consistency check. **Done when** the check is clean, or every gap is an issue or a question.
 
-Then fill the gate row in `docs/pyramid.md`: date, feedback issues, audit result, cleanup issues, the flow numbers, re-plan done. Mark the next pass `building`. The loop takes its steps along with any gate work still open.
+Then finish the pass's Gate record row in `docs/pyramid.md`: date, feedback issues, audit result, cleanup issues, the flow numbers, re-plan done. Mark the next pass `building`. The loop takes its steps along with any gate work still open.
 
 ## Who does what
 
-- **The coordinator** starts step 1 and step 2 the moment the pass is done, sends the person the try list, and keeps building gate work (`coordinate`, "End of a pass").
+- **The coordinator** starts step 1 and step 2 the moment the pass is done, sends the person the try list, and keeps building gate work (`coordinate`, "End of a pass"). It sends the ask once, and starts the audit once per gate.
 - **Under `/afk`,** the same. When the gate work runs out, it stops: steps 3 and 4 wait for the person.
 - **Hands-on** automation has no loop: the person starts each step.
 

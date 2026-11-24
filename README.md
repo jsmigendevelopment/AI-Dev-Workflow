@@ -130,7 +130,7 @@ You plan once. Every step saves to files, so you can stop any time and `/or:back
 | 7 | **Plan** | Your strongest model outlines three passes, cuts the first into thin steps you can each try, and designs the schema and API from your approved screens. A script checks the cut. It asks before it starts. | `pyramid.md`, `design.md` |
 | 8 | **Issues** | One per step, for the current pass only. Each has a line on what to try, WHEN/THEN acceptance checks with IDs, an out-of-scope fence, dependencies, risk flags, a lane and a complexity score. A read-only check then looks for gaps against the plan. | GitHub issues |
 | 9 | **Keys** | It lists every account and key the first deploy needs and walks you through them. About 10 minutes. | |
-| 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue, three in flight at most. | `state.md`, a line on what to try per merge |
+| 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue, three in flight at most (one on Hands-on). | `state.md`, a line on what to try per merge |
 | 11 | **Pass gate** | The loop doesn't stop at the end of a pass. A fresh audit checks the code against the plan and the screens, and the loop builds the fixes and some cleanup. You try it whenever you can. The next pass is planned once you have. | `pyramid.md` |
 
 **What each pull request goes through:** build → CI → code review → QA on the preview → security review (risky changes only) → merge the exact commit that was checked → deploy to the test site → smoke test. A failed check goes back to a fresh builder. After two rejected rounds, the issue is parked and you're asked.
@@ -149,7 +149,7 @@ The old way builds the whole schema, then the whole API, then the whole UI. You 
 - **Slice 0** is the skeleton: the app runs, CI checks every pull request, and main deploys to test.
 - **The MVP is three passes:** Works (a thin tracer bullet through every slice), Real (the core goes deep), Ready (the core polished, plus speed, accessibility, SEO and the launch checklist).
 - **A pass is an improvement** to what's already there.
-- **Each pass is cut into thin steps.** A slice is one thing the app lets you do, like "the shared list". A step is the smallest change to it that you can try, like "add an item". One step is one issue and one pull request, so something new reaches the test site every few merges.
+- **Each pass is cut into thin steps.** A slice is one thing the app lets you do, like "the shared list". A step is the smallest change to it that you can try, like "add an item". One step is one issue and one pull request, so every merge puts something new on the test site to try.
 - **Only what the core can't work without** goes in the MVP. Everything else comes after.
 - **A gate between passes:** a fresh audit and cleanup, which start at once, then you try it, then a re-plan. Later passes stay an outline until then.
 - **The end of pass 3 is "MVP complete" on the test site, not launch.** Going live is your call, whenever you choose.
@@ -249,7 +249,7 @@ The [`secrets`](.agents/skills/secrets/SKILL.md) skill lists each variable and w
 |---|---|
 | **No force pushes, no pushes to main** | Blocked in the tool: `.claude/settings.json` for Claude Code, `.codex/rules/git-safety.rules` for Codex. Codex rules match only the start of a command, so a `--force` typed after the branch name is left to rule 12 in `AGENTS.md`. |
 | **No silent waiting** | A rate-limited or blocked agent tells you what's blocked and when it resets, then keeps doing other work. |
-| **A few things at a time** | The loop keeps three issues in flight and finishes one before it starts a fourth. `flow.mjs` prints how many merged, how long one took and the longest gap with no merge. |
+| **A few things at a time** | The loop keeps three issues in flight (one on Hands-on), counting work that waits on you, and finishes one before it starts another. `flow.mjs` prints how many merged, how long one took and the longest gap with no merge. |
 | **Every session starts informed** | A hook gives the session the branch, the last commit and `docs/state.md` before you type. Local files only. |
 | **Pings at three levels** | 🛑 Blocker: now. ⏳ Decision: batched. ℹ️ FYI: never interrupts. A desktop notification, or your phone if you set `NTFY_TOPIC`. |
 

@@ -299,6 +299,8 @@ The sixteen hypotheses in `agile-flow/hypotheses.md`, written before the first s
 | **The plan is checked before any issue is written** | `issues` step 2 | A tool beats a prompt [c100 · vendor]. Not shown to help: the checker was run in 4 of 6 review runs before this change and 4 of 6 after [c210 · measured] |
 | **Two evals** | `evals/scenarios/plan-thin-steps`, `coarse-plan-rejected` | [c188, c210 · measured] |
 
+**After review (2026-11-24):** the checker now also fails layer words anywhere in a name, developer actions in a try line, an empty plan and a slice any pass skips, and leaves slice 0 out of the big share; re-run on the saved plans, the branch-kit plans still pass and the others still fail. "Three in flight" now counts work parked on the person, and is 1 on Hands-on.
+
 **Not done, and why:**
 
 - **The pack's CI in two stages,** its move to Worker Previews, and a flag module. Each needs the pack built and run, and CI timed on a real project [c74, c75, c132, c162 · read].

@@ -1,5 +1,5 @@
-// Tests for the pyramid skill's plan checker: a thin plan passes; a plan cut by layer, a step
-// nobody can try, a step that is too big, and a plan that only lists slices all fail.
+// Tests for the pyramid skill's plan checker: a thin plan passes; an empty plan, a plan cut by layer,
+// a step nobody can try, a step that is too big, and a plan that only lists slices all fail.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -52,7 +52,7 @@ const swap = (n, row) => THIN.map((r, i) => (i === n ? row : r));
 test("a thin plan passes, and the numbers describe it", () => {
   const r = checkPlan(plan());
   assert.deepEqual(r.errors, []);
-  assert.deepEqual(r.stats, { steps: 8, slices: 3, perSlice: 2.3, medianSize: 3, maxSize: 5, aboveThin: 1, longestChain: 4, canStartNow: 1 }); // the chain 1, 2, 7, 8
+  assert.deepEqual(r.stats, { steps: 8, slices: 3, perSlice: 2.3, medianSize: 3, maxSize: 5, aboveThin: 0, longestChain: 4, canStartNow: 1 }); // the chain 1, 2, 7, 8
 });
 
 test("the parts are read from the tables", () => {
@@ -93,6 +93,24 @@ test("step names that only sound like layers are left alone", () => {
   }
 });
 
+test("a layer word anywhere in a step name fails; a user's step that shares a word passes", () => {
+  for (const name of ["Notes API", "Sharing backend", "Set up the database", "UI-only list", "Items endpoint", "Data model for items", "List repository", "Frontend for the list"]) {
+    assert.match(errors(swap(3, `| 4 | ${name} | Shared list | Type "milk" and press Enter: it shows at the top | 3 | 3 |`)), /is a layer/, name);
+  }
+  for (const name of ["Share the list", "Copy your API key", "Book a service", "Pick a car model", "Restore a deleted item", "Back up the list"]) {
+    assert.doesNotMatch(errors(swap(3, `| 4 | ${name} | Shared list | Type "milk" and press Enter: it shows at the top | 3 | 3 |`)), /is a layer/, name);
+  }
+});
+
+test("a try line that is a developer's action fails; a person's action passes", () => {
+  for (const tryIt of ["Call the endpoint and get the notes back", "Run a query: the new row is there", "Check the logs: no errors show up", "Hit the items API and see the new item", "Open Postman and send the request"]) {
+    assert.match(errors(swap(4, `| 5 | Tick an item off | Shared list | ${tryIt} | 2 | 3 |`)), /step 5 .*developer's check/, tryIt);
+  }
+  for (const tryIt of ["Share the list with a flatmate: they see it on their phone", "Open the activity page: your last change shows first"]) {
+    assert.doesNotMatch(errors(swap(4, `| 5 | Tick an item off | Shared list | ${tryIt} | 2 | 3 |`)), /developer's check/, tryIt);
+  }
+});
+
 test("a step nobody can try fails", () => {
   assert.match(errors(swap(4, "| 5 | Tick an item off | Shared list | | 2 | 3 |")), /step 5 .*has no try line/);
   assert.match(errors(swap(4, "| 5 | Tick an item off | Shared list | n/a | 2 | 3 |")), /step 5 .*has no try line/);
@@ -105,8 +123,37 @@ test("size: above 4 needs a reason, above 7 is split, and at most one step in th
   assert.equal(errors(swap(2, "| 3 | See the list | Shared list | Open /list: the seeded items show | 6 · the first table, its service and its screen | 1 |")), "");
   assert.match(errors(swap(2, "| 3 | See the list | Shared list | Open /list: the seeded items show | 8 · a lot | 1 |")), /step 3 .*size 8 is above 7: split it/);
   assert.match(errors(swap(2, "| 3 | See the list | Shared list | Open /list: the seeded items show | big | 1 |")), /step 3 .*Size must be a number/);
-  const big = THIN.map((r, i) => (i < 3 ? r.replace(/\| \d( · [^|]*)? \| (\d*) \|$/, "| 5 · can't be cut | $2 |") : r));
-  assert.match(errors(big), /3 of 8 steps are above size 4/);
+  const big = THIN.map((r, i) => (i >= 1 && i < 4 ? r.replace(/\| \d( · [^|]*)? \| (\d*) \|$/, "| 5 · can't be cut | $2 |") : r));
+  assert.match(errors(big), /3 of 7 steps after slice 0 are above size 4/);
+});
+
+test("slice 0 counts toward neither the step count nor the big share, and a big step always needs a reason", () => {
+  const rows = [...THIN.slice(0, 7), "| 9 | Undo a tick | Shared list | Click Undo after a tick: the item is back | 2 | 5 |", THIN[7]]
+    .map((r, i) => (i === 0 ? r.replace("| 5 · sets up the app, CI and the test deploy |", "| 2 |") : r))
+    .map((r, i) => ([2, 3, 6].includes(i) ? r.replace(/\| \d \| (\d*) \|$/, "| 6 · can't be cut | $1 |") : r));
+  assert.match(errors(rows), /3 of 8 steps after slice 0 are above size 4/);
+  assert.match(errors(swap(0, "| 1 | The skeleton | slice 0 | Open the test URL: the home page loads | 6 | |")), /step 1 .*size 6 is above 4 with no reason/);
+});
+
+test("an empty plan fails: no slices, or no steps in the current pass", () => {
+  assert.match(errors([]), /the current pass has no steps/);
+  const noSlices = plan().replace(/## Slices[\s\S]*?## Outline/, "## Outline");
+  assert.match(checkPlan(noSlices).errors.join("\n"), /no slices/);
+});
+
+test("any pass needs a step for every slice it covers, not only pass 1", () => {
+  const pass2 = (slices) => plan(THIN.slice(0, 6)).replace("| thin and working | building |", "| thin and working | done |")
+    .replace("| core + supports | the core deep | outline |", `| ${slices} | the core deep | building |`);
+  assert.match(checkPlan(pass2("core + Cost split")).errors.join("\n"), /pass 2 has no step for the slice "Cost split"/);
+  assert.match(checkPlan(pass2("all")).errors.join("\n"), /pass 2 has no step for the slice "Cost split"/);
+  assert.deepEqual(checkPlan(pass2("core + key supports")).errors, []);
+});
+
+test("an \"and\" in a step name is a warning, not an error", () => {
+  const r = checkPlan(plan(swap(3, "| 4 | Add and delete an item | Shared list | Type \"milk\" and press Enter: it shows at the top | 3 | 3 |")));
+  assert.deepEqual(r.errors, []);
+  assert.match(r.warnings.join("\n"), /step 4 .*"Add and delete an item" has an "and" in its name/);
+  assert.deepEqual(checkPlan(plan()).warnings, []);
 });
 
 test("too few steps for the slices fails, and --per-slice moves the bar", () => {
@@ -137,10 +184,10 @@ test("a plan where every step waits for the one before it gets a warning, not an
   assert.match(r.warnings.join("\n"), /only one builder can work at a time/);
 });
 
-test("the template's own example row passes, and its empty table is found", () => {
+test("the template's own example row passes; the blank template fails only for its empty Slices table", () => {
   const steps = readSteps(readFileSync(TEMPLATE, "utf8"));
   assert.ok(steps, "templates/pyramid.md has no steps table");
-  assert.deepEqual(checkPlan(readFileSync(TEMPLATE, "utf8"), { perSlice: 1 }).errors, []);
+  assert.deepEqual(checkPlan(readFileSync(TEMPLATE, "utf8"), { perSlice: 1 }).errors, ["plan: no slices. List the slices in the Slices table, with a Slice and a Role column"]);
 });
 
 test("the command: exit 0 on a thin plan, 1 on a coarse one, 2 with no file, and --json prints the numbers", () => {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Checks that the current pass in docs/pyramid.md is cut into thin steps (the pyramid skill).
-// It reads the steps table and fails a plan that is cut by layer, has a step nobody can try,
-// has steps that are too big, or has too few steps for its slices. No dependencies.
+// It reads the steps table and fails a plan that is empty, is cut by layer, has a step nobody
+// can try, has steps that are too big, or has too few steps for its slices. No dependencies.
 // Usage:  node check-plan.mjs [docs/pyramid.md]      errors fail (exit 1)
 //         node check-plan.mjs <file> --json          the numbers and the problems as JSON
 //         node check-plan.mjs <file> --per-slice 3   ask for more steps per slice (default 2)
@@ -17,8 +17,15 @@ export const PER_SLICE = 2; // fewer steps than this per slice means the plan li
 
 // A step named after a layer: "Set up the database", "Build the API", "Frontend components".
 const LAYER = /^(?:(?:set ?up|create|build|implement|add|design|write|define|wire(?: up)?|scaffold)\s+)?(?:(?:the|all|a|an|our|every)\s+)*(?:(?:database|db|schema|migrations?|data|models?|tables|entities|api|rest|graphql|endpoints?|routes?|backend|back end|server|services?|repositor(?:y|ies)|frontend|front end|ui|user interface|components?|layers?|setup|scaffolding|and|&|,)\s*)+$/i;
+// A layer word anywhere in a step name: "Notes API", "Sharing backend", "UI-only list".
+// "service" and "model" count only as "service layer" or "data model": a salon's services aren't a layer.
+const LAYER_WORD = /\b(?:apis?(?!\s+(?:keys?|tokens?))|rest|graphql|back[- ]?end|front[- ]?end|databases?|db|schemas?|migrations?|endpoints?|repositor(?:y|ies)|orm|crud|ui[- ]only|server[- ]side|client[- ]side|data (?:models?|layer)|(?:service|model|data|ui|api) layer)\b/i;
+// A step name with "and" in it is often two steps: "Add and delete an item".
+const TWO_THINGS = /\s(?:and|&)\s/i;
 // A try line that is a developer's check, not something the person does on the test site.
 const NOT_TRYABLE = /\b(?:nothing (?:to see|visible|yet)|not visible|no visible|tests? pass(?:es)?|unit tests?|ci (?:is |runs? )?green|migrations? (?:runs?|appl(?:y|ies))|curl\b|returns? (?:a |an )?[1-5]\d\d\b|in the database|schema exists|table exists|compiles|builds? clean)/i;
+// A developer's action in a try line: calling an endpoint, a query, the logs, an HTTP client.
+const DEV_ACTION = /\b(?:(?:call|hit|ping|query|post to|send a request to)\s+(?:the |an? |every |each |our )?(?:[\w/.-]+\s+)?(?:endpoints?|apis?|routes?|server|backend)\b|endpoints?\b|run (?:a |the |an? )?(?:sql )?quer(?:y|ies)|sql\b|(?:check|read|tail|look at|watch|grep) (?:the |a )?(?:\w+ )?logs?\b|postman|httpie|wget|dev ?tools|network tab|the console)/i;
 // The Size cell: a number, then for a big step the reason it can't be cut: "5 · the first table and its screen".
 const SIZE = /^\s*(\d+)\s*(?:[·•\-–—:,(]+\s*(.*?)\)?\s*)?$/;
 
@@ -72,6 +79,25 @@ export function buildingPass(text) {
   return n ? Number(n[0]) : null;
 }
 
+/**
+ * The slices a pass covers, from its Slices cell in the outline: "all" or "every" means every
+ * slice, "core" the core slices, and any slice named by name. "key supports" names none on its own.
+ */
+const mentions = (text, name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
+
+export function passSlices(text, pass) {
+  const outline = tables(text).find((t) => t.header.includes("pass") && t.header.includes("status"));
+  const sliceTable = tables(text).find((t) => t.header.includes("slice") && t.header.includes("role"));
+  const row = outline?.rows.find((r) => Number(named(outline, r).pass.match(/\d+/)?.[0]) === pass);
+  if (!row || !sliceTable) return [];
+  const cell = named(outline, row).slices ?? "";
+  const all = pass === 1 || /\b(?:all|every)\b/i.test(cell);
+  const core = /\bcore\b/i.test(cell);
+  return sliceTable.rows.filter((r) => !blank(r)).map((r) => named(sliceTable, r))
+    .filter((c) => c.slice && (all || (core && /\bcore\b/i.test(c.role)) || mentions(cell, c.slice)))
+    .map((c) => c.slice);
+}
+
 const median = (xs) => {
   if (!xs.length) return null;
   const s = [...xs].sort((a, b) => a - b);
@@ -98,10 +124,10 @@ function checkStep(step, seen, position, problem) {
   if (!step.id) problem(where, "has no number in the # column");
   else if (seen.has(step.id)) problem(where, `the number ${step.id} is used twice`);
   if (!step.name) problem(where, "has no name");
-  else if (LAYER.test(step.name)) problem(where, `"${step.name}" is a layer, not a step. Cut through every layer instead: one thing a person can do, from the screen to the data`);
+  else if (LAYER.test(step.name) || LAYER_WORD.test(step.name)) problem(where, `"${step.name}" is a layer, not a step. Cut through every layer instead: one thing a person can do, from the screen to the data`);
   if (!step.slice) problem(where, "names no slice");
   const words = step.tryIt.split(/\s+/).filter(Boolean).length;
-  if (NOT_TRYABLE.test(step.tryIt)) problem(where, `the try line is a developer's check ("${step.tryIt}"). Say what the person does on the test site and what they see`);
+  if (NOT_TRYABLE.test(step.tryIt) || DEV_ACTION.test(step.tryIt)) problem(where, `the try line is a developer's check ("${step.tryIt}"). Say what the person does on the test site and what they see`);
   else if (words < 4) problem(where, "has no try line. Say what the person does on the test site and what they see. No try line, no step");
   if (step.size === null || step.size < 1 || step.size > 10) problem(where, "Size must be a number from 1 to 10");
   else if (step.size > HARD_CAP) problem(where, `size ${step.size} is above ${HARD_CAP}: split it`);
@@ -122,30 +148,35 @@ export function checkPlan(text, { perSlice = PER_SLICE } = {}) {
     problem("plan", `no steps table. The current pass needs one with the columns: ${COLUMNS.join(" | ")}`);
     return { errors, warnings, stats: null };
   }
+  const slices = readSlices(text);
+  if (!slices.length) problem("plan", "no slices. List the slices in the Slices table, with a Slice and a Role column");
+  if (!steps.length) problem("plan", "the current pass has no steps. Cut it into the smallest things a person can try");
   const position = new Map(steps.map((s, n) => [s.id, n]));
   const seen = new Set();
   for (const step of steps) { checkStep(step, seen, position, problem); seen.add(step.id); }
 
-  // Slice 0 is the skeleton: it is set-up, so it doesn't count as a slice to cut.
+  // Slice 0 is the skeleton: it is set-up, so it doesn't count as a slice to cut, or toward the big share.
   const sliceOf = (s) => key(s.slice);
   const featureSteps = steps.filter((s) => !/^slice0$|^skeleton$/.test(sliceOf(s)));
-  const slices = new Set(featureSteps.map(sliceOf).filter(Boolean));
+  for (const step of featureSteps) {
+    if (step.name && TWO_THINGS.test(step.name)) warnings.push(`step ${step.id || "?"} (line ${step.line}): "${step.name}" has an "and" in its name. That is often two steps: cut it in two`);
+  }
+  const stepSlices = new Set(featureSteps.map(sliceOf).filter(Boolean));
   const sizes = steps.map((s) => s.size).filter((n) => n !== null);
-  const big = steps.filter((s) => s.size !== null && s.size > THIN);
-  if (slices.size && featureSteps.length < perSlice * slices.size) {
-    problem("plan", `${featureSteps.length} steps for ${slices.size} slices. That lists slices, not steps: aim for ${perSlice} or more per slice (${perSlice * slices.size} here). Cut each slice into the smallest things a person can try`);
+  const big = featureSteps.filter((s) => s.size !== null && s.size > THIN);
+  if (stepSlices.size && featureSteps.length < perSlice * stepSlices.size) {
+    problem("plan", `${featureSteps.length} steps for ${stepSlices.size} slices. That lists slices, not steps: aim for ${perSlice} or more per slice (${perSlice * stepSlices.size} here). Cut each slice into the smallest things a person can try`);
   }
-  if (steps.length >= 3 && big.length > Math.floor(steps.length * BIG_SHARE)) {
-    problem("plan", `${big.length} of ${steps.length} steps are above size ${THIN}. At most one in three may be: cut the big ones thinner`);
+  if (featureSteps.length >= 3 && big.length > Math.floor(featureSteps.length * BIG_SHARE)) {
+    problem("plan", `${big.length} of ${featureSteps.length} steps after slice 0 are above size ${THIN}. At most one in three may be: cut the big ones thinner`);
   }
-  if (buildingPass(text) === 1) {
-    for (const name of readSlices(text)) {
-      if (!slices.has(key(name))) problem("plan", `pass 1 has no step for the slice "${name}". Pass 1 runs a thin step through every slice`);
-    }
+  const pass = buildingPass(text);
+  for (const name of passSlices(text, pass)) {
+    if (!stepSlices.has(key(name))) problem("plan", `pass ${pass} has no step for the slice "${name}". Every slice the pass covers needs at least one step`);
   }
   const stats = {
-    steps: steps.length, slices: slices.size,
-    perSlice: slices.size ? Math.round((featureSteps.length / slices.size) * 10) / 10 : null,
+    steps: steps.length, slices: stepSlices.size,
+    perSlice: stepSlices.size ? Math.round((featureSteps.length / stepSlices.size) * 10) / 10 : null,
     medianSize: median(sizes), maxSize: sizes.length ? Math.max(...sizes) : null, aboveThin: big.length,
     longestChain: longestChain(steps), canStartNow: steps.filter((s) => !s.after.length).length,
   };

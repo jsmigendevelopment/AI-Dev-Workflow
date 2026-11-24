@@ -78,7 +78,7 @@ pass 1  ████ ████ ████ ████ ████
 5. **Outline every pass.** For each: the milestone name, its slices, and one line per slice on what "better" means.
 6. **Cut the current pass into steps,** and only the current pass. For each of its slices, list the smallest changes a person can try, and put each through the thin test below. Order them: slice 0 first, then the step that proves the riskiest idea, usually in the core. Fill in "After" only where one step truly needs another, so steps that don't can be built at the same time.
 7. **Write `docs/pyramid.md`** from the `idea` skill's template: the steps go in its steps table, and the current pass is marked `building`.
-8. **Check the cut:** `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md`. Fix an error by cutting again, not by rewording the row. **Done when** it prints 0 errors, every pass has an outline row, and only the current pass has steps. Then hand off to `issues` for that pass only.
+8. **Check the cut:** `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md`. Fix an error by cutting again, not by rewording the row. **Done when** it exits 0 (an empty plan, or a slice the current pass covers with no step, fails it), every pass has an outline row, and only the current pass has steps. Read its warnings too. Then hand off to `issues` for that pass only.
 
 ## The thin test
 
@@ -87,7 +87,7 @@ A step passes when all four are true:
 1. **A person can try it.** Write the try line: what they do on the test site, and what they see. *"Type milk and press Enter: it shows at the top of the list."* Can't write one? It isn't a step. Fold it into the first step that shows something.
 2. **It cuts through every layer it needs:** the screen, the logic and the data together. "Set up the database" and "build the API" are layers, not steps.
 3. **It's small:** size 4 or under on the complexity scale in `issues`, which is one screen, form or rule on a module that exists. A 5 to 7 says why it can't be cut, and at most one step in three is that big.
-4. **It's one thing:** one path, one rule or one state. An "and" in its name means two steps.
+4. **It's one thing:** one path, one rule or one state. An "and" in its name often means two steps; the checker warns on it.
 
 - **Count them.** Fewer than two steps per slice means you listed slices, not steps. Cut again.
 - **Ways to cut:** the plainest path first, then one rule at a time, one kind of data at a time, one state at a time (empty, error, loading), and the simple version before the nice one. `references/slicing.md` has each one with an example.

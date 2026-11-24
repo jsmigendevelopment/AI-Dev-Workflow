@@ -15,13 +15,17 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
    - **Can the next merge reach the test site?** Check, by name only, that the deploy's secrets exist (`gh secret list --env test`, and whatever `secrets` lists for the stack). If one is missing, don't wait until a deploy fails: raise a 🛑 blocker for the deploy now (the `ask` skill), with the `secrets` checklist as the next action and the time it takes. Keep building what doesn't need it.
 
-2. **Pick work.** From `status:ready` issues in the current pass (the one marked `building` in `docs/pyramid.md`). A pass at `gate` instead? Then only the issues labelled `gate` ("End of a pass").
-   - every issue in the pass's milestone closed? The pass is done. Go to "End of a pass";
+2. **Pick work.** Read the pass status in `docs/pyramid.md` first:
+   - a pass at `gate`: its gate has started. Go to "End of a pass", which skips every step already marked done, and pick only issues labelled `gate`;
+   - a pass at `building` with every issue in its milestone closed: the pass is done. Go to "End of a pass", step 1;
+   - otherwise, pick from the `status:ready` issues in the pass marked `building`.
+
+   Then, for every pick:
    - skip anything whose dependencies aren't merged;
    - skip anything with a `[NEEDS CLARIFICATION]` marker or a complexity above 7, and take its `status:ready` off. A marker goes to the person (`ask`); a big issue goes back to `issues` to split;
    - skip anything claimed, unless the claim is **stale**: older than 2 hours with no new commit on its branch. That's a ⏳ decision (the `ask` skill): ask before you retake it, and keep going on other work.
    - order by priority;
-   - start as many as can run **without touching the same modules,** up to the limit: "In flight at once" in `docs/stack.md`, 3 if it's not set. In flight means claimed and not yet merged or parked. At the limit, finish before you start: get a waiting pull request through its checks first. An issue parked on the person doesn't count.
+   - start as many as can run **without touching the same modules,** up to the limit: "In flight at once" in `docs/stack.md`, or 3 if it's not set (1 on Hands-on). In flight means claimed and not yet merged. Work parked on the person counts too: a pull request waiting for their merge, and an issue labelled `needs-human`. At the limit, finish before you start: get a waiting pull request through its checks first. If everything in flight waits on the person, start nothing new; batch the asks and say so in the report.
 
 3. **Claim it.** Label it `status:in-progress` and comment `Claimed by <session name> at <time>`. Check the claim again just before starting. Other people's agents may share the repo.
 
@@ -59,10 +63,12 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 The loop doesn't stop at a gate. It does the parts that need no person, and builds what they find. Load `../pyramid/references/pass-gate.md`.
 
-1. Mark the pass `gate` in `docs/pyramid.md`, and write "Pass <N> done; gate running" to `docs/state.md`. Under `/afk`, write it to the `/afk` section too.
-2. Send a ⏳ decision through `ask`: *"Pass <N> is done; try it on the test site."* with the test URL and the "To try" list.
-3. Start the gate's audit, then its cleanup pick (steps 1 and 2 there). Their findings become issues labelled `gate`.
-4. Keep the loop going on `gate` issues only. Feedback the person gives about what's built joins them.
+Steps 1 to 3 run once per gate. Each leaves a mark: step 1 the `gate` status, step 2 `ask sent` and step 3 `audit started`, both in the pass's Gate record row. Before each step, look for its mark. Found? Skip the step. So a pass at `gate` with both marks goes straight to step 4, and the ask and the audit never run twice.
+
+1. Mark the pass `gate` in `docs/pyramid.md`, add its row to "Gate record" with today's date, and write "Pass <N> done; gate running" to `docs/state.md`. Under `/afk`, write it to the `/afk` section too.
+2. Send a ⏳ decision through `ask`: *"Pass <N> is done; try it on the test site."* with the test URL and the "To try" list. Mark it: `ask sent <date>` in the row's Feedback issues cell.
+3. Start the gate's audit, then its cleanup pick (steps 1 and 2 there). Their findings become issues labelled `gate`. Mark it: `audit started <date>` in the row's Audit cell.
+4. Keep the loop going on `gate` issues only. Feedback that something built is wrong or slow becomes a `gate` issue and joins them. Something missing is a new idea: a row in `docs/features.md`, which waits for the re-plan.
 5. No `gate` issue left to build? Then wait. The next pass's steps start only after the person has tried it and the re-plan has marked that pass `building`.
 
 **Done when** the next pass is marked `building`, or the gate work has run out and the ask is waiting.

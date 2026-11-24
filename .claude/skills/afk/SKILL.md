@@ -51,7 +51,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 - **Never:** deploy to production, touch production settings or secrets, delete or migrate real data, or spend money.
 - **No migrations or new dependencies,** unless the issue was already approved for them.
 - **Anything that needs the person:** use the `ask` skill at its level, label it `needs-human`, and move on. Don't wait. While the person is away, `notify.mjs` holds every ping except critical blockers (production down, a live security hole).
-- **New issues:** only for bugs the checks find, a pass gate's audit and cleanup pick, and the retro's findings at the hard stop. Don't invent features.
+- **New issues:** only for bugs the checks find, a pass gate's audit and cleanup pick, and the retro's findings at the hard stop. Feedback the person left before going: something wrong or slow in what's built is an issue; something missing is a row in `docs/features.md`, never an issue. Don't invent features.
 - **Main goes red:** stop merging, file a bug, and keep building only on branches.
 - **A pass is done:** follow `coordinate`'s "End of a pass": run the gate's audit and cleanup pick, and build that gate work. Start nothing from the next pass. When the gate work runs out, stop, and write it to the `/afk` section. The person's try-out and the re-plan wait for them.
 - **An issue fails twice** (a builder that dies or a rejected check, counted together): park it.

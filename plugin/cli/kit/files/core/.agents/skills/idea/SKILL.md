@@ -64,6 +64,6 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 - `docs/` holds the vision, features, MVP, decisions, stack, architecture, security policy, design, wireframes, pyramid, state and `research/README.md`.
 - `docs/decisions.md` has a "Wireframes approved" row whose hash matches `docs/wireframes/index.html`.
-- `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md` prints 0 errors.
+- `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md` exits 0. An empty plan fails it: the Slices table lists the slices, the current pass has steps, and every slice that pass covers has at least one.
 - Every pass 1 issue has a try line, WHEN/THEN acceptance checks with IDs, a fence, dependencies, risk flags, a lane, a complexity score, a priority and a `Skills:` line, and the consistency check found no open gap.
 - The person has seen the plan and said go.
