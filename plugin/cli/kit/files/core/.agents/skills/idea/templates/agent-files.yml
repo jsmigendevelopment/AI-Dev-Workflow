@@ -1,10 +1,11 @@
 # Copy to .github/workflows/agent-files.yml, next to ci.yml. A stack pack ships it already.
 name: agent-files
 # The agent-file guard: a pull request that changes the agents' rules, check code or the automation
-# level (AGENTS.md, CLAUDE.md, .agents/, .claude/, .codex/, .github/, docs/stack.md) needs the
-# `human-approved` label. On Full automation (docs/stack.md on the default branch), a
-# "Weakening review: pass @ <head sha>" comment from someone with write access passes it instead,
-# unless a fail comment exists at that commit (#103).
+# level (AGENTS.md, AGENTS.override.md, CLAUDE.md, CLAUDE.local.md, GEMINI.md at any depth, .agents/,
+# .claude/, .codex/, .github/, docs/stack.md, in any case) needs the `human-approved` label. On Full
+# automation (docs/stack.md on the default branch) the label doesn't count: only a
+# "Weakening review: pass @ <head sha>" comment from someone with write access does. On every level, a
+# writer's fail comment at the head refuses (#103).
 #
 # Why this is safe, and why it's its own file:
 # - pull_request_target runs this file as it is on the default branch, never the pull request's copy. So a pull request can't edit the guard, its script or the level it reads.
@@ -39,7 +40,7 @@ jobs:
           guard=.agents/skills/coordinate/scripts/agent-files.mjs
           if [ -f "$guard" ]; then
             node "$guard" --pr "$PR"
-            exit 0
+            exit $?
           fi
           # No guard script on the default branch yet: the label rule only. Renames count both names.
           total=$(gh api "repos/$REPO/pulls/$PR" --jq '.changed_files')
@@ -49,7 +50,7 @@ jobs:
             echo "The pull request changes $total files and the API listed $listed. Split it."
             exit 1
           fi
-          changed=$(printf '%s\n' "$files" | grep -E '^(AGENTS\.md|CLAUDE\.md|\.agents/|\.claude/|\.codex/|\.github/|docs/stack\.md$)' || true)
+          changed=$(printf '%s\n' "$files" | grep -iE '^(\.agents|\.claude|\.codex|\.github)(/|$)|^docs/stack\.md$|(^|/)(AGENTS(\.override)?|CLAUDE(\.local)?|GEMINI)\.md$' || true)
           labels=$(gh api --paginate "repos/$REPO/issues/$PR/labels" --jq '.[].name')
           if [ -n "$changed" ] && ! printf '%s\n' "$labels" | grep -qx 'human-approved'; then
             echo "Files that change the agents' rules need the human-approved label."

@@ -44,11 +44,41 @@ test("#103 AC-2: a rename counts both names: moving AGENTS.md or a hook out of a
   assert.match(r.why, /\.claude\/hooks\/x\.mjs/);
 });
 
-test("#103: the human-approved label passes on Recommended; on Full only when a writer added it", () => {
+test("#103: the human-approved label passes on Recommended and Hands-on, and doesn't count on Full", () => {
   assert.equal(decide({ changed: RULES, labels: ["human-approved"], stack: RECOMMENDED }).pass, true);
-  assert.equal(full([], { labels: ["human-approved"], approvedBy: "owner" }).pass, true);
-  assert.equal(full([], { labels: ["human-approved"], approvedBy: "triager" }).pass, false, "a triage-role login can add labels");
-  assert.equal(full([], { labels: ["human-approved"], approvedBy: null }).pass, false, "nobody known added it");
+  assert.equal(decide({ changed: RULES, labels: ["human-approved"], stack: "- **Level:** hands-on\n" }).pass, true);
+  const r = full([], { labels: ["human-approved"] });
+  assert.equal(r.pass, false, "agents share the owner's login, so the label proves nothing on Full");
+  assert.match(r.why, /the label doesn't count/);
+});
+
+test("#103 AC-2: Full: the label plus a writer's fail at the head fails", () => {
+  assert.equal(full([FAIL(HEAD, "owner")], { labels: ["human-approved"] }).pass, false);
+  assert.equal(full([PASS(), say(`Weakening review: fail @ ${HEAD} (removed a test)`)], { labels: ["human-approved"] }).pass, false);
+});
+
+test("#103: Full: a label that survives new commits doesn't cover the new head; only a pass at it does", () => {
+  assert.equal(full([PASS(OLD)], { labels: ["human-approved"] }).pass, false, "pass at the old head, label still on");
+  assert.equal(full([PASS(OLD), PASS(HEAD)], { labels: ["human-approved"] }).pass, true);
+});
+
+test("#103 AC-2: off Full, a writer's fail at the head refuses even with the label", () => {
+  const r = decide({ changed: RULES, labels: ["human-approved"], stack: RECOMMENDED, comments: [FAIL()], head: HEAD, trusted: WRITERS });
+  assert.equal(r.pass, false);
+  assert.match(r.why, /refuses on every level/);
+  assert.equal(decide({ changed: RULES, labels: ["human-approved"], stack: RECOMMENDED, comments: [FAIL(HEAD, "reader")], head: HEAD, trusted: WRITERS }).pass, true,
+    "a non-writer's fail doesn't count");
+});
+
+test("#103: protected names ignore case, and the agent instruction files count at any depth", () => {
+  for (const path of ["AGENTS.override.md", "CLAUDE.local.md", "GEMINI.md", "Claude.md", "agents.md", ".Claude/settings.local.json", ".Claude/skills/x/SKILL.md",
+    ".AGENTS/skills/y.md", ".Codex/config.toml", ".codex", ".GitHub/workflows/x.yml", "Docs/Stack.md", "src/AGENTS.md", "app/CLAUDE.md", "pkg/AGENTS.override.md", "web/GEMINI.md"]) {
+    const r = decide({ changed: [path], stack: RECOMMENDED });
+    assert.equal(r.pass, false, path);
+  }
+  for (const path of ["src/agents-notes.md", "docs/claude-tips.md", "AGENTS.md.bak", "docs/stack.mdx", "src/claude/x.ts"]) {
+    assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, true, path);
+  }
 });
 
 test("#103: Recommended: a pass comment doesn't count; only the label does", () => {
@@ -66,14 +96,14 @@ test("#103 AC-2: Full: a pass at an older commit, a fail, or no comment fails an
   for (const comments of [[PASS(OLD)], [FAIL()], []]) {
     const r = full(comments);
     assert.equal(r.pass, false, JSON.stringify(comments));
-    assert.match(r.why, new RegExp(`Weakening review: pass @ ${HEAD}`));
+    assert.match(r.why, comments[0]?.body.includes("fail") ? new RegExp(`failed at ${HEAD}`) : new RegExp(`Weakening review: pass @ ${HEAD}`));
   }
 });
 
 test("#103 AC-2: Full: a fail at the head sticks: a later or edited pass doesn't undo it", () => {
   assert.equal(full([PASS(HEAD, "owner", "2026-11-24T10:00:00Z"), FAIL(HEAD, "owner", "2026-11-24T11:00:00Z")]).pass, false);
   assert.equal(full([FAIL(HEAD, "owner", "2026-11-24T10:00:00Z"), PASS(HEAD, "owner", "2026-11-24T12:00:00Z")]).pass, false);
-  assert.match(full([FAIL(), PASS()]).why, /A fail beats every pass/);
+  assert.match(full([FAIL(), PASS()]).why, /refuses on every level/);
 });
 
 test("#103 AC-2: Full: a fail line with words after the sha still counts; a pass line must be exact", () => {
@@ -213,7 +243,10 @@ test("the guard has its own workflow: default-branch triggers, read-only token, 
     assert.doesNotMatch(yml, /ref: .*head|refs\/pull|pull\/.*\/head/, p);
     assert.match(yml, /node "\$guard" --pr "\$PR"/, p);
     assert.match(yml, /previous_filename/, p);
-    assert.match(yml, /\\\.codex\//, p);
+    assert.match(yml, /grep -iE '/, p);
+    assert.match(yml, /\\\.codex/, p);
+    assert.match(yml, /AGENTS\(\\\.override\)\?\|CLAUDE\(\\\.local\)\?\|GEMINI/, p);
+    assert.match(yml, /node "\$guard" --pr "\$PR"\n\s+exit \$\?/, p);
     assert.match(yml, /^ {2}agent-files:$/m, p);
   }
 });
