@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="352" height="499" viewBox="0 0 352 499" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="644" viewBox="0 0 352 644" role="img" aria-labelledby="title desc">
   <title id="title">Risk dial</title>
-  <desc id="desc">Move fast. For a project without real users yet. Agents merge once checks pass. Careful. For real users or money. The owner reads schema and API changes before agents merge. Strict. For regulated work. The owner approves every merge. Always ask. Wait before deleting or migrating real data, touching production settings or secrets, deploying or going public, or spending money.</desc>
+  <desc id="desc">Move fast. For a project without real users yet. Agents merge once checks pass. Careful. For real users or money. The owner reads schema and API changes before agents merge. Strict. For regulated work. The owner approves every merge. Always ask. Wait before deleting or migrating real data, touching production settings or secrets, deploying or going public, or spending money. Running jobs. Ask before stopping or restarting a strongest-tier job. “Not yet” applies to new work. An explicit “stop it” stops the running job immediately.</desc>
   <style>
   svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
   @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
@@ -10,9 +10,9 @@
   .label{font-size:17px;font-weight:650}
 </style>
   <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
-  <rect x="1" y="1" width="350" height="497" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <rect x="1" y="1" width="350" height="642" rx="18" fill="var(--paper)" stroke="var(--line)"/>
   <g fill="none" stroke="url(#rails)" stroke-width="2.5"><path d="M-4 24h360"/><path d="M-4 40h121c25 0 23-16 48-16"/><path d="M204 24c22 0 23 16 47 16h105"/></g>
-  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="24" r="5"/><circle cx="269" cy="24" r="5"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Risk dial</text><path d="M23 97V385" stroke="var(--line)" stroke-width="3"/><circle cx="23" cy="97" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="200" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="303" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="385" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><text x="45" y="102" class="label">Move fast</text>
+  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="24" r="5"/><circle cx="269" cy="24" r="5"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Risk dial</text><path d="M23 97V509" stroke="var(--line)" stroke-width="3"/><circle cx="23" cy="97" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="200" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="303" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="385" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="509" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><text x="45" y="102" class="label">Move fast</text>
   <text x="45" y="124" class="body">For a project without real users</text>
   <text x="45" y="145" class="body">yet. Agents merge once checks</text>
   <text x="45" y="166" class="body">pass.</text>
@@ -28,4 +28,10 @@
   <text x="45" y="433" class="body">real data, touching production</text>
   <text x="45" y="454" class="body">settings or secrets, deploying or</text>
   <text x="45" y="475" class="body">going public, or spending money.</text>
+  <text x="45" y="514" class="label">Running jobs</text>
+  <text x="45" y="536" class="body">Ask before stopping or</text>
+  <text x="45" y="557" class="body">restarting a strongest-tier job.</text>
+  <text x="45" y="578" class="body">“Not yet” applies to new work. An</text>
+  <text x="45" y="599" class="body">explicit “stop it” stops the</text>
+  <text x="45" y="620" class="body">running job immediately.</text>
 </svg>

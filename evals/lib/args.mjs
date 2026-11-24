@@ -4,7 +4,7 @@ export const DEFAULTS = {
   maxTurns: 12,
   timeoutSec: 240,
   maxBudgetUsd: 0.5,
-  maxRuns: 30,
+  maxRuns: 34,
 };
 // No flag can raise the number of runs past this. Each run is one paid Claude Code session.
 export const HARD_CAP = 40;
@@ -26,7 +26,7 @@ Runs each scenario twice, with the onRails kit installed and without, and compar
   --claude <path>        the claude binary (default: claude on PATH)
   --keep                 keep the temp folders, and print where they are
 
-Exit: 0 every scenario passed, 1 a "with" check failed or a scenario showed no difference, 2 a usage error.`;
+Exit: 0 every scenario passed, 1 a "with" check failed or a scenario showed no difference (a guard scenario may), 2 a usage error.`;
 
 const NUMBER = { "--max-turns": "maxTurns", "--timeout": "timeoutSec", "--max-budget-usd": "maxBudgetUsd", "--max-runs": "maxRuns" };
 const STRING = { "--scenario": "scenario", "--model": "model", "--summary": "summary", "--results-dir": "resultsDir",

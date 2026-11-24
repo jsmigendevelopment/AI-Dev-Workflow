@@ -143,6 +143,7 @@ Look up how to start the kit, choose a model, review a change or reach the owner
 | Careful | For real users or money. The owner reads schema and API changes before agents merge. |
 | Strict | For regulated work. The owner approves every merge. |
 | Always ask | Wait before deleting or migrating real data, touching production settings or secrets, deploying or going public, or spending money. |
+| Running jobs | Ask before stopping or restarting a strongest-tier job. “Not yet” applies to new work. An explicit “stop it” stops the running job immediately. |
 
 ### Automation level
 

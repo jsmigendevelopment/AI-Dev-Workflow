@@ -12,7 +12,8 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
 - deleting or migrating real data;
 - touching production settings, secrets or `.env` files;
 - deploying to production, or making the app public (turning off its "Coming soon" page). Launch is the person's call, never the end of a pass or the pyramid;
-- spending money or signing up for a paid service.
+- spending money or signing up for a paid service;
+- stopping or restarting a running strongest-tier job on your own call, or on a message that only might mean stop. "Not yet" or "don't start" is about new work. The person's "stop it" stops it now (`ask`, "A running job").
 
 ## Standing rules
 
