@@ -2,7 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { exists, tmp } from "./helpers.mjs";
+
+const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
 const run = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8" });
@@ -10,7 +13,7 @@ const run = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding:
 test("--version prints the package version", () => {
   const r = run("--version");
   assert.equal(r.status, 0);
-  assert.equal(r.stdout.trim(), "0.4.0");
+  assert.equal(r.stdout.trim(), version);
 });
 
 test("--help and no arguments print usage", () => {

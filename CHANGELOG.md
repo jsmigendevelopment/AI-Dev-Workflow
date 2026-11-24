@@ -4,6 +4,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-24
+
 ### Added
 
 - **Thin steps: each pass is cut into the smallest changes the person can try.** A slice ("the shared list") is now cut into steps ("add an item"), and one step is one issue and one pull request. `pyramid` gains the thin test (a person can try it, it cuts through every layer, size 4 or under, one thing), a count rule (fewer than two steps per slice means you listed slices), one schema change per slice per pass, and `references/slicing.md` with seven ways to cut, the hamburger method and what to do when the checker fails. The `pyramid.md` template gets a steps table (step, slice, try it, size, after) and a "Done means" list: the kit's definition of done. `issues` writes one issue per step with a "Try it" section and aims for complexity 4 or under; a 5 to 7 says why it can't be cut. The consistency check gains a thin-steps item.
@@ -157,7 +159,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - The first kit: `AGENTS.md`, skills for the product grill, the tech grill, research, the tracer-bullet pyramid, issues, model routing, the build loop, reviews and browser tests, plus templates and a guide.
 - Skills live in `.agents/skills` for Codex and are copied to `.claude/skills` for Claude Code. CI checks the copies match.
 
-[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.1.0...v0.2.0

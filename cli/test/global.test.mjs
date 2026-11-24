@@ -4,7 +4,11 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { runChecks } from "../src/checks.mjs";
 import { initGlobal } from "../src/global.mjs";
+import { readFileSync } from "node:fs";
 import { exists, fakeSystem, logger, put, read, tmp } from "./helpers.mjs";
+
+const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+const V = version.replaceAll(".", "\\.");
 
 const kitSkill = (name) => read(fileURLToPath(new URL("../kit/files/core/", import.meta.url)), `.agents/skills/${name}/SKILL.md`);
 
@@ -37,10 +41,10 @@ test("doctor warns when global entry skills differ from the CLI's kit, and is qu
   const labels = () => runChecks(tmp(), { sys: fakeSystem({ home }) }).map((c) => `${c.status} ${c.label}`).join("\n");
   assert.doesNotMatch(labels(), /skills: /);
   initGlobal({ home, log: logger() });
-  assert.match(labels(), /✓ ~\/\.claude\/skills: entry skills match kit v0\.4\.0/);
+  assert.match(labels(), new RegExp(`✓ ~/\\.claude/skills: entry skills match kit v${V}`));
   put(home, ".agents/skills/back/SKILL.md", "old back\n");
   const text = labels();
-  assert.match(text, /✗ ~\/\.agents\/skills: back differ from this CLI's kit v0\.4\.0/);
+  assert.match(text, new RegExp(`✗ ~/\\.agents/skills: back differ from this CLI's kit v${V}`));
   assert.match(text, /✓ ~\/\.claude\/skills/);
 });
 

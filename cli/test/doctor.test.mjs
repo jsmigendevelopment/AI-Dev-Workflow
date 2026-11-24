@@ -2,7 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { doctor } from "../src/doctor.mjs";
 import { init } from "../src/init.mjs";
+import { readFileSync } from "node:fs";
 import { logger, put, tmp } from "./helpers.mjs";
+
+const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+const V = version.replaceAll(".", "\\.");
 
 test("doctor in an empty folder reports the missing kit and fails", () => {
   const log = logger();
@@ -17,7 +21,7 @@ test("doctor after init checks the kit and the skills mirror", () => {
   const log = logger();
   const code = doctor(dir, { log });
   assert.ok(code === 0 || code === 1);
-  assert.match(log.text(), /✓ Kit v0\.4\.0 installed/);
+  assert.match(log.text(), new RegExp(`✓ Kit v${V} installed`));
   assert.match(log.text(), /✓ AGENTS\.md present/);
   assert.match(log.text(), /✓ \.agents\/skills and \.claude\/skills match/);
   assert.match(log.text(), /– No docs\/state\.md yet/);
