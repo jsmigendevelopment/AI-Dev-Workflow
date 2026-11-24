@@ -157,6 +157,10 @@ const actual = groups
   });
 if (JSON.stringify(actual) !== JSON.stringify(expected))
   throw new Error("Skill list differs from the README");
+// Terminal commands in the reference must also be copyable straight from the kit README.
+for (const [, command] of source.matchAll(/`((?:claude|codex|npx) [^`\n]+)`/g)) {
+  if (!readme.includes(command)) throw new Error("Terminal command missing from README: " + command);
+}
 const intro = source.split("\n")[2];
 const visual = [
   "[![onRails cheat sheet. Read the text version.](cheat-sheet/text-version.svg)](cheat-sheet.md)",
