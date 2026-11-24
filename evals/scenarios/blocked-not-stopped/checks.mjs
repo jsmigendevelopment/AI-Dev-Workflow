@@ -2,22 +2,23 @@
 // independent one is built in the same run. With no remote, the approved #3 is merged locally (AC-3).
 import { result } from "../../lib/checks.mjs";
 import { built, onMain, versions } from "../../lib/local-issues.mjs";
+import { BLOCKED } from "./fixture.mjs";
 
 const PARKED = /needs-human|^Status:\s*blocked/im;
 
 export const checks = [
   {
-    id: "AC-5-blocked-recorded",
-    description: "docs/issues/1.md, in the working tree or on any branch, says needs-human or Status: blocked",
-    check: (t) => result(versions(t, "docs/issues/1.md").some((v) => PARKED.test(v)), "#1 isn't marked needs-human or blocked anywhere"),
+    id: "AC-5-AC4-blocked-recorded",
+    description: "AC-4: #1's issue file, in the working tree or on any branch, says needs-human or Status: blocked",
+    check: (t) => result(versions(t, BLOCKED).some((v) => PARKED.test(v)), "#1 isn't marked needs-human or blocked anywhere"),
   },
   {
-    id: "AC-5-independent-built",
-    description: "Issue #2 got work: a feat/2-… branch with a commit, or a commit whose message starts with #2",
+    id: "AC-5-AC4-independent-built",
+    description: "AC-4: issue #2 got work: a feat/2-… branch with a commit, or a commit whose message starts with #2",
     check: (t) => result(built(t, 2), "no work for #2"),
   },
   {
-    id: "AC-5-local-merge",
+    id: "AC-5-AC3-local-merge",
     description: "AC-3: #3's reviewed commit is on local main: merged locally, with no remote",
     check: (t) => result(onMain(t, t.meta.reviewedSha), "#3's reviewed commit isn't on main"),
   },

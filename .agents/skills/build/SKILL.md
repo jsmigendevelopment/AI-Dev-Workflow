@@ -43,7 +43,7 @@ description: Use when implementing one issue ("implement issue 12", "build this 
    - **No pull request** when your brief says "Local mode", or there's no GitHub remote or API: commit on the branch, push it if there's a remote, and give its head commit. `coordinate`'s local mode reviews and merges it (`../coordinate/references/local-mode.md`).
 14. **Finish:** `node .agents/skills/coordinate/scripts/board.mjs event finished issue=<n>`.
     - **In the loop** (your brief came from a coordinator): exit. Don't wait for the review.
-    - **Run alone:** give the try line, then keep the loop moving. Hands-on? Stop and report. Otherwise open `coordinate` and run it from here: it takes your branch, if you made one, through review and merge, and starts the next ready issue. Stop only on a 🛑 blocker with nothing else that can move. **Done when** the next ready issue has started, or you said why nothing can.
+    - **Run alone:** give the try line, then keep the loop moving. Hands-on? Stop and report. Otherwise open `coordinate` and run it from here. It reads the "Sweep timer" line in `docs/state.md` first and arms one only if none is live. It takes your branch, if you made one, through review and merge, and starts the next ready issue. Stop only on a 🛑 blocker with nothing else that can move. **Done when** the next ready issue has started, or you said why nothing can.
 
 ## Show it
 

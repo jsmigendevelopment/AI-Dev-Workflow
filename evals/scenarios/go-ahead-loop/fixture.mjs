@@ -21,9 +21,9 @@ export function build(dir) {
     "docs/stack.md": "# Stack\n\nNode, no framework.\n\n## Automation level\n\nFull automation. Loop: on. Merges: agents, every lane. In flight at once: 3.\n",
     "docs/state.md": STATE,
     "docs/issues/README.md": ISSUES_README,
-    "docs/issues/1.md": issue(1, "Add two numbers", "Add `export const add = (a, b) => a + b;` to src/math.mjs, with a test.",
+    "docs/issues/001-add-two-numbers.md": issue(1, "Add two numbers", "Add `export const add = (a, b) => a + b;` to src/math.mjs, with a test.",
       "WHEN add(2, 3) runs THEN it returns 5."),
-    "docs/issues/2.md": issue(2, "Shout a word", "Add `export const shout = (s) => s.toUpperCase() + \"!\";` to src/text.mjs, with a test.",
+    "docs/issues/002-shout-a-word.md": issue(2, "Shout a word", "Add `export const shout = (s) => s.toUpperCase() + \"!\";` to src/text.mjs, with a test.",
       "WHEN shout(\"hi\") runs THEN it returns \"HI!\"."),
   });
   return { start };

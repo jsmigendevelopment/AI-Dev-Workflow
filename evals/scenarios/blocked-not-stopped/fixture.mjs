@@ -26,6 +26,8 @@ const reviewed = (sha) => issue(3, "Shout a word", "Add `shout` to src/text.mjs,
   .replace("Status: ready", "Status: in-progress · claimed by loop at 09:10 · on feat/3-shout")
   + `\n## Comments\n\n- Review · ${sha} · approve. Fresh reviewer, from \`git diff main...${sha}\`. Ready to merge.\n`;
 
+export const BLOCKED = "docs/issues/001-deploy-test-site.md";
+
 export function build(dir) {
   const pkg = JSON.parse(PACKAGE);
   pkg.scripts["deploy:test"] = "node scripts/deploy.mjs";
@@ -38,16 +40,16 @@ export function build(dir) {
     "docs/stack.md": "# Stack\n\nNode, no framework.\n\n## Automation level\n\nFull automation. Loop: on. Merges: agents, every lane. In flight at once: 3.\n",
     "docs/state.md": "# State\n\n- **Phase:** building pass 1\n- **Next up:** #1, then #2. They don't depend on each other. #3 is approved and waits for its merge.\n\n## Waiting on you\n\n",
     "docs/issues/README.md": ISSUES_README,
-    "docs/issues/1.md": issue(1, "Deploy main to the test site", "Main deploys to the test site with `npm run deploy:test`.",
+    [BLOCKED]: issue(1, "Deploy main to the test site", "Main deploys to the test site with `npm run deploy:test`.",
       "WHEN `npm run deploy:test` runs THEN it exits 0."),
-    "docs/issues/2.md": issue(2, "Add two numbers", "Add `export const add = (a, b) => a + b;` to src/math.mjs, with a test.",
+    "docs/issues/002-add-two-numbers.md": issue(2, "Add two numbers", "Add `export const add = (a, b) => a + b;` to src/math.mjs, with a test.",
       "WHEN add(2, 3) runs THEN it returns 5."),
   });
   git(dir, "switch", "--quiet", "-c", "feat/3-shout");
   write(dir, { "src/text.mjs": SHOUT, "test/text.test.mjs": SHOUT_TEST });
   const reviewedSha = commit(dir, "#3 Shout a word");
   git(dir, "switch", "--quiet", "main");
-  write(dir, { "docs/issues/3.md": reviewed(reviewedSha) });
+  write(dir, { "docs/issues/003-shout-a-word.md": reviewed(reviewedSha) });
   const start = commit(dir, "#3 reviewed");
   return { start, reviewedSha };
 }
