@@ -12,6 +12,7 @@ import { init } from "../src/init.mjs";
 import { libraryInit } from "../src/library-init.mjs";
 import { profileCopy, profileInit, profileShow } from "../src/profile.mjs";
 import { terminalAsk } from "../src/prompt.mjs";
+import { signature } from "../src/signature.mjs";
 import { entryCommand, offerStart } from "../src/start.mjs";
 import { realSystem } from "../src/system.mjs";
 import { update } from "../src/update.mjs";
@@ -38,6 +39,10 @@ Usage:
   npx onrails add <pack> --list-addons    list a pack's optional add-ons
   npx onrails add <pack>/<addon> [dir] [--force]
                                           copy an add-on's files, print its remaining steps
+  npx onrails signature [--theme professional|personal] [--style full|compact] [--markdown]
+                        [--write <file>]
+                                          print the README signature from the profile's
+                                          [me.signature], or put it at the end of <file>
   npx onrails profile init [--yes]        make ~/.onrails/profile.toml
   npx onrails profile show                print your profile
   npx onrails profile copy [dir]          copy it into <dir>/docs/profile.toml
@@ -51,6 +56,8 @@ Used the CLI before its rename to onRails? Your ~/.ai-dev-workflow folder and th
 them to the new names, and --yes moves them. Nothing is deleted without a yes.`;
 
 async function main(argv) {
+  // signature has flags that take values, so it reads its own.
+  if (argv[0] === "signature" && !argv.includes("--help") && !argv.includes("-h")) return signature(argv.slice(1));
   const flags = new Set(argv.filter((a) => a.startsWith("-")));
   const [command, ...args] = argv.filter((a) => !a.startsWith("-"));
   const known = new Set(["--dry-run", "--force", "--list", "--list-addons", "--fix", "--yes", "-y", "--help", "-h", "--version", "-v",

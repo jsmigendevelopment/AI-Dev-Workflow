@@ -54,7 +54,7 @@ You need Node 22 or newer, and Claude Code or Codex.
 
 ### Install as a plugin
 
-Install it **for your whole account** (user scope), so `/or:` works in every folder. From a terminal:
+Install it **for your whole account** (user scope), so the commands work in every folder. From a terminal:
 
 ```bash
 claude plugin marketplace add jsmigendevelopment/onRails
@@ -65,7 +65,7 @@ Then start a new Claude Code session. Check it with `claude plugin list`: you sh
 
 Already inside Claude Code? `/plugin marketplace add jsmigendevelopment/onRails`, then `/plugin install core@onrails`, and **pick "user" when it asks for a scope.** A project or local install only works in that one folder. Then run `/reload-plugins`.
 
-Now you have `/or:idea`, `/or:join`, `/or:back` and `/or:afk` in any folder. The first time you use one in a folder, it asks to install the kit there. The kit ships inside the plugin, so it needs no npm. It never overwrites a file of yours.
+Now you have `/idea`, `/join`, `/back` and `/afk` in any folder. The prefixed form, `/or:idea`, still works. You need it only when another plugin or command uses the same name. The first time you use one in a folder, it asks to install the kit there. The kit ships inside the plugin, so it needs no npm. It never overwrites a file of yours.
 
 Codex, from a terminal:
 
@@ -107,12 +107,12 @@ The plugin's copy of the CLI carries the rules and skills only. The stack packs 
 
 ## 💬 The four commands
 
-| | Plugin | Kit in the project | Codex | Type it when | What it does |
-|---|---|---|---|---|---|
-| 💡 | **`/or:idea`** | [`/idea`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app | Pitch → grill, wireframes drawn alongside → MVP → name → you approve → tech → plan → issues |
-| 🧭 | **`/or:join`** | [`/join`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/join/SKILL.md) | `$join` | You're new to a repo that isn't set up | Map the repo → run it → grill you → write `AGENTS.md` and `docs/` |
-| ☀️ | **`/or:back`** | [`/back`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/back/SKILL.md) | `$back` | You start work, or come back | What changed → who else is working → what to do first |
-| 🌙 | **`/or:afk`** | [`/afk`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/afk/SKILL.md) | `$afk` | You step away | How long? → usage check → safe rules → keeps building until a hard stop |
+| | Claude Code | Codex | Type it when | What it does |
+|---|---|---|---|---|
+| 💡 | [**`/idea`**](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app | Pitch → grill, wireframes drawn alongside → MVP → name → you approve → tech → plan → issues |
+| 🧭 | [**`/join`**](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/join/SKILL.md) | `$join` | You're new to a repo that isn't set up | Map the repo → run it → grill you → write `AGENTS.md` and `docs/` |
+| ☀️ | [**`/back`**](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/back/SKILL.md) | `$back` | You start work, or come back | What changed → who else is working → what to do first |
+| 🌙 | [**`/afk`**](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/afk/SKILL.md) | `$afk` | You step away | How long? → usage check → safe rules → keeps building until a hard stop |
 
 That's all you type. The other 25 skills are called for you. Want to run one step yourself? → [Cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself)
 
@@ -124,7 +124,7 @@ That's all you type. The other 25 skills are called for you. Want to run one ste
   <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/how-it-works.svg" alt="How it works. Plan, once per project: pitch, product grill, MVP, wireframes while naming the repo, tech grill, CTO plan, issues. Build loop: coordinate, build, CI and code review, QA on the preview, security review for risky changes, merge and deploy to test, smoke test, then the next issue. A failed check goes back to Build. You try it, and your feedback becomes new issues." width="100%">
 </p>
 
-You plan once. Every step saves to files, so you can stop any time and `/or:back` picks up where you stopped.
+You plan once. Every step saves to files, so you can stop any time and `/back` picks up where you stopped.
 
 | # | Step | What happens | Saved to `docs/` |
 |---|---|---|---|
@@ -351,7 +351,7 @@ Using the strongest model on high effort for every job is slow and burns through
 
 ## 🧭 Add it to a repo you already have
 
-1. Open Claude Code in the repo's root and type `/or:join` (Codex: `$join`).
+1. Open Claude Code in the repo's root and type `/join` (Codex: `$join`).
 2. Say yes to the install. Your files stay. The kit's copy arrives next to yours:
 
    | You already have | What you get |
@@ -374,7 +374,7 @@ Using the strongest model on high effort for every job is slow and burns through
 > [!NOTE]
 > 🚧 **Being improved.** Today `/join` merges only the two `AGENTS.md` files. You compare each `.onrails-new` and `config.onrails.toml` copy by hand, keep what you want, and delete the copy.
 
-→ [Step by step, and how to review it as one pull request](https://github.com/jsmigendevelopment/onRails/blob/main/guide/add-to-existing-app.md). Use `/or:join`, or run `npx onrails init` in the repo first.
+→ [Step by step, and how to review it as one pull request](https://github.com/jsmigendevelopment/onRails/blob/main/guide/add-to-existing-app.md). Use `/join`, or run `npx onrails init` in the repo first.
 
 ---
 
@@ -452,17 +452,22 @@ onRails stands on other people's ideas.
 
 ---
 
+<!-- onrails:signature start -->
 <p align="center">
-  <sub>Built and battle-tested by</sub><br><br>
-  <a href="https://me.jsmigen.dev"><b>✦ jay ✦</b></a><br>
-  <sub>Jay Smigen · software engineer · New Jersey</sub><br><br>
-  <a href="https://me.jsmigen.dev">me.jsmigen.dev</a> ·
-  <a href="https://jsmigen.dev">jsmigen.dev</a> ·
+  <a href="https://jsmigen.dev">
+    <img src="https://jsmigen.dev/brand/readme/professional-mark.svg" width="64" height="64" alt="JS Dev monogram">
+  </a><br>
+  Built by <a href="https://jsmigen.dev"><b>Jay Smigen</b></a><br>
+  <sub>JS Dev · Full-stack software engineer</sub><br><br>
+  <a href="https://jsmigen.dev">JS Dev</a> ·
+  <a href="https://me.jsmigen.dev">Portfolio</a> ·
+  <a href="https://jsmigen.dev/blog/">Build Log</a> ·
   <a href="https://www.linkedin.com/in/jayson-smigen/">LinkedIn</a> ·
-  <a href="https://github.com/Jay-Smi">GitHub</a>
+  <a href="https://github.com/jsmigendevelopment">GitHub</a>
   <br><br>
-  <sub>Made for the builders. Go ship something. ✌️</sub>
+  <sub>Build it right. Ship it.</sub>
 </p>
+<!-- onrails:signature end -->
 
 ---
 
@@ -488,6 +493,7 @@ At the end it asks: **Start Claude Code here now with /idea? (Y/n)**. Say yes an
 | `npx onrails doctor` | Checks Node, git, `gh` and its sign-in, pnpm, Claude Code or Codex, the kit and its version, `AGENTS.md`, that `.agents/skills` and `.claude/skills` match, `docs/state.md`, that `.env.example` names every variable in `.env.local`, the Playwright Chromium (when the project uses `@playwright/test`) and wrangler and its sign-in (when there's a `wrangler.jsonc`), that your global entry skills (from `init --global`) match this CLI's kit, and whether the onRails plugin is installed (Claude Code or Codex) and matches the project's kit version, and that each account's config folder in the profile's `[accounts]` exists. It reads local install records only, and never looks inside an account's folder. Each problem gets a one-line fix. |
 | `npx onrails doctor --fix [--yes] [--dry-run]` | Offers a fix for each problem and runs it only after you type `y` (`--yes` says yes to all, `--dry-run` only prints the plan). See [What `doctor --fix` does](#what-doctor---fix-does). |
 | `npx onrails accounts [dir]` | Lists the accounts in the profile's `[accounts]` (the project's `docs/profile.toml`, else yours): label, tool, config folder and whether it exists, projects and jobs. Accounts are a fixed split by job or project, never by usage. |
+| `npx onrails signature [--theme professional\|personal] [--style full\|compact] [--markdown] [--write <file>]` | Prints your README signature from `[me.signature]` in the profile (the project's `docs/profile.toml`, else yours). `--theme personal` puts `[me.signature.personal]` on top. `--style compact` makes it one line. `--markdown` prints plain Markdown instead of HTML. `--write README.md` replaces the block between `<!-- onrails:signature start -->` and `<!-- onrails:signature end -->`, or adds `---` and the block at the end, so running it again changes nothing. It refuses email addresses, `mailto:` links and URLs that aren't `https://`, and escapes HTML. No `[me.signature]`: it says how to add one and exits 1. |
 | `npx onrails profile init [--yes]` | Makes your personal profile, `~/.onrails/profile.toml`, from the kit's template: asks for your GitHub owner, plan (free, team or enterprise), naming style and models per tier, with defaults. Asks before replacing one you have (`--yes` takes the defaults and never replaces). |
 | `npx onrails profile show` | Prints your profile. |
 | `npx onrails profile copy [dir]` | Copies your profile into `<dir>/docs/profile.toml`, asking before replacing a different one. `init` does this too when the project has none. |

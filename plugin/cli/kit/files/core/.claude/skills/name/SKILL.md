@@ -19,7 +19,7 @@ Naming waits until now because you can't name something before you know what it 
    - Personal account or an organisation?
    - Does your school or employer have rules about where code lives?
 
-4. **Make it a git repo now.** Run `git init` in this folder if it isn't one already. Add a `.gitignore` that covers `.env*`, secrets and build output. Move `kickoff/` into `docs/` (wireframes still drawing? Wait for them first), then make the first commit.
+4. **Make it a git repo now.** Run `git init` in this folder if it isn't one already. Add a `.gitignore` that covers `.env*`, secrets and build output. Move `kickoff/` into `docs/` (wireframes still drawing? Wait for them first). Write a short `README.md`: the name and one line on what it does. Then run `npx onrails signature --write README.md` to end it with the person's signature. It exits 1 when the profile has no `[me.signature]`: skip quietly. Never write a signature by hand. Then make the first commit.
 
 5. **Create the GitHub repo for them.** Ask: *"Create a private repo `<owner>/<name>` and push to it?"* (the owner comes from `docs/profile.toml` or the question in step 3). On a yes, run:
    ```bash

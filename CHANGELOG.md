@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **README signatures come from the profile (#90).** `npx onrails signature` builds the owner's sign-off from `[me.signature]` (and `[me.signature.personal]`) in the profile: full or compact, HTML or `--markdown`. `--write README.md` keeps one block between `onrails:signature` markers. It refuses emails, `mailto:` links and non-https URLs, and escapes HTML. `name` and `join` run it when the profile has one. The onRails README's signature is now generated.
+
 ### Changed
 
 - **The npm page tells the whole story.** `cli/README.md` is now made from the root README (banner, what onRails is, install, the four commands, the flow, guardrails, stacks) plus `cli/CLI.md` (the CLI reference), with every link and image made absolute so it renders on npm. `node scripts/npm-readme.mjs` makes it; CI checks it; `npm publish` runs it. The README gets an npm badge.

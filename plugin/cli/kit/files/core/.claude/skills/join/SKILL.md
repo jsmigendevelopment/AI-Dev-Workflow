@@ -60,6 +60,8 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
    - `docs/research/README.md`, from `templates/research-index.md`, with a row for the competitor scan if it ran;
    - `docs/state.md`.
 
+   Then run `npx onrails signature --write README.md` to end the README with the person's signature. It exits 1 when the profile has no `[me.signature]`: skip quietly. Never write a signature by hand.
+
 8. **One short `AGENTS.md`.**
    - If the repo already has one, merge the kit's standing rules, the always-stop list and the commands table into it. Don't overwrite it.
    - If the kit's copy is next to it as `AGENTS.onrails.md`, merge that in, then delete `AGENTS.onrails.md`. A repo set up before the rename to onRails has it as `AGENTS.kit.md`: treat it the same way.
