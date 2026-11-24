@@ -20,3 +20,8 @@ test("rewrite covers markdown links and src/href attributes", () => {
   const out = rewrite('<img src="assets/a.svg"> [x](LICENSE) <a href="#top">t</a>', ".");
   assert.equal(out, `<img src="${RAW}/assets/a.svg"> [x](${REPO}/blob/main/LICENSE) <a href="#top">t</a>`);
 });
+
+test("rewrite makes <source srcset> absolute, so dark images work off GitHub's root", () => {
+  const out = rewrite('<source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">', ".");
+  assert.match(out, /srcset="https:\/\/raw\.githubusercontent\.com\/jsmigendevelopment\/onRails\/main\/assets\/banner-dark\.svg"/);
+});

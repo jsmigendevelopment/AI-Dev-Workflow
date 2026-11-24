@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 440" width="960" height="440" font-family="system-ui, -apple-system, Segoe UI, sans-serif" fill="#f2f2f7">
+  <title>The tracer-bullet pyramid</title>
+  <desc>Pass 1 covers every slice thinly, pass 2 deepens the core and key support, and pass 3 polishes the core.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1">
+      <stop stop-color="#170d1c"/><stop offset=".56" stop-color="#0a0a12"/>
+    </linearGradient>
+    <linearGradient id="brand">
+      <stop stop-color="#a78bfa"/><stop offset="1" stop-color="#60a5fa"/>
+    </linearGradient>
+    <radialGradient id="warm">
+      <stop stop-color="#c2410c" stop-opacity=".29"/>
+      <stop offset=".52" stop-color="#a3125c" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#a3125c" stop-opacity="0"/>
+    </radialGradient>
+
+  </defs>
+  <rect x=".5" y=".5" width="959" height="439" rx="23.5" fill="url(#bg)" stroke="#262636"/>
+  <ellipse cx="760" cy="85" rx="197" ry="82" fill="url(#warm)"/>
+  <path d="M30 32h4v38h-4z" fill="url(#brand)"/>
+  <text x="47" y="48" font-size="27" font-weight="780" letter-spacing="-.65">The tracer-bullet pyramid</text>
+  <text x="48" y="75" font-size="16" fill="#a3a4b8">Each thin slice goes through schema, API and UI. Each pass up is narrower and deeper.</text>
+  <rect x="24.5" y="103.5" width="511" height="260" rx="18" fill="#12121c" fill-opacity=".54" stroke="#262636"/>
+  <path d="M271 119v223M265 119v223" fill="none" stroke="#a78bfa" stroke-opacity=".22" stroke-width="1.2"/>
+  <g>
+    <rect x="62.5" y="274.5" width="78" height="59" rx="9" fill="#12121c" stroke="#262636"/>
+    <rect x="147.5" y="274.5" width="78" height="59" rx="9" fill="#12121c" stroke="#262636"/>
+    <rect x="317.5" y="274.5" width="78" height="59" rx="9" fill="#12121c" stroke="#262636"/>
+    <rect x="402.5" y="274.5" width="78" height="59" rx="9" fill="#12121c" stroke="#262636"/>
+    <rect x="147.5" y="205.5" width="78" height="59" rx="9" fill="#12121c" stroke="#262636"/>
+    <rect x="317.5" y="205.5" width="78" height="59" rx="9" fill="#12121c" stroke="#262636"/>
+    <rect x="232" y="136" width="79" height="60" rx="9" fill="url(#brand)"/>
+    <rect x="232" y="205" width="79" height="60" rx="9" fill="url(#brand)"/>
+    <rect x="232" y="274" width="79" height="60" rx="9" fill="url(#brand)"/>
+    <path d="m264 168 5 5 11-13" fill="none" stroke="#0a0a12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g fill="#a3a4b8" font-size="14" text-anchor="middle">
+    <text x="101" y="354">Support</text><text x="186" y="354">Support</text>
+    <text x="271" y="354" font-weight="750" fill="#f2f2f7">Core</text>
+    <text x="356" y="354">Support</text><text x="441" y="354">Support</text>
+  </g>
+  <g fill="none" stroke="#ffb454" stroke-width="1.2" stroke-dasharray="2 4" opacity=".68">
+    <path d="M62 201h151m111 0h194M62 270h151m111 0h194"/>
+  </g>
+  <g fill="#12121c" stroke="#fbbf24" stroke-width="1.5">
+    <circle cx="518" cy="201" r="4.5"/><circle cx="518" cy="270" r="4.5"/>
+  </g>
+  <text x="271" y="125" font-size="14" font-weight="750" text-anchor="middle" fill="#ffb454">MVP complete</text>
+
+  <g stroke="#262636" fill="#12121c">
+    <rect x="553.5" y="136.5" width="381" height="59" rx="13"/>
+    <rect x="553.5" y="205.5" width="381" height="59" rx="13"/>
+    <rect x="553.5" y="274.5" width="381" height="59" rx="13"/>
+  </g>
+  <g font-size="18" font-weight="750">
+    <text x="571" y="160">Pass 3 · Ready</text>
+    <text x="571" y="229">Pass 2 · Real</text>
+    <text x="571" y="298">Pass 1 · Works</text>
+  </g>
+  <g font-size="15" fill="#a3a4b8">
+    <text x="571" y="182">Polish the core and finish the hardest work.</text>
+    <text x="571" y="251">Go deeper on the core and key support.</text>
+    <text x="571" y="320">Build a thin, end-to-end version of each slice.</text>
+  </g>
+  <circle cx="48" cy="393" r="4" fill="#fbbf24"/>
+  <text x="61" y="399" font-size="15" fill="#a3a4b8">Gate between passes. The core gets the most passes and the strongest models.</text>
+  <text x="61" y="420" font-size="15" fill="#a3a4b8">Supporting slices stop once they serve the core.</text>
+</svg>

@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 260" width="960" height="260" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <title>onRails: put your AI on rails</title>
+  <desc>A violet-to-blue railway passes Pitch, Grill, Slice and Ship in the light of a golden sun.</desc>
+  <defs>
+    <linearGradient id="sky" x2="1" y2="1">
+      <stop stop-color="#0a0a12"/><stop offset=".54" stop-color="#12121c"/><stop offset="1" stop-color="#170d1c"/>
+    </linearGradient>
+    <linearGradient id="brand">
+      <stop stop-color="#a78bfa"/><stop offset="1" stop-color="#60a5fa"/>
+    </linearGradient>
+    <radialGradient id="light">
+      <stop stop-color="#ffc94d" stop-opacity="0.37"/>
+      <stop offset=".58" stop-color="#a3125c" stop-opacity=".17"/>
+      <stop offset="1" stop-color="#a3125c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb" cx=".34" cy=".3" r=".74">
+      <stop stop-color="#fff3c4"/><stop offset=".22" stop-color="#ffc24d"/>
+      <stop offset=".65" stop-color="#ff7a45"/><stop offset="1" stop-color="#b0125e"/>
+    </radialGradient>
+    <clipPath id="frame"><rect width="960" height="260" rx="24"/></clipPath>
+    <clipPath id="orb-edge"><circle cx="766" cy="100" r="65"/></clipPath>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M0 24V0H24" fill="none" stroke="#a59ed0" stroke-opacity=".20"/>
+    </pattern>
+    <path id="track" d="M460 188H581C622 188 634 177 658 155S696 120 744 120H921"/>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="960" height="260" fill="url(#sky)"/>
+
+    <rect x="463" y="42" width="452" height="177" rx="15" fill="url(#grid)" opacity=".61"/>
+    <ellipse cx="766" cy="100" rx="152" ry="115" fill="url(#light)"/>
+    <circle cx="766" cy="100" r="75" fill="none" stroke="#ffb454" stroke-opacity=".34" stroke-dasharray="2 6"/>
+    <circle cx="766" cy="100" r="65" fill="url(#orb)" opacity="0.9"/>
+    <g clip-path="url(#orb-edge)" fill="none" stroke="#fff3c4" stroke-linecap="round">
+      <path d="M701 115q65 -79.3 130 -24.7" stroke-opacity=".55" stroke-width="2"/>
+      <path d="M701 129q65 -71.5 130 -13.65" stroke-opacity=".35"/>
+    </g>
+
+    <path d="M485 151h104q36 0 62-23l31-27q14-12 37-12h29M543 209h63q39 0 66-30l12-14q19-21 48-21h174"
+          fill="none" stroke="#a59ed0" stroke-opacity=".56" stroke-linecap="round" stroke-dasharray="1 5"/>
+    <g fill="none" stroke-linecap="round">
+      <use href="#track" stroke="#262636" stroke-width="13"/>
+      <use href="#track" stroke="#12121c" stroke-width="11"/>
+      <use href="#track" stroke="url(#brand)" stroke-width="7"/>
+      <use href="#track" stroke="#12121c" stroke-width="3"/>
+      <use href="#track" stroke="#a59ed0" stroke-width="3" stroke-dasharray="1 6"/>
+    </g>
+    <g font-size="17" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="#12121c" stroke-width="4" stroke-linejoin="round">
+      <circle cx="497" cy="188" r="6" fill="#12121c" stroke="#a78bfa" stroke-width="2"/><circle cx="497" cy="188" r="2" fill="#a78bfa" stroke="none"/><text x="497" y="217" fill="#f2f2f7">Pitch</text>
+<circle cx="609" cy="186" r="6" fill="#12121c" stroke="#a78bfa" stroke-width="2"/><circle cx="609" cy="186" r="2" fill="#a78bfa" stroke="none"/><text x="609" y="217" fill="#f2f2f7">Grill</text>
+<circle cx="721" cy="124" r="6" fill="#12121c" stroke="#60a5fa" stroke-width="2"/><circle cx="721" cy="124" r="2" fill="#60a5fa" stroke="none"/><text x="721" y="105" fill="#f2f2f7">Slice</text>
+<circle cx="890" cy="120" r="6" fill="#12121c" stroke="#60a5fa" stroke-width="2"/><circle cx="890" cy="120" r="2" fill="#60a5fa" stroke="none"/><text x="890" y="153" fill="#f2f2f7">Ship</text>
+
+    </g>
+    <!-- Overhead engine and carriage seen at Ship. -->
+    <g transform="translate(835 120)" stroke="#12121c" stroke-width="1.5">
+      <path d="M-50 0H-38" stroke="#c1bdd2" stroke-width="2"/>
+      <rect x="-76" y="-8" width="30" height="16" rx="5" fill="#a78bfa"/>
+      <path d="M-67-3v6m6-6v6m6-6v6" opacity=".8" stroke-linecap="round"/>
+      <path d="M-37-8H-8Q5-8 9 0Q5 8-8 8h-29q-5 0-5-5v-6q0-5 5-5Z" fill="url(#brand)"/>
+      <path d="M-9-4Q-2-4 1 0q-3 4-10 4Z" fill="#fff3c4" stroke="none"/>
+      <path d="M12 0h14" stroke="#ffb454" stroke-opacity=".65" stroke-linecap="round"/>
+    </g>
+    <text x="43" y="127" font-size="91" font-weight="800" letter-spacing="-5" fill="url(#brand)">onRails</text>
+    <text x="48" y="173" font-size="32" font-weight="650" letter-spacing="-.65" fill="#f2f2f7">Put your AI on rails.</text>
+    <g transform="translate(46 193) scale(.47)">
+      <path fill="#ffb454" d="M8 10h22v26L14 52H5V42h5l10-10V20H8Z"/>
+      <path fill="#ff6fb0" d="M59 10H44L34 20v12l15 7v3H32L22 52h26l11-11V31l-15-7v-4h15Z"/>
+    </g>
+    <text x="81" y="214" font-size="19" font-weight="650" fill="#c1bdd2">By Jay Smigen · JS Dev</text>
+  </g>
+  <rect x=".5" y=".5" width="959" height="259" rx="23.5" fill="none" stroke="#262636"/>
+</svg>
