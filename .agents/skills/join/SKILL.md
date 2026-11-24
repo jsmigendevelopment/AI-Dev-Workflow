@@ -60,7 +60,7 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
    - `docs/research/README.md`, from `templates/research-index.md`, with a row for the competitor scan if it ran;
    - `docs/state.md`.
 
-   Then run `npx onrails signature --write README.md` to end the README with the person's signature. Exit 3 means the profile has no `[me.signature]`: skip quietly. Exit 1 means it refused a value or the README's markers: tell the person what it printed. Never write a signature by hand.
+   Then, if the repo has a `README.md`, run `npx onrails signature --write README.md` to end it with the person's signature. Never create a README for it. Other people share the repo (step 6)? Ask the person first. Exit 3: the profile has no `[me.signature]`, so skip quietly. Any other failure: tell the person what it printed. Never write a signature by hand.
 
 8. **One short `AGENTS.md`.**
    - If the repo already has one, merge the kit's standing rules, the always-stop list and the commands table into it. Don't overwrite it.

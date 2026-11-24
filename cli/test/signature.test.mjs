@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseSignature, signature } from "../src/signature.mjs";
+import { signature } from "../src/signature.mjs";
+import { parseSignature } from "../src/signature-toml.mjs";
 import { TEMPLATE } from "../src/profile.mjs";
 import { exists, logger, put, read, tmp } from "./helpers.mjs";
 
@@ -125,6 +126,19 @@ test("AC-5: WHEN a value holds an email or a mailto: link, or a URL isn't https:
     [PROFILE.replace('url = "https://github.com/example"', 'url = "MAILTO:ada@example.com"'), /links\[2\]\.url.*email/],
     [PROFILE.replace('label = "Blog"', 'label = "Mail ada@example.com"'), /links\[1\]\.label.*email/],
     [PROFILE.replace('url = "https://example.com/blog/"', 'url = "javascript:alert(1)"'), /links\[1\]\.url.*https:\/\//],
+    // A newline ends the HTML block, so what follows would render as Markdown: control characters are refused.
+    [PROFILE.replace('tagline = "Software engineer"', 'tagline = "x\\n\\n[click](http://evil.example)"'), /tagline.*control character/],
+    [PROFILE.replace('tagline = "Software engineer"', 'tagline = "a\\tb"'), /tagline.*control character/],
+    [PROFILE.replace('signoff = "Build it right."', 'signoff = "a\\u007fb"'), /signoff.*control character/],
+    [PROFILE.replace('url = "https://example.com/blog/"', 'url = "https://example.com/\\r\\nx"'), /links\[1\]\.url.*control character/],
+    // GitHub autolinks bare URLs in text, escaped or not: they're refused in every text value.
+    [PROFILE.replace('tagline = "Software engineer"', 'tagline = "see www.evil.example"'), /tagline.*URL.*www\./],
+    [PROFILE.replace('label = "Blog"', 'label = "x](javascript:alert(1)) [y"'), /links\[1\]\.label.*URL.*javascript:/],
+    [PROFILE.replace('label = "Site"', 'label = "x](http://evil.example) [y"'), /links\[0\]\.label.*URL.*http:/],
+    [PROFILE.replace('name = "Ada Example"', 'name = "Ada evil.example//x"'), /^ {2}name holds a URL/m],
+    [PROFILE.replace('signoff = "Build it right."', 'signoff = "data:text/html,hi"'), /signoff.*URL.*data:/],
+    [PROFILE.replace('mark_alt = "Ada Dev monogram"', 'mark_alt = "//evil.example"'), /mark_alt.*URL/],
+    [PROFILE.replace('display = "ada"', 'display = "HTTPS://evil.example"'), /personal\.display.*URL/],
   ];
   for (const [profile, message] of cases) {
     for (const mode of [[], ["--markdown"], ["--style", "compact"]]) {
@@ -163,7 +177,8 @@ test("AC-4: WHEN a marker is quoted inline THEN it is left alone, and the text o
   const dir = tmp();
   put(dir, "README.md", quoted);
   assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
-  assert.equal(read(dir, "README.md"), `${quoted.trimEnd()}\n\n---\n\n${start}\n${FULL}\n${end}\n`);
+  const crlf = (text) => text.replace(/\n/g, "\r\n");
+  assert.equal(read(dir, "README.md"), `${quoted.trimEnd()}${crlf(`\n\n---\n\n${start}\n${FULL}\n${end}\n`)}`, "a CRLF file stays CRLF");
 
   const before = "Intro  \r\n\t<em>keep</em>\n\n", after = "\n  Tail with trailing spaces   \n\n\n";
   put(dir, "README.md", `${before}${start}\nold\n${end}${after}`);
@@ -172,17 +187,70 @@ test("AC-4: WHEN a marker is quoted inline THEN it is left alone, and the text o
 });
 
 test("AC-6: WHEN --markdown is given THEN Markdown specials in values are escaped, so a label can't make its own link", () => {
-  const profile = PROFILE.replace('label = "Blog"', 'label = "x](javascript:alert(1)) [y"')
-    .replace('label = "Site"', 'label = "x](http://evil.example) [y"')
+  const profile = PROFILE.replace('label = "Blog"', 'label = "x](evil) [y"')
     .replace('name = "Ada Example"', 'name = "*Ada* _Ex_ `code` \\\\ <b> ![i]"')
     .replace('url = "https://github.com/example"', 'url = "https://example.com/a (b)"');
   const { code, out } = run(["--markdown"], profile);
   assert.equal(code, 0);
-  assert.match(out, /\[x\\\]\\\(javascript:alert\\\(1\\\)\\\) \\\[y\]\(https:\/\/example\.com\/blog\/\)/);
-  assert.match(out, /\[x\\\]\\\(http:\/\/evil\.example\\\) \\\[y\]\(https:\/\/example\.com\)/);
+  assert.match(out, /\[x\\\]\\\(evil\\\) \\\[y\]\(https:\/\/example\.com\/blog\/\)/);
   assert.match(out, /\*\*\[\\\*Ada\\\* \\_Ex\\_ \\`code\\` \\\\ \\<b> \\!\\\[i\\\]\]\(https:\/\/example\.com\)\*\*/);
   assert.match(out, /\(https:\/\/example\.com\/a%20%28b%29\)/);
-  assert.doesNotMatch(out, /\]\((javascript|http:)/, "no link to anything but the profile's https URLs");
+  assert.doesNotMatch(out, /\]\(evil/, "the label made no link of its own");
+});
+
+// The profile's own URLs, longest first, so removing one never leaves part of another.
+const OWN_URLS = ["https://example.com/personal.svg", "https://garden.example.com", "https://example.com/blog/",
+  "https://example.com/mark.svg", "https://github.com/example", "https://example.com"];
+
+test("AC-5: WHEN any mode renders THEN no URL appears but the profile's own, and the HTML block has no blank line", () => {
+  for (const theme of ["professional", "personal"]) {
+    for (const mode of [[], ["--style", "compact"], ["--markdown"], ["--markdown", "--style", "compact"]]) {
+      const { code, out } = run(["--theme", theme, ...mode], PROFILE);
+      assert.equal(code, 0);
+      let rest = out;
+      for (const url of OWN_URLS) rest = rest.split(url).join("");
+      assert.doesNotMatch(rest, /[a-z][a-z0-9+.-]*:|www\.|\/\//i, `${theme} ${mode.join(" ")}`);
+      // In CommonMark a blank line ends an HTML block, and the rest renders as Markdown.
+      if (!mode.includes("--markdown")) assert.doesNotMatch(out, /\n[ \t]*\n/, "one HTML block");
+    }
+  }
+});
+
+test("AC-4: WHEN a marker pair sits inside a fenced code block THEN it is ignored", () => {
+  const start = "<!-- onrails:signature start -->", end = "<!-- onrails:signature end -->";
+  for (const fence of ["```", "~~~~"]) {
+    const text = `# T\n\nHow to mark it:\n\n${fence}md\n${start}\nyour signature\n${end}\n${fence}\n`;
+    const dir = tmp();
+    put(dir, "README.md", text);
+    assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0, fence);
+    const once = read(dir, "README.md");
+    assert.equal(once, `${text}\n---\n\n${start}\n${FULL}\n${end}\n`, "the example in the fence is kept");
+    assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
+    assert.equal(read(dir, "README.md"), once, "the second run finds the real pair");
+  }
+});
+
+test("AC-4: WHEN the file uses CRLF THEN the marker lines and the block keep CRLF, and a second run changes nothing", () => {
+  const start = "<!-- onrails:signature start -->", end = "<!-- onrails:signature end -->";
+  const crlf = (text) => text.replace(/\n/g, "\r\n");
+  const dir = tmp();
+  put(dir, "README.md", "a\r\nb\r\n");
+  assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
+  const once = read(dir, "README.md");
+  assert.equal(once, crlf(`a\nb\n\n---\n\n${start}\n${FULL}\n${end}\n`));
+  assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
+  assert.equal(read(dir, "README.md"), once);
+  put(dir, "README.md", crlf(`a\n\n${start}\nold\n${end}\nz\n`));
+  assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
+  assert.equal(read(dir, "README.md"), crlf(`a\n\n${start}\n${FULL}\n${end}\nz\n`));
+});
+
+test("--write to a folder fails clearly with 1", () => {
+  const dir = tmp();
+  put(dir, "docs/x.md", "x");
+  const { code, err } = run(["--write", "docs"], PROFILE, { dir });
+  assert.equal(code, 1);
+  assert.match(err, /^docs: .*\nNothing was written\.$/s);
 });
 
 test("AC-6: WHEN a value holds < or \" THEN it is escaped in the output", () => {
@@ -226,6 +294,18 @@ test("\\u and \\U escapes decode, and an unknown escape is refused", () => {
   assert.equal(bad.code, 1);
   assert.match(bad.err, /tagline: unknown escape \\q/);
   assert.match(run([], PROFILE.replace('tagline = "Software engineer"', 'tagline = "\\u00g9"')).err, /tagline: \\u needs 4 hex digits/);
+});
+
+test('the TOML reader refuses """ strings and text after a value, with 1 and a clear message', () => {
+  const triple = run([], PROFILE.replace('name = "Ada Example"', 'name = """Ada"""'));
+  assert.equal(triple.code, 1);
+  assert.match(triple.err, /\[me\.signature\] name: multi-line strings \("""\) aren't supported/);
+  const junk = run([], PROFILE.replace('tagline = "Software engineer"', 'tagline = "a" junk'));
+  assert.equal(junk.code, 1);
+  assert.match(junk.err, /\[me\.signature\] tagline: unexpected text after the value: "junk"/);
+  const afterList = run([], PROFILE.replace("]\n\n[me.signature.personal]", "] extra\n\n[me.signature.personal]"));
+  assert.equal(afterList.code, 1);
+  assert.match(afterList.err, /links: unexpected text after the value: "extra"/);
 });
 
 test("bad flags are refused", () => {
