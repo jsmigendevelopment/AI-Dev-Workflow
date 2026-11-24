@@ -113,7 +113,8 @@ function unknownKey(table, key) {
 
 // A table header: which signature table it opens (null for any other), or an error for a shape we don't read.
 function header(line, seen) {
-  const [, open, name = ""] = /^(\[\[?)\s*([^\]]*?)\s*\]\]?$/.exec(line) ?? [];
+  const [, open, spaced = ""] = /^(\[\[?)\s*([^\]]*?)\s*\]\]?$/.exec(line) ?? [];
+  const name = spaced.replace(/\s*\.\s*/g, "."); // [ me . signature ] is the same table in TOML
   if (name !== "me.signature" && !name.startsWith("me.signature.")) return { table: null, name };
   if (open === "[[") throw new Error(`[[${name}]] isn't supported: write links = [{ label = "..", url = ".." }, ...] in [me.signature].`);
   const table = TABLES[name];
@@ -154,8 +155,12 @@ export function parseSignature(toml) {
     const key = pair?.[1] ?? "";
     if (!current) {
       // [me] signature.name = .. or me.signature.name = .. at the top: valid TOML we'd silently miss.
-      if (/^me\s*\.\s*signature\s*(\.|$)/.test(`${tableName ? `${tableName}.` : ""}${key}`.replace(/"/g, ""))) {
+      const path = `${tableName ? `${tableName}.` : ""}${key}`.replace(/"/g, "");
+      if (/^me\s*\.\s*signature\s*(\.|$)/.test(path)) {
         throw new Error(`${key}: dotted signature keys aren't supported. Put them under a [me.signature] table.`);
+      }
+      if (/^me$/.test(path.trim()) && /\bsignature\b/.test(pair[2])) {
+        throw new Error("me = { signature = .. }: inline tables aren't supported here. Use a [me.signature] table.");
       }
       continue;
     }

@@ -1,42 +1,48 @@
 // signature [--theme ..] [--style ..] [--markdown] [--write <file>]: the owner's README signature,
-// built from [me.signature] in the profile. It's public and lands in Markdown, so every value is
-// type-checked, emails, control characters, bare URLs in text and non-https links are refused,
-// and every value is escaped. --write keeps exactly one block, between the markers.
+// built from [me.signature] in the profile. It's public and lands in Markdown, so values pass
+// allowlists (plain https URLs, plain text), are type-checked, and are escaped as a second layer.
+// --write (signature-file.mjs) keeps exactly one block, at the very end of the file.
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { writeFile } from "./files.mjs";
 import { profilePath } from "./profile.mjs";
+import { writeSignature } from "./signature-file.mjs";
 import { parseSignature } from "./signature-toml.mjs";
 
 const URL_KEYS = ["name_url", "mark_light", "mark_dark"];
-const TEXT_KEYS = ["name", "display", "tagline", "signoff", "compact_signoff", "mark_alt"];
 const SIZE_KEYS = ["mark_size", "compact_mark_size"];
 const MAX_SIZE = 512;
 const CHOICES = { theme: ["professional", "personal"], style: ["full", "compact"] };
 const DEFAULTS = { theme: "professional", style: "full", mark_size: 64, compact_mark_size: 20, links: [] };
-const START = "<!-- onrails:signature start -->";
-const END = "<!-- onrails:signature end -->";
 const NO_SIGNATURE = 3; // its own code, so name and join skip quietly on it and report every other failure
 const EMAIL = /mailto:|[^\s@<>"'()/]+@[^\s@<>"'()/]+\.[^\s@<>"'()/]+/i;
-// In text, any @ that isn't before a space could be an email GitHub autolinks, whatever the TLD.
-const TEXT_AT = /@(?!\s)/;
 // A newline ends an HTML block in Markdown, so the rest of a value would render as Markdown.
 const CONTROL = /[\u0000-\u001f\u007f]/;
-// GitHub autolinks these in text, escaped or not, which would add links the guards never saw.
-// A colon before a space or the end ("Builder: web apps", "Note:") is ordinary text.
-const BARE_URL = /[a-z][a-z0-9+.-]*:(?!\s|$)|www\.|\/\//i;
+// The only URLs allowed: https, a lowercase host, a plain path. No port, query, fragment, %, & or @,
+// so nothing can decode into something other than what was checked, and none needs encoding.
+const LABEL = "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+const PLAIN_URL = new RegExp(`^https://${LABEL}(\\.${LABEL})+(/[A-Za-z0-9._~/-]*)?$`);
+// What text may hold: letters, marks, numbers, emoji, single spaces and this punctuation. Everything
+// else (@, #, <, *, [, /, ...) could start Markdown, HTML or a link, so it's refused, not escaped.
+const TEXT_CHAR = /[\p{L}\p{M}\p{N} .,!?'’\-–:;()&+]|\p{Extended_Pictographic}️?/gu;
+const TEXT_ALLOWED = "letters, numbers, emoji, single spaces and . , ! ? ' ’ - – : ; ( ) & +";
+// GitHub autolinks these even in allowed text. A colon before a space or the end ("Note:") is fine.
+const BARE_URL = /[a-z][a-z0-9+.-]*:(?!\s|$)|www\./i;
 
 // The checks for one string value, by what the value is for.
 function valueProblems(name, text, kind) {
   const found = [];
-  if (EMAIL.test(text) || (kind === "text" && TEXT_AT.test(text))) {
-    found.push(`${name} holds an email address, an @ or a mailto: link. The signature is public: take it out.`);
-  }
+  if (EMAIL.test(text)) found.push(`${name} holds an email address or a mailto: link. The signature is public: take it out.`);
   if (CONTROL.test(text)) found.push(`${name} holds a control character (a newline, tab or similar). Keep it on one line.`);
-  if (kind === "url" && /\s/.test(text)) found.push(`${name} holds a space. URLs have none.`);
-  else if (kind === "url" && text && !EMAIL.test(text) && !isHttps(text)) found.push(`${name} must be an absolute https:// URL, not "${text}".`);
-  if (kind === "text" && BARE_URL.test(text)) found.push(`${name} holds a URL or a "scheme:" (${BARE_URL.exec(text)[0]}). Put links in links, not in text.`);
+  if (kind === "url") {
+    if (/\s/.test(text)) found.push(`${name} holds a space. URLs have none.`);
+    if (text && !PLAIN_URL.test(text)) found.push(`${name} must be a plain https:// URL: a lowercase host and a path, no port, query, fragment, %, & or @. Not "${text}".`);
+    return found;
+  }
+  const bad = text.replace(TEXT_CHAR, "");
+  if (bad) found.push(`${name} holds ${JSON.stringify([...bad][0])}. Text may hold only ${TEXT_ALLOWED}.`);
+  if (/^ | $| {2}/.test(text)) found.push(`${name} has a leading, trailing or double space.`);
+  if (BARE_URL.test(text)) found.push(`${name} holds a URL or a "scheme:" (${BARE_URL.exec(text)[0]}). Put links in links, not in text.`);
   return found;
 }
 
@@ -80,14 +86,6 @@ function problems({ base, personal }) {
   return found;
 }
 
-function isHttps(url) {
-  try {
-    return url.startsWith("https://") && Boolean(new URL(url).host);
-  } catch {
-    return false; // a parse failure is the answer
-  }
-}
-
 // The project's docs/profile.toml first, then the home profile (the order accounts reads).
 function readSignature(dir, home) {
   for (const path of [join(resolve(dir), "docs", "profile.toml"), profilePath(home)]) {
@@ -121,11 +119,11 @@ const a = (url, html) => `<a href="${esc(url)}">${html}</a>`;
 const img = (v, size) => `<img src="${esc(v.mark_light)}" width="${size}" height="${size}" alt="${esc(v.mark_alt)}">`;
 // Markdown text with every character that could open a link, image, emphasis or HTML escaped.
 const mdText = (text) => text.replace(/&/g, "&amp;").replace(/[\\[\]()*_`<!]/g, "\\$&");
-// Text that starts a Markdown line: a heading, quote, list, table or setext line would break the layout.
-const mdLine = (text) => mdText(text).replace(/^([#>\-+=|])/, "\\$1").replace(/^(\d+)([.)])/, "$1\\$2");
-// A URL that can't end the link early: brackets, quotes and backslashes percent-encoded (spaces are refused).
-const mdUrl = (url) => url.replace(/[()<>"'\\`]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
-const md = (url, text) => `[${mdText(text)}](${mdUrl(url)})`;
+// Text that starts a Markdown line: a list item, setext line or fence would break the layout.
+// The allowlist already refuses # > = | ~ and leading spaces; this stays as a second layer.
+const mdLine = (text) => mdText(text).replace(/^([#>\-+=|~])/, "\\$1").replace(/^(\d+)([.)])/, "$1\\$2");
+// URLs pass PLAIN_URL, so they hold nothing Markdown reads and go in as they are.
+const md = (url, text) => `[${mdText(text)}](${url})`;
 const subline = (v, escape = esc) => [v.display, v.tagline].filter(Boolean).map(escape).join(" · ");
 
 function full(v) {
@@ -160,7 +158,7 @@ function compact(v) {
 }
 
 function markdown(v, style) {
-  const mark = v.mark_light ? `[![${mdText(v.mark_alt)}](${mdUrl(v.mark_light)})](${mdUrl(v.name_url)})` : "";
+  const mark = v.mark_light ? `[![${mdText(v.mark_alt)}](${v.mark_light})](${v.name_url})` : "";
   const name = `**${md(v.name_url, v.name)}**`;
   const links = v.links.map((l) => md(l.url, l.label)).join(" · ");
   if (style === "compact") {
@@ -171,51 +169,6 @@ function markdown(v, style) {
   const sub = [v.display && mdLine(v.display), v.tagline && (v.display ? mdText(v.tagline) : mdLine(v.tagline))].filter(Boolean).join(" · ");
   const blocks = [mark, `Built by ${name}${sub ? `  \n${sub}` : ""}`, links, v.signoff && mdLine(v.signoff)];
   return blocks.filter(Boolean).join("\n\n");
-}
-
-// Line numbers of the markers, outside fenced code blocks. A marker counts only as the whole
-// line, at column 0, the way this command writes it: an indented one is in code or a list.
-function markerLines(lines) {
-  const starts = [], ends = [];
-  let fence = null;
-  lines.forEach((raw, n) => {
-    const line = raw.replace(/\r$/, "");
-    if (fence) {
-      const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line)?.[1];
-      if (close && close[0] === fence[0] && close.length >= fence.length) fence = null;
-      return;
-    }
-    // A backtick fence's info string can't hold a backtick (CommonMark), so "``` a`b" isn't one.
-    const open = /^ {0,3}(`{3,})[^`]*$/.exec(line)?.[1] ?? /^ {0,3}(~{3,})/.exec(line)?.[1];
-    if (open) fence = open;
-    else if (line === START) starts.push(n);
-    else if (line === END) ends.push(n);
-  });
-  return { starts, ends };
-}
-
-// The text with the block between the markers, or with `---` and the block added at the end, in
-// the file's own line ending. A lone marker, two pairs or a reversed pair throws: guessing there
-// could delete the person's text.
-function placeSignature(text, block) {
-  const lines = text.split("\n");
-  const { starts, ends } = markerLines(lines);
-  const blockLines = [START, ...block.split("\n"), END];
-  if (!starts.length && !ends.length) {
-    const eol = lines.length > 1 && lines[0].endsWith("\r") ? "\r\n" : "\n";
-    const body = text.trimEnd();
-    const wrapped = blockLines.join(eol);
-    return body ? `${body}${eol}${eol}---${eol}${eol}${wrapped}${eol}` : `${wrapped}${eol}`;
-  }
-  const fix = "Fix the markers by hand, then run this again.";
-  if (starts.length > 1 || ends.length > 1) throw new Error(`it has more than one signature start or end marker. Keep one pair. ${fix}`);
-  if (!ends.length) throw new Error(`it has a signature start marker but no end marker (${END}). ${fix}`);
-  if (!starts.length) throw new Error(`it has a signature end marker but no start marker (${START}). ${fix}`);
-  if (ends[0] < starts[0]) throw new Error(`its signature end marker comes before the start marker. ${fix}`);
-  const cr = lines[starts[0]].endsWith("\r") ? "\r" : "";
-  const endCr = lines[ends[0]].endsWith("\r") ? "\r" : "";
-  const placed = blockLines.map((line, n) => line + (n === blockLines.length - 1 ? endCr : cr));
-  return [...lines.slice(0, starts[0]), ...placed, ...lines.slice(ends[0] + 1)].join("\n");
 }
 
 // { theme, style, markdown, write } from the flags, or the reason they're wrong.
@@ -236,26 +189,6 @@ function parseArgs(argv) {
     if (opts[key] && !CHOICES[key].includes(opts[key])) return `--${key} is ${CHOICES[key].join(" or ")}, not "${opts[key]}"`;
   }
   return opts;
-}
-
-// Puts the block in the file. Returns the exit code.
-function writeSignature(file, block, { dir, log, error, from }) {
-  const path = resolve(dir, file);
-  let before, after;
-  try {
-    before = existsSync(path) ? readFileSync(path, "utf8") : "";
-    after = placeSignature(before, block);
-  } catch (e) {
-    error(`${file}: ${e.message}\nNothing was written.`);
-    return 1;
-  }
-  if (after === before) {
-    log(`${file}: the signature is already up to date.`);
-    return 0;
-  }
-  writeFile(path, after);
-  log(`${file}: wrote the signature from ${from}.`);
-  return 0;
 }
 
 /** The signature command. Exit codes: 0 done, 1 a refused value or file, 2 bad flags, 3 no signature in the profile. */
