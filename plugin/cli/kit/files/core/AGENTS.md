@@ -101,4 +101,4 @@ Every project provides these commands, whatever the stack. Skills, CI and the lo
 | `test:e2e` | the `auto` acceptance checks, run end to end the way a user would: a real browser for web, a simulator or device for mobile, the built app for desktop |
 | `build` | the production build |
 
-<sub>onRails · v0.5 · 2026-11</sub>
+<sub>onRails · v0.6 · 2026-11</sub>
