@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **Auto grill (#102).** `/idea` now opens with "Full grill or auto grill?" (profile default `[defaults] grill = "full"`). In auto mode the person answers four seed questions (the pitch, who it's for, the one core thing, anything never wanted), and the AI grills itself on every topic and floor item with three options, a pick and a reason, drafting stage-1 wireframes (two layouts of the core screen) and a checked name shortlist alongside. One review follows: the one-way doors (data model, auth and access, hosting and the database, money and time, module boundaries) first, each confirmed on its own; then look and feel with the layouts and names; then one table for the rest. A change re-checks the picks that depend on it and shows what moved. The grill log gains a provenance line (model and effort) and a source on every answer. `routing` gains an "Auto grill" row and model table. The wireframe approval gate still holds. New eval `auto-grill-door`: a seeded bad money pick must get its own confirmation. The evals' default run cap goes from 18 to 20 to fit it.
+
 ## [0.5.3] - 2026-11-24
 
 ### Added

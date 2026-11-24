@@ -44,7 +44,7 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 18 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 20 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
@@ -223,6 +223,10 @@ const SCENARIO_PLANS = {
   "wireframe-gate": {
     with: { steps: [{ text: "The wireframes aren't approved yet. Do you approve docs/wireframes/index.html, or what would you change?" }] },
     without: { steps: [{ write: "docs/stack.md", content: "# Stack\n" }, { write: "docs/architecture.md", content: "# Architecture\n" }, { text: "Done." }] },
+  },
+  "auto-grill-door": {
+    with: { steps: [{ text: "One-way doors first. Each needs its own yes.\n\n1. Money and time: the draft stores amounts as float dollars. Floats lose cents, so I now pick integer cents with the currency.\nConfirm integer cents for money, or which one?\n\n| Topic | Pick | Alternatives | Reason |\n|---|---|---|---|\n| Theme | Both | Light; dark | Default |\n\nChange any row in plain words. 'Looks good' accepts the rest." }] },
+    without: { steps: [{ write: "kickoff/decisions.md", content: "# Decisions\n\nAll picks approved.\n" }, { text: "Here's the review:\n\n| Topic | Pick |\n|---|---|\n| Money and time | Dollars as a float number |\n\nLooks good? Reply yes and I'll record it all." }] },
   },
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },

@@ -1,11 +1,16 @@
 ---
 name: grill
-description: Use when the person asks to be grilled or interviewed about what to build ("grill me", "ask me questions", "help me figure out what this should do"), for the product interview inside /idea or /join, or before any feature big enough to need a spec. Asks three questions a round by topic, each with a recommended answer, logs every answer, and never skips the decisions people forget.
+description: Use when the person asks to be grilled or interviewed about what to build ("grill me", "ask me questions", "help me figure out what this should do", "auto grill"), for the product interview inside /idea or /join, or before any feature big enough to need a spec. Asks three questions a round by topic, each with a recommended answer, logs every answer, and never skips the decisions people forget. Auto grill: grills itself, then shows one review.
 ---
 
 # Grill: get on the same page before anything is built
 
 AI fills every gap with a guess. The grill finds the gaps first. A missed decision costs far more later than a question costs now.
+
+## Full or auto
+
+- **Full grill** (the default): you ask, round by round, as below.
+- **Auto grill:** you ask four seed questions, grill yourself on every topic, and show the person one review. Chosen in `/idea` step 0, or by `[defaults] grill = "auto"` in the profile. Load `references/auto.md` and follow it. The topics, the floor and the record below still apply.
 
 ## How to ask
 
@@ -62,7 +67,7 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
 ## Keep the record
 
 - The files live in `kickoff/` until the project has a repo, and in `docs/` after that. Start each from the templates in the `idea` skill's `templates/` folder.
-- After every round, append the questions, your recommendations and the answers to `grill-log.md`, in the person's own words where it matters.
+- After every round, append the questions, your recommendations and the answers to `grill-log.md`, in the person's own words where it matters. Every answer gets a source: "person's answer", "AI pick, approved at review" or "changed at review".
 - Write each decision to `decisions.md` the moment it's made, with who originated it: the person, the AI, or a default.
 - Keep the coverage map at the top of `grill-log.md` current. A new session resumes from it.
 
@@ -72,4 +77,10 @@ If neither of you knows the best answer, and the decision is crucial and expensi
 
 ## Done when
 
-Every topic is ticked and summarised, every floor item is answered, and the MVP's core was chosen by the person.
+Every topic is ticked and summarised, every floor item is answered, and the MVP's core was chosen by the person. In auto mode, also every one-way door was confirmed on its own.
+
+## References
+
+| File | Load when |
+|---|---|
+| `references/auto.md` | The person chose auto grill, or the profile's `[defaults] grill` is `"auto"` and they kept it. |

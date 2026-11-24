@@ -22,10 +22,11 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
    | **Custom** | You set each switch. | |
 
    - The profile's `[defaults] automation` is the suggested pick. Write the answer to `kickoff/decisions.md`. `stack` copies it into the "Automation level" section of `docs/stack.md` in step 7.
+   - **Then ask: "Full grill or auto grill?"** In one line each: *full: I ask you about three questions at a time, topic by topic. Auto: you answer four questions, I make every other pick with two alternatives, and you review it all at once.* Full is the suggested pick for a first-time user. The profile's `[defaults] grill` overrides that. Write the answer to `kickoff/decisions.md`.
 
 1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter.
 
-2. **Product grill.** Open `grill` and run its product topics. Until the repo exists, the notes live in a local `kickoff/` folder: `grill-log.md`, `decisions.md`, `features.md` and `vision.md`, each started from this skill's `templates/`, plus `kickoff/research/README.md` from `templates/research-index.md`, so the first dossier has a home.
+2. **Product grill.** Open `grill` and run its product topics. Auto grill? `grill` loads `references/auto.md`: the seed questions, the self-grill, then the review. The review also picks the name shortlist's winner and the stage-1 layout. Until the repo exists, the notes live in a local `kickoff/` folder: `grill-log.md`, `decisions.md`, `features.md` and `vision.md`, each started from this skill's `templates/`, plus `kickoff/research/README.md` from `templates/research-index.md`, so the first dossier has a home.
    - **Background work starts here.** At the end of the main-flow topic, the grill starts the competitor scan (`kickoff/research/competitors.md`, ready by the MVP topic) and `wireframes` stage 1, the layout. Once look and feel is answered, it starts stage 2, the detailed UI and UX. Each screen is shown as it's done. No way to run them in the background? Draw stage 1 after the grill and stage 2 after step 5.
    - If the person needs a break, save and stop. `/back` resumes from the grill log.
 
@@ -33,11 +34,11 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 4. **Other accounts?** While stage 2 draws, ask once whether the person uses more than one Claude or Codex account, and which projects or jobs belong to each. On a yes, give one "Setup step for you" per account to sign it in from their terminal, then write `[accounts]` in the profile. `routing`'s `references/accounts.md` has the questions, the verified commands and the rule: a fixed split, never by usage.
 
-5. **Intermission: name it and make the repo,** while stage 2 finishes. Open `name`. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
+5. **Intermission: name it and make the repo,** while stage 2 finishes. Open `name`. After an auto grill, the name was picked at the review, so start at its step 3. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
 
-6. **Approve the wireframes.** Revise the full stage-2 set until the person says yes (`wireframes` stage 2, steps 5 and 6). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row.
+6. **Approve the wireframes.** Revise the full stage-2 set until the person says yes (`wireframes` stage 2, steps 5 and 6). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row. Auto grill doesn't skip it.
 
-7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. Crucial unknowns go to `research` first. It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
+7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. After an auto grill, the one-way doors confirmed at the review are answers, not questions. Crucial unknowns go to `research` first. It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
 
 8. **Fill in the project facts** at the bottom of `AGENTS.md`.
 
