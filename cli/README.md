@@ -5,15 +5,11 @@
   <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/banner.svg" alt="onRails: put your AI on rails. A train passes Pitch, Grill, Slice and Ship at golden hour. By Jay Smigen, JS Dev." width="960">
 </picture>
 
-**onRails** gives AI agents rules, skills and checks to plan, build, review and ship your app from the first pitch to deployment.
+**onRails** helps AI agents plan, build, review and ship your app within rules you set.
 
 ## ⚡ Install
 
-Use Node 22 or newer with Claude Code or Codex.
-
-### Install as a plugin
-
-Run these two commands in a terminal to install onRails for your Claude Code account:
+Use Node 22 or newer with Claude Code or Codex. Run these two commands in a terminal to install for your Claude Code account.
 
 ```bash
 claude plugin marketplace add jsmigendevelopment/onRails
@@ -24,12 +20,12 @@ Start a new Claude Code session. For other setups, see [Codex](#codex) or [npm](
 
 ## 💬 The four commands
 
-| Claude Code | Codex | When to use it | What happens |
-|---|---|---|---|
-| [`/idea`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app. | Pitch → grill, with wireframes alongside → MVP → name → your approval → tech → plan → issues |
-| [`/join`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/join/SKILL.md) | `$join` | You're new to a repo that needs setup. | Map the repo → run it → ask you questions → write `AGENTS.md` and `docs/` |
-| [`/back`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/back/SKILL.md) | `$back` | You're starting work or coming back. | See what changed, who's working and what to do first. |
-| [`/afk`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/afk/SKILL.md) | `$afk` | You're stepping away. | Set a time → check usage and safety rules → keep building until a hard stop. |
+| Claude Code · Codex | When to use it | What happens |
+|---|---|---|
+| [`/idea`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/idea/SKILL.md) · `$idea` | Start a new app | Plan from pitch to issues. You approve the screens before tech work. |
+| [`/join`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/join/SKILL.md) · `$join` | Set up an existing repo | Map and run the repo, ask questions, then write `AGENTS.md` and `docs/`. |
+| [`/back`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/back/SKILL.md) · `$back` | Start or resume work | See what changed, who's working and what to do first. |
+| [`/afk`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/afk/SKILL.md) · `$afk` | Step away | Set a time, check usage and safety, then keep building until a hard stop. |
 
 The other 25 skills run for you. To run one step yourself, see the [cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself).
 
@@ -42,9 +38,9 @@ The other 25 skills run for you. To run one step yourself, see the [cheat sheet]
 
 ## More install options
 
-### Claude Code
+### Install as a plugin
 
-Check the account install with `claude plugin list`. Look for `core@onrails` at `user` scope.
+In Claude Code, check the account install with `claude plugin list`. Look for `core@onrails` at `user` scope.
 
 Already in Claude Code? Run `/plugin marketplace add jsmigendevelopment/onRails`, then `/plugin install core@onrails`. Pick **user** when it asks for a scope, then run `/reload-plugins`. User scope works in any folder. Project and local scope work in that folder only.
 
