@@ -52,7 +52,7 @@ You need Node 22 or newer, and Claude Code or Codex.
 
 ### Install as a plugin
 
-Install it **for your whole account** (user scope), so `/or:` works in every folder. From a terminal:
+Install it **for your whole account** (user scope), so the commands work in every folder. From a terminal:
 
 ```bash
 claude plugin marketplace add jsmigendevelopment/onRails
@@ -63,7 +63,7 @@ Then start a new Claude Code session. Check it with `claude plugin list`: you sh
 
 Already inside Claude Code? `/plugin marketplace add jsmigendevelopment/onRails`, then `/plugin install core@onrails`, and **pick "user" when it asks for a scope.** A project or local install only works in that one folder. Then run `/reload-plugins`.
 
-Now you have `/or:idea`, `/or:join`, `/or:back` and `/or:afk` in any folder. The first time you use one in a folder, it asks to install the kit there. The kit ships inside the plugin, so it needs no npm. It never overwrites a file of yours.
+Now you have `/idea`, `/join`, `/back` and `/afk` in any folder. The prefixed form, `/or:idea`, still works. You need it only when another plugin or command uses the same name. The first time you use one in a folder, it asks to install the kit there. The kit ships inside the plugin, so it needs no npm. It never overwrites a file of yours.
 
 Codex, from a terminal:
 
@@ -105,12 +105,12 @@ The plugin's copy of the CLI carries the rules and skills only. The stack packs 
 
 ## 💬 The four commands
 
-| | Plugin | Kit in the project | Codex | Type it when | What it does |
-|---|---|---|---|---|---|
-| 💡 | **`/or:idea`** | [`/idea`](.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app | Pitch → grill, wireframes drawn alongside → MVP → name → you approve → tech → plan → issues |
-| 🧭 | **`/or:join`** | [`/join`](.agents/skills/join/SKILL.md) | `$join` | You're new to a repo that isn't set up | Map the repo → run it → grill you → write `AGENTS.md` and `docs/` |
-| ☀️ | **`/or:back`** | [`/back`](.agents/skills/back/SKILL.md) | `$back` | You start work, or come back | What changed → who else is working → what to do first |
-| 🌙 | **`/or:afk`** | [`/afk`](.agents/skills/afk/SKILL.md) | `$afk` | You step away | How long? → usage check → safe rules → keeps building until a hard stop |
+| | Claude Code | Codex | Type it when | What it does |
+|---|---|---|---|---|
+| 💡 | [**`/idea`**](.agents/skills/idea/SKILL.md) | `$idea` | You have an idea for a new app | Pitch → grill, wireframes drawn alongside → MVP → name → you approve → tech → plan → issues |
+| 🧭 | [**`/join`**](.agents/skills/join/SKILL.md) | `$join` | You're new to a repo that isn't set up | Map the repo → run it → grill you → write `AGENTS.md` and `docs/` |
+| ☀️ | [**`/back`**](.agents/skills/back/SKILL.md) | `$back` | You start work, or come back | What changed → who else is working → what to do first |
+| 🌙 | [**`/afk`**](.agents/skills/afk/SKILL.md) | `$afk` | You step away | How long? → usage check → safe rules → keeps building until a hard stop |
 
 That's all you type. The other 25 skills are called for you. Want to run one step yourself? → [Cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself)
 
@@ -122,7 +122,7 @@ That's all you type. The other 25 skills are called for you. Want to run one ste
   <img src="assets/how-it-works.svg" alt="How it works. Plan, once per project: pitch, product grill, MVP, wireframes while naming the repo, tech grill, CTO plan, issues. Build loop: coordinate, build, CI and code review, QA on the preview, security review for risky changes, merge and deploy to test, smoke test, then the next issue. A failed check goes back to Build. You try it, and your feedback becomes new issues." width="100%">
 </p>
 
-You plan once. Every step saves to files, so you can stop any time and `/or:back` picks up where you stopped.
+You plan once. Every step saves to files, so you can stop any time and `/back` picks up where you stopped.
 
 | # | Step | What happens | Saved to `docs/` |
 |---|---|---|---|
@@ -349,7 +349,7 @@ Using the strongest model on high effort for every job is slow and burns through
 
 ## 🧭 Add it to a repo you already have
 
-1. Open Claude Code in the repo's root and type `/or:join` (Codex: `$join`).
+1. Open Claude Code in the repo's root and type `/join` (Codex: `$join`).
 2. Say yes to the install. Your files stay. The kit's copy arrives next to yours:
 
    | You already have | What you get |
@@ -372,7 +372,7 @@ Using the strongest model on high effort for every job is slow and burns through
 > [!NOTE]
 > 🚧 **Being improved.** Today `/join` merges only the two `AGENTS.md` files. You compare each `.onrails-new` and `config.onrails.toml` copy by hand, keep what you want, and delete the copy.
 
-→ [Step by step, and how to review it as one pull request](guide/add-to-existing-app.md). Use `/or:join`, or run `npx onrails init` in the repo first.
+→ [Step by step, and how to review it as one pull request](guide/add-to-existing-app.md). Use `/join`, or run `npx onrails init` in the repo first.
 
 ---
 
