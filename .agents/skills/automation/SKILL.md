@@ -34,7 +34,7 @@ When the two disagree, the more careful one wins. Full automation with a careful
 | Overnight loop | off (`/afk` offers it) | on | off |
 | Ping level | decisions | blockers | decisions |
 
-**In flight at once** is how many issues may be claimed and not yet merged, counting work parked on the person: a pull request waiting for their merge, or a `needs-human` issue. A low number gets each one to the test site sooner. Raise it only when builders sit idle and the checks keep up.
+**In flight at once** is how many issues may be claimed and not yet merged, counting claimed work parked on the person: a pull request waiting for their merge, or a claimed issue labelled `needs-human`. On Hands-on, 1 means one builder the person starts at a time. A low number gets each one to the test site sooner. Raise it only when builders sit idle and the checks keep up.
 
 Ping levels: **decisions** pings blockers at once and batches decisions. **blockers** pings only blockers. **critical** pings only for production down or a live security hole. The `ask` skill has the details.
 

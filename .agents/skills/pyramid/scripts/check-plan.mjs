@@ -15,17 +15,33 @@ export const HARD_CAP = 7; // above this the issues skill splits it anyway
 export const BIG_SHARE = 1 / 3; // at most this share of steps may be above THIN
 export const PER_SLICE = 2; // fewer steps than this per slice means the plan lists slices, not steps
 
-// A step named after a layer: "Set up the database", "Build the API", "Frontend components".
-const LAYER = /^(?:(?:set ?up|create|build|implement|add|design|write|define|wire(?: up)?|scaffold)\s+)?(?:(?:the|all|a|an|our|every)\s+)*(?:(?:database|db|schema|migrations?|data|models?|tables|entities|api|rest|graphql|endpoints?|routes?|backend|back end|server|services?|repositor(?:y|ies)|frontend|front end|ui|user interface|components?|layers?|setup|scaffolding|and|&|,)\s*)+$/i;
-// A layer word anywhere in a step name: "Notes API", "Sharing backend", "UI-only list".
-// "service" and "model" count only as "service layer" or "data model": a salon's services aren't a layer.
-const LAYER_WORD = /\b(?:apis?(?!\s+(?:keys?|tokens?))|rest|graphql|back[- ]?end|front[- ]?end|databases?|db|schemas?|migrations?|endpoints?|repositor(?:y|ies)|orm|crud|ui[- ]only|server[- ]side|client[- ]side|data (?:models?|layer)|(?:service|model|data|ui|api) layer)\b/i;
+// Step names. Precision beats recall: an error must never block a real user step, so only a clear
+// layer name is an error. A fuzzy one is a warning, which the agent reads and fixes if it agrees.
+// A word before a suffix that is not a noun: "Join a server", "Add services", "Create a table" pass.
+const NOT_NOUN = String.raw`(?!(?:a|an|the|my|your|our|their|his|her|its|this|that|these|those|new|of|to|for|with|in|on|from|add|create|build|make|edit|delete|remove|pick|choose|book|view|see|open|show|list|join|plan|export|import|share|rename|save|paste|find|search|manage|browse|start|run|use)\b)`;
+const ends = (suffix) => new RegExp(String.raw`\b${NOT_NOUN}[a-z][\w-]*?[- ]?(?:${suffix})$`, "i");
+const NAME_ERRORS = [
+  // The whole name is layer words, with at least one clear one: "Set up the database", "Backend setup".
+  (n) => LAYER_ONLY.test(n) && STRONG.test(n),
+  // A clear layer word anywhere: "APIs for notes", "Front-End list", "UI-only list", "Booking servicelayer".
+  (n) => /\b(?:apis?(?!\s+(?:keys?|tokens?)\b)|graphql|back[- ]?ends?|front[- ]?ends?|orm|crud|ui[- ]only|server[- ]side|client[- ]side|data[- ]?models?)\b|(?:service|data|model|api|ui|domain|business|persistence|presentation|repository|db)[- ]?layers?\b/i.test(n),
+  // A noun, then a layer: "Bookings table", "Booking models", "the booking schema", "Booking UI", "Booking server".
+  (n) => ends(String.raw`tables?|models|schemas?|apis?|back[- ]?ends?|front[- ]?ends?|servers?|ui|db|databases?|endpoints?|migrations?|sql`).test(n),
+];
+const NAME_WARNINGS = [
+  // Only layer words, but none of them clear: "Create the tables", "Wire up the services".
+  (n) => LAYER_ONLY.test(n) && !/^add\b/i.test(n),
+  // A noun, then a word that is often a layer: "Booking store", "Booking hooks", "List repository".
+  (n) => ends(String.raw`repos?|repositor(?:y|ies)|persistence|storage|middleware|controllers?|handlers?|webhooks?|store|quer(?:y|ies)|dtos?|types|hooks|screens|services|routes|components|layers?`).test(n),
+];
+const LAYER_ONLY = /^(?:(?:set ?up|create|build|implement|add|design|write|define|wire(?: up)?|scaffold)\s+)?(?:(?:the|all|our|every)\s+)*(?:(?:database|db|schema|migrations?|data|models?|tables|entities|api|rest|graphql|endpoints?|routes?|backend|back end|server|services?|repositor(?:y|ies)|frontend|front end|ui|user interface|components?|layers?|setup|scaffolding|and|&|,)\s*)+$/i;
+const STRONG = /\b(?:database|db|schema|migrations?|api|rest|graphql|endpoints?|backend|back end|frontend|front end|ui|user interface|repositor(?:y|ies)|entities|layers?|scaffolding)\b/i;
 // A step name with "and" in it is often two steps: "Add and delete an item".
 const TWO_THINGS = /\s(?:and|&)\s/i;
-// A try line that is a developer's check, not something the person does on the test site.
-const NOT_TRYABLE = /\b(?:nothing (?:to see|visible|yet)|not visible|no visible|tests? pass(?:es)?|unit tests?|ci (?:is |runs? )?green|migrations? (?:runs?|appl(?:y|ies))|curl\b|returns? (?:a |an )?[1-5]\d\d\b|in the database|schema exists|table exists|compiles|builds? clean)/i;
-// A developer's action in a try line: calling an endpoint, a query, the logs, an HTTP client.
-const DEV_ACTION = /\b(?:(?:call|hit|ping|query|post to|send a request to)\s+(?:the |an? |every |each |our )?(?:[\w/.-]+\s+)?(?:endpoints?|apis?|routes?|server|backend)\b|endpoints?\b|run (?:a |the |an? )?(?:sql )?quer(?:y|ies)|sql\b|(?:check|read|tail|look at|watch|grep) (?:the |a )?(?:\w+ )?logs?\b|postman|httpie|wget|dev ?tools|network tab|the console)/i;
+// Try lines. An error is a developer's check: a status code, a test run, a query, an HTTP call, a
+// dev tool. Never the bare words "log" or "console": "Open the console page" is a real step.
+const TRY_ERRORS = /\b(?:nothing (?:to see|visible|yet)|not visible|no visible|tests? pass(?:es)?|unit tests?|ci (?:is |runs? )?green|migrations?\b|curl|postman|httpie|wget|psql|sql|npm|pnpm|yarn|npx|dev ?tools|network (?:panel|tab)|run (?:a |an |the )?(?:sql )?quer(?:y|ies)|in the database|schema exists|table exists|compiles|builds? clean|(?:returns?|see|sees|get|gets|answers?|responds? with)\s+(?:a |an )?[1-5]\d\d\b|(?:call|hit|ping|query)\s+(?:the |an? |every |each |our )?(?:[\w/.-]+\s+)?(?:endpoints?|apis?|backend)\b)|\b(?:GET|POST|PUT|PATCH|DELETE)\s+(?:(?:a |the )?request\s+)?(?:to\s+)?\/|\/api\//i;
+const TRY_WARNINGS = /\b(?:sentry|drizzle studio|wrangler|d1|json|(?:check|read|tail|watch|grep) the (?:\w+ )?logs\b(?!\s+page))/i;
 // The Size cell: a number, then for a big step the reason it can't be cut: "5 · the first table and its screen".
 const SIZE = /^\s*(\d+)\s*(?:[·•\-–—:,(]+\s*(.*?)\)?\s*)?$/;
 
@@ -81,7 +97,8 @@ export function buildingPass(text) {
 
 /**
  * The slices a pass covers, from its Slices cell in the outline: "all" or "every" means every
- * slice, "core" the core slices, and any slice named by name. "key supports" names none on its own.
+ * slice, "core" the core slices, "supports" the support slices, and any slice named by name.
+ * "key supports" names none on its own: the cell must name them.
  */
 const mentions = (text, name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
 
@@ -93,8 +110,9 @@ export function passSlices(text, pass) {
   const cell = named(outline, row).slices ?? "";
   const all = pass === 1 || /\b(?:all|every)\b/i.test(cell);
   const core = /\bcore\b/i.test(cell);
+  const supports = /\bsupports?\b/i.test(cell) && !/\bkey supports?\b/i.test(cell);
   return sliceTable.rows.filter((r) => !blank(r)).map((r) => named(sliceTable, r))
-    .filter((c) => c.slice && (all || (core && /\bcore\b/i.test(c.role)) || mentions(cell, c.slice)))
+    .filter((c) => c.slice && (all || (core && /\bcore\b/i.test(c.role)) || (supports && /\bsupport\b/i.test(c.role)) || mentions(cell, c.slice)))
     .map((c) => c.slice);
 }
 
@@ -119,15 +137,17 @@ function longestChain(steps) {
   return Math.max(0, ...steps.map((s) => walk(s)));
 }
 
-function checkStep(step, seen, position, problem) {
+function checkStep(step, seen, position, problem, warn) {
   const where = `step ${step.id || "?"} (line ${step.line})`;
   if (!step.id) problem(where, "has no number in the # column");
   else if (seen.has(step.id)) problem(where, `the number ${step.id} is used twice`);
   if (!step.name) problem(where, "has no name");
-  else if (LAYER.test(step.name) || LAYER_WORD.test(step.name)) problem(where, `"${step.name}" is a layer, not a step. Cut through every layer instead: one thing a person can do, from the screen to the data`);
+  else if (NAME_ERRORS.some((t) => t(step.name))) problem(where, `"${step.name}" is a layer, not a step. Cut through every layer instead: one thing a person can do, from the screen to the data`);
+  else if (NAME_WARNINGS.some((t) => t(step.name))) warn(where, `"${step.name}" may be a layer. If it is, cut through every layer instead`);
   if (!step.slice) problem(where, "names no slice");
   const words = step.tryIt.split(/\s+/).filter(Boolean).length;
-  if (NOT_TRYABLE.test(step.tryIt) || DEV_ACTION.test(step.tryIt)) problem(where, `the try line is a developer's check ("${step.tryIt}"). Say what the person does on the test site and what they see`);
+  if (TRY_WARNINGS.test(step.tryIt) && !TRY_ERRORS.test(step.tryIt)) warn(where, `the try line may be a developer's check ("${step.tryIt}"). If it is, say what the person does on the test site`);
+  if (TRY_ERRORS.test(step.tryIt)) problem(where, `the try line is a developer's check ("${step.tryIt}"). Say what the person does on the test site and what they see`);
   else if (words < 4) problem(where, "has no try line. Say what the person does on the test site and what they see. No try line, no step");
   if (step.size === null || step.size < 1 || step.size > 10) problem(where, "Size must be a number from 1 to 10");
   else if (step.size > HARD_CAP) problem(where, `size ${step.size} is above ${HARD_CAP}: split it`);
@@ -143,6 +163,7 @@ function checkStep(step, seen, position, problem) {
 export function checkPlan(text, { perSlice = PER_SLICE } = {}) {
   const errors = [], warnings = [];
   const problem = (where, msg) => errors.push(`${where}: ${msg}`);
+  const warn = (where, msg) => warnings.push(`${where}: ${msg}`);
   const steps = readSteps(text);
   if (!steps) {
     problem("plan", `no steps table. The current pass needs one with the columns: ${COLUMNS.join(" | ")}`);
@@ -153,7 +174,7 @@ export function checkPlan(text, { perSlice = PER_SLICE } = {}) {
   if (!steps.length) problem("plan", "the current pass has no steps. Cut it into the smallest things a person can try");
   const position = new Map(steps.map((s, n) => [s.id, n]));
   const seen = new Set();
-  for (const step of steps) { checkStep(step, seen, position, problem); seen.add(step.id); }
+  for (const step of steps) { checkStep(step, seen, position, problem, warn); seen.add(step.id); }
 
   // Slice 0 is the skeleton: it is set-up, so it doesn't count as a slice to cut, or toward the big share.
   const sliceOf = (s) => key(s.slice);

@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildingPass, checkPlan, readSlices, readSteps } from "../../.agents/skills/pyramid/scripts/check-plan.mjs";
+import { mustError, mustPass, mustWarn } from "./check-plan-cases.mjs";
 import { put, tmp } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/pyramid/scripts/check-plan.mjs", import.meta.url));
@@ -84,31 +85,31 @@ test("a plan cut by layer fails on every layer step", () => {
   assert.match(e, /size 5 is above 4 with no reason/);
 });
 
-test("step names that only sound like layers are left alone", () => {
-  for (const name of ["Add an item", "Create a table of scores", "See the list page", "Sign in", "Seed data you can browse", "Share a route with a friend"]) {
-    assert.doesNotMatch(errors(swap(3, `| 4 | ${name} | Shared list | Type "milk" and press Enter: it shows at the top | 3 | 3 |`)), /is a layer/, name);
+const named = (name) => checkPlan(plan(swap(3, `| 4 | ${name} | Shared list | Type "milk" and press Enter: it shows at the top | 3 | 3 |`)));
+const tried = (tryIt) => checkPlan(plan(swap(4, `| 5 | Tick an item off | Shared list | ${tryIt} | 2 | 3 |`)));
+const show = (r) => [...r.errors, ...r.warnings].join("\n");
+
+test("the case table: clear layer names and developer checks are errors", () => {
+  for (const name of mustError.names) assert.match(named(name).errors.join("\n"), /step 4 .*is a layer/, name);
+  for (const tryIt of mustError.tryLines) assert.match(tried(tryIt).errors.join("\n"), /step 5 .*developer's check/, tryIt);
+});
+
+test("the case table: fuzzy names and try lines are warnings, never errors", () => {
+  for (const name of mustWarn.names) {
+    const r = named(name);
+    assert.deepEqual(r.errors, [], name);
+    assert.match(r.warnings.join("\n"), /step 4 .*may be a layer/, name);
   }
-  for (const name of ["Database", "Create the tables", "API and services", "Backend setup", "Frontend components", "Wire up the data layer"]) {
-    assert.match(errors(swap(3, `| 4 | ${name} | Shared list | Type "milk" and press Enter: it shows at the top | 3 | 3 |`)), /is a layer/, name);
+  for (const tryIt of mustWarn.tryLines) {
+    const r = tried(tryIt);
+    assert.deepEqual(r.errors, [], tryIt);
+    assert.match(r.warnings.join("\n"), /step 5 .*may be a developer's check/, tryIt);
   }
 });
 
-test("a layer word anywhere in a step name fails; a user's step that shares a word passes", () => {
-  for (const name of ["Notes API", "Sharing backend", "Set up the database", "UI-only list", "Items endpoint", "Data model for items", "List repository", "Frontend for the list"]) {
-    assert.match(errors(swap(3, `| 4 | ${name} | Shared list | Type "milk" and press Enter: it shows at the top | 3 | 3 |`)), /is a layer/, name);
-  }
-  for (const name of ["Share the list", "Copy your API key", "Book a service", "Pick a car model", "Restore a deleted item", "Back up the list"]) {
-    assert.doesNotMatch(errors(swap(3, `| 4 | ${name} | Shared list | Type "milk" and press Enter: it shows at the top | 3 | 3 |`)), /is a layer/, name);
-  }
-});
-
-test("a try line that is a developer's action fails; a person's action passes", () => {
-  for (const tryIt of ["Call the endpoint and get the notes back", "Run a query: the new row is there", "Check the logs: no errors show up", "Hit the items API and see the new item", "Open Postman and send the request"]) {
-    assert.match(errors(swap(4, `| 5 | Tick an item off | Shared list | ${tryIt} | 2 | 3 |`)), /step 5 .*developer's check/, tryIt);
-  }
-  for (const tryIt of ["Share the list with a flatmate: they see it on their phone", "Open the activity page: your last change shows first"]) {
-    assert.doesNotMatch(errors(swap(4, `| 5 | Tick an item off | Shared list | ${tryIt} | 2 | 3 |`)), /developer's check/, tryIt);
-  }
+test("the case table: real user steps get no error and no warning", () => {
+  for (const name of mustPass.names) assert.equal(show(named(name)), "", name);
+  for (const tryIt of mustPass.tryLines) assert.equal(show(tried(tryIt)), "", tryIt);
 });
 
 test("a step nobody can try fails", () => {
@@ -146,6 +147,8 @@ test("any pass needs a step for every slice it covers, not only pass 1", () => {
     .replace("| core + supports | the core deep | outline |", `| ${slices} | the core deep | building |`);
   assert.match(checkPlan(pass2("core + Cost split")).errors.join("\n"), /pass 2 has no step for the slice "Cost split"/);
   assert.match(checkPlan(pass2("all")).errors.join("\n"), /pass 2 has no step for the slice "Cost split"/);
+  assert.match(checkPlan(pass2("core + supports")).errors.join("\n"), /pass 2 has no step for the slice "Cost split"/);
+  assert.deepEqual(checkPlan(pass2("core + Sign-in")).errors, []);
   assert.deepEqual(checkPlan(pass2("core + key supports")).errors, []);
 });
 
@@ -163,10 +166,10 @@ test("too few steps for the slices fails, and --per-slice moves the bar", () => 
   assert.match(errors(THIN, { perSlice: 3 }), /7 steps for 3 slices/);
 });
 
-test("pass 1 needs a step through every slice; a later pass doesn't", () => {
+test("pass 1 needs a step through every slice; a later pass only the slices it covers", () => {
   const noSplit = THIN.slice(0, 6).concat(["| 7 | Rename an item | Shared list | Click an item's name, type a new one: it is saved | 2 | 3 |"]);
   assert.match(errors(noSplit), /pass 1 has no step for the slice "Cost split"/);
-  const pass2 = plan(noSplit).replace("| thin and working | building |", "| thin and working | done |").replace("| the core deep | outline |", "| the core deep | building |");
+  const pass2 = plan(noSplit).replace("| thin and working | building |", "| thin and working | done |").replace("| core + supports | the core deep | outline |", "| core + Sign-in | the core deep | building |");
   assert.deepEqual(checkPlan(pass2).errors, []);
 });
 

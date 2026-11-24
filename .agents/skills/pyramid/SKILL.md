@@ -78,7 +78,7 @@ pass 1  ████ ████ ████ ████ ████
 5. **Outline every pass.** For each: the milestone name, its slices, and one line per slice on what "better" means.
 6. **Cut the current pass into steps,** and only the current pass. For each of its slices, list the smallest changes a person can try, and put each through the thin test below. Order them: slice 0 first, then the step that proves the riskiest idea, usually in the core. Fill in "After" only where one step truly needs another, so steps that don't can be built at the same time.
 7. **Write `docs/pyramid.md`** from the `idea` skill's template: the steps go in its steps table, and the current pass is marked `building`.
-8. **Check the cut:** `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md`. Fix an error by cutting again, not by rewording the row. **Done when** it exits 0 (an empty plan, or a slice the current pass covers with no step, fails it), every pass has an outline row, and only the current pass has steps. Read its warnings too. Then hand off to `issues` for that pass only.
+8. **Check the cut:** `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md`. Fix an error by cutting again, not by rewording the row. **Done when** it exits 0 (an empty plan, or a slice the current pass covers with no step, fails it), every pass has an outline row, and only the current pass has steps. Read each warning: it flags a possible layer or developer check. Fix it if you agree. Then hand off to `issues` for that pass only.
 
 ## The thin test
 
