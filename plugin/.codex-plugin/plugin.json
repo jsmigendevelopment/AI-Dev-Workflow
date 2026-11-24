@@ -1,6 +1,6 @@
 {
   "name": "or",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "onRails: type $idea or $join in any folder. Installs the kit's rules, skills and guardrails into the project, then hands off to the project's own copy.",
   "author": {
     "name": "onRails",

@@ -4,6 +4,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-11-24
+
 ### Added
 
 - **README signatures come from the profile (#90).** `npx onrails signature` builds the owner's sign-off from `[me.signature]` (and `[me.signature.personal]`) in the profile: full or compact, HTML or `--markdown`. `--write README.md` keeps one block between `onrails:signature` markers. It refuses emails, `mailto:` links and non-https URLs, and escapes HTML. `name` and `join` run it when the profile has one. The onRails README's signature is now generated.
@@ -184,7 +186,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - The first kit: `AGENTS.md`, skills for the product grill, the tech grill, research, the tracer-bullet pyramid, issues, model routing, the build loop, reviews and browser tests, plus templates and a guide.
 - Skills live in `.agents/skills` for Codex and are copied to `.claude/skills` for Claude Code. CI checks the copies match.
 
-[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.4.0...v0.5.0
