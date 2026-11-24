@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="415" viewBox="0 0 352 415" role="img" aria-labelledby="title desc">
+  <title id="title">Plan the work</title>
+  <desc id="desc">/research · $research. Investigate a decision that is costly to undo. /pyramid · $pyramid. Cut a pass into small changes you can try. /issues · $issues. Turn each step or piece of feedback into an issue. /routing · $routing. Choose the model tier and effort for each job.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="413" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <g fill="none" stroke="url(#rails)" stroke-width="2.5"><path d="M-4 33h360"/><path d="M82 33h22c37 0 32-17 64-17h64"/><path d="M187 33h24c23 0 24 12 48 12h97"/></g>
+  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="33" r="5"/><circle cx="269" cy="33" r="5"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Plan the work</text><path d="M23 97V343" stroke="var(--line)" stroke-width="3"/><circle cx="23" cy="97" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="179" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="261" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="343" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><text x="45" y="102" class="key">/research · $research</text>
+  <text x="45" y="124" class="body">Investigate a decision that is</text>
+  <text x="45" y="145" class="body">costly to undo.</text>
+  <text x="45" y="184" class="key">/pyramid · $pyramid</text>
+  <text x="45" y="206" class="body">Cut a pass into small changes you</text>
+  <text x="45" y="227" class="body">can try.</text>
+  <text x="45" y="266" class="key">/issues · $issues</text>
+  <text x="45" y="288" class="body">Turn each step or piece of</text>
+  <text x="45" y="309" class="body">feedback into an issue.</text>
+  <text x="45" y="348" class="key">/routing · $routing</text>
+  <text x="45" y="370" class="body">Choose the model tier and effort</text>
+  <text x="45" y="391" class="body">for each job.</text>
+</svg>

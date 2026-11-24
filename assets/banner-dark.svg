@@ -1,7 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 260" width="960" height="260" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
   <title>onRails: put your AI on rails</title>
-  <desc>A violet-to-blue railway passes Pitch, Grill, Slice and Ship in the light of a golden sun.</desc>
+  <desc>The onRails curved-track mark stands beside the wordmark. A violet-to-blue railway passes Pitch, Grill, Slice and Ship in the light of a golden sun.</desc>
   <defs>
+    <linearGradient id="rail-brand" x2="1" y2="1">
+      <stop stop-color="#7c3aed"/><stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+
     <linearGradient id="sky" x2="1" y2="1">
       <stop stop-color="#0a0a12"/><stop offset=".54" stop-color="#12121c"/><stop offset="1" stop-color="#170d1c"/>
     </linearGradient>
@@ -61,7 +65,14 @@
       <path d="M-9-4Q-2-4 1 0q-3 4-10 4Z" fill="#fff3c4" stroke="none"/>
       <path d="M12 0h14" stroke="#ffb454" stroke-opacity=".65" stroke-linecap="round"/>
     </g>
-    <text x="43" y="127" font-size="91" font-weight="800" letter-spacing="-5" fill="url(#brand)">onRails</text>
+    <g transform="translate(47 69) scale(.88)">
+  <rect width="64" height="64" rx="14" fill="url(#rail-brand)"/>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 49l5-15c4-13 15-20 30-20h9M24 53l5-15c2-7 8-11 17-11h8" stroke-width="5"/>
+    <path d="M10 39l19 6M21 19l12 15M44 11v19" stroke-width="4"/>
+  </g>
+    </g>
+    <text x="113" y="123" font-size="74" font-weight="800" letter-spacing="-5" fill="url(#brand)">onRails</text>
     <text x="48" y="173" font-size="32" font-weight="650" letter-spacing="-.65" fill="#f2f2f7">Put your AI on rails.</text>
     <g transform="translate(46 193) scale(.47)">
       <path fill="#ffb454" d="M8 10h22v26L14 52H5V42h5l10-10V20H8Z"/>

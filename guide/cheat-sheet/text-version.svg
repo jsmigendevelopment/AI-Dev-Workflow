@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="154" viewBox="0 0 352 154" role="img" aria-labelledby="title desc">
+  <title id="title">onRails cheat sheet</title>
+  <desc id="desc">Find your next command, run one skill, or check who approves a merge. Open the text version.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="152" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <text x="20" y="38" font-size="25" font-weight="700">onRails cheat sheet</text><text x="20" y="67" class="body">Find your next command, run one</text><text x="20" y="88" class="body">skill, or check who approves a merge.</text><text x="20" y="135" class="key">Read the text version →</text>
+</svg>

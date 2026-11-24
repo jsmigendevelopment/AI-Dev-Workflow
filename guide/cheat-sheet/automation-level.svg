@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="520" viewBox="0 0 352 520" role="img" aria-labelledby="title desc">
+  <title id="title">Automation level</title>
+  <desc id="desc">Recommended. Agents build, review and merge tiny and normal changes, then deploy to test. You approve risky and schema changes. Full. Include risky work and overnight runs. The always-stop list still applies. Hands-on. Agents plan, write issues and build one when asked. You open and merge pull requests. Custom. Choose each switch. Where the two dials disagree, the more careful setting wins.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="518" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <g fill="none" stroke="url(#rails)" stroke-width="2.5"><path d="M-4 24h360"/><path d="M-4 40h121c25 0 23-16 48-16"/><path d="M204 24c22 0 23 16 47 16h105"/></g>
+  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="24" r="5"/><circle cx="269" cy="24" r="5"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Automation level</text><path d="M23 97V427" stroke="var(--line)" stroke-width="3"/><circle cx="23" cy="97" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="221" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="324" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="427" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><text x="45" y="102" class="label">Recommended</text>
+  <text x="45" y="124" class="body">Agents build, review and merge</text>
+  <text x="45" y="145" class="body">tiny and normal changes, then</text>
+  <text x="45" y="166" class="body">deploy to test. You approve risky</text>
+  <text x="45" y="187" class="body">and schema changes.</text>
+  <text x="45" y="226" class="label">Full</text>
+  <text x="45" y="248" class="body">Include risky work and overnight</text>
+  <text x="45" y="269" class="body">runs. The always-stop list still</text>
+  <text x="45" y="290" class="body">applies.</text>
+  <text x="45" y="329" class="label">Hands-on</text>
+  <text x="45" y="351" class="body">Agents plan, write issues and</text>
+  <text x="45" y="372" class="body">build one when asked. You open</text>
+  <text x="45" y="393" class="body">and merge pull requests.</text>
+  <text x="45" y="432" class="label">Custom</text>
+  <text x="45" y="454" class="body">Choose each switch. Where the</text>
+  <text x="45" y="475" class="body">two dials disagree, the more</text>
+  <text x="45" y="496" class="body">careful setting wins.</text>
+</svg>
