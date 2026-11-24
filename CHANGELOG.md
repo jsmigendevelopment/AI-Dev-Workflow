@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- **Show it as soon as it renders (#99).** Slice 0 starts with the running app: the dev server, the link and one line on what to see, before CI, secrets or the test deploy. `build` gains step 11 and a "Show it" section: start the dev server in the background, run on the fakes when keys are missing and say what's off, give the link, the page and the try line, and ask "Anything you'd change?". In a cloud session or in the loop, four Chromium screenshots (desktop and phone, light and dark) plus the branch command instead of a link. A loop builder runs its server on a free port with `--strictPort`, writes the screenshots outside its checkout, pushes them to a `screenshots/pr-<n>` branch (never the pull request's branch or main; reruns fetch and add on top; a fallback for git before 2.42) and links them in one pull request comment, or in its report when Hands-on has no pull request. `coordinate` owns the person's one dev server on the fixed port (main, or the branch it's showing, restarted after each merge), passes the builder's screenshot links to the person before the merge, asks the question once per pull request, adds the local command to "To try", deletes the screenshots branch after the merge, and sweeps away those of closed pull requests and, once the test site is live, of merged ones. In a cloud session it starts no server. `/back` offers to start the dev server; `/back` and `/afk` stop it. `stack-tanstack-start` starts `pnpm dev` on port 3000 before `pnpm check`; `stack-monorepo-expo` starts `pnpm -C apps/web dev` and `pnpm --filter mobile dev --go` (Expo Go). `pyramid`, `idea` and the pyramid template follow. New eval `show-it-early`. The runner's default cap goes to 22 runs, for eleven scenarios, and its hard cap from 20 to 30.
+
 ## [0.6.0] - 2026-11-24
 
 ### Added

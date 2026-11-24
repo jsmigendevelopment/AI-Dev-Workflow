@@ -32,11 +32,38 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 8. **Write it the owner's way:** follow "Code rules" below. Installing a package? Open the `dependencies` skill and verify it first.
 9. **Update the docs** your change makes wrong, in the same pull request.
 10. **Run every check** in "Commands that work here" in `AGENTS.md`: lint, typecheck, the boundary check, tests and build. All of it must pass.
-11. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body, the issue's try line, and, for each AC ID, the test file that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
+11. **Show it.** Did the step change what the person sees? Follow "Show it" below, and put the look in your report and the pull request.
+12. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body, the issue's try line, and, for each AC ID, the test file that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
    - Aim for under about 400 changed lines, not counting lockfiles and generated files. Bigger? Split it, or label it `large-pr` and say why.
    - **Hands-on** automation (see "Automation level" in `docs/stack.md`)? Don't open it unless the person said to. Push the branch and tell them its name and the check results.
    - Then add `node .agents/skills/coordinate/scripts/board.mjs event pr-opened issue=<n> pr=<n> title="..."`.
-12. **Finish:** `node .agents/skills/coordinate/scripts/board.mjs event finished issue=<n>`, then exit. Don't wait for the review.
+13. **Finish:** `node .agents/skills/coordinate/scripts/board.mjs event finished issue=<n>`, then exit. Don't wait for the review.
+
+## Show it
+
+The person steers by looking. Show each visible step as soon as it renders, on top of the test site, not instead of it.
+
+**Built alone** (the person started you, no coordinator): you show it, steps 1 to 4, on the fixed port. **Built in the loop:** your look is screenshots plus the branch command, never a link. The fixed port belongs to the coordinator. Start your server on a free port only for the screenshots, then stop it. The coordinator keeps the person's server and asks the question.
+
+1. **Start the dev server in the background.** Use the dev command and port from "Commands that work here" in `AGENTS.md`, or the stack pack's (`stack-tanstack-start`: `pnpm dev`, http://localhost:3000). Say it's running. Keep it running while the person is here. Stop it at the end of the session and at `/afk`.
+   - **In the loop, or when the port is taken:** pick a free port (`node -e "const s=require('net').createServer().listen(0,()=>{console.log(s.address().port);s.close()})"`) and run `pnpm dev --port <free> --strictPort`. Screenshot the address the server printed, never 3000.
+2. **Keys missing? Run on the fakes:** the memory repositories and test keys. Name each part that is faked or off: "Sign-in is off until the Clerk keys are set." The first look never waits on `secrets`.
+3. **Give the person a way to look.**
+   - **On their machine:** the link, the page to open and the try line. "The app runs at http://localhost:3000. Open /list: the seeded items show."
+   - **In a cloud session** (Claude Code sets `CLAUDE_CODE_REMOTE=true`) **or in the loop,** give both:
+     - four screenshots with Playwright's Chromium, written outside the checkout so `git add -A` never picks them up. Run `pnpm exec playwright install chromium` first if it's missing. No Playwright in the project? Use `pnpm dlx playwright@<version> ...` with an exact version you checked on the registry (the stack pack's pin, if it has one), `install chromium` first; or skip the screenshots and give only the command. `S=${TMPDIR:-/tmp}/shots-<n>`, then for each of `light` and `dark`:
+       - desktop: `pnpm exec playwright screenshot --viewport-size=1280,800 --color-scheme=light <url> $S/desktop-light.png`;
+       - phone: `pnpm exec playwright screenshot --viewport-size=390,844 --color-scheme=light <url> $S/phone-light.png`;
+     - the command for their machine: `git fetch && git switch <branch>`, then `pnpm install && pnpm dev`, and the link.
+   - **Public repo?** Check with `gh repo view --json visibility`. Public and the app not launched? Pushed screenshots show the unlaunched app to anyone. Say so once and ask whether they may be public (a ⏳ decision through `ask`; in the loop, put the question in your report). Until a yes is in `docs/decisions.md`, push nothing: give the screenshots in your report only, as local paths or images shown in the session.
+   - **Get the screenshots to the person** once the pull request exists (step 12). They go on their own branch `B`: `screenshots/pr-<n>`, or `screenshots/<your branch>` when there's no pull request (Hands-on). Never on the pull request's branch or on main. `W=${TMPDIR:-/tmp}/shots-<n>-git`:
+     1. `git ls-remote --exit-code origin refs/heads/B` exits 0 (a rerun)? `git fetch origin B:B`, then `git worktree add $W B`, and add a commit on top. Otherwise make it new: `git worktree add --orphan -b B $W`. Git older than 2.42: `git worktree add --detach $W && git -C $W switch --orphan B`.
+     2. `cp $S/*.png $W/` and `git -C $W add -A`. `git -C $W diff --cached --quiet && echo unchanged`? Same screenshots as last time: skip the commit and the push. Otherwise commit there and `git -C $W push origin B`. Either way, `git worktree remove $W`.
+     3. Post one comment on the pull request with each image: `![desktop light](https://github.com/<owner>/<repo>/blob/B/desktop-light.png?raw=true)`. Put the same links in your report. No pull request? Put the links and `https://github.com/<owner>/<repo>/tree/B` in your report.
+   - **A preview or the test site exists?** Link it too.
+4. **Ask what to change:** "Anything you'd change?" An answer is feedback (`back`, step 9), so they can steer now.
+
+**Done when** built alone: the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question. In the loop: the screenshots are on `screenshots/pr-<n>` (or only in your report, on a public repo without a yes), the pull request has one comment with their links, nothing new is untracked in your checkout, your report has the links, the branch command, the try line and the faked parts, and your server is stopped.
 
 ## Code rules
 

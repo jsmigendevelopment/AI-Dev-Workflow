@@ -4,10 +4,10 @@ export const DEFAULTS = {
   maxTurns: 12,
   timeoutSec: 240,
   maxBudgetUsd: 0.5,
-  maxRuns: 20,
+  maxRuns: 22,
 };
 // No flag can raise the number of runs past this. Each run is one paid Claude Code session.
-export const HARD_CAP = 20;
+export const HARD_CAP = 30;
 
 export const HELP = `node evals/run.mjs [options]
 

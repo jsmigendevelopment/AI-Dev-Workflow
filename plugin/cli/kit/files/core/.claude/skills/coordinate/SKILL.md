@@ -34,7 +34,8 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
    - **Where:** cloud first when `[sessions] prefer = "cloud"` and the job can run there (`routing`, "Where a job runs").
    - **Whose account:** the profile has `[accounts]`? Find the account that owns this job (`routing`'s `references/accounts.md`). Not this session's? Don't run it here. Write a ready-to-paste prompt for that account's session, or a cloud session on it, as an ℹ️ FYI. Comment it on the issue once, label it `account:<key>`, and skip it on later sweeps until that session claims it.
 
-5. **Act when something reports back:** a finished agent, a new pull request, or a check result. Sweep the board every 10 minutes only as a safety net.
+5. **Act when something reports back:** a finished agent, a new pull request, or a check result. Sweep the board every 10 minutes only as a safety net. A builder's report has a look (`build`, "Show it": the screenshot links on `screenshots/pr-<n>` and the branch command)? Pass those links to the person now and ask *"Anything you'd change?"*, so they can steer before the merge. Note on the pull request that you asked. An answer is feedback (`back`, step 9).
+   - **You own the person's dev server and the fixed port.** One server, in your own checkout, on the fixed port from "Commands that work here". Builders use free ports. It runs main, or the branch you're showing. Restart it after each merge, so the link stays live. Stop it at the end of the session and at `/afk`. In a cloud session, start no server: nobody can open it. Pass the screenshots and the command instead.
 
 6. **Check each pull request, in order. Stop at the first failure.**
    1. **CI** passes on the head commit. Then mark a draft ready (`gh pr ready <n>`).
@@ -52,10 +53,11 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 8. **After the merge,** main deploys to test. Start a fresh agent with "**Use the `qa` skill, smoke mode.**" If it fails, open a bug issue.
 
-9. **Record it.** For every merge, add one line to "To try" in `docs/state.md`: the pull request, the issue and its try line. Add a board event: `node .agents/skills/coordinate/scripts/board.mjs event merged issue=<n> pr=<n> title="..."`.
+9. **Record it.** For every merge, add one line to "To try" in `docs/state.md`: the pull request, the issue and its try line. Restart your dev server on the new main (none in a cloud session). Not on the test site yet? Add the local link, or for someone on another machine the command: `git switch main && git pull`, then the dev command and its link. In a cloud session with no test site yet, reuse the builder's screenshot links. Step 5 didn't ask for this pull request? Ask *"Anything you'd change?"* with the try line now. Then delete `screenshots/pr-<n>` (`gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/screenshots/pr-<n>`), unless "To try" still links to it because there's no test site yet: the end-of-sweep cleanup deletes it once the test site is live. If `gh` refuses, leave it and note it in the report. Add a board event: `node .agents/skills/coordinate/scripts/board.mjs event merged issue=<n> pr=<n> title="..."`.
 
 10. **End of sweep:**
     - render the board from the lists you already fetched;
+    - clean up screenshots: list `git ls-remote origin 'refs/heads/screenshots/*'`. Delete each one whose pull request closed without a merge, and each `screenshots/<branch>` whose `<branch>` is gone from origin. Once the test site is live, delete each one whose pull request merged too. Same command and same "if `gh` refuses" as step 9;
     - if the profile sets `[board] sheet` and you have the Google Sheets connector, write the rows (one clear, one write);
     - run `node .claude/hooks/notify.mjs --flush`, so batched decisions go out.
 
