@@ -49,7 +49,7 @@ The exit code is 0 when every scenario passed. It's 1 when a check failed with t
 | Turns per run | 12 | `--max-turns` (Claude Code's own flag) |
 | Time per run | 240 s, then the run is killed | `--timeout` |
 | Dollars per run | $0.50, then Claude Code stops | `--max-budget-usd` (Claude Code's own flag) |
-| Runs per invocation | 20, never above 20 | `--max-runs`; the runner refuses to start above it. Ten scenarios fill the cap, so an eleventh needs `--scenario` or a higher hard cap |
+| Runs per invocation | 20, never above 30 | `--max-runs`; the runner refuses to start above it. Ten scenarios use 20 runs; more need `--max-runs` up to 30. At about 1 cent a run on Haiku, 30 runs cost about $0.30 |
 | When CI runs | pull requests that change `.agents/skills/`, `AGENTS.md`, `plugin/` or `scripts/`, and by hand | `.github/workflows/evals.yml`; no schedule |
 | Job time | 40 minutes | `timeout-minutes` |
 
@@ -59,7 +59,7 @@ The exit code is 0 when every scenario passed. It's 1 when a check failed with t
 
 **How the scenarios did in those runs.** Not all of them pass on Haiku 5.5. Over three full runs on this kit, `plan-thin-steps`, `idea-grill` and `secrets` passed every time; `wireframe-gate` failed every time and `review-weakened-test` showed no difference every time, and both did the same on the kit before these two scenarios were added. The summary in `research/agile-flow/summaries/cloud-linux.md` has every run. Until those are fixed, a red evals job doesn't by itself mean a change broke something: compare it with that baseline.
 
-**The estimate made before any real run (kept for the method):** about **$0.20** for the 14 runs there were then. Basis: about 10 model requests per run, each with about 30,000 prompt tokens that are mostly cached after the first request (Claude Code's system prompt and tools, plus `AGENTS.md` and a skill with the kit), and about 5,000 output tokens per run, at Haiku's prices with the usual cache prices (writes 1.25x input, reads 0.1x). Sonnet 5.5 is about 20 times that, around $4; Opus 5.5 about twice Sonnet, and its runs may hit the $0.50 cap. The hard ceiling for one invocation is 20 runs x $0.50 = $10.
+**The estimate made before any real run (kept for the method):** about **$0.20** for the 14 runs there were then. Basis: about 10 model requests per run, each with about 30,000 prompt tokens that are mostly cached after the first request (Claude Code's system prompt and tools, plus `AGENTS.md` and a skill with the kit), and about 5,000 output tokens per run, at Haiku's prices with the usual cache prices (writes 1.25x input, reads 0.1x). Sonnet 5.5 is about 20 times that, around $4; Opus 5.5 about twice Sonnet, and its runs may hit the $0.50 cap. The hard ceiling for one invocation is 30 runs x $0.50 = $15.
 
 ## The one-time setup for CI
 

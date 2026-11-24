@@ -43,9 +43,10 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 
 The person steers by looking. Show each visible step as soon as it renders, on top of the test site, not instead of it.
 
-**Built alone** (the person started you, no coordinator): you show it, steps 1 to 4. **Built in the loop:** your look is screenshots plus the branch command, never a link to your own server. Start the server only for the screenshots, stop it, and put the look in your report and the pull request. The coordinator keeps the person's server and asks the question.
+**Built alone** (the person started you, no coordinator): you show it, steps 1 to 4, on the fixed port. **Built in the loop:** your look is screenshots plus the branch command, never a link. The fixed port belongs to the coordinator. Start your server on a free port only for the screenshots, then stop it. The coordinator keeps the person's server and asks the question.
 
 1. **Start the dev server in the background.** Use the dev command and port from "Commands that work here" in `AGENTS.md`, or the stack pack's (`stack-tanstack-start`: `pnpm dev`, http://localhost:3000). Say it's running. Keep it running while the person is here. Stop it at the end of the session and at `/afk`.
+   - **In the loop, or when the port is taken:** pick a free port (`node -e "const s=require('net').createServer().listen(0,()=>{console.log(s.address().port);s.close()})"`) and run `pnpm dev --port <free> --strictPort`. Screenshot the address the server printed, never 3000.
 2. **Keys missing? Run on the fakes:** the memory repositories and test keys. Name each part that is faked or off: "Sign-in is off until the Clerk keys are set." The first look never waits on `secrets`.
 3. **Give the person a way to look.**
    - **On their machine:** the link, the page to open and the try line. "The app runs at http://localhost:3000. Open /list: the seeded items show."
@@ -54,10 +55,14 @@ The person steers by looking. Show each visible step as soon as it renders, on t
        - desktop: `pnpm exec playwright screenshot --viewport-size=1280,800 --color-scheme=light <url> desktop-light.png`;
        - phone: `pnpm exec playwright screenshot --viewport-size=390,844 --color-scheme=light <url> phone-light.png`;
      - the command for their machine: `git fetch && git switch <branch>`, then `pnpm install && pnpm dev`, and the link.
+   - **Get the screenshots to the person** once the pull request exists (step 12). Never put them on the pull request's branch or on main:
+     1. `git worktree add --orphan -b screenshots/pr-<n> ../shots-<n>`. The branch exists already? `git fetch origin screenshots/pr-<n>` and `git worktree add ../shots-<n> screenshots/pr-<n>`, then add a commit on top.
+     2. Copy the PNGs there, commit, and `git -C ../shots-<n> push origin screenshots/pr-<n>`. Remove the worktree.
+     3. Post one comment on the pull request with each image: `![desktop light](https://github.com/<owner>/<repo>/blob/screenshots/pr-<n>/desktop-light.png?raw=true)`. Put the same links in your report.
    - **A preview or the test site exists?** Link it too.
 4. **Ask what to change:** "Anything you'd change?" An answer is feedback (`back`, step 9), so they can steer now.
 
-**Done when** built alone: the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question. In the loop: your report and the pull request have the screenshots, the branch command, the try line and the faked parts, and your server is stopped.
+**Done when** built alone: the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question. In the loop: the screenshots are on `screenshots/pr-<n>`, the pull request has one comment with their links, your report has the links, the branch command, the try line and the faked parts, and your server is stopped.
 
 ## Code rules
 

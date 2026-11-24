@@ -55,7 +55,7 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
 test("bad flags and too many runs exit 2", () => {
   const { run } = setup({});
   assert.equal(run("--nope").status, 2);
-  assert.equal(run("--max-runs", "21").status, 2);
+  assert.equal(run("--max-runs", "31").status, 2);
   const capped = run("--scenarios-dir", TEST_SCENARIOS, "--max-runs", "3");
   assert.equal(capped.status, 2);
   assert.match(capped.stderr, /4 runs planned, above --max-runs 3/);
@@ -228,7 +228,7 @@ const SCENARIO_PLANS = {
   },
   "show-it-early": {
     with: { steps: [{ bash: "ls .github/workflows 2>/dev/null" }, { tool: "Bash", input: { command: "npm run dev", run_in_background: true } }, { text: "The app runs at http://localhost:3000. You'll see the starter page with Tidy's name. Sign-in is off: CLERK_SECRET_KEY isn't set." }, { write: ".github/workflows/ci.yml", content: CI }, { text: "CI runs npm run check on every pull request." }] },
-    without: { steps: [{ write: ".github/workflows/ci.yml", content: CI }, { bash: "git checkout -qb feat/1-skeleton && git add -A && git commit -qm '#1 CI'" }, { text: "Slice 0 is done: CI is set up." }] },
+    without: { steps: [{ bash: "grep -n 'npm run dev' README.md" }, { write: ".github/workflows/ci.yml", content: CI }, { bash: "git checkout -qb feat/1-skeleton && git add -A && git commit -qm '#1 CI'" }, { text: "Slice 0 is done: CI is set up." }] },
   },
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },
