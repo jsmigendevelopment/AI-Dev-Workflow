@@ -1,9 +1,11 @@
 // build and pyramid: slice 0 shows the running app, with its link, before any CI work (#99).
 import { result } from "../../lib/checks.mjs";
 
-const DEV = /\bnpm\s+(run\s+dev|start)\b|\bnode\s+(\.\/)?server\.mjs\b/;
+// The fixture is npm, but a run may reach for another package manager's dev command.
+const DEV = /\b(pnpm|yarn)\s+((-C|--filter)\s+\S+\s+)?(run\s+)?dev\b|\bnpm\s+(run\s+dev|start)\b|\bnode\s+(\.\/)?server\.mjs\b/;
 const LINK = /(localhost|127\.0\.0\.1):3000/;
-const CI_WRITE = /(mkdir|>|\btee\b|\bcp\b)[^\n]*\.github\/workflows/;
+// A file written into .github/workflows: a redirect, tee or cp aimed there. Reads (`ls ... 2>/dev/null`) and mkdir don't count.
+const CI_WRITE = />>?\s*["']?\S*\.github\/workflows\/|\btee\s+(-a\s+)?["']?\S*\.github\/workflows\/|\bcp\b[^\n;&|]*\s["']?\S*\.github\/workflows\/?\S*(?=\s*($|[;&|]))/;
 
 /** What happened, in order: "dev" (the server started), "link" (said to the person), "ci" (a CI file written). */
 function timeline(events) {
@@ -26,7 +28,7 @@ function timeline(events) {
 export const checks = [
   {
     id: "dev-server-started",
-    description: "The agent started the dev server (npm run dev, npm start or node server.mjs)",
+    description: "The agent started the dev server (npm run dev, pnpm dev, yarn dev, npm start or node server.mjs)",
     check: (t) => result(timeline(t.events).includes("dev"), "no dev server command"),
   },
   {

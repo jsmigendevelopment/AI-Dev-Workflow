@@ -43,17 +43,21 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 
 The person steers by looking. Show each visible step as soon as it renders, on top of the test site, not instead of it.
 
-1. **Start the dev server in the background.** Use the dev command and port from "Commands that work here" in `AGENTS.md`, or the stack pack's (`stack-tanstack-start`: `pnpm dev`, http://localhost:3000). Say it's running. Keep it running while the person is here. Stop it at the end of the session and at `/afk`. A builder in the loop stops it before it exits.
+**Built alone** (the person started you, no coordinator): you show it, steps 1 to 4. **Built in the loop:** your look is screenshots plus the branch command, never a link to your own server. Start the server only for the screenshots, stop it, and put the look in your report and the pull request. The coordinator keeps the person's server and asks the question.
+
+1. **Start the dev server in the background.** Use the dev command and port from "Commands that work here" in `AGENTS.md`, or the stack pack's (`stack-tanstack-start`: `pnpm dev`, http://localhost:3000). Say it's running. Keep it running while the person is here. Stop it at the end of the session and at `/afk`.
 2. **Keys missing? Run on the fakes:** the memory repositories and test keys. Name each part that is faked or off: "Sign-in is off until the Clerk keys are set." The first look never waits on `secrets`.
 3. **Give the person a way to look.**
    - **On their machine:** the link, the page to open and the try line. "The app runs at http://localhost:3000. Open /list: the seeded items show."
-   - **In a cloud session** (Claude Code sets `CLAUDE_CODE_REMOTE=true`), they can't open this machine's localhost. Give both:
-     - screenshots of the page, desktop and phone, light and dark, from the browser the session has. With Playwright: `pnpm exec playwright screenshot --device="iPhone 13" --color-scheme=dark <url> phone-dark.png`;
+   - **In a cloud session** (Claude Code sets `CLAUDE_CODE_REMOTE=true`) **or in the loop,** give both:
+     - four screenshots with Playwright's Chromium. Run `pnpm exec playwright install chromium` first if it's missing. For each of `light` and `dark`:
+       - desktop: `pnpm exec playwright screenshot --viewport-size=1280,800 --color-scheme=light <url> desktop-light.png`;
+       - phone: `pnpm exec playwright screenshot --viewport-size=390,844 --color-scheme=light <url> phone-light.png`;
      - the command for their machine: `git fetch && git switch <branch>`, then `pnpm install && pnpm dev`, and the link.
    - **A preview or the test site exists?** Link it too.
 4. **Ask what to change:** "Anything you'd change?" An answer is feedback (`back`, step 9), so they can steer now.
 
-**Done when** the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question.
+**Done when** built alone: the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question. In the loop: your report and the pull request have the screenshots, the branch command, the try line and the faked parts, and your server is stopped.
 
 ## Code rules
 

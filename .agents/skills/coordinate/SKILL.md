@@ -34,7 +34,8 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
    - **Where:** cloud first when `[sessions] prefer = "cloud"` and the job can run there (`routing`, "Where a job runs").
    - **Whose account:** the profile has `[accounts]`? Find the account that owns this job (`routing`'s `references/accounts.md`). Not this session's? Don't run it here. Write a ready-to-paste prompt for that account's session, or a cloud session on it, as an ℹ️ FYI. Comment it on the issue once, label it `account:<key>`, and skip it on later sweeps until that session claims it.
 
-5. **Act when something reports back:** a finished agent, a new pull request, or a check result. Sweep the board every 10 minutes only as a safety net. A builder's report has a look (`build`, "Show it")? Pass it to the person now, so they can steer before the merge.
+5. **Act when something reports back:** a finished agent, a new pull request, or a check result. Sweep the board every 10 minutes only as a safety net. A builder's report has a look (`build`, "Show it": screenshots and the branch command)? Pass it to the person now and ask *"Anything you'd change?"*, so they can steer before the merge. An answer is feedback (`back`, step 9).
+   - **You own the person's dev server.** One server, in your own checkout, on the fixed port from "Commands that work here". It runs main, or the branch you're showing. Restart it after each merge, so the link stays live. Give the link only on the person's machine; in a cloud session, pass the screenshots and the command. Stop it at the end of the session and at `/afk`.
 
 6. **Check each pull request, in order. Stop at the first failure.**
    1. **CI** passes on the head commit. Then mark a draft ready (`gh pr ready <n>`).
@@ -52,7 +53,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 8. **After the merge,** main deploys to test. Start a fresh agent with "**Use the `qa` skill, smoke mode.**" If it fails, open a bug issue.
 
-9. **Record it.** For every merge, add one line to "To try" in `docs/state.md`: the pull request, the issue and its try line. Not on the test site yet? Add the local command: `git switch main && git pull`, then the dev command and its link. Add a board event: `node .agents/skills/coordinate/scripts/board.mjs event merged issue=<n> pr=<n> title="..."`.
+9. **Record it.** For every merge, add one line to "To try" in `docs/state.md`: the pull request, the issue and its try line. Restart your dev server on the new main. Not on the test site yet? Add the local link, or for someone on another machine the command: `git switch main && git pull`, then the dev command and its link. Ask *"Anything you'd change?"* with the try line. Add a board event: `node .agents/skills/coordinate/scripts/board.mjs event merged issue=<n> pr=<n> title="..."`.
 
 10. **End of sweep:**
     - render the board from the lists you already fetched;
