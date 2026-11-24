@@ -8,7 +8,7 @@ Mode: full | auto
 
 - Model and effort: <model> at <effort> (recommended: yes | no, and why)
 
-Every answer has a source: **person's answer**, **AI pick, approved at review** or **changed at review**.
+Every answer has a source, from the labels in `grill`'s "Keep the record": person, default, AI, AI pick, approved at review, or changed at review.
 
 ## Coverage map
 
@@ -46,17 +46,17 @@ About 10 questions per topic, fewer if answers come fast. Move on after three ro
 **Q1.** 
 **Recommended:** 
 **Answer:** 
-**Source:** person's answer
+**Source:** person
 
 **Q2.** 
 **Recommended:** 
 **Answer:** 
-**Source:** person's answer
+**Source:** person
 
 **Q3.** 
 **Recommended:** 
 **Answer:** 
-**Source:** person's answer
+**Source:** person
 
 ## Auto grill
 

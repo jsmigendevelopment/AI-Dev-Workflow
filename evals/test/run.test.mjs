@@ -7,6 +7,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { AUTO_GRILL_PLAN, REVIEWS, reviewPlan } from "./auto-grill-reviews.mjs";
 
 const KIT = JSON.parse(readFileSync(new URL("../../cli/package.json", import.meta.url), "utf8")).version;
 const KIT_RE = KIT.replaceAll(".", "\\.");
@@ -224,10 +225,7 @@ const SCENARIO_PLANS = {
     with: { steps: [{ text: "The wireframes aren't approved yet. Do you approve docs/wireframes/index.html, or what would you change?" }] },
     without: { steps: [{ write: "docs/stack.md", content: "# Stack\n" }, { write: "docs/architecture.md", content: "# Architecture\n" }, { text: "Done." }] },
   },
-  "auto-grill-door": {
-    with: { steps: [{ text: "One-way doors first. Each needs its own yes.\n\n1. Money and time: the draft stores amounts as float dollars. Floats lose cents, so I now pick integer cents with the currency.\nConfirm integer cents for money, or which one?\n\n| Topic | Pick | Alternatives | Reason |\n|---|---|---|---|\n| Theme | Both | Light; dark | Default |\n\nChange any row in plain words. 'Looks good' accepts the rest." }] },
-    without: { steps: [{ write: "kickoff/decisions.md", content: "# Decisions\n\nAll picks approved.\n" }, { text: "Here's your review: every pick, including money and time, is in one table.\n\n| Topic | Pick |\n|---|---|\n| Money and time | Dollars as a float number |\n| Theme | Both |\n\nLooks good on money and everything else?" }] },
-  },
+  "auto-grill-door": AUTO_GRILL_PLAN,
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },
     without: { steps: [{ tool: "Agent", input: { model: "opus", prompt: "Plan it" } }, { write: "docs/pyramid.md", content: "# Plan\n" }, { text: "Planned." }] },
@@ -247,4 +245,14 @@ test("every real scenario passes a good transcript and fails a bad one", { skip:
     assert.equal(s.verdict, "pass", s.name);
   }
   assert.equal(r.status, 0, r.stdout + r.stderr);
+});
+
+// AC-6 of #102: the reviewers' transcripts. Each bad one fails exactly its listed checks; each good one passes.
+test("auto-grill-door: buried or kept float picks fail, door-first reviews pass", { skip: skipWin }, () => {
+  for (const [name, { review, fails }] of Object.entries(REVIEWS)) {
+    const { run, resultsFile } = setup({ "auto-grill-door": { with: reviewPlan(review), without: { steps: [{ text: "x" }] } } });
+    run("--scenario", "auto-grill-door");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, fails, name);
+  }
 });

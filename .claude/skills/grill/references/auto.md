@@ -17,7 +17,7 @@ These four only the person can answer. Ask them in one round, open, with no sugg
 3. What is the one core thing it must do?
 4. Anything you never want in it?
 
-Log each with the source "person's answer". Ask nothing else before the review. A gap you'd normally ask about becomes a pick with two alternatives. A vague core gets one follow-up: the core is never defaulted.
+Log each with the source "person". Ask nothing else before the review. A gap you'd normally ask about becomes a pick with two alternatives. A vague core gets one follow-up: the core is never defaulted.
 
 **Done when** all four are answered and logged.
 
@@ -28,7 +28,7 @@ Go through every product topic in `grill`, in order, and every item on the floor
 - three options with their trade-offs, your pick and a one-line reason;
 - the seed answers rule options in or out. A profile or preset answer becomes the pick, and the reason says so;
 - the picks it depends on, in the "Depends on" column;
-- one row in the "Auto grill" table of `grill-log.md`, source "AI pick".
+- one row in the "Auto grill" table of `grill-log.md`, source "AI pick" until the review.
 
 **Pick the one-way doors too.** They cost the most to undo, so they get a row now even though `stack` writes them up later:
 
@@ -46,7 +46,7 @@ Each door's row also says what changing it later would cost. Check every pick ag
 - `wireframes` stage 1 for your picks, with two layouts of the core screen, A and B;
 - a shortlist of names (`name` step 2), checked against the competitor scan.
 
-Hold the screens and names for the review. Ask nothing about them before it: no per-screen "What would you change?" in auto mode.
+In auto mode, hold the screens and names for the review. Ask nothing about them before it: no per-screen "What would you change?".
 
 **Done when** every topic and floor item has a row with three options, a pick and a reason; the five doors have rows; stage 1 is drawn with two core layouts; and the name shortlist is checked.
 
@@ -54,13 +54,36 @@ Hold the screens and names for the review. Ask nothing about them before it: no 
 
 Before you show the review, check every one-way door against the seed answers and the conventions again, even when you resume from a drafted log. Fix a door that breaks one, and flag the fix in its block.
 
-One message, three groups, in this order. Every row from step 3 lands in exactly one group.
+Write the review to `kickoff/review.md` (`docs/review.md` once the repo exists) in this exact format, then show the same thing in chat. Three groups, in this order. Every row from step 3 lands in exactly one group.
 
-1. **One-way doors.** Numbered, one block each: the door in plain words, your pick, the two alternatives, the reason, and the cost of changing it later. Flag any pick you fixed in step 3. End each block with its own question: *"Confirm, or which one?"* "Looks good" never confirms a door. Each one needs its own yes.
-2. **Look and feel.** Wireframe layouts A and B side by side (the prototype's `#ids`), the feel, theme, density and voice picks, and the name shortlist with your pick.
-3. **Everything else, in one table:** Topic · Pick · Alternatives · Reason. Then: *"Change any row in plain words. 'Looks good' accepts the rest."*
+```markdown
+# Review
 
-**Done when** the person has answered every door on its own and replied on the table.
+### Door: <topic, e.g. money and time>
+Pick: <the pick only>
+Why: <the reason, and any fix you made in step 3>
+Alternatives: <the other two>
+Cost to change later: <what undoing it would take>
+Question: <a question about this door only, e.g. "Confirm integer cents, or which one?">
+
+(one block per one-way door)
+
+## Look and feel
+
+Wireframe layouts A and B side by side (the prototype's `#ids`), the feel, theme, density and voice picks, and the name shortlist with your pick.
+
+## Everything else
+
+| Topic | Pick | Alternatives | Reason |
+|---|---|---|---|
+
+Change any row in plain words. "Looks good" accepts the rest.
+```
+
+- **Doors never appear in the table** or under "Everything else".
+- **Each door's question is about that door alone.** "Looks good" and "accept all" never confirm a door. Each one needs its own yes.
+
+**Done when** `review.md` has a door block for each of the five doors, the person has answered every door on its own, and they've replied on the table.
 
 ## 5. Re-check what a change touches
 
@@ -70,8 +93,7 @@ When the person changes a pick, re-check every pick that depends on it (the "Dep
 
 ## 6. Record it
 
-- Set each row's source in `grill-log.md`: "AI pick, approved at review", "changed at review" or "person's answer".
-- Write each decision to `decisions.md`, origin "AI pick, approved at review", "changed at review" or "person".
+- Set each row's source in `grill-log.md`, and each decision's originator in `decisions.md`, from the labels in `grill`'s "Keep the record".
 - Tick the coverage map. Write "Look and feel" in `design.md`.
 - Then go back to `/idea`. The name is picked, so `name` starts at its step 3. Stage 2 of `wireframes` draws the picked layout with the agreed look. The wireframe approval gate (`/idea` step 6) still holds.
 

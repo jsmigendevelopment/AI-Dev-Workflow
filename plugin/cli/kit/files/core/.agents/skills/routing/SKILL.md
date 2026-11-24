@@ -44,7 +44,7 @@ Effort is a second dial on every model: **low**, **medium** or **high**. Some mo
 
 ## Auto grill
 
-Recommend a run from this table when the person picks auto grill. Ask before the strongest tier, as the rules say.
+Recommend a run from this table when the person picks auto grill. Ask before the strongest tier, as the rules say. The model names are the example setup (checked 2026-11). Map them to your own tiers.
 
 | | Claude | ChatGPT / Codex |
 |---|---|---|

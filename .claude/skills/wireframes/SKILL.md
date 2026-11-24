@@ -18,6 +18,8 @@ Before the repo exists, write to `kickoff/` instead of `docs/`. `name` moves it.
 
 At both stages, draw one screen at a time. When it's done, show it: open the prototype at its `#id` in a browser if you can, or give the full path (double-click it, or drag it into a browser). One line on what it is, then ask: *"What would you change?"* Start the next screen at once. Fold the answer into its screen while the next one draws. Never hold screens back for the whole set.
 
+Auto grill is the one exception: in auto mode, hold screens for the review (`grill`'s `references/auto.md`).
+
 ## The prototype
 
 One file, `docs/wireframes/index.html`. Stage 1 starts it; stage 2 details it.

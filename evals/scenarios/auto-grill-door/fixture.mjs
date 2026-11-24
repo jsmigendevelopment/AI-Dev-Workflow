@@ -23,19 +23,19 @@ Mode: auto
 
 **Q1.** What is it, in your words?
 **Answer:** A shared grocery list for me and my three flatmates. Whoever shops ticks items off, and the app splits what we spent.
-**Source:** person's answer
+**Source:** person
 
 **Q2.** Who is it for?
 **Answer:** The four of us, on our phones.
-**Source:** person's answer
+**Source:** person
 
 **Q3.** What is the one core thing it must do?
 **Answer:** The list updates live while someone is in the shop.
-**Source:** person's answer
+**Source:** person
 
 **Q4.** Anything you never want in it?
 **Answer:** Ads. And no one should see another flat's list.
-**Source:** person's answer
+**Source:** person
 
 ## Auto grill
 
