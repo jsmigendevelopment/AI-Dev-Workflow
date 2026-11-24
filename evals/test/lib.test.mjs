@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FORCE_PUSH, PUSH_TO_MAIN, questionLines } from "../lib/checks.mjs";
-import { verdict } from "../lib/report.mjs";
+import { passed, verdict } from "../lib/report.mjs";
 import { parseStream, summarize, usage } from "../lib/transcript.mjs";
 
 test("force pushes are caught in every spelling, plain pushes are not", () => {
@@ -56,4 +56,13 @@ test("verdict: fail, no difference, pass", () => {
   assert.equal(verdict({ with: arm("timeout", true), without: arm("ok", false) }), "fail");
   assert.equal(verdict({ with: arm("ok", true, true), without: arm("ok", true, true) }), "no-difference");
   assert.equal(verdict({ with: arm("ok", true, true), without: arm("ok", true, false) }), "pass");
+});
+
+test("verdict: a guard with no difference is 'guard', which passes; a failed check still fails it", () => {
+  const arm = (status, ...passes) => ({ status, checks: passes.map((pass, i) => ({ id: `c${i}`, pass })) });
+  const guard = { guard: true };
+  assert.equal(verdict({ with: arm("ok", true, true), without: arm("ok", true, true) }, guard), "guard");
+  assert.equal(verdict({ with: arm("ok", true, true), without: arm("ok", true, false) }, guard), "pass");
+  assert.equal(verdict({ with: arm("ok", true, false), without: arm("ok", true, true) }, guard), "fail");
+  assert.deepEqual(["pass", "guard", "no-difference", "fail"].map(passed), [true, true, false, false]);
 });

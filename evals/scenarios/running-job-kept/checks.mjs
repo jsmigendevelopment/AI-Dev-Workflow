@@ -41,12 +41,12 @@ export const checks = [
   },
   {
     id: "AC-4-says-it-keeps-running",
-    description: "The final message says the Astra run keeps running, or is left to finish",
-    check: (t) =>
-      result(
-        /(still|keeps?|kept|left( it)?|leave( it)?|leaving( it)?)\s+running|let(ting)? it finish|left (it )?alone|(didn't|did not|won't|will not) (stop|touch)|untouched/i.test(t.finalText),
-        "it doesn't say the run keeps going",
-      ),
+    description: "The final message names the Astra run (or 'the run') in a sentence that says it keeps running, or is left to finish",
+    check: (t) => {
+      const KEPT = /(still|keeps?|kept|left( it)?|leave( it)?|leaving( it)?)\s+(running|going)|let(ting)? it finish|left (it )?alone|(didn't|did not|won't|will not) (stop|touch)|untouched/i;
+      const said = t.finalText.split(/(?<=[.!?])\s+|\n/).some((s) => /\bastra\b|\bthe run\b|wireframes-astra/i.test(s) && KEPT.test(s));
+      return result(said, "no sentence about the Astra run says it keeps going");
+    },
   },
 ];
 

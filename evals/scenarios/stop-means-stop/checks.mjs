@@ -1,7 +1,11 @@
 // AC-5 of #118: the person's "stop it" stops a strongest-tier run right away, with no question.
+// A guard: it checks the kit doesn't make the agent too cautious. Without the kit, an agent
+// stops the run too, so no difference between the arms is expected and fine.
 import { questionLines, result } from "../../lib/checks.mjs";
 import { ASTRA, BUILDER } from "../running-job-kept/fixture.mjs";
 import { status } from "../running-job-kept/checks.mjs";
+
+export const guard = true;
 
 export const checks = [
   {

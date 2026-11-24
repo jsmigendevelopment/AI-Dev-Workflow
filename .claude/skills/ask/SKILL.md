@@ -44,8 +44,8 @@ Stopping a run throws away the work it already paid for. Restarting pays for it 
 
 - **A strongest-tier run** (the Strongest row in `routing`, or the profile's `strongest`, for example Fable or GPT-6.2 Astra): never stop, cancel or restart it on your own call, or because a message might mean stop. Everyday-tier runs and below may be stopped or restarted when that makes sense.
 - **"Don't start", "not yet", "just document it"** are about new work only. A run already going keeps going. Say what you will and won't do: "The Astra wireframe run keeps running. I'll write the plan and start nothing new."
-- **"Pause it", "stop it", "kill it", "cancel it"** from the person: stop it now, on any tier, with no question. Then say what stopped and where its partial output is.
-- **Could the message mean stop?** Touch nothing. Ask, as a ⏳ decision, and recommend letting it finish:
+- **A clear stop from the person, aimed at that run** ("pause it", "stop it", "kill it", "cancel it", "stop the Astra run"): stop it now, on any tier, with no question. Then say what stopped and where its partial output is. A "stop" inside a not-yet sentence ("stop, we're not doing Astra yet") isn't clear: that's the next case.
+- **Could the message mean stop a strongest-tier run?** Touch nothing. Ask, as a ⏳ decision, and recommend letting it finish:
 
   ```text
   Needs you · <project> · <the run> is still running
