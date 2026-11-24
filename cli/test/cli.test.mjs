@@ -63,3 +63,13 @@ test("accounts through the binary is read-only: it never offers to move the old 
   assert.doesNotMatch(r.stdout, /Move it to/);
   assert.match(run("--help").stdout, /accounts \[dir\]/);
 });
+
+test("signature through the binary reads its own value flags, and --help lists it", () => {
+  const home = tmp(), dir = tmp();
+  const env = { ...process.env, HOME: home, USERPROFILE: home };
+  put(dir, "docs/profile.toml", '[me.signature]\nname = "Ada Example"\nname_url = "https://example.com"\n');
+  const r = spawnSync(process.execPath, [CLI, "signature", "--style", "compact"], { encoding: "utf8", env, cwd: dir });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, '<p align="center">By <a href="https://example.com"><b>Ada Example</b></a></p>\n');
+  assert.match(run("--help").stdout, /signature \[--theme professional\|personal\]/);
+});

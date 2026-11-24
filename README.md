@@ -450,14 +450,19 @@ onRails stands on other people's ideas.
 
 ---
 
+<!-- onrails:signature start -->
 <p align="center">
-  <sub>Built and battle-tested by</sub><br><br>
-  <a href="https://me.jsmigen.dev"><b>✦ jay ✦</b></a><br>
-  <sub>Jay Smigen · software engineer · New Jersey</sub><br><br>
-  <a href="https://me.jsmigen.dev">me.jsmigen.dev</a> ·
-  <a href="https://jsmigen.dev">jsmigen.dev</a> ·
+  <a href="https://jsmigen.dev">
+    <img src="https://jsmigen.dev/brand/readme/professional-mark.svg" width="64" height="64" alt="JS Dev monogram">
+  </a><br>
+  Built by <a href="https://jsmigen.dev"><b>Jay Smigen</b></a><br>
+  <sub>JS Dev · Full-stack software engineer</sub><br><br>
+  <a href="https://jsmigen.dev">JS Dev</a> ·
+  <a href="https://me.jsmigen.dev">Portfolio</a> ·
+  <a href="https://jsmigen.dev/blog/">Build Log</a> ·
   <a href="https://www.linkedin.com/in/jayson-smigen/">LinkedIn</a> ·
-  <a href="https://github.com/Jay-Smi">GitHub</a>
+  <a href="https://github.com/jsmigendevelopment">GitHub</a>
   <br><br>
-  <sub>Made for the builders. Go ship something. ✌️</sub>
+  <sub>Build it right. Ship it.</sub>
 </p>
+<!-- onrails:signature end -->

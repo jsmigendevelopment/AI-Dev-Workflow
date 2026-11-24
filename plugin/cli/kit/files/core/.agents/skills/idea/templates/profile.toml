@@ -11,6 +11,28 @@ github_owner = ""               # account or organisation new repos go under
 github_plan = "free"            # free | team (decides what setup-github can turn on)
 naming_style = ""               # e.g. "one lowercase word + one capitalised word, festival themed"
 
+[me.signature]
+# The sign-off at the end of every README an agent writes: npx onrails signature --write README.md
+# It's public. Text holds only letters, numbers, emoji, single spaces and . , ! ? ' ’ - – : ; ( ) & +
+# URLs are plain https:// with a lowercase host: no port, query, fragment, % or &. A blank name means no signature.
+theme = "professional"          # professional | personal (personal applies [me.signature.personal] on top)
+style = "full"                  # full | compact (one line)
+name = ""                       # e.g. "Ada Example"
+name_url = ""                   # e.g. "https://example.com"
+display = ""                    # e.g. "Ada Dev", shown before the tagline
+tagline = ""                    # e.g. "Software engineer"
+mark_light = ""                 # e.g. "https://example.com/mark.svg", your logo or monogram
+mark_dark = ""                  # reserved for a future <picture> version (dark backgrounds); checked but not used yet
+mark_alt = ""                   # e.g. "Ada Dev monogram"
+mark_size = 64
+compact_mark_size = 20
+signoff = ""                    # e.g. "Build it right."
+compact_signoff = ""            # e.g. "Go build."
+links = []                      # e.g. [{ label = "Blog", url = "https://example.com/blog/" }], one per line is fine
+
+[me.signature.personal]
+# Any key above. A non-blank value here wins when the theme is personal.
+
 [defaults]
 repo_visibility = "private"     # private | public
 licence = "none"                # none | MIT | ...
