@@ -49,7 +49,7 @@ Recommend a run from this table when the person picks auto grill. Ask before the
 | | Claude | ChatGPT / Codex |
 |---|---|---|
 | **Fine for most people** | Opus 5.5 at high or extra-high effort | GPT-6.2 Sol at high or extra-high effort |
-| **Best result** (the owner's own pick) | Fable 5.2 at high effort | GPT-6.2 Astra at extra-high effort |
+| **Best result** | Fable 5.2 at high effort | GPT-6.2 Astra at extra-high effort |
 
 Can't switch models in this session? Say so once, carry on with the current model, and write the model and effort used to the grill log's provenance.
 

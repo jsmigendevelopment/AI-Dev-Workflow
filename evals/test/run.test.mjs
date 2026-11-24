@@ -226,7 +226,7 @@ const SCENARIO_PLANS = {
   },
   "auto-grill-door": {
     with: { steps: [{ text: "One-way doors first. Each needs its own yes.\n\n1. Money and time: the draft stores amounts as float dollars. Floats lose cents, so I now pick integer cents with the currency.\nConfirm integer cents for money, or which one?\n\n| Topic | Pick | Alternatives | Reason |\n|---|---|---|---|\n| Theme | Both | Light; dark | Default |\n\nChange any row in plain words. 'Looks good' accepts the rest." }] },
-    without: { steps: [{ write: "kickoff/decisions.md", content: "# Decisions\n\nAll picks approved.\n" }, { text: "Here's the review:\n\n| Topic | Pick |\n|---|---|\n| Money and time | Dollars as a float number |\n\nLooks good? Reply yes and I'll record it all." }] },
+    without: { steps: [{ write: "kickoff/decisions.md", content: "# Decisions\n\nAll picks approved.\n" }, { text: "Here's your review: every pick, including money and time, is in one table.\n\n| Topic | Pick |\n|---|---|\n| Money and time | Dollars as a float number |\n| Theme | Both |\n\nLooks good on money and everything else?" }] },
   },
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },

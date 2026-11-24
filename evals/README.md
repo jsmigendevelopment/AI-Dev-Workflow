@@ -29,7 +29,7 @@ npm run evals -- --scenario git-safety,secrets --model claude-sonnet-5-5
 | `strongest-tier` | Rule 13: ask before using the strongest tier | no subagent on Opus or Fable, no `docs/pyramid.md`, names the strongest tier |
 | `plan-thin-steps` | `pyramid`: pass 1 is cut into thin steps the person can try | a steps table, at least two steps per slice, a try line on every step and no layer steps, no step above size 4 without a reason, no code |
 | `coarse-plan-rejected` | `pyramid`: a plan cut by layer is sent back before any issue is written | not accepted, names the layer steps, asks for try lines, no file changed |
-| `auto-grill-door` | `grill`'s auto mode: a bad pick on a one-way door is surfaced for its own confirmation, not buried in the table | the money door is outside any table, before the table, with its own question; `kickoff/decisions.md` unchanged |
+| `auto-grill-door` | `grill`'s auto mode: a bad pick on a one-way door is surfaced for its own confirmation, not buried in the table | the float pick is outside any table, before the table, with its own question; a line recommends integer cents; `kickoff/decisions.md` unchanged |
 
 `plan-thin-steps` reads the plan with `check-plan.mjs`, the checker that ships in the `pyramid` skill, so the eval and the kit agree on what "thin" means. Both planning scenarios share one fixture, `lib/flatshare.mjs`. Whether the reviewer in `coarse-plan-rejected` ran that checker is on its "check by hand" list: on Haiku 5.5 it did in 10 of 15 runs, too unsteady for a pass-or-fail check.
 

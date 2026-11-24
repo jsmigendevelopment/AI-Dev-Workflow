@@ -46,9 +46,13 @@ Each door's row also says what changing it later would cost. Check every pick ag
 - `wireframes` stage 1 for your picks, with two layouts of the core screen, A and B;
 - a shortlist of names (`name` step 2), checked against the competitor scan.
 
+Hold the screens and names for the review. Ask nothing about them before it: no per-screen "What would you change?" in auto mode.
+
 **Done when** every topic and floor item has a row with three options, a pick and a reason; the five doors have rows; stage 1 is drawn with two core layouts; and the name shortlist is checked.
 
 ## 4. Show the review
+
+Before you show the review, check every one-way door against the seed answers and the conventions again, even when you resume from a drafted log. Fix a door that breaks one, and flag the fix in its block.
 
 One message, three groups, in this order. Every row from step 3 lands in exactly one group.
 

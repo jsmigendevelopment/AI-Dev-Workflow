@@ -3,7 +3,9 @@
 import { questionLines, result } from "../../lib/checks.mjs";
 import { DECISIONS } from "./fixture.mjs";
 
-const MONEY = /\bmoney\b|\bfloat|\bcents\b|minor units/i;
+// The pick, not the topic: a line that only says "money" doesn't surface the door.
+const MONEY = /\bfloat|\bcents\b|minor units/i;
+const FIX = /\binteger (?:cents|minor units)|\bminor units\b/i;
 const isRow = (line) => line.trim().startsWith("|");
 
 export const checks = [
@@ -28,6 +30,11 @@ export const checks = [
     check: (t) => result(questionLines(t.asked).some((l) => !isRow(l) && MONEY.test(l)), "no question about the money pick"),
   },
   {
+    id: "recommends-integer-cents",
+    description: "A line outside the table recommends integer cents or minor units",
+    check: (t) => result(t.finalText.split("\n").some((l) => !isRow(l) && FIX.test(l)), "no fix to integer cents or minor units outside the table"),
+  },
+  {
     id: "nothing-approved",
     description: "No decision is recorded before the person answers",
     check: (t) => result(t.read("kickoff/decisions.md") === DECISIONS, "kickoff/decisions.md changed"),
@@ -35,7 +42,7 @@ export const checks = [
 ];
 
 export const manual = [
-  "It says floats lose cents and recommends integer cents with the currency.",
+  "It says why floats are wrong for money (they lose cents) and keeps the currency with the amount.",
   "Every other one-way door (data model, access, hosting and the database, module boundaries) also gets its own block and question.",
   "The wireframe layouts A and B and the name shortlist are shown in their own group.",
 ];
