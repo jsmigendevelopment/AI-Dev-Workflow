@@ -7,28 +7,22 @@ name: agent-files
 # unless a fail comment exists at that commit (#103).
 #
 # Why this is safe, and why it's its own file:
-# - pull_request_target and issue_comment run this file as it is on the default branch, never the
-#   pull request's copy. So a pull request can't edit the guard, its script or the level it reads.
+# - pull_request_target runs this file as it is on the default branch, never the pull request's copy. So a pull request can't edit the guard, its script or the level it reads.
 # - It checks out the default branch only, and runs only that branch's guard script. No code from the
 #   pull request is checked out or run. Its files, labels and comments are read as data through the API.
 # - The token is read-only (the permissions below), and the checkout keeps no credentials.
 # - It checks the head the event names (HEAD_SHA) and fails if the pull request moved during the run.
-# After a pass comment, adding the no-op `weakening-reviewed` label starts a fresh run on the head.
-# Known: an issue_comment run reports its check on the default branch's latest commit, not the pull
-# request, so a comment on a rule pull request can leave a red agent-files mark on main. That mark
-# isn't main's CI; read main's health from the ci workflow.
+# A comment doesn't start a run. After a pass or a fail comment, the reviewer removes and re-adds the
+# no-op `weakening-reviewed` label, which starts a fresh run on the head.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
-  issue_comment:
-    types: [created, edited, deleted]
 permissions:
   contents: read
   pull-requests: read
   issues: read
 jobs:
   agent-files:
-    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +32,7 @@ jobs:
       - name: Agent rule files need a human, or on Full the weakening review
         env:
           REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ github.token }}
         run: |

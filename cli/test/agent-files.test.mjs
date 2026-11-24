@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GUARD_WORKFLOW, changedPaths, decide, level, verdictOf, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
+import { GUARD_WORKFLOW, changedPaths, decide, level, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
 import { addAgentFiles, requiredChecks } from "../../.agents/skills/name/scripts/required-checks.mjs";
 import { tmp } from "./helpers.mjs";
 
@@ -44,9 +44,11 @@ test("#103 AC-2: a rename counts both names: moving AGENTS.md or a hook out of a
   assert.match(r.why, /\.claude\/hooks\/x\.mjs/);
 });
 
-test("#103: the human-approved label passes on every level", () => {
+test("#103: the human-approved label passes on Recommended; on Full only when a writer added it", () => {
   assert.equal(decide({ changed: RULES, labels: ["human-approved"], stack: RECOMMENDED }).pass, true);
-  assert.equal(full([], { labels: ["human-approved"] }).pass, true);
+  assert.equal(full([], { labels: ["human-approved"], approvedBy: "owner" }).pass, true);
+  assert.equal(full([], { labels: ["human-approved"], approvedBy: "triager" }).pass, false, "a triage-role login can add labels");
+  assert.equal(full([], { labels: ["human-approved"], approvedBy: null }).pass, false, "nobody known added it");
 });
 
 test("#103: Recommended: a pass comment doesn't count; only the label does", () => {
@@ -71,7 +73,17 @@ test("#103 AC-2: Full: a pass at an older commit, a fail, or no comment fails an
 test("#103 AC-2: Full: a fail at the head sticks: a later or edited pass doesn't undo it", () => {
   assert.equal(full([PASS(HEAD, "owner", "2026-11-24T10:00:00Z"), FAIL(HEAD, "owner", "2026-11-24T11:00:00Z")]).pass, false);
   assert.equal(full([FAIL(HEAD, "owner", "2026-11-24T10:00:00Z"), PASS(HEAD, "owner", "2026-11-24T12:00:00Z")]).pass, false);
-  assert.match(full([FAIL(), PASS()]).why, /a fail sticks/);
+  assert.match(full([FAIL(), PASS()]).why, /A fail beats every pass/);
+});
+
+test("#103 AC-2: Full: a fail line with words after the sha still counts; a pass line must be exact", () => {
+  assert.equal(full([PASS(), say(`Weakening review: fail @ ${HEAD} (removed a test)`)]).pass, false);
+  assert.equal(verdictOf(`Weakening review: fail @ ${HEAD}: the budget went up`, HEAD), "fail");
+  assert.equal(verdictOf(`Weakening review: pass @ ${HEAD} (looks fine)`, HEAD), null);
+});
+
+test("#103: Full: a fail comment that was deleted, or edited to drop the fail line, no longer counts", () => {
+  assert.equal(full([PASS(), say("Weakening review: (withdrawn)")]).pass, true);
 });
 
 test("#103: Full: a fail at an older commit doesn't block a pass at the new head", () => {
@@ -147,18 +159,29 @@ test("#103 AC-2: verify-run: a check named agent-files from another workflow is 
   assert.match(r.why, /x\.yml/);
 });
 
-test("#103 AC-2: verify-run: no guard run, only an issue_comment run, a latest failure or one still running fails", () => {
+test("#103 AC-2: verify-run: no guard run, only another event's run, a latest failure or one still running fails", () => {
   for (const runs of [[], [run(1, { event: "issue_comment" })], [run(1), run(2, { conclusion: "failure" })], [run(1, { status: "in_progress", conclusion: null })]]) {
     assert.equal(verifyRuns(runs).pass, false, JSON.stringify(runs));
   }
 });
 
-test("the script: verify-run --runs exits 0 on a real green run and 1 on a second agent-files workflow", () => {
+test("#103 AC-2: verify-run: a fail posted after the green run blocks the merge", () => {
+  const green = [run(1)];
+  assert.equal(verifyMerge(green, full([PASS()])).pass, true);
+  const r = verifyMerge(green, full([PASS(HEAD, "owner", "2026-11-24T10:00:00Z"), FAIL(HEAD, "owner", "2026-11-24T11:00:00Z")]));
+  assert.equal(r.pass, false);
+  assert.match(r.why, /the guard fails now/);
+});
+
+test("the script: verify-run exits 0 on a real green run that still passes, 1 on a second workflow or a later fail", () => {
   const dir = tmp("onrails-verify-run-");
-  const file = (runs) => (writeFileSync(join(dir, "runs.json"), JSON.stringify(runs)), join(dir, "runs.json"));
-  const go = (runs) => spawnSync(process.execPath, [SCRIPT, "verify-run", "--runs", file(runs)], { encoding: "utf8" }).status;
-  assert.equal(go([run(1)]), 0);
-  assert.equal(go([run(1), run(2, { path: ".github/workflows/fake.yml", event: "pull_request" })]), 1);
+  const file = (name, data) => (writeFileSync(join(dir, name), typeof data === "string" ? data : JSON.stringify(data)), join(dir, name));
+  const live = (comments) => ["--files", file("files.json", [{ filename: "AGENTS.md" }]), "--stack", file("stack.md", FULL),
+    "--comments", file("comments.json", comments), "--head", HEAD, "--trusted", "owner"];
+  const go = (runs, comments) => spawnSync(process.execPath, [SCRIPT, "verify-run", "--runs", file("runs.json", runs), ...live(comments)], { encoding: "utf8" }).status;
+  assert.equal(go([run(1)], [PASS()]), 0);
+  assert.equal(go([run(1), run(2, { path: ".github/workflows/fake.yml", event: "pull_request" })], [PASS()]), 1);
+  assert.equal(go([run(1)], [PASS(), FAIL()]), 1, "a fail posted after the green run");
 });
 
 test("slice 0: agent-files is required only once its workflow is on the default branch", () => {
@@ -180,7 +203,7 @@ test("the guard has its own workflow: default-branch triggers, read-only token, 
   for (const p of WORKFLOWS) {
     const yml = read(p);
     assert.match(yml, /pull_request_target:\n\s+types: \[opened, synchronize, reopened, edited, labeled, unlabeled\]/, p);
-    assert.match(yml, /issue_comment:\n\s+types: \[created, edited, deleted\]/, p);
+    assert.doesNotMatch(yml, /issue_comment/, p);
     assert.match(yml, /permissions:\n\s+contents: read\n\s+pull-requests: read\n\s+issues: read\n/, p);
     assert.doesNotMatch(yml, /: write\b/, p);
     assert.match(yml, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}\n/, p);
