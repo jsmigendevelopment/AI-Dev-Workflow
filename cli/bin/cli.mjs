@@ -2,6 +2,7 @@
 // onrails: install and update the onRails kit in a project.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { accountsList } from "../src/accounts.mjs";
 import { addPack, listAddons, listPacks } from "../src/add.mjs";
 import { doctor } from "../src/doctor.mjs";
 import { doctorFix } from "../src/fix.mjs";
@@ -31,6 +32,7 @@ Usage:
   npx onrails doctor [dir]                check your tools and the kit
   npx onrails doctor [dir] --fix [--yes] [--dry-run]
                                           offer a fix for each problem, run it after a yes
+  npx onrails accounts [dir]              list the profile's accounts and their config folders
   npx onrails add <pack> [dir] [--force]  copy a stack pack into the project
   npx onrails add --list                  list the stack packs
   npx onrails add <pack> --list-addons    list a pack's optional add-ons
@@ -62,18 +64,20 @@ async function main(argv) {
   const yes = flags.has("--yes") || flags.has("-y");
   const ask = terminalAsk();
   try {
-    // doctor stays read-only: it reports the old folder, and doctor --fix offers the move.
-    if (COMMANDS.includes(command) && command !== "doctor") await offerHomeMove({ ask, yes });
+    // doctor and accounts stay read-only: doctor reports the old folder, and doctor --fix offers the move.
+    if (COMMANDS.includes(command) && !READ_ONLY.has(command)) await offerHomeMove({ ask, yes });
     return await run(command, args, flags, { ask, yes });
   } finally {
     ask.close();
   }
 }
 
-const COMMANDS = ["init", "update", "doctor", "profile", "add"];
+const COMMANDS = ["accounts", "init", "update", "doctor", "profile", "add"];
+const READ_ONLY = new Set(["doctor", "accounts"]);
 
 async function run(command, args, flags, { ask, yes }) {
   switch (command) {
+    case "accounts": return accountsList(args[0]);
     case "init":
       if (flags.has("--global")) return initGlobal();
       if (flags.has("--start") && flags.has("--no-start")) return fail("Use --start or --no-start, not both.");

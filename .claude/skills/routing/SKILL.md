@@ -1,6 +1,6 @@
 ---
 name: routing
-description: Use when choosing which model, provider and effort level runs a job ("which model should do this", "what effort", "route this issue") - planning, grilling, research, design, writing issues, building, reviewing, security review, coordinating, browser checks and art. One table maps each job to a tier and an effort, starts low, and escalates one step only after a verified failure.
+description: Use when choosing which model, provider and effort level runs a job ("which model should do this", "what effort", "route this issue", "which account runs this") - planning, grilling, research, design, writing issues, building, reviewing, security review, coordinating, browser checks and art. One table maps each job to a tier and an effort, starts low, and escalates one step only after a verified failure. Another table says where each job runs, cloud first; accounts are a fixed split by job or project, never by usage.
 ---
 
 # Routing: the right brain for each job
@@ -39,6 +39,22 @@ Effort is a second dial on every model: **low**, **medium** or **high**.
 | Security review (`pr-security`), risky lane only | Everyday, one step above the code reviewer. Add a second-opinion reviewer when the change touches personal data or money. |
 | Acceptance and browser checks (`qa`) | Everyday · low |
 
+## Where a job runs
+
+Cloud first: `[sessions] prefer = "cloud"` in the profile. Unattended work runs in a cloud session. Work that needs this machine runs here. The job names are the ones `[accounts]` uses.
+
+| Job | What it covers | Runs |
+|---|---|---|
+| `live` | the thread you talk to, the grill | where you are |
+| `cto` | the pyramid, re-plans, schema, API, wireframes | cloud |
+| `research` | `research`, the competitor scan | cloud |
+| `build` | one builder per issue | cloud. Local when it needs a simulator, a device, a signed-in browser, local files or hardware. |
+| `review` | `pr-review`, `pr-security`, `qa` before merge | cloud. Local for "my own browser" checks. |
+| `evals` | behaviour tests of the skills | cloud or CI |
+| `overnight` | the `/afk` loop | cloud |
+
+`prefer = "local"`, or no cloud sessions in your tool? Everything runs here.
+
 ## Rules
 
 - **Ask before using the strongest tier.** It's the most expensive and the most limited. Say which job you'd send to it and why, and start only on a yes. Skip the question only if `docs/profile.toml` sets `ask_before_strongest = false`, or the person already said yes to that job in this session.
@@ -46,5 +62,11 @@ Effort is a second dial on every model: **low**, **medium** or **high**.
 - **Spend the strongest model on thinking, not typing.** It designs. Cheaper models write the issues and the code from its design.
 - **Change what reviewers see before you change how hard they think.** Hide the PR description, and give them a written policy and the check results. Extra effort found no more bugs in testing.
 - **Buy what you'd rather not review.** Use an auth provider instead of reviewing hand-made auth.
-- **More than one account? Give each its own job,** for example builders on one and your live thread on the other. **Don't move work to another account because one hit its limit.** Providers can treat that as account rotation, and losing the account you build with stops everything. Read your plan's terms before running unattended agents.
+- **Accounts are a fixed plan set by the person. Never move or spread work between subscription accounts because of usage limits.** Each account owns its projects and jobs (`[accounts]` in the profile). At a limit, that account's work waits for the reset, with an ℹ️ FYI and the reset time. Providers' terms can treat moving work as account rotation, and losing the account you build with stops everything. A job for another account gets a ready-to-paste prompt, not a run here. See `references/accounts.md`.
 - **Re-check this table when models change.** Routing that was right last month may not be right now.
+
+## References
+
+| File | Load when |
+|---|---|
+| `references/accounts.md` | Onboarding asks about other accounts, a job belongs to another account, or an account hits its limit. |

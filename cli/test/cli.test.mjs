@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
-import { exists, tmp } from "./helpers.mjs";
+import { exists, put, tmp } from "./helpers.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
@@ -51,4 +51,15 @@ test("profile and doctor --fix through the binary, with a temp home and piped an
   assert.ok(dry.status === 0 || dry.status === 1, dry.stderr);
   assert.match(dry.stdout, /Fix plan \(dry run|Nothing doctor can fix/);
   assert.equal(run("profile", "nope").status, 2);
+});
+
+test("accounts through the binary is read-only: it never offers to move the old home folder", () => {
+  const home = tmp();
+  const env = { ...process.env, HOME: home, USERPROFILE: home };
+  put(home, ".ai-dev-workflow/profile.toml", '[accounts.work]\nlabel = "Work"\ntool = "claude"\nconfig_dir = "~/.claude-work"\n');
+  const r = spawnSync(process.execPath, [CLI, "accounts", tmp()], { encoding: "utf8", env, input: "" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^work: Work · claude · ~\/\.claude-work \(folder not found\)$/m);
+  assert.doesNotMatch(r.stdout, /Move it to/);
+  assert.match(run("--help").stdout, /accounts \[dir\]/);
 });

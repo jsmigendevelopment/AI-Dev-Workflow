@@ -1,6 +1,7 @@
 // Every doctor check, as data: { status, label, fix, required, remedy }.
 // fix is the one-line hint; remedy is what doctor --fix offers:
 //   { run: [argv...], cwd, print: [lines], action: { describe, run() } }
+import { accountChecks } from "./accounts.mjs";
 import { globalSkillChecks } from "./global.mjs";
 import { homeChecks } from "./home.mjs";
 import { agentInstallLines, installPlan, pnpmPlan } from "./installers.mjs";
@@ -48,6 +49,7 @@ export function runChecks(projectDir, { kitDir, sys = realSystem() } = {}) {
   checks.push(...globalSkillChecks({ kitDir, home: sys.home }));
   checks.push(...pluginChecks({ home: sys.home, env: sys.env, kitVersion: kitVersionFor(projectDir, kitDir) }));
   checks.push(...projectChecks(projectDir, { kitDir, sys }));
+  checks.push(...accountChecks(projectDir, { home: sys.home }));
   return checks;
 }
 
