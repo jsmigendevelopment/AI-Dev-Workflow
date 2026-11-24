@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GUARD_WORKFLOW, changedPaths, decide, level, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
+import { GUARD_WORKFLOW, changedPaths, decide, level, submodules, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
 import { addAgentFiles, requiredChecks } from "../../.agents/skills/name/scripts/required-checks.mjs";
 import { tmp } from "./helpers.mjs";
 
@@ -79,6 +79,38 @@ test("#103: protected names ignore case, and the agent instruction files count a
   for (const path of ["src/agents-notes.md", "docs/claude-tips.md", "AGENTS.md.bak", "docs/stack.mdx", "src/claude/x.ts"]) {
     assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, true, path);
   }
+});
+
+test("#103: nested .agents/, .claude/ and .codex/ folders are protected; .github/ and docs/stack.md only at the root", () => {
+  for (const path of ["apps/web/.claude/skills/x/SKILL.md", "pkg/.agents/skills/x/SKILL.md", "sub/.codex/config.toml", "apps/web/.Claude/settings.json", "a/b/.codex"]) {
+    assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, false, path);
+  }
+  for (const path of ["apps/web/.github/notes.md", "apps/web/docs/stack.md", "src/my.claude/x.ts", "pkg/.agentsrc"]) {
+    assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, true, path);
+  }
+});
+
+test("#103: a .gitmodules change and any submodule entry are protected", () => {
+  assert.equal(decide({ changed: [".gitmodules"], stack: RECOMMENDED }).pass, false);
+  assert.equal(decide({ changed: ["vendor/.gitmodules"], stack: RECOMMENDED }).pass, false);
+  const files = [
+    { filename: "vendor/kit", status: "added", patch: "@@ -0,0 +1 @@\n+Subproject commit " + "c".repeat(40) },
+    { filename: "vendor/other", mode: "160000" },
+    { filename: "src/app.ts", patch: "@@ -1 +1 @@\n-a\n+b" },
+  ];
+  assert.deepEqual(submodules(files), ["vendor/kit", "vendor/other"]);
+  const r = decide({ changed: changedPaths(files), modules: submodules(files), stack: RECOMMENDED });
+  assert.equal(r.pass, false);
+  assert.match(r.why, /vendor\/kit \(a submodule\)/);
+  assert.equal(decide({ changed: ["src/app.ts"], modules: [], stack: RECOMMENDED }).pass, true);
+});
+
+test("the script: a submodule in --files fails without a label", () => {
+  const dir = tmp("onrails-agent-files-sub-");
+  writeFileSync(join(dir, "files.json"), JSON.stringify([{ filename: "vendor/kit", patch: "+Subproject commit " + "d".repeat(40) }]));
+  const r = spawnSync(process.execPath, [SCRIPT, "--files", join(dir, "files.json")], { encoding: "utf8" });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /vendor\/kit \(a submodule\)/);
 });
 
 test("#103: Recommended: a pass comment doesn't count; only the label does", () => {
@@ -246,6 +278,9 @@ test("the guard has its own workflow: default-branch triggers, read-only token, 
     assert.match(yml, /grep -iE '/, p);
     assert.match(yml, /\\\.codex/, p);
     assert.match(yml, /AGENTS\(\\\.override\)\?\|CLAUDE\(\\\.local\)\?\|GEMINI/, p);
+    assert.match(yml, /\(\^\|\/\)\(\\\.agents\|\\\.claude\|\\\.codex\)\(\/\|\$\)\|\^\\\.github\(\/\|\$\)/, p);
+    assert.match(yml, /\\\.gitmodules\$/, p);
+    assert.match(yml, /Subproject commit/, p);
     assert.match(yml, /node "\$guard" --pr "\$PR"\n\s+exit \$\?/, p);
     assert.match(yml, /^ {2}agent-files:$/m, p);
   }

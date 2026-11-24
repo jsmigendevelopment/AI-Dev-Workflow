@@ -24,7 +24,7 @@ Each one is parked, not waited on. Record it under "Waiting on you" in `docs/sta
 
 ## The weakening review (#103)
 
-A pull request that changes the agents' rules, check code or the level (`AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `CLAUDE.local.md` and `GEMINI.md` at any depth, `.agents/`, `.claude/`, `.codex/`, `.github/`, `docs/stack.md`, in any case) gets no `needs-human` label on Full. It gets one more fresh review instead.
+A pull request that changes the agents' rules, check code or the level (`AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `CLAUDE.local.md`, `GEMINI.md`, `.agents/`, `.claude/`, `.codex/` and `.gitmodules` at any depth, `.github/` and `docs/stack.md` at the root, and any submodule, in any case) gets no `needs-human` label on Full. It gets one more fresh review instead.
 
 1. Start a fresh agent: *"Use the `pr-review` skill as the weakening review of pull request <n> at <sha>."* It reads only the diff and the issue, and answers one question: **does this weaken, skip or delete any check or rule?** For example, a removed or loosened test, a raised budget, a lint rule turned off, a hook removed, or an `eslint-disable` or `skip` with no issue number.
 2. **No:** it comments exactly `Weakening review: pass @ <full head sha>` on the pull request, then removes and re-adds the no-op label `weakening-reviewed`. A comment starts no run; the label starts a fresh `agent-files` run on the head.

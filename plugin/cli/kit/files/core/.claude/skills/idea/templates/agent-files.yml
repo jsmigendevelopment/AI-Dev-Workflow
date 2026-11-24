@@ -1,8 +1,9 @@
 # Copy to .github/workflows/agent-files.yml, next to ci.yml. A stack pack ships it already.
 name: agent-files
 # The agent-file guard: a pull request that changes the agents' rules, check code or the automation
-# level (AGENTS.md, AGENTS.override.md, CLAUDE.md, CLAUDE.local.md, GEMINI.md at any depth, .agents/,
-# .claude/, .codex/, .github/, docs/stack.md, in any case) needs the `human-approved` label. On Full
+# level (AGENTS.md, AGENTS.override.md, CLAUDE.md, CLAUDE.local.md, GEMINI.md, .agents/, .claude/,
+# .codex/ and .gitmodules at any depth; .github/ and docs/stack.md at the root; any submodule; in any
+# case) needs the `human-approved` label. On Full
 # automation (docs/stack.md on the default branch) the label doesn't count: only a
 # "Weakening review: pass @ <head sha>" comment from someone with write access does. On every level, a
 # writer's fail comment at the head refuses (#103).
@@ -45,12 +46,13 @@ jobs:
           # No guard script on the default branch yet: the label rule only. Renames count both names.
           total=$(gh api "repos/$REPO/pulls/$PR" --jq '.changed_files')
           files=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[] | .filename, (.previous_filename // empty)')
+          modules=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[] | select((.patch // "") | test("[-+]Subproject commit [0-9a-f]")) | .filename')
           listed=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' | wc -l)
           if [ "$total" -gt 3000 ] || [ "$total" -gt "$listed" ]; then
             echo "The pull request changes $total files and the API listed $listed. Split it."
             exit 1
           fi
-          changed=$(printf '%s\n' "$files" | grep -iE '^(\.agents|\.claude|\.codex|\.github)(/|$)|^docs/stack\.md$|(^|/)(AGENTS(\.override)?|CLAUDE(\.local)?|GEMINI)\.md$' || true)
+          changed=$( { printf '%s\n' "$files" | grep -iE '(^|/)(\.agents|\.claude|\.codex)(/|$)|^\.github(/|$)|^docs/stack\.md$|(^|/)(AGENTS(\.override)?|CLAUDE(\.local)?|GEMINI)\.md$|(^|/)\.gitmodules$'; printf '%s\n' "$modules"; } | grep . || true)
           labels=$(gh api --paginate "repos/$REPO/issues/$PR/labels" --jq '.[].name')
           if [ -n "$changed" ] && ! printf '%s\n' "$labels" | grep -qx 'human-approved'; then
             echo "Files that change the agents' rules need the human-approved label."

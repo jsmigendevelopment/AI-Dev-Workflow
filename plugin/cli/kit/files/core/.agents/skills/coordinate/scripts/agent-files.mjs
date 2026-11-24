@@ -24,8 +24,12 @@ import { fileURLToPath } from "node:url";
 
 /** Paths that change the agents' rules, the checks, or the automation level the guard reads. */
 // Any case: a case-insensitive checkout (macOS, Windows) puts `.Claude/x` in `.claude/` and opens
-// `Claude.md` as CLAUDE.md. The agent instruction files count at any depth.
-export const RULE_FILES = /^(?:\.agents|\.claude|\.codex|\.github)(?:\/|$)|^docs\/stack\.md$|(?:^|\/)(?:AGENTS(?:\.override)?|CLAUDE(?:\.local)?|GEMINI)\.md$/i;
+// `Claude.md` as CLAUDE.md. The agent folders and instruction files count at any depth (an app in a
+// subfolder loads its own); `.github/` and docs/stack.md only at the root, where GitHub and the guard read
+// them. `.gitmodules` counts too: a submodule can bring in any of these.
+export const RULE_FILES = /(?:^|\/)(?:\.agents|\.claude|\.codex)(?:\/|$)|^\.github(?:\/|$)|^docs\/stack\.md$|(?:^|\/)(?:AGENTS(?:\.override)?|CLAUDE(?:\.local)?|GEMINI)\.md$|(?:^|\/)\.gitmodules$/i;
+// A submodule entry in the API's file list: its patch is a "Subproject commit <sha>" line.
+const SUBPROJECT = /^[-+]Subproject commit [0-9a-f]{40}/m;
 export const GUARD_WORKFLOW = ".github/workflows/agent-files.yml";
 // GitHub's pull request file list stops at 3000 files.
 export const MAX_FILES = 3000;
@@ -41,6 +45,9 @@ export const level = (stack = "") => stack.match(/\*\*Level:\*\*\s*`?([a-z-]+)/i
 
 /** Every path a pull request touches, from the API's file list: a rename counts both names. */
 export const changedPaths = (files) => files.flatMap((f) => [f.filename, f.previous_filename].filter(Boolean));
+
+/** Submodule entries (git mode 160000) in the API's file list: every one is protected, whatever its path. */
+export const submodules = (files) => files.filter((f) => f.mode === "160000" || SUBPROJECT.test(f.patch ?? "")).map((f) => f.filename);
 
 /** The verdicts a comment gives at this commit: a Set of "pass" and "fail". */
 const verdictsIn = (body = "", head) => new Set([
@@ -61,14 +68,14 @@ export function headVerdict(comments, head, trusted) {
 }
 
 /** Pass or fail, and why. */
-export function decide({ changed = [], labels = [], stack = "", comments = [], head = "", trusted = new Set(), expected = null, total = null }) {
+export function decide({ changed = [], labels = [], stack = "", comments = [], head = "", trusted = new Set(), expected = null, total = null, modules = [] }) {
   if (expected && head && expected !== head) return { pass: false, why: `The pull request's head moved from ${expected} to ${head}. The run for the new head decides.` };
   if (total !== null && (total > MAX_FILES || total > changed.length)) {
     return { pass: false, why: `The pull request changes ${total} files, and the API listed ${changed.length} (it stops at ${MAX_FILES}). The guard can't see them all, so it fails. Split the pull request.` };
   }
   const odd = changed.filter((p) => CONTROL.test(p));
   if (odd.length) return { pass: false, why: `A file name has a control character or a line break: ${odd.map((p) => JSON.stringify(p)).join(", ")}. Rename it.` };
-  const rules = [...new Set(changed.filter((p) => RULE_FILES.test(p)))];
+  const rules = [...new Set([...changed.filter((p) => RULE_FILES.test(p)), ...modules.map((p) => `${p} (a submodule)`)])];
   if (!rules.length) return { pass: true, why: "no agent rule, check or level files changed" };
   const full = level(stack) === "full";
   const verdict = headVerdict(comments, head, trusted);
@@ -134,12 +141,14 @@ function defaultStack(repo) {
 function fromApi(repo, pr, expected, stackText) {
   const pull = JSON.parse(gh(`repos/${repo}/pulls/${pr}`));
   const head = pull.head.sha;
-  const changed = changedPaths(pages(`repos/${repo}/pulls/${pr}/files`));
+  const files = pages(`repos/${repo}/pulls/${pr}/files`);
+  const changed = changedPaths(files);
+  const modules = submodules(files);
   const stack = stackText ?? (existsSync("docs/stack.md") ? readFileSync("docs/stack.md", "utf8") : "");
-  const comments = changed.some((p) => RULE_FILES.test(p)) ? pages(`repos/${repo}/issues/${pr}/comments`) : [];
+  const comments = modules.length || changed.some((p) => RULE_FILES.test(p)) ? pages(`repos/${repo}/issues/${pr}/comments`) : [];
   const labels = pages(`repos/${repo}/issues/${pr}/labels`).map((l) => l.name);
   const voters = [...new Set(comments.filter((c) => verdictOf(c.body, head)).map((c) => c.user?.login).filter(Boolean))];
-  return { changed, stack, comments, head, labels, trusted: writers(repo, voters), expected: expected || null, total: pull.changed_files };
+  return { changed, modules, stack, comments, head, labels, trusted: writers(repo, voters), expected: expected || null, total: pull.changed_files };
 }
 
 /** The head's agent-files check runs, each with the workflow file and event that made it. */
@@ -156,8 +165,10 @@ function fromFlags(argv) {
   const flag = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
   const read = (name, fallback) => (flag(name) ? readFileSync(flag(name), "utf8") : fallback);
   const list = (name) => (flag(name) ?? "").split(",").filter(Boolean);
+  const files = JSON.parse(read("--files", "[]"));
   return {
-    changed: changedPaths(JSON.parse(read("--files", "[]"))),
+    changed: changedPaths(files),
+    modules: submodules(files),
     stack: read("--stack", ""),
     comments: JSON.parse(read("--comments", "[]")),
     labels: list("--labels"),
