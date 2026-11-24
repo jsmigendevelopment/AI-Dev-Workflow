@@ -22,17 +22,25 @@ const CONTROL = /[\u0000-\u001f\u007f]/;
 // so nothing can decode into something other than what was checked, and none needs encoding.
 const LABEL = "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
 const PLAIN_URL = new RegExp(`^https://${LABEL}(\\.${LABEL})+(/[A-Za-z0-9._~/-]*)?$`);
-// What text may hold: letters, marks, numbers, emoji, single spaces and this punctuation. Everything
+// What text may hold, after NFC: letters, numbers, emoji, single spaces and this punctuation. Everything
 // else (@, #, <, *, [, /, ...) could start Markdown, HTML or a link, so it's refused, not escaped.
-// An emoji may carry a skin tone and join others (👩‍💻), but a joiner or skin tone alone is refused.
+// No combining mark is left after NFC except in an emoji: a variation selector or skin tone on one,
+// a joiner between two (👩‍💻), a digit keycap (1️⃣), a regional-indicator pair (🇺🇸), or the black flag
+// with a subdivision tag (two letters, one to four letters or digits, the cancel tag).
 const EMOJI = "\\p{Extended_Pictographic}\\uFE0F?\\p{Emoji_Modifier}?";
-const TEXT_CHAR = new RegExp(`[\\p{L}\\p{M}\\p{N} .,!?'’\\-–:;()&+]|${EMOJI}(?:\\u200D${EMOJI})*`, "gu");
+const FLAG = "[\\u{1F1E6}-\\u{1F1FF}]{2}|\\u{1F3F4}[\\u{E0061}-\\u{E007A}]{2}[\\u{E0030}-\\u{E0039}\\u{E0061}-\\u{E007A}]{1,4}\\u{E007F}";
+const KEYCAP = "[0-9]\\uFE0F?\\u20E3";
+const TEXT_CHAR = new RegExp(`${FLAG}|${KEYCAP}|[\\p{L}\\p{N} .,!?'’\\-–:;()&+]|${EMOJI}(?:\\u200D${EMOJI})*`, "gu");
 const TEXT_ALLOWED = "letters, numbers, emoji, single spaces and . , ! ? ' ’ - – : ; ( ) & +";
+// Letters and marks that render blank, so a value can hide a character from whoever reads it.
+const INVISIBLE = /[͏ᅟᅠ᠋-᠏⠀ㅤﾠ]/u;
 // GitHub autolinks these even in allowed text. A colon before a space or the end ("Note:") is fine.
 const BARE_URL = /[a-z][a-z0-9+.-]*:(?!\s|$)|www\./i;
-// Fuzzy linkifiers (markdown-it's, which some npm renderers have used) also link a bare "evil.com",
-// so a word, a full stop and two letters is refused. "Ship it. Now" and "2.0" stay text.
-const BARE_DOMAIN = /[\p{L}\p{N}-]+\.\p{L}{2,}/u;
+// Checked with markdown-it 14.1.0 and linkify on: it links "evil.com", "evil️.com", "🔥.ws" and
+// "1️⃣.com", but not text inside a link. So text refuses a full stop between two characters (Node.js
+// too), and a link label, always inside a link, may hold one.
+const TIGHT_STOP = /\S\.\S/u;
+const hex = (char) => `U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}`;
 
 // The checks for one string value, by what the value is for.
 function valueProblems(name, text, kind) {
@@ -44,16 +52,25 @@ function valueProblems(name, text, kind) {
     if (text && !PLAIN_URL.test(text)) found.push(`${name} must be a plain https:// URL: a lowercase host and a path, no port, query, fragment, %, & or @. Not "${text}".`);
     return found;
   }
-  const bad = text.replace(TEXT_CHAR, "");
-  if (bad) found.push(`${name} holds ${JSON.stringify([...bad][0])}. Text may hold only ${TEXT_ALLOWED}.`);
+  const [bad] = text.replace(TEXT_CHAR, "");
+  if (bad && /\p{M}/u.test(bad)) found.push(`${name} holds a combining mark (${hex(bad)}) that isn't part of a letter or an emoji. Type the letter itself.`);
+  else if (bad) found.push(`${name} holds ${JSON.stringify(bad)}. Text may hold only ${TEXT_ALLOWED}.`);
+  const invisible = INVISIBLE.exec(text)?.[0];
+  if (invisible) found.push(`${name} holds an invisible character (${hex(invisible)}). Take it out.`);
   if (/^ | $| {2}/.test(text)) found.push(`${name} has a leading, trailing or double space.`);
   if (BARE_URL.test(text)) found.push(`${name} holds a URL or a "scheme:" (${BARE_URL.exec(text)[0]}). Put links in links, not in text.`);
-  const domain = BARE_DOMAIN.exec(text)?.[0];
-  if (domain) found.push(`${name} holds what looks like a domain (${domain}). Put links in links, or put a space after the full stop.`);
+  const stop = kind === "label" ? null : TIGHT_STOP.exec(text)?.[0];
+  if (stop) found.push(`${name} holds a full stop between two characters (${JSON.stringify(stop)}), which reads as a domain. Put a space after it, drop it, or put the name in a link label.`);
   return found;
 }
 
 const isPlainTable = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+// Every string in NFC, so a decomposed "é" is one letter and a mark left over stands out.
+const nfc = (value) => {
+  if (typeof value === "string") return value.normalize("NFC");
+  if (Array.isArray(value)) return value.map(nfc);
+  return isPlainTable(value) ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, nfc(v)])) : value;
+};
 
 // links must be a list of { label = "..", url = ".." } tables, each a pair of strings.
 function linkProblems(where, links) {
@@ -67,7 +84,7 @@ function linkProblems(where, links) {
     for (const key of ["label", "url"]) {
       if (typeof link[key] !== "string") found.push(`${at}.${key} must be a "string".`);
       else if (!link[key]) found.push(`${at}.${key} is empty.`);
-      else found.push(...valueProblems(`${at}.${key}`, link[key], key === "url" ? "url" : "text"));
+      else found.push(...valueProblems(`${at}.${key}`, link[key], key));
     }
     return found;
   });
@@ -178,6 +195,15 @@ function markdown(v, style) {
   return blocks.filter(Boolean).join("\n\n");
 }
 
+// Every block this profile renders (each theme, style and mode), so --write can tell an older block
+// with no sha256 that it wrote.
+function renders(parsed) {
+  return CHOICES.theme.flatMap((theme) => {
+    const { v, found } = settle(parsed, theme);
+    return found.length ? [] : [full(v), compact(v), markdown(v, "full"), markdown(v, "compact")];
+  });
+}
+
 // { theme, style, markdown, write } from the flags, or the reason they're wrong.
 function parseArgs(argv) {
   const opts = { markdown: false };
@@ -218,6 +244,7 @@ export function signature(argv, { dir = ".", home = homedir(), log = console.log
       + "fill in name, name_url, the mark and links, then run: npx onrails signature");
     return NO_SIGNATURE;
   }
+  found.parsed = nfc(found.parsed);
   const typeProblems = problems(found.parsed);
   const { v, found: settleProblems } = typeProblems.length ? { found: [] } : settle(found.parsed, opts.theme);
   const all = [...typeProblems, ...settleProblems];
@@ -227,7 +254,7 @@ export function signature(argv, { dir = ".", home = homedir(), log = console.log
   }
   const style = opts.style ?? v.style;
   const block = opts.markdown ? markdown(v, style) : style === "compact" ? compact(v) : full(v);
-  if (opts.write) return writeSignature(opts.write, block, { dir, log, error, from: found.path });
+  if (opts.write) return writeSignature(opts.write, block, { dir, log, error, from: found.path, known: renders(found.parsed) });
   log(block);
   return 0;
 }

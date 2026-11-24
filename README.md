@@ -432,4 +432,4 @@ Report security problems privately. [SECURITY.md](SECURITY.md)
   <br><br>
   <sub>Build it right. Ship it.</sub>
 </p>
-<!-- onrails:signature end -->
+<!-- onrails:signature end sha256=60f1ea1f381e9b6d2458a0cc4cd15e943393915d1873455b8d009d0cf06cc8c8 -->

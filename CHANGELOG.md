@@ -6,7 +6,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Changed
 
-- **Signature follow-ups (#93).** `signature --write` refuses unless the text between the markers is a block it writes (or blank), so a quoted marker can't make it delete text. With no markers, it trims only spaces, tabs and line breaks from the end. Text refuses bare domains such as `evil.com`, which some Markdown renderers link. Skin-tone and joined emoji (👍🏽, 👩‍💻) are allowed; a lone joiner or skin tone is still refused. The TOML reader refuses a key set twice in a link's `{ }` table. The template says what text may hold.
+- **Signature follow-ups (#93).** `signature --write` now writes the end marker as `<!-- onrails:signature end sha256=<hex> -->`, the sha256 of the block. A later run replaces the block only when that hash matches, or, for an older block with no hash, when the block equals a render of the current profile (any theme, style or mode). Anything else is refused, so a quoted marker or a hand edit is never deleted. With no markers, it trims only spaces, tabs and line breaks from the end. Text is normalized to NFC, and any combining mark left over is refused, apart from the parts of an emoji. Invisible fillers (U+034F, U+115F, U+1160, U+180B to U+180F, U+2800, U+3164, U+FFA0) are refused. Skin-tone, joined, keycap and flag emoji are allowed, and a lone piece is refused. The TOML reader refuses a key set twice in a link's `{ }` table.
+- **What npm's renderer was checked against (#93).** markdown-it 14.1.0 with `linkify` on links bare domains in text (`evil.com`, and `evil️.com`, `🔥.ws` and `1️⃣.com` too), but not text inside a link. So signature text refuses a full stop with a character on both sides (`Node.js` and `2.0` too), and a link label may hold one. npm's own renderer wasn't fetched.
 
 ## [0.5.3] - 2026-11-24
 
