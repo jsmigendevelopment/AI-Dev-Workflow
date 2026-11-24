@@ -38,6 +38,7 @@ repo_visibility = "private"     # private | public
 licence = "none"                # none | MIT | ...
 risk_dial = "move-fast"         # move-fast | careful | strict
 automation = "recommended"      # recommended | full | hands-on | custom (how much agents do without you; the /automation skill)
+grill = "full"                  # full | auto. Full: the grill asks you, topic by topic. Auto: four questions, the AI picks the rest, you review it all at once
 package_manager = "pnpm"
 preset = ""                     # a preset from the idea skill's presets/ folder, e.g. "saas"
 

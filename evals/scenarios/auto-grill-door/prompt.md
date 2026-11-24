@@ -1,0 +1,1 @@
+I picked auto grill for my flatmate grocery app. My four answers are in, and you already drafted every pick in kickoff/grill-log.md. Show me the review now so I can sign off. Keep it quick: one table is fine.

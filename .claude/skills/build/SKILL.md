@@ -51,18 +51,18 @@ The person steers by looking. Show each visible step as soon as it renders, on t
 3. **Give the person a way to look.**
    - **On their machine:** the link, the page to open and the try line. "The app runs at http://localhost:3000. Open /list: the seeded items show."
    - **In a cloud session** (Claude Code sets `CLAUDE_CODE_REMOTE=true`) **or in the loop,** give both:
-     - four screenshots with Playwright's Chromium. Run `pnpm exec playwright install chromium` first if it's missing. For each of `light` and `dark`:
-       - desktop: `pnpm exec playwright screenshot --viewport-size=1280,800 --color-scheme=light <url> desktop-light.png`;
-       - phone: `pnpm exec playwright screenshot --viewport-size=390,844 --color-scheme=light <url> phone-light.png`;
+     - four screenshots with Playwright's Chromium, written outside the checkout so `git add -A` never picks them up. Run `pnpm exec playwright install chromium` first if it's missing. `S=${TMPDIR:-/tmp}/shots-<n>`, then for each of `light` and `dark`:
+       - desktop: `pnpm exec playwright screenshot --viewport-size=1280,800 --color-scheme=light <url> $S/desktop-light.png`;
+       - phone: `pnpm exec playwright screenshot --viewport-size=390,844 --color-scheme=light <url> $S/phone-light.png`;
      - the command for their machine: `git fetch && git switch <branch>`, then `pnpm install && pnpm dev`, and the link.
-   - **Get the screenshots to the person** once the pull request exists (step 12). Never put them on the pull request's branch or on main:
-     1. `git worktree add --orphan -b screenshots/pr-<n> ../shots-<n>`. The branch exists already? `git fetch origin screenshots/pr-<n>` and `git worktree add ../shots-<n> screenshots/pr-<n>`, then add a commit on top.
-     2. Copy the PNGs there, commit, and `git -C ../shots-<n> push origin screenshots/pr-<n>`. Remove the worktree.
-     3. Post one comment on the pull request with each image: `![desktop light](https://github.com/<owner>/<repo>/blob/screenshots/pr-<n>/desktop-light.png?raw=true)`. Put the same links in your report.
+   - **Get the screenshots to the person** once the pull request exists (step 12). They go on their own branch `B`: `screenshots/pr-<n>`, or `screenshots/<your branch>` when there's no pull request (Hands-on). Never on the pull request's branch or on main. `W=${TMPDIR:-/tmp}/shots-<n>-git`:
+     1. `git ls-remote --exit-code origin refs/heads/B` exits 0 (a rerun)? `git fetch origin B:B`, then `git worktree add $W B`, and add a commit on top. Otherwise make it new: `git worktree add --orphan -b B $W`. Git older than 2.42: `git worktree add --detach $W && git -C $W switch --orphan B`.
+     2. `cp $S/*.png $W/`, commit there, `git -C $W push origin B`, then `git worktree remove $W`.
+     3. Post one comment on the pull request with each image: `![desktop light](https://github.com/<owner>/<repo>/blob/B/desktop-light.png?raw=true)`. Put the same links in your report. No pull request? Put the links and `https://github.com/<owner>/<repo>/tree/B` in your report.
    - **A preview or the test site exists?** Link it too.
 4. **Ask what to change:** "Anything you'd change?" An answer is feedback (`back`, step 9), so they can steer now.
 
-**Done when** built alone: the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question. In the loop: the screenshots are on `screenshots/pr-<n>`, the pull request has one comment with their links, your report has the links, the branch command, the try line and the faked parts, and your server is stopped.
+**Done when** built alone: the person has the link (or the screenshots and the command), the page, the try line, the list of faked parts and the question. In the loop: the screenshots are on `screenshots/pr-<n>`, the pull request has one comment with their links, nothing new is untracked in your checkout, your report has the links, the branch command, the try line and the faked parts, and your server is stopped.
 
 ## Code rules
 

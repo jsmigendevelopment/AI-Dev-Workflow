@@ -1,9 +1,10 @@
 // build and pyramid: slice 0 shows the running app, with its link, before any CI work (#99).
 import { result } from "../../lib/checks.mjs";
 
-// A command that runs a dev server: at the start of the command, or after ; && || |, the package
-// manager then `dev` or `run dev` (npm start, node server.mjs too). `grep "npm run dev" README.md` doesn't count.
-const DEV = /(^\s*|[;&|]\s*)((pnpm|yarn)\s+((-C|--filter|--dir)\s+\S+\s+)?(run\s+)?dev\b|npm\s+(run\s+dev|start)\b|node\s+(\.\/)?server\.mjs\b)/m;
+// A command that runs a dev server: at the start of the command, or after ; && || | or (, with any
+// `nohup`, `timeout N` or VAR=value in front, the package manager then `dev` or `run dev` (npm start and
+// node server.mjs too). A trailing & is fine. `grep "npm run dev" README.md` doesn't count.
+const DEV = /(^|[;&|(])\s*(nohup\s+|timeout\s+\S+\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*((pnpm|yarn)\s+((-C|--filter|--dir)\s+\S+\s+)?(run\s+)?dev\b|npm\s+(run\s+dev|start)\b|node\s+(\.\/)?server\.mjs\b)/m;
 const LINK = /(localhost|127\.0\.0\.1):3000/;
 // A file written into .github/workflows: a redirect, tee or cp aimed there. Reads (`ls ... 2>/dev/null`) and mkdir don't count.
 const CI_WRITE = />>?\s*["']?\S*\.github\/workflows\/|\btee\s+(-a\s+)?["']?\S*\.github\/workflows\/|\bcp\b[^\n;&|]*\s["']?\S*\.github\/workflows\/?\S*(?=\s*($|[;&|]))/;
