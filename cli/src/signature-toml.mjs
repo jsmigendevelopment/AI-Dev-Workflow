@@ -91,15 +91,47 @@ function scan(line) {
   return { text: line, depth };
 }
 
+const TABLES = { "me.signature": "base", "me.signature.personal": "personal" };
+const label = (table) => (table === "personal" ? "[me.signature.personal]" : "[me.signature]");
+
+// How many single-letter edits turn a into b.
+function distance(a, b) {
+  let row = [...Array(b.length + 1).keys()];
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    row = next;
+  }
+  return row[b.length];
+}
+
+function unknownKey(table, key) {
+  const [best] = KEYS.map((k) => [distance(key.replace(/"/g, ""), k), k]).sort((x, y) => x[0] - y[0]);
+  const hint = best[0] <= 3 ? ` Did you mean ${best[1]}?` : "";
+  return new Error(`${label(table)} ${key}: not a signature key.${hint} The keys are: ${KEYS.join(", ")}.`);
+}
+
+// A table header: which signature table it opens (null for any other), or an error for a shape we don't read.
+function header(line, seen) {
+  const [, open, name = ""] = /^(\[\[?)\s*([^\]]*?)\s*\]\]?$/.exec(line) ?? [];
+  if (name !== "me.signature" && !name.startsWith("me.signature.")) return { table: null, name };
+  if (open === "[[") throw new Error(`[[${name}]] isn't supported: write links = [{ label = "..", url = ".." }, ...] in [me.signature].`);
+  const table = TABLES[name];
+  if (!table) throw new Error(`[${name}] isn't a signature table: use [me.signature] or [me.signature.personal].`);
+  if (seen.has(table)) throw new Error(`${label(table)} appears twice. Keep one.`);
+  seen.add(table);
+  return { table, name };
+}
+
 /** { base, personal } from [me.signature] and [me.signature.personal], or null without [me.signature]. */
 export function parseSignature(toml) {
-  const tables = {};
-  let current = null, pending = null;
+  const tables = {}, seen = new Set();
+  let current = null, tableName = "", pending = null;
   const finish = () => {
     try {
       tables[pending.table][pending.key] = readWhole(pending.text);
     } catch (error) {
-      throw new Error(`${pending.table === "personal" ? "[me.signature.personal]" : "[me.signature]"} ${pending.key}: ${error.message}`);
+      throw new Error(`${label(pending.table)} ${pending.key}: ${error.message}`);
     }
     pending = null;
   };
@@ -113,17 +145,27 @@ export function parseSignature(toml) {
       continue;
     }
     if (!line) continue;
-    const table = /^\[\s*([A-Za-z0-9_.-]+)\s*\]$/.exec(line)?.[1];
     if (line.startsWith("[")) {
-      current = table === "me.signature" ? "base" : table === "me.signature.personal" ? "personal" : null;
-      if (current) tables[current] ??= {};
+      ({ table: current, name: tableName } = header(line, seen));
+      if (current) tables[current] = {};
       continue;
     }
-    const pair = current && /^([a-z_]+)\s*=\s*(.*)$/.exec(line);
-    if (!pair || !KEYS.includes(pair[1])) continue;
-    pending = { table: current, key: pair[1], text: pair[2], depth };
+    const pair = /^([^=]+?)\s*=\s*(.*)$/.exec(line);
+    const key = pair?.[1] ?? "";
+    if (!current) {
+      // [me] signature.name = .. or me.signature.name = .. at the top: valid TOML we'd silently miss.
+      if (/^me\s*\.\s*signature\s*(\.|$)/.test(`${tableName ? `${tableName}.` : ""}${key}`.replace(/"/g, ""))) {
+        throw new Error(`${key}: dotted signature keys aren't supported. Put them under a [me.signature] table.`);
+      }
+      continue;
+    }
+    if (!pair) throw new Error(`${label(current)}: can't read "${line.slice(0, 30)}". Each line is key = value.`);
+    if (/[.\s]/.test(key)) throw new Error(`${label(current)} ${key}: dotted keys aren't supported. Use one plain key per line.`);
+    if (!KEYS.includes(key)) throw unknownKey(current, key);
+    if (key in tables[current]) throw new Error(`${label(current)} ${key}: set twice. Keep one.`);
+    pending = { table: current, key, text: pair[2], depth };
     if (depth <= 0) finish();
   }
-  if (pending) throw new Error(`[me.signature] ${pending.key}: missing a closing bracket`);
+  if (pending) throw new Error(`${label(pending.table)} ${pending.key}: missing a closing bracket`);
   return tables.base ? { base: tables.base, personal: tables.personal ?? {} } : null;
 }

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { signature } from "../src/signature.mjs";
-import { parseSignature } from "../src/signature-toml.mjs";
+import { KEYS, parseSignature } from "../src/signature-toml.mjs";
 import { TEMPLATE } from "../src/profile.mjs";
 import { exists, logger, put, read, tmp } from "./helpers.mjs";
 
@@ -193,12 +193,12 @@ test("AC-4: WHEN a marker is quoted inline THEN it is left alone, and the text o
 test("AC-6: WHEN --markdown is given THEN Markdown specials in values are escaped, so a label can't make its own link", () => {
   const profile = PROFILE.replace('label = "Blog"', 'label = "x](evil) [y"')
     .replace('name = "Ada Example"', 'name = "*Ada* _Ex_ `code` \\\\ <b> ![i]"')
-    .replace('url = "https://github.com/example"', 'url = "https://example.com/a (b)"');
+    .replace('url = "https://github.com/example"', 'url = "https://example.com/a(b)"');
   const { code, out } = run(["--markdown"], profile);
   assert.equal(code, 0);
   assert.match(out, /\[x\\\]\\\(evil\\\) \\\[y\]\(https:\/\/example\.com\/blog\/\)/);
   assert.match(out, /\*\*\[\\\*Ada\\\* \\_Ex\\_ \\`code\\` \\\\ \\<b> \\!\\\[i\\\]\]\(https:\/\/example\.com\)\*\*/);
-  assert.match(out, /\(https:\/\/example\.com\/a%20%28b%29\)/);
+  assert.match(out, /\(https:\/\/example\.com\/a%28b%29\)/);
   assert.doesNotMatch(out, /\]\(evil/, "the label made no link of its own");
 });
 
@@ -291,8 +291,7 @@ test("the profile template's [me.signature] is blank, so it counts as not set up
   const template = readFileSync(new URL(`../../${TEMPLATE}`, import.meta.url), "utf8");
   const parsed = parseSignature(template);
   assert.ok(parsed, "the template has a [me.signature] table");
-  for (const key of ["theme", "style", "name", "name_url", "display", "tagline", "mark_light", "mark_dark", "mark_alt",
-    "mark_size", "compact_mark_size", "signoff", "compact_signoff", "links"]) assert.ok(key in parsed.base, key);
+  assert.deepEqual(Object.keys(parsed.base).sort(), [...KEYS].sort(), "the template has every key, and only those");
   assert.equal(parsed.base.name, "");
   assert.deepEqual(parsed.base.links, []);
   assert.doesNotMatch(template, /jsmigen|Jay/i, "no real person in the public template");
@@ -329,4 +328,104 @@ test("bad flags are refused", () => {
   assert.equal(run(["--style"]).code, 2);
   assert.equal(run(["--write"]).code, 2);
   assert.equal(run(["--nope"]).code, 2);
+});
+
+// Runs a profile in HTML, compact and Markdown; each must refuse it with 1, print nothing and match the message.
+function refusedEverywhere(profile, message) {
+  for (const mode of [[], ["--style", "compact"], ["--markdown"]]) {
+    const { code, out, err } = run(mode, profile);
+    assert.equal(code, 1, `${message} ${mode.join(" ")}`);
+    assert.equal(out, "", "nothing printed");
+    assert.match(err, message);
+  }
+}
+
+test("AC-5: WHEN a key has the wrong type THEN it is refused with 1 in every mode", () => {
+  const swap = (from, to) => PROFILE.replace(from, to);
+  const garden = 'links = [{ label = "Garden", url = "https://garden.example.com" }]';
+  const cases = [
+    [swap('name_url = "https://example.com"', 'name_url = ["http://evil.example"]'), /name_url must be a "string"/],
+    [swap('url = "https://github.com/example"', 'url = ["http://evil.example"]'), /links\[2\]\.url must be a "string"/],
+    [swap('name = "Ada Example"', 'name = ["ada@evil.example"]'), /^ {2}name must be a "string"/m],
+    [swap('url = "https://github.com/example"', "url = 42"), /links\[2\]\.url must be a "string"/],
+    [swap('mark_light = "https://example.com/mark.svg"', "mark_light = true"), /mark_light must be a "string", not true/],
+    [swap('name_url = "https://example.com"', 'name_url = { a = "x" }'), /name_url must be a "string"/],
+    [swap('label = "Blog"', "label = 5"), /links\[1\]\.label must be a "string"/],
+    [swap("mark_size = 64", "mark_size = 0"), /mark_size must be a whole number from 1 to 512, not 0/],
+    [swap("mark_size = 64", "mark_size = 513"), /mark_size must be a whole number from 1 to 512, not 513/],
+    [swap("compact_mark_size = 20", 'compact_mark_size = "20"'), /compact_mark_size must be a whole number/],
+    [swap('theme = "professional"', 'theme = "loud"'), /theme is professional or personal, not "loud"/],
+    [swap('style = "full"', "style = 3"), /style must be a "string", not 3/],
+    [swap(garden, 'links = "https://example.com"'), /personal\.links must be a list/],
+    [swap(garden, "links = [1]"), /personal\.links\[0\] must be a \{ label/],
+    [swap(garden, 'links = [{ label = "G", url = "https://e.example", rel = "x" }]'), /personal\.links\[0\] has rel: a link has only label and url/],
+  ];
+  for (const [profile, message] of cases) refusedEverywhere(profile, message);
+});
+
+test("AC-5: WHEN text holds an @ before anything but a space, or an email with any TLD, THEN it is refused", () => {
+  refusedEverywhere(PROFILE.replace('tagline = "Software engineer"', 'tagline = "ada@evil.c0m"'), /tagline holds an email address/);
+  refusedEverywhere(PROFILE.replace('signoff = "Build it right."', 'signoff = "ping @ada"'), /signoff holds an email address, an @/);
+  refusedEverywhere(PROFILE.replace('url = "https://github.com/example"', 'url = "https://x.example/ada@evil.c0m"'), /links\[2\]\.url holds an email/);
+  const ok = run(["--markdown"], PROFILE.replace('tagline = "Software engineer"', 'tagline = "Q and A @ noon"'));
+  assert.equal(ok.code, 0, ok.err);
+  assert.match(ok.out, /Q and A @ noon/);
+});
+
+test("AC-5: WHEN a URL holds any whitespace THEN it is refused, not encoded", () => {
+  for (const space of [" ", "\\u00a0", "\\u2028"]) {
+    refusedEverywhere(PROFILE.replace('url = "https://github.com/example"', `url = "https://example.com/a${space}b"`), /links\[2\]\.url holds a space/);
+  }
+});
+
+test("AC-6: WHEN --markdown values start a line with block syntax THEN it is escaped", () => {
+  const cases = [["# big", "\\# big"], ["> q", "\\> q"], ["- x", "\\- x"], ["+ x", "\\+ x"], ["= x", "\\= x"], ["| x", "\\| x"],
+    ["1. x", "1\\. x"], ["2) x", "2\\) x"]];
+  for (const [signoff, want] of cases) {
+    const { code, out } = run(["--markdown"], PROFILE.replace('signoff = "Build it right."', `signoff = "${signoff}"`));
+    assert.equal(code, 0, signoff);
+    assert.equal(out.split("\n").at(-1), want);
+  }
+  const { out } = run(["--markdown"], PROFILE.replace('display = "Ada Dev"', 'display = "---"'));
+  assert.match(out, /\*\* {2}\n\\--- · Software engineer\n/, "no setext heading");
+});
+
+test("AC-4: WHEN a marker pair is indented THEN it is ignored: a 4-space code block, or a fence nested in a list", () => {
+  const start = "<!-- onrails:signature start -->", end = "<!-- onrails:signature end -->";
+  const texts = [
+    `# T\n\nExample:\n\n    ${start}\n    your signature\n    ${end}\n`,
+    `# T\n\n- Step one:\n\n    \`\`\`md\n    ${start}\n    your signature\n    ${end}\n    \`\`\`\n`,
+  ];
+  for (const text of texts) {
+    const dir = tmp();
+    put(dir, "README.md", text);
+    assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
+    assert.equal(read(dir, "README.md"), `${text}\n---\n\n${start}\n${FULL}\n${end}\n`, "the indented example is kept");
+  }
+});
+
+test("AC-4: WHEN a line of backticks has a backtick in its info string THEN it doesn't open a fence", () => {
+  const start = "<!-- onrails:signature start -->", end = "<!-- onrails:signature end -->";
+  const text = `# T\n\n\`\`\` a\`b\n\n${start}\nold\n${end}\n`;
+  const dir = tmp();
+  put(dir, "README.md", text);
+  assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
+  assert.equal(read(dir, "README.md"), `# T\n\n\`\`\` a\`b\n\n${start}\n${FULL}\n${end}\n`, "the real markers are replaced");
+});
+
+test("the TOML reader refuses unknown, dotted and duplicate keys and [[me.signature.links]], with 1", () => {
+  const cases = [
+    [PROFILE.replace('tagline = "Software engineer"', 'taglne = "Software engineer"'), /\[me\.signature\] taglne: not a signature key\. Did you mean tagline\?/],
+    [PROFILE.replace('[me]\nname = "Ada"', '[me]\nname = "Ada"\nsignature.name = "Ada"'), /signature\.name: dotted signature keys aren't supported/],
+    [`me.signature.name = "Ada"\n${PROFILE}`, /me\.signature\.name: dotted signature keys aren't supported/],
+    [PROFILE.replace('display = "Ada Dev"', "mark.size = 3"), /\[me\.signature\] mark\.size: dotted keys aren't supported/],
+    [PROFILE.replace('display = "Ada Dev"', 'display = "Ada Dev"\ndisplay = "Again"'), /\[me\.signature\] display: set twice/],
+    [`${PROFILE}\n[[me.signature.links]]\nlabel = "x"\nurl = "https://example.com"\n`, /\[\[me\.signature\.links\]\] isn't supported/],
+    [`${PROFILE}\n[me.signature.work]\nname = "x"\n`, /\[me\.signature\.work\] isn't a signature table/],
+  ];
+  for (const [profile, message] of cases) {
+    const { code, err } = run([], profile);
+    assert.equal(code, 1, String(message));
+    assert.match(err, message);
+  }
 });

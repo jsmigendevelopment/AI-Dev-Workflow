@@ -1,7 +1,7 @@
 // signature [--theme ..] [--style ..] [--markdown] [--write <file>]: the owner's README signature,
-// built from [me.signature] in the profile. It's public and lands in Markdown, so emails, control
-// characters, bare URLs in text and non-https links are refused, and every value is escaped.
-// --write keeps exactly one block, between the markers.
+// built from [me.signature] in the profile. It's public and lands in Markdown, so every value is
+// type-checked, emails, control characters, bare URLs in text and non-https links are refused,
+// and every value is escaped. --write keeps exactly one block, between the markers.
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -9,17 +9,18 @@ import { writeFile } from "./files.mjs";
 import { profilePath } from "./profile.mjs";
 import { parseSignature } from "./signature-toml.mjs";
 
-export { parseSignature };
-
 const URL_KEYS = ["name_url", "mark_light", "mark_dark"];
 const TEXT_KEYS = ["name", "display", "tagline", "signoff", "compact_signoff", "mark_alt"];
-const THEMES = ["professional", "personal"];
-const STYLES = ["full", "compact"];
+const SIZE_KEYS = ["mark_size", "compact_mark_size"];
+const MAX_SIZE = 512;
+const CHOICES = { theme: ["professional", "personal"], style: ["full", "compact"] };
 const DEFAULTS = { theme: "professional", style: "full", mark_size: 64, compact_mark_size: 20, links: [] };
 const START = "<!-- onrails:signature start -->";
 const END = "<!-- onrails:signature end -->";
 const NO_SIGNATURE = 3; // its own code, so name and join skip quietly on it and report every other failure
-const EMAIL = /mailto:|[^\s@<>"'()/]+@[^\s@<>"'()/]+\.[a-z]{2,}/i;
+const EMAIL = /mailto:|[^\s@<>"'()/]+@[^\s@<>"'()/]+\.[^\s@<>"'()/]+/i;
+// In text, any @ that isn't before a space could be an email GitHub autolinks, whatever the TLD.
+const TEXT_AT = /@(?!\s)/;
 // A newline ends an HTML block in Markdown, so the rest of a value would render as Markdown.
 const CONTROL = /[\u0000-\u001f\u007f]/;
 // GitHub autolinks these in text, escaped or not, which would add links the guards never saw.
@@ -28,32 +29,53 @@ const BARE_URL = /[a-z][a-z0-9+.-]*:(?!\s|$)|www\.|\/\//i;
 
 // The checks for one string value, by what the value is for.
 function valueProblems(name, text, kind) {
-  if (typeof text !== "string") return [];
   const found = [];
-  if (EMAIL.test(text)) found.push(`${name} holds an email address or a mailto: link. The signature is public: take it out.`);
+  if (EMAIL.test(text) || (kind === "text" && TEXT_AT.test(text))) {
+    found.push(`${name} holds an email address, an @ or a mailto: link. The signature is public: take it out.`);
+  }
   if (CONTROL.test(text)) found.push(`${name} holds a control character (a newline, tab or similar). Keep it on one line.`);
-  if (kind === "url" && text && !EMAIL.test(text) && !isHttps(text)) found.push(`${name} must be an absolute https:// URL, not "${text}".`);
+  if (kind === "url" && /\s/.test(text)) found.push(`${name} holds a space. URLs have none.`);
+  else if (kind === "url" && text && !EMAIL.test(text) && !isHttps(text)) found.push(`${name} must be an absolute https:// URL, not "${text}".`);
   if (kind === "text" && BARE_URL.test(text)) found.push(`${name} holds a URL or a "scheme:" (${BARE_URL.exec(text)[0]}). Put links in links, not in text.`);
   return found;
+}
+
+const isPlainTable = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+
+// links must be a list of { label = "..", url = ".." } tables, each a pair of strings.
+function linkProblems(where, links) {
+  if (!Array.isArray(links)) return [`${where} must be a list: [{ label = "..", url = ".." }, ...].`];
+  return links.flatMap((link, n) => {
+    const at = `${where}[${n}]`;
+    if (!isPlainTable(link)) return [`${at} must be a { label = "..", url = ".." } table.`];
+    const extra = Object.keys(link).filter((k) => k !== "label" && k !== "url");
+    if (extra.length) return [`${at} has ${extra.join(", ")}: a link has only label and url.`];
+    const found = [];
+    for (const key of ["label", "url"]) {
+      if (typeof link[key] !== "string") found.push(`${at}.${key} must be a "string".`);
+      else if (!link[key]) found.push(`${at}.${key} is empty.`);
+      else found.push(...valueProblems(`${at}.${key}`, link[key], key === "url" ? "url" : "text"));
+    }
+    return found;
+  });
+}
+
+// One key's type and value. Nothing reaches the output unchecked.
+function keyProblems(where, key, value) {
+  if (key === "links") return linkProblems(where, value);
+  if (SIZE_KEYS.includes(key)) {
+    return Number.isInteger(value) && value >= 1 && value <= MAX_SIZE ? [] : [`${where} must be a whole number from 1 to ${MAX_SIZE}, not ${JSON.stringify(value)}.`];
+  }
+  if (typeof value !== "string") return [`${where} must be a "string", not ${JSON.stringify(value)}.`];
+  if (key in CHOICES) return value === "" || CHOICES[key].includes(value) ? [] : [`${where} is ${CHOICES[key].join(" or ")}, not "${value}".`];
+  return valueProblems(where, value, URL_KEYS.includes(key) ? "url" : "text");
 }
 
 // Every problem in both tables, so a bad value is caught whichever theme is asked for.
 function problems({ base, personal }) {
   const found = [];
   for (const [prefix, table] of [["", base], ["personal.", personal]]) {
-    for (const [key, value] of Object.entries(table)) {
-      const where = `${prefix}${key}`;
-      if (key !== "links") {
-        const kind = URL_KEYS.includes(key) ? "url" : TEXT_KEYS.includes(key) ? "text" : "other";
-        found.push(...valueProblems(where, value, kind));
-        continue;
-      }
-      (Array.isArray(value) ? value : [value]).forEach((link, n) => {
-        found.push(...valueProblems(`${where}[${n}].label`, link?.label, "text"));
-        found.push(...valueProblems(`${where}[${n}].url`, link?.url, "url"));
-        if (!link?.url) found.push(`${where}[${n}].url is empty.`);
-      });
-    }
+    for (const [key, value] of Object.entries(table)) found.push(...keyProblems(`${prefix}${key}`, key, value));
   }
   return found;
 }
@@ -82,30 +104,27 @@ function readSignature(dir, home) {
 }
 
 // The base table, with the personal table's non-blank keys on top when the theme is personal.
+// Runs after problems(), so every value already has its type.
 function settle({ base, personal }, theme) {
   const want = theme ?? (base.theme || DEFAULTS.theme);
   const blank = (v) => v === "" || (Array.isArray(v) && !v.length);
   const over = want === "personal" ? Object.fromEntries(Object.entries(personal).filter(([, v]) => !blank(v))) : {};
   const v = { ...DEFAULTS, ...Object.fromEntries(Object.entries(base).filter(([, x]) => !blank(x))), ...over, theme: want };
   const found = [];
-  if (!THEMES.includes(v.theme)) found.push(`theme is professional or personal, not "${v.theme}".`);
-  if (!STYLES.includes(v.style)) found.push(`style is full or compact, not "${v.style}".`);
   if (!v.name_url) found.push("name_url is empty: the name links to it.");
   if (v.mark_light && !v.mark_alt) found.push("mark_alt is empty: every image needs alt text.");
-  for (const key of ["mark_size", "compact_mark_size"]) {
-    if (!Number.isInteger(v[key]) || v[key] < 1) found.push(`${key} must be a whole number of pixels, not "${v[key]}".`);
-  }
-  if (!Array.isArray(v.links)) found.push("links must be a list of { label, url }.");
   return { v, found };
 }
 
-const esc = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const esc = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const a = (url, html) => `<a href="${esc(url)}">${html}</a>`;
 const img = (v, size) => `<img src="${esc(v.mark_light)}" width="${size}" height="${size}" alt="${esc(v.mark_alt)}">`;
 // Markdown text with every character that could open a link, image, emphasis or HTML escaped.
-const mdText = (text) => String(text).replace(/&/g, "&amp;").replace(/[\\[\]()*_`<!]/g, "\\$&");
-// A URL that can't end the link early: spaces, brackets and quotes percent-encoded.
-const mdUrl = (url) => String(url).replace(/[\s()<>"'\\`]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`);
+const mdText = (text) => text.replace(/&/g, "&amp;").replace(/[\\[\]()*_`<!]/g, "\\$&");
+// Text that starts a Markdown line: a heading, quote, list, table or setext line would break the layout.
+const mdLine = (text) => mdText(text).replace(/^([#>\-+=|])/, "\\$1").replace(/^(\d+)([.)])/, "$1\\$2");
+// A URL that can't end the link early: brackets, quotes and backslashes percent-encoded (spaces are refused).
+const mdUrl = (url) => url.replace(/[()<>"'\\`]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 const md = (url, text) => `[${mdText(text)}](${mdUrl(url)})`;
 const subline = (v, escape = esc) => [v.display, v.tagline].filter(Boolean).map(escape).join(" · ");
 
@@ -148,35 +167,37 @@ function markdown(v, style) {
     const signoff = v.compact_signoff || v.signoff;
     return [mark, [`By ${name}`, links, signoff && mdText(signoff)].filter(Boolean).join(" · ")].filter(Boolean).join(" ");
   }
-  const sub = subline(v, mdText);
-  const blocks = [mark, `Built by ${name}${sub ? `  \n${sub}` : ""}`, links, v.signoff && mdText(v.signoff)];
+  // The display line and the signoff each start a line, so their first character is escaped too.
+  const sub = [v.display && mdLine(v.display), v.tagline && (v.display ? mdText(v.tagline) : mdLine(v.tagline))].filter(Boolean).join(" · ");
+  const blocks = [mark, `Built by ${name}${sub ? `  \n${sub}` : ""}`, links, v.signoff && mdLine(v.signoff)];
   return blocks.filter(Boolean).join("\n\n");
 }
 
-// Line numbers of the markers that stand alone on their line, outside fenced code blocks.
+// Line numbers of the markers, outside fenced code blocks. A marker counts only as the whole
+// line, at column 0, the way this command writes it: an indented one is in code or a list.
 function markerLines(lines) {
   const starts = [], ends = [];
   let fence = null;
   lines.forEach((raw, n) => {
     const line = raw.replace(/\r$/, "");
-    const run = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
     if (fence) {
-      if (run && run[0] === fence[0] && run.length >= fence.length && line.trim() === run) fence = null;
+      const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line)?.[1];
+      if (close && close[0] === fence[0] && close.length >= fence.length) fence = null;
       return;
     }
-    if (run) fence = run;
-    else if (line.trim() === START) starts.push(n);
-    else if (line.trim() === END) ends.push(n);
+    // A backtick fence's info string can't hold a backtick (CommonMark), so "``` a`b" isn't one.
+    const open = /^ {0,3}(`{3,})[^`]*$/.exec(line)?.[1] ?? /^ {0,3}(~{3,})/.exec(line)?.[1];
+    if (open) fence = open;
+    else if (line === START) starts.push(n);
+    else if (line === END) ends.push(n);
   });
   return { starts, ends };
 }
 
-/**
- * The text with the block between the markers, or with `---` and the block added at the end, in
- * the file's own line ending. A marker counts only alone on its line and outside a code fence. A
- * lone marker, two pairs or a reversed pair throws: guessing there could delete the person's text.
- */
-export function placeSignature(text, block) {
+// The text with the block between the markers, or with `---` and the block added at the end, in
+// the file's own line ending. A lone marker, two pairs or a reversed pair throws: guessing there
+// could delete the person's text.
+function placeSignature(text, block) {
   const lines = text.split("\n");
   const { starts, ends } = markerLines(lines);
   const blockLines = [START, ...block.split("\n"), END];
@@ -211,8 +232,9 @@ function parseArgs(argv) {
     if (!value || value.startsWith("-")) return `${arg} needs a value`;
     opts[arg.slice(2)] = value;
   }
-  if (opts.theme && !THEMES.includes(opts.theme)) return `--theme is professional or personal, not "${opts.theme}"`;
-  if (opts.style && !STYLES.includes(opts.style)) return `--style is full or compact, not "${opts.style}"`;
+  for (const key of ["theme", "style"]) {
+    if (opts[key] && !CHOICES[key].includes(opts[key])) return `--${key} is ${CHOICES[key].join(" or ")}, not "${opts[key]}"`;
+  }
   return opts;
 }
 
@@ -256,8 +278,9 @@ export function signature(argv, { dir = ".", home = homedir(), log = console.log
       + "fill in name, name_url, the mark and links, then run: npx onrails signature");
     return NO_SIGNATURE;
   }
-  const { v, found: settleProblems } = settle(found.parsed, opts.theme);
-  const all = [...problems(found.parsed), ...settleProblems];
+  const typeProblems = problems(found.parsed);
+  const { v, found: settleProblems } = typeProblems.length ? { found: [] } : settle(found.parsed, opts.theme);
+  const all = [...typeProblems, ...settleProblems];
   if (all.length) {
     error(`${found.path} [me.signature]:\n${all.map((p) => `  ${p}`).join("\n")}\nNothing was written.`);
     return 1;
