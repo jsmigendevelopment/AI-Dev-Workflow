@@ -26,7 +26,7 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
 8. **Follow `docs/architecture.md` and `docs/design.md`.** Feature modules don't import each other. The API goes controller → service → repository/client. Use the chosen UI kit's components and design tokens, and keep files small and readable.
 9. **Secrets stay secret.** Never read, print or commit `.env` files, tokens or keys. Refer to them by name.
 10. **Reuse before you build:** an open-source library first, then a free-tier SaaS, then build it yourself.
-11. **Never sit idle without telling the person.** If GitHub or any service says you're rate-limited or blocked, say what's blocked and when it resets (`gh api rate_limit` shows it, and checking it doesn't count against the limit). Send it the "Needs you" way below: an FYI, or a blocker if nothing else can move. Then keep doing everything that doesn't need that service, and pick the blocked work back up after the reset.
+11. **Never sit idle without telling the person.** If GitHub or any service says you're rate-limited or blocked, say what's blocked and when it resets (`gh api rate_limit` shows it, and checking it doesn't count against the limit). Send it the "Needs you" way below: an FYI, or a blocker if nothing else can move. Then keep doing everything that doesn't need that service, and pick the blocked work back up after the reset. A blocker is never just a chat line: try every route you're allowed (a denied command gets one plain retry), then, in the same turn, record what's left as `needs-human` with a "Setup step for you" and ping `--level blocker` (`ask`).
 12. **Never force-push, and never push straight to `main`.** Changes reach main through a pull request.
 13. **Ask before using the strongest model tier,** unless `docs/profile.toml` says not to (see the `routing` skill).
 
@@ -56,6 +56,7 @@ How and when to get the person's attention. The `ask` skill has the full convent
 - **Never interrupt** for what the repo, the docs or the profile can answer, or to ask permission for what the issue already says.
 - **Ping** with `node .claude/hooks/notify.mjs --level <level> --title "<what>" ...`. It honours presence, quiet hours and the batch window. While the person is away, only critical blockers ping.
 - **Record it** with the `needs-human` label, a comment on the issue or pull request, and the "Waiting on you" list in `docs/state.md`.
+- **Handoffs** carry the owner's exact words and a follow-up check. The receiver first replies `Got it` with its reading in one line. Could the owner's words (not the summary) mean something else? Ask the owner before starting (`ask`).
 
 ## Skills
 

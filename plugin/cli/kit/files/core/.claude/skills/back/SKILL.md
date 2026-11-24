@@ -21,8 +21,8 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 3. **Check GitHub** with `gh` or your tool's GitHub access:
    - what merged since then;
    - open pull requests and their verdict comments;
-   - claimed issues, and any stale claims (over 2 hours with no new commits);
-   - issues labelled `needs-human`;
+   - claimed issues;
+   - **the orphan sweep:** every open `needs-human` item, every `handoff` record with no `Got it ·` receipt or past its "check by" time, and every stale claim (over 2 hours with no new commits). List each one under "Waiting on you", even if nothing else mentions it (`../ask/references/handoffs.md`);
    - whether main's checks are green.
 
 4. **Who else is working?** Look for claims and branches from sessions that weren't yours, then ask: *"Is anyone else, or any other agent, working on this repo right now?"* Record the answer in `state.md`.

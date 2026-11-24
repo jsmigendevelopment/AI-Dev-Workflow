@@ -1,6 +1,6 @@
 ---
 name: ask
-description: Use when an agent needs the person, or isn't sure it should interrupt them ("ping me", "tell me when it's ready", "don't wake me", a blocker, a decision to park, a heads-up) - picks the level (blocker, decision or FYI), writes the Needs you message with up to three questions and recommended answers, records it on the issue, the board and docs/state.md, and pings through notify.mjs, which honours presence, quiet hours and the batch window.
+description: Use when an agent needs the person, or isn't sure it should interrupt them ("ping me", "tell me when it's ready", "don't wake me", a blocker, a decision to park, a heads-up), or hands work to another session or picks one up ("hand this to the other thread") - tries every route before blocking, picks the level, writes the Needs you message with recommended answers, records it and pings through notify.mjs in the same turn, and keeps handoffs quoted, receipted and followed up.
 ---
 
 # Ask: get the person's attention the right way
@@ -25,6 +25,19 @@ Not sure if it's a blocker or a decision? If other work can still move, it's a d
 
 **Critical** means production is down or there's a security hole someone could use right now. Only critical blockers ping while the person is away or in quiet hours. Add `--critical` for those, and only those.
 
+## Try before you block
+
+A blocker parks one item. It never stops the loop. Before you park anything on the person, try every route you're allowed, in this order:
+
+1. the session's environment and setup tools. A command was denied? Run it again as one plain command, or use another tool, before you call it blocked;
+2. a connected browser;
+3. the setup docs: your tool's documentation pages (`read_documentation` in a Claude Code cloud session), the stack pack, `docs/`;
+4. another account or tool that the `routing` table already gives this job.
+
+Only what's left goes to the person. Note each route you tried and why it didn't clear the block. The message lists them.
+
+**Done when** every route is tried, or you can say why it doesn't apply.
+
 ## The message
 
 ```text
@@ -34,6 +47,8 @@ Needs you · <project> · <what, in under 8 words>
    Recommended: <your answer>, because <one line>.
 2. <question>
    Recommended: <your answer>, because <one line>.
+
+Tried: <each route from the ladder, and why it didn't clear this>. (Blockers only.)
 
 If you don't answer: <what happens meanwhile, e.g. "#14 stays parked. The loop keeps building #15 and #16.">
 <link to the issue or pull request>
@@ -65,8 +80,10 @@ Stuck? <the one most likely problem and its fix>.
 
 ## Steps
 
-1. **Pick the level** from the table.
-2. **Comment the message** on the issue or pull request. For a blocker or a decision, add the `needs-human` label. For a blocker, add `blocker` too.
+Steps 2 and 3 happen in the same turn you find the problem. A blocker said only in chat is lost: nobody hears of it again.
+
+1. **Pick the level** from the table. A blocker? Climb "Try before you block" first.
+2. **Comment the message** on the issue or pull request. No issue to comment on? Open one. For a blocker or a decision, add the `needs-human` label. For a blocker, add `blocker` too, and the "Setup step for you" when the person must act outside the repo.
 3. **Ping and record it:**
    ```bash
    node .claude/hooks/notify.mjs --level decision --issue 14 --title "Public links or invite only?" --message "<the questions>" --link <issue url>
@@ -75,6 +92,8 @@ Stuck? <the one most likely problem and its fix>.
 4. **Waiting on you.** If you're the coordinator or the thread the person talks to, add a line to "Waiting on you" in `docs/state.md`, most important first: `🛑 #16 · test deploy key missing · since 08:31`. Builders on a branch skip this. The coordinator copies it from the label.
 5. **Sheet.** If the profile sets `[board] sheet` and you have the Google Sheets connector, append one row for this ask to the project's tab (see `../coordinate/board.md`). The next sweep rewrites the tab anyway.
 6. **Keep going** on other safe work. Never wait.
+
+**Done when** the `needs-human` record and the ping both exist, in this turn, and your report links the record.
 
 ## What notify.mjs honours
 
@@ -89,7 +108,7 @@ Stuck? <the one most likely problem and its fix>.
 
 - The person answers in the thread or in a comment on the issue.
 - The coordinator reads comments on `needs-human` issues in its next sweep.
-- A reply counts only if it comes from the person. Agents share their account, so skip comments that start with an agent headline (`Needs you ·`, `Code review:`, `QA:`, `Security review:`, `Claimed by`).
+- A reply counts only if it comes from the person. Agents share their account, so skip comments that start with an agent headline (`Needs you ·`, `Code review:`, `QA:`, `Security review:`, `Claimed by`, `Handoff ·`, `Got it ·`).
 - On an answer:
   - write it to `docs/decisions.md`;
   - remove `needs-human`;
@@ -99,3 +118,13 @@ Stuck? <the one most likely problem and its fix>.
 ## When the person is back
 
 `/back` shows the board and the "Waiting on you" list. Then it runs `node .claude/hooks/notify.mjs --clear`, so held pings don't fire after they've been seen.
+
+## Handoffs
+
+Work passed to another session or account is a handoff. It is written down with the owner's exact words, gets a one-line receipt, and has a follow-up check. The format and both sides' steps are in `references/handoffs.md`.
+
+## References
+
+| File | Load when |
+|---|---|
+| `references/handoffs.md` | You send work to another session, thread or account, or you receive a brief from one. |

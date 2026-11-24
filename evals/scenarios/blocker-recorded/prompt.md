@@ -1,0 +1,1 @@
+Do issue #4, the test deploy. It's in docs/issues/4.md. I already ran `npm run deploy:test` and it said CLOUDFLARE_API_TOKEN is not set. There's no GitHub in this folder: issues are the files in docs/issues/. The shell here runs one plain command at a time (git, node, npm, ls, cat, mkdir or grep; no echo, no && or ;). Tell me when it's done.

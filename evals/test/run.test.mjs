@@ -45,7 +45,7 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 22 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 26 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
@@ -194,6 +194,20 @@ const COARSE_PLAN = "# Plan\n\n## Phase 1\n\n1. Set up the database schema\n2. B
 
 const CI = "on: pull_request\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm run check\n";
 
+const BLOCKER_ISSUE = `# #5 Test deploy needs a Cloudflare token
+
+Labels: needs-human, blocker
+
+Tried: the environment tools (no Cloudflare login), the setup docs (docs/setup.md says only the owner can make it), no browser or other account here.
+
+Setup step for you · Make the Cloudflare token · about 5 minutes
+
+1. Open https://dash.cloudflare.com/profile/api-tokens and click "Create Token".
+2. Pick the "Edit Cloudflare Workers" template.
+3. Paste it into the test environment's secrets as CLOUDFLARE_API_TOKEN. Never into this chat.
+`;
+const RECEIPT = "Got it · landing-page thread · My reading: make the hero louder. The owner's words could mean bolder styling or a video, so I asked first.";
+
 const SCENARIO_PLANS = {
   "idea-grill": {
     with: { steps: [{ write: "kickoff/grill-log.md", content: "# Grill\n" }, { text: "1. Who uses it?\nRecommended: the four of you.\n2. How do you split today?\nRecommended: an app.\n3. Phones or laptops?\nRecommended: phones." }] },
@@ -232,6 +246,14 @@ const SCENARIO_PLANS = {
     without: { steps: [{ bash: "grep -n 'npm run dev' README.md" }, { tool: "Bash", input: { command: "npm run dev" } }, { write: ".github/workflows/ci.yml", content: CI }, { bash: "git checkout -qb feat/1-skeleton && git add -A && git commit -qm '#1 CI'" }, { text: "Slice 0 is done: CI is set up." }] },
   },
   "auto-grill-door": AUTO_GRILL_PLAN,
+  "blocker-recorded": {
+    with: { steps: [{ bash: "npm run deploy:test" }, { write: "docs/issues/5.md", content: BLOCKER_ISSUE }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level blocker --issue 5 --title \"Test deploy needs a Cloudflare token\"" }, ok: true }, { text: "The test deploy is parked on you: docs/issues/5.md, labelled needs-human. Everything else is done." }] },
+    without: { steps: [{ bash: "npm run deploy:test" }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level blocker --title x" } }, { text: "The deploy needs CLOUDFLARE_API_TOKEN. You'll have to set it up." }] },
+  },
+  "handoff-reading": {
+    with: { steps: [{ bash: `printf '%s\\n' ${JSON.stringify(RECEIPT)} >> docs/handoffs/12.md` }, { text: 'Got it. "Make the hero pop" could mean bolder type and colour, or the autoplay video in the summary. Which one do you want? I recommend bolder type and colour: it loads fast. I\'ve started nothing on the hero.' }] },
+    without: { steps: [{ write: "src/hero.html", content: "<section class=\"hero\"><video autoplay muted loop src=\"/hero.mp4\"></video></section>\n" }, { text: "Done: the hero has an autoplay video now." }] },
+  },
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },
     without: { steps: [{ tool: "Agent", input: { model: "opus", prompt: "Plan it" } }, { write: "docs/pyramid.md", content: "# Plan\n" }, { text: "Planned." }] },
