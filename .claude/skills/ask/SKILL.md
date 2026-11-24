@@ -1,6 +1,6 @@
 ---
 name: ask
-description: Use when an agent needs the person, or isn't sure it should interrupt them ("ping me", "tell me when it's ready", "don't wake me", a blocker, a decision to park, a heads-up), or hands work to another session or picks one up ("hand this to the other thread") - tries every route before blocking, picks the level, writes the Needs you message with recommended answers, records it and pings through notify.mjs in the same turn, and keeps handoffs quoted, receipted and followed up.
+description: Use when an agent needs the person, or isn't sure it should interrupt them ("ping me", "tell me when it's ready", "don't wake me", a blocker, a decision to park, a heads-up), or hands work to another session or picks one up ("hand this to the other thread"), or a message touches a run already going ("we won't start it yet", "stop it") - tries every route before blocking, never stops a strongest-tier run on its own call, picks the level, writes the Needs you message with recommended answers, records it and pings through notify.mjs in the same turn, and keeps handoffs quoted, receipted and followed up.
 ---
 
 # Ask: get the person's attention the right way
@@ -37,6 +37,30 @@ A blocker parks one item. It never stops the loop. Before you park anything on t
 Only what's left goes to the person. Note each route you tried and why it didn't clear the block. The message lists them.
 
 **Done when** every route is tried, or you can say why it doesn't apply.
+
+## A running job
+
+Stopping a run throws away the work it already paid for. Restarting pays for it again.
+
+- **A strongest-tier run** (the Strongest row in `routing`, or the profile's `strongest`, for example Fable or GPT-6.2 Astra): never stop, cancel or restart it on your own call, or because a message might mean stop. Everyday-tier runs and below may be stopped or restarted when that makes sense.
+- **"Don't start", "not yet", "just document it"** are about new work only. A run already going keeps going. Say what you will and won't do: "The Astra wireframe run keeps running. I'll write the plan and start nothing new."
+- **A clear stop from the person, aimed at that run** ("pause it", "stop it", "kill it", "cancel it", "stop the Astra run"): stop it now, on any tier, with no question. Then say what stopped and where its partial output is. A "stop" inside a not-yet sentence ("stop, we're not doing Astra yet") isn't clear: that's the next case.
+- **Could the message mean stop a strongest-tier run?** Touch nothing. Ask, as a ⏳ decision, and recommend letting it finish:
+
+  ```text
+  Needs you · <project> · <the run> is still running
+
+  <the run>, on <model and effort>, started <time>, has spent about <tokens, cost or share of the limit>.
+  1. Let it finish. (Recommended: the spent work is kept.)
+  2. Let it finish, but don't act on its result yet.
+  3. Stop it now. The spent work is lost.
+
+  If you don't answer: it finishes, and nothing acts on its result until you say.
+  ```
+- **A run in another thread or tool** (another session, a Codex cloud task, a chat in the browser): never stop it blind. Reach that thread first, by every route: session messaging (list the sessions, then message the one that owns it), a comment on the issue or pull request it watches, and the connected browser extension (open its tab and read its status). Relay the message, or check what the run is doing. Ask the person only when every route fails, and list them under `Tried:`.
+- **Before a restart,** look for output you can reuse: the transcript, its files, its branch, a partial result. Say what the restart costs and what it reuses. Restarting a strongest-tier run is the person's call.
+
+**Done when** no strongest-tier run was stopped or restarted without the person's words, and your reply says what keeps running.
 
 ## The message
 

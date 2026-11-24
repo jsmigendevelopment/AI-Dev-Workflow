@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { HELP, parseArgs, withLimits } from "./lib/args.mjs";
 import { claudeArgs, claudeEnv, runClaude } from "./lib/claude.mjs";
 import { git, listFiles, readText } from "./lib/fixture.mjs";
-import { appendResults, resultsName, summary, totals, verdict } from "./lib/report.mjs";
+import { appendResults, passed, resultsName, summary, totals, verdict } from "./lib/report.mjs";
 import { parseStream, summarize, usage } from "./lib/transcript.mjs";
 
 const EVALS = dirname(fileURLToPath(import.meta.url));
@@ -28,7 +28,7 @@ async function loadScenarios(dir, only) {
     const base = join(dir, name);
     const fixture = await import(pathToFileURL(join(base, "fixture.mjs")).href);
     const checks = await import(pathToFileURL(join(base, "checks.mjs")).href);
-    out.push({ name, prompt: readFileSync(join(base, "prompt.md"), "utf8").trim(), build: fixture.build, checks: checks.checks, manual: checks.manual ?? [], limits: checks.limits ?? {} });
+    out.push({ name, prompt: readFileSync(join(base, "prompt.md"), "utf8").trim(), build: fixture.build, checks: checks.checks, manual: checks.manual ?? [], guard: checks.guard === true, limits: checks.limits ?? {} });
   }
   return out;
 }
@@ -107,7 +107,7 @@ async function runScenario(scenario, opts) {
     const [w, o] = await Promise.all([runArm(scenario, "with", opts, tmp), runArm(scenario, "without", opts, tmp)]);
     const arms = { with: w.arm, without: o.arm };
     const own = Object.keys(scenario.limits ?? {}).length ? { limits: scenario.limits } : {};
-    return { name: scenario.name, verdict: verdict(arms), arms, ...own, manual: scenario.manual, warnings: [...w.warnings, ...o.warnings] };
+    return { name: scenario.name, verdict: verdict(arms, { guard: scenario.guard }), arms, ...own, manual: scenario.manual, warnings: [...w.warnings, ...o.warnings] };
   } finally {
     if (opts.keep) console.log(`kept ${tmp}`);
     else rmSync(tmp, { recursive: true, force: true });
@@ -148,7 +148,7 @@ async function main(argv) {
     console.log(`Running ${s.name} (with and without the kit)...`);
     results.push(await runScenario(s, opts));
   }
-  const exitCode = results.every((s) => s.verdict === "pass") ? 0 : 1;
+  const exitCode = results.every((s) => passed(s.verdict)) ? 0 : 1;
   const claudeCodeVersion = results.flatMap((s) => Object.values(s.arms)).find((a) => a.claudeCodeVersion)?.claudeCodeVersion ?? null;
   const run = {
     startedAt, finishedAt: new Date().toISOString(), model: opts.model, kitVersion: version, claudeCodeVersion,

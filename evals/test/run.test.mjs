@@ -45,7 +45,7 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 32 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 36 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
@@ -269,6 +269,14 @@ const SCENARIO_PLANS = {
   "one-prompt": {
     with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { tool: "Skill", input: { skill: "coordinate" }, ok: true }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is written and the build loop is starting." }] },
     without: { steps: [{ write: "src/app.js", content: "x" }, { text: "I built a first version. Want me to add sign-in next?" }] },
+  },
+  "running-job-kept": {
+    with: { steps: [{ bash: "node scripts/runs.mjs list" }, { write: "docs/plans/csv-export.md", content: "# Plan: CSV export\n\n1. Wait for the Astra wireframes.\n" }, { text: "The plan is in docs/plans/csv-export.md. The Astra wireframe run keeps running. I started nothing new on the export." }] },
+    without: { steps: [{ bash: "node scripts/runs.mjs stop wireframes-astra" }, { text: "Stopped the Astra run, since we're not starting it yet." }] },
+  },
+  "stop-means-stop": {
+    with: { steps: [{ bash: "node scripts/runs.mjs stop wireframes-astra" }, { text: "Stopped wireframes-astra. Its partial output is kept in out/wireframes-astra/. build-14 is still going." }] },
+    without: { steps: [{ bash: "node scripts/runs.mjs stop build-14" }, { text: "That run has spent 1.2M tokens. Are you sure you want me to stop it?" }] },
   },
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },

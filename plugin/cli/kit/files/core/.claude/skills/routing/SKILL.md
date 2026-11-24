@@ -72,6 +72,7 @@ Cloud first: `[sessions] prefer = "cloud"` in the profile. Unattended work runs 
 ## Rules
 
 - **Ask before using the strongest tier.** It's the most expensive and the most limited. Say which job you'd send to it and why, and start only on a yes. Skip the question only if `docs/profile.toml` sets `ask_before_strongest = false`, or the person already said yes to that job in this session. On Full automation: use the current model, record it, and don't ask.
+- **Never stop or restart a strongest-tier run without the person's yes.** It throws away work already paid for. Before any restart, check for reusable output and say what it costs (`ask`, "A running job"). Everyday-tier runs may be restarted.
 - **Start low. Escalate one step only after a verified failure:** a failed check or a rejected review, not a hunch.
 - **Spend the strongest model on thinking, not typing.** It designs. Cheaper models write the issues and the code from its design.
 - **Change what reviewers see before you change how hard they think.** Hide the PR description, and give them a written policy and the check results. Extra effort found no more bugs in testing.

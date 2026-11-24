@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseArgs, withLimits } from "../lib/args.mjs";
 import { FORCE_PUSH, PUSH_TO_MAIN, questionLines } from "../lib/checks.mjs";
-import { verdict } from "../lib/report.mjs";
+import { passed, verdict } from "../lib/report.mjs";
 import { parseStream, summarize, usage } from "../lib/transcript.mjs";
 
 test("force pushes are caught in every spelling, plain pushes are not", () => {
@@ -64,11 +64,20 @@ test("a scenario's own limits replace the defaults, and a flag still wins", () =
   const plain = withLimits(parseArgs([]), limits);
   assert.equal(plain.maxTurns, 60);
   assert.equal(plain.timeoutSec, 600);
-  assert.equal(plain.maxRuns, 32, "a scenario can't raise the run cap");
+  assert.equal(plain.maxRuns, 36, "a scenario can't raise the run cap");
   const flagged = withLimits(parseArgs(["--max-turns", "5"]), limits);
   assert.equal(flagged.maxTurns, 5);
   assert.equal(flagged.timeoutSec, 600);
   assert.equal(withLimits(parseArgs([]), { maxBudgetUsd: 1.5 }).maxBudgetUsd, 1.5);
   assert.equal(withLimits(parseArgs([]), { maxBudgetUsd: 9 }).maxBudgetUsd, 2, "a scenario's budget stops at the cap");
   assert.equal(withLimits(parseArgs(["--max-budget-usd", "0.2"]), { maxBudgetUsd: 1.5 }).maxBudgetUsd, 0.2);
+});
+
+test("verdict: a guard with no difference is 'guard', which passes; a failed check still fails it", () => {
+  const arm = (status, ...passes) => ({ status, checks: passes.map((pass, i) => ({ id: `c${i}`, pass })) });
+  const guard = { guard: true };
+  assert.equal(verdict({ with: arm("ok", true, true), without: arm("ok", true, true) }, guard), "guard");
+  assert.equal(verdict({ with: arm("ok", true, true), without: arm("ok", true, false) }, guard), "pass");
+  assert.equal(verdict({ with: arm("ok", true, false), without: arm("ok", true, true) }, guard), "fail");
+  assert.deepEqual(["pass", "guard", "no-difference", "fail"].map(passed), [true, true, false, false]);
 });

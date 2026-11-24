@@ -20,7 +20,7 @@ Each one is parked, not waited on. Record it under "Waiting on you" in `docs/sta
 - **What needs the person in body:** paying or adding a payment method, and signing in to their own accounts (`gh auth login`, `wrangler login`, a provider's dashboard).
 - **Real data after launch:** deleting or migrating it.
 - **The rest of the always-stop list:** production settings and secrets, deploying to production, going public.
-- **A running paid job (#118):** never stop, cancel or restart one without the person's yes.
+- **A running strongest-tier job (#118):** never stop or restart one on your own call, or on a message that only might mean stop (`ask`, "A running job"). Let it finish.
 
 ## The weakening review (#103)
 

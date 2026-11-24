@@ -2,13 +2,21 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-/** pass: every "with" check passed and at least one failed without the kit. fail: a "with" check failed. */
-export function verdict(arms) {
+/**
+ * pass: every "with" check passed and at least one failed without the kit. fail: a "with" check failed.
+ * A guard scenario checks that the kit doesn't make the agent worse (too cautious, say), so no
+ * difference between the arms is expected there: it gets "guard", which counts as a pass.
+ */
+export function verdict(arms, { guard = false } = {}) {
   const withChecks = arms.with.checks;
   if (arms.with.status !== "ok" || withChecks.some((c) => !c.pass)) return "fail";
   const without = new Map(arms.without.checks.map((c) => [c.id, c.pass]));
-  return withChecks.some((c) => c.pass && without.get(c.id) === false) ? "pass" : "no-difference";
+  if (withChecks.some((c) => c.pass && without.get(c.id) === false)) return "pass";
+  return guard ? "guard" : "no-difference";
 }
+
+/** The verdicts that keep the exit code at 0. */
+export const passed = (v) => v === "pass" || v === "guard";
 
 export function totals(scenarios) {
   const t = { runs: 0, costUsd: 0, costUnknown: 0, durationMs: 0, tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } };
