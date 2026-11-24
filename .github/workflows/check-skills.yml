@@ -12,6 +12,7 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/sync-skills.mjs --check
+      - run: node scripts/npm-readme.mjs --check
       - run: node scripts/check-research.mjs research/ # index, provenance, re-check dates (the research skill)
       - run: npm run versions:check
         working-directory: cli

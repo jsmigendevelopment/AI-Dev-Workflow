@@ -76,3 +76,13 @@ Writing or editing a skill or `AGENTS.md`? Follow the [`writing-for-agents`](.ag
 - Add a line to `CHANGELOG.md` under **Unreleased**.
 
 By contributing, you agree your work is released under the [MIT licence](LICENSE). Everyone here follows the [code of conduct](CODE_OF_CONDUCT.md).
+
+## The npm page
+
+The npm page is `cli/README.md`, made from the root `README.md` plus `cli/CLI.md` (the CLI reference). Edit those two, never `cli/README.md`, then run:
+
+```bash
+node scripts/npm-readme.mjs
+```
+
+CI fails if you forget, and `npm publish` runs it for you.

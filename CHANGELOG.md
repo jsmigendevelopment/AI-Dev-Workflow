@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- **The npm page tells the whole story.** `cli/README.md` is now made from the root README (banner, what onRails is, install, the four commands, the flow, guardrails, stacks) plus `cli/CLI.md` (the CLI reference), with every link and image made absolute so it renders on npm. `node scripts/npm-readme.mjs` makes it; CI checks it; `npm publish` runs it. The README gets an npm badge.
+
 ## [0.5.2] - 2026-11-24
 
 ### Changed
