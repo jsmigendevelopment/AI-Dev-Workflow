@@ -15,15 +15,25 @@ const STYLES = ["full", "compact"];
 const DEFAULTS = { theme: "professional", style: "full", mark_size: 64, compact_mark_size: 20, links: [] };
 const START = "<!-- onrails:signature start -->";
 const END = "<!-- onrails:signature end -->";
+const NO_SIGNATURE = 3; // its own code, so name and join skip quietly on it and report a refused value
 const EMAIL = /mailto:|[^\s@<>"'()/]+@[^\s@<>"'()/]+\.[a-z]{2,}/i;
 
-// Index just past the string that opens at s[i], and its value.
+const ESCAPES = { b: "\b", t: "\t", n: "\n", f: "\f", r: "\r", '"': '"', "\\": "\\" };
+
+// Index just past the string that opens at s[i], and its value, with TOML's escapes decoded.
 function readString(s, i) {
   let out = "";
   for (i++; i < s.length && s[i] !== '"'; i++) {
     if (s[i] !== "\\") { out += s[i]; continue; }
     const c = s[++i];
-    out += c === "n" ? "\n" : c === "t" ? "\t" : c;
+    if (c in ESCAPES) { out += ESCAPES[c]; continue; }
+    const width = { u: 4, U: 8 }[c];
+    if (!width) throw new Error(`unknown escape \\${c ?? ""}`);
+    const hex = s.slice(i + 1, i + 1 + width);
+    const code = /^[0-9a-fA-F]+$/.test(hex) && hex.length === width ? parseInt(hex, 16) : NaN;
+    if (!(code <= 0x10ffff) || (code >= 0xd800 && code <= 0xdfff)) throw new Error(`\\${c} needs ${width} hex digits of a valid character`);
+    out += String.fromCodePoint(code);
+    i += width;
   }
   if (s[i] !== '"') throw new Error("a string is missing its closing quote");
   return [out, i + 1];
@@ -161,8 +171,12 @@ function settle({ base, personal }, theme) {
 const esc = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const a = (url, html) => `<a href="${esc(url)}">${html}</a>`;
 const img = (v, size) => `<img src="${esc(v.mark_light)}" width="${size}" height="${size}" alt="${esc(v.mark_alt)}">`;
-const md = (url, text) => `[${text}](${esc(url)})`;
-const subline = (v) => [v.display, v.tagline].filter(Boolean).map(esc).join(" · ");
+// Markdown text with every character that could open a link, image, emphasis or HTML escaped.
+const mdText = (text) => String(text).replace(/&/g, "&amp;").replace(/[\\[\]()*_`<!]/g, "\\$&");
+// A URL that can't end the link early: spaces, brackets and quotes percent-encoded.
+const mdUrl = (url) => String(url).replace(/[\s()<>"'\\`]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`);
+const md = (url, text) => `[${mdText(text)}](${mdUrl(url)})`;
+const subline = (v, escape = esc) => [v.display, v.tagline].filter(Boolean).map(escape).join(" · ");
 
 function full(v) {
   const lines = ['<p align="center">'];
@@ -184,24 +198,38 @@ function compact(v) {
 }
 
 function markdown(v, style) {
-  const mark = v.mark_light ? `[![${esc(v.mark_alt)}](${esc(v.mark_light)})](${esc(v.name_url)})` : "";
-  const name = `**${md(v.name_url, esc(v.name))}**`;
-  const links = v.links.map((l) => md(l.url, esc(l.label))).join(" · ");
+  const mark = v.mark_light ? `[![${mdText(v.mark_alt)}](${mdUrl(v.mark_light)})](${mdUrl(v.name_url)})` : "";
+  const name = `**${md(v.name_url, v.name)}**`;
+  const links = v.links.map((l) => md(l.url, l.label)).join(" · ");
   if (style === "compact") {
     const signoff = v.compact_signoff || v.signoff;
-    return [mark, [`By ${name}`, links, signoff && esc(signoff)].filter(Boolean).join(" · ")].filter(Boolean).join(" ");
+    return [mark, [`By ${name}`, links, signoff && mdText(signoff)].filter(Boolean).join(" · ")].filter(Boolean).join(" ");
   }
-  const blocks = [mark, `Built by ${name}${subline(v) ? `  \n${subline(v)}` : ""}`, links, v.signoff && esc(v.signoff)];
+  const sub = subline(v, mdText);
+  const blocks = [mark, `Built by ${name}${sub ? `  \n${sub}` : ""}`, links, v.signoff && mdText(v.signoff)];
   return blocks.filter(Boolean).join("\n\n");
 }
 
-/** The text with the block between the markers, or with `---` and the block added at the end. */
+/**
+ * The text with the block between the markers, or with `---` and the block added at the end.
+ * A marker counts only alone on its line, so one quoted in the text is left alone. A lone
+ * marker, two pairs or a reversed pair throws: guessing there could delete the person's text.
+ */
 export function placeSignature(text, block) {
   const wrapped = `${START}\n${block}\n${END}`;
-  const start = text.indexOf(START), end = start < 0 ? -1 : text.indexOf(END, start);
-  if (end >= 0) return text.slice(0, start) + wrapped + text.slice(end + END.length);
-  const body = text.trimEnd();
-  return body ? `${body}\n\n---\n\n${wrapped}\n` : `${wrapped}\n`;
+  const lines = text.split("\n");
+  const at = (marker) => lines.flatMap((line, n) => (line.trim() === marker ? [n] : []));
+  const starts = at(START), ends = at(END);
+  if (!starts.length && !ends.length) {
+    const body = text.trimEnd();
+    return body ? `${body}\n\n---\n\n${wrapped}\n` : `${wrapped}\n`;
+  }
+  const fix = "Fix the markers by hand, then run this again.";
+  if (starts.length > 1 || ends.length > 1) throw new Error(`it has more than one signature start or end marker. Keep one pair. ${fix}`);
+  if (!ends.length) throw new Error(`it has a signature start marker but no end marker (${END}). ${fix}`);
+  if (!starts.length) throw new Error(`it has a signature end marker but no start marker (${START}). ${fix}`);
+  if (ends[0] < starts[0]) throw new Error(`its signature end marker comes before the start marker. ${fix}`);
+  return [...lines.slice(0, starts[0]), wrapped, ...lines.slice(ends[0] + 1)].join("\n");
 }
 
 // { theme, style, markdown, write } from the flags, or the reason they're wrong.
@@ -220,7 +248,7 @@ function parseArgs(argv) {
   return opts;
 }
 
-/** The signature command. Exit codes: 0 done, 1 no signature or a bad value, 2 bad flags. */
+/** The signature command. Exit codes: 0 done, 1 a refused value or file, 2 bad flags, 3 no signature in the profile. */
 export function signature(argv, { dir = ".", home = homedir(), log = console.log, error = console.error } = {}) {
   const opts = parseArgs(argv);
   if (typeof opts === "string") return error(`${opts}\nRun: npx onrails --help`), 2;
@@ -230,7 +258,7 @@ export function signature(argv, { dir = ".", home = homedir(), log = console.log
     error(`No [me.signature] in docs/profile.toml or ${profilePath(home)}, or its name is blank.\n`
       + "Add one: copy the [me.signature] table from the profile template (npx onrails profile init makes a profile),\n"
       + "fill in name, name_url, the mark and links, then run: npx onrails signature");
-    return 1;
+    return NO_SIGNATURE;
   }
   const { v, found: settleProblems } = settle(found.parsed, opts.theme);
   const all = [...problems(found.parsed), ...settleProblems];
@@ -240,7 +268,8 @@ export function signature(argv, { dir = ".", home = homedir(), log = console.log
   if (!opts.write) return log(block), 0;
   const path = resolve(dir, opts.write);
   const before = existsSync(path) ? readFileSync(path, "utf8") : "";
-  const after = placeSignature(before, block);
+  let after;
+  try { after = placeSignature(before, block); } catch (e) { return error(`${opts.write}: ${e.message}\nNothing was written.`), 1; }
   if (after === before) return log(`${opts.write}: the signature is already up to date.`), 0;
   writeFile(path, after);
   log(`${opts.write}: wrote the ${v.theme} ${style} signature from ${found.path}.`);

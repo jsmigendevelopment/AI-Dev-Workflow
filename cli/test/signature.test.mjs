@@ -122,15 +122,67 @@ test("AC-5: WHEN a value holds an email or a mailto: link, or a URL isn't https:
     [PROFILE.replace('url = "https://github.com/example"', 'url = "mailto:ada@example.com"'), /links.*email/],
     [PROFILE.replace('name_url = "https://example.com"', 'name_url = "http://example.com"'), /name_url.*https:\/\//],
     [PROFILE.replace('mark_light = "https://example.com/personal.svg"', 'mark_light = "/personal.svg"'), /mark_light.*https:\/\//],
+    [PROFILE.replace('url = "https://github.com/example"', 'url = "MAILTO:ada@example.com"'), /links\[2\]\.url.*email/],
+    [PROFILE.replace('label = "Blog"', 'label = "Mail ada@example.com"'), /links\[1\]\.label.*email/],
+    [PROFILE.replace('url = "https://example.com/blog/"', 'url = "javascript:alert(1)"'), /links\[1\]\.url.*https:\/\//],
   ];
   for (const [profile, message] of cases) {
+    for (const mode of [[], ["--markdown"], ["--style", "compact"]]) {
+      const dir = tmp();
+      put(dir, "README.md", "# App\n");
+      const { code, err } = run(["--write", "README.md", "--theme", "personal", ...mode], profile, { dir });
+      assert.equal(code, 1, `${message} ${mode.join(" ")}`);
+      assert.match(err, message);
+      assert.equal(read(dir, "README.md"), "# App\n", "nothing written");
+    }
+  }
+});
+
+test("AC-4: WHEN the markers are broken THEN --write refuses and writes nothing", () => {
+  const start = "<!-- onrails:signature start -->", end = "<!-- onrails:signature end -->";
+  const broken = [
+    [`# T\n\n${start}\n\nKeep me.\n`, /start marker but no end marker/],
+    [`# T\n\nKeep me.\n${end}\n`, /end marker but no start marker/],
+    [`# T\n\n${end}\nKeep me.\n${start}\n`, /end marker comes before the start marker/],
+    [`# T\n${start}\na\n${end}\n${start}\nb\n${end}\n`, /more than one/],
+  ];
+  for (const [text, message] of broken) {
     const dir = tmp();
-    put(dir, "README.md", "# App\n");
-    const { code, err } = run(["--write", "README.md", "--theme", "personal"], profile, { dir });
+    put(dir, "README.md", text);
+    const { code, err } = run(["--write", "README.md"], PROFILE, { dir });
     assert.equal(code, 1, String(message));
     assert.match(err, message);
-    assert.equal(read(dir, "README.md"), "# App\n", "nothing written");
+    assert.match(err, /Nothing was written/);
+    assert.equal(read(dir, "README.md"), text, "nothing written");
   }
+});
+
+test("AC-4: WHEN a marker is quoted inline THEN it is left alone, and the text outside the markers is kept byte for byte", () => {
+  const start = "<!-- onrails:signature start -->", end = "<!-- onrails:signature end -->";
+  const quoted = `# T\r\n\r\nUse \`${start}\` and \`${end}\` around it.\r\n`;
+  const dir = tmp();
+  put(dir, "README.md", quoted);
+  assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
+  assert.equal(read(dir, "README.md"), `${quoted.trimEnd()}\n\n---\n\n${start}\n${FULL}\n${end}\n`);
+
+  const before = "Intro  \r\n\t<em>keep</em>\n\n", after = "\n  Tail with trailing spaces   \n\n\n";
+  put(dir, "README.md", `${before}${start}\nold\n${end}${after}`);
+  assert.equal(run(["--write", "README.md"], PROFILE, { dir }).code, 0);
+  assert.equal(read(dir, "README.md"), `${before}${start}\n${FULL}\n${end}${after}`);
+});
+
+test("AC-6: WHEN --markdown is given THEN Markdown specials in values are escaped, so a label can't make its own link", () => {
+  const profile = PROFILE.replace('label = "Blog"', 'label = "x](javascript:alert(1)) [y"')
+    .replace('label = "Site"', 'label = "x](http://evil.example) [y"')
+    .replace('name = "Ada Example"', 'name = "*Ada* _Ex_ `code` \\\\ <b> ![i]"')
+    .replace('url = "https://github.com/example"', 'url = "https://example.com/a (b)"');
+  const { code, out } = run(["--markdown"], profile);
+  assert.equal(code, 0);
+  assert.match(out, /\[x\\\]\\\(javascript:alert\\\(1\\\)\\\) \\\[y\]\(https:\/\/example\.com\/blog\/\)/);
+  assert.match(out, /\[x\\\]\\\(http:\/\/evil\.example\\\) \\\[y\]\(https:\/\/example\.com\)/);
+  assert.match(out, /\*\*\[\\\*Ada\\\* \\_Ex\\_ \\`code\\` \\\\ \\<b> \\!\\\[i\\\]\]\(https:\/\/example\.com\)\*\*/);
+  assert.match(out, /\(https:\/\/example\.com\/a%20%28b%29\)/);
+  assert.doesNotMatch(out, /\]\((javascript|http:)/, "no link to anything but the profile's https URLs");
 });
 
 test("AC-6: WHEN a value holds < or \" THEN it is escaped in the output", () => {
@@ -143,9 +195,9 @@ test("AC-6: WHEN a value holds < or \" THEN it is escaped in the output", () => 
   assert.doesNotMatch(out, /<script>/);
 });
 
-test("AC-7: WHEN there is no [me.signature] THEN the command says how to add one and exits 1", () => {
+test("AC-7: WHEN there is no [me.signature] THEN the command says how to add one and exits 3, apart from a refused value's 1", () => {
   const { code, err } = run([], '[me]\nname = "Ada"\n');
-  assert.equal(code, 1);
+  assert.equal(code, 3);
   assert.match(err, /No \[me\.signature\]/);
   assert.match(err, /profile\.toml/);
   assert.match(err, /npx onrails signature/);
@@ -161,8 +213,19 @@ test("the profile template's [me.signature] is blank, so it counts as not set up
   assert.deepEqual(parsed.base.links, []);
   assert.doesNotMatch(template, /jsmigen|Jay/i, "no real person in the public template");
   const { code } = run([], template);
-  assert.equal(code, 1);
+  assert.equal(code, 3);
   assert.equal(exists(tmp(), "README.md"), false);
+});
+
+test("\\u and \\U escapes decode, and an unknown escape is refused", () => {
+  const profile = PROFILE.replace('tagline = "Software engineer"', 'tagline = "caf\\u00e9 \\U0001F331"');
+  const { code, out } = run([], profile);
+  assert.equal(code, 0);
+  assert.match(out, /<sub>Ada Dev · café 🌱<\/sub>/);
+  const bad = run([], PROFILE.replace('tagline = "Software engineer"', 'tagline = "a\\qb"'));
+  assert.equal(bad.code, 1);
+  assert.match(bad.err, /tagline: unknown escape \\q/);
+  assert.match(run([], PROFILE.replace('tagline = "Software engineer"', 'tagline = "\\u00g9"')).err, /tagline: \\u needs 4 hex digits/);
 });
 
 test("bad flags are refused", () => {
