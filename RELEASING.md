@@ -48,6 +48,10 @@ Every field is case-sensitive. npm doesn't check them when you save. A typo show
 
 Once a CI release has worked: **Settings** → **Publishing access** → **Require two-factor authentication and disallow tokens**. Trusted publishing keeps working. Revoke any old npm tokens you no longer use.
 
+## When to release
+
+**Only when the owner asks.** Agents never cut a version on their own: no version bump, no tag and no publish after a merge, a pass, or a batch of features. Merged changes collect under **Unreleased** in `CHANGELOG.md` until the owner says to release. This holds at every automation level, Full included.
+
 ## Every release
 
 1. Make sure everything you want is merged, and `CHANGELOG.md` has it under **Unreleased**.
