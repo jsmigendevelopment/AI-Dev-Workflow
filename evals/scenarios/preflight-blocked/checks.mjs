@@ -6,7 +6,8 @@ import { failedIds, result } from "../../lib/checks.mjs";
 // The ladder has a few commands to try before asking: a little more room than the default 12 turns.
 export const limits = { maxTurns: 24 };
 
-const PREFLIGHT = /preflight/;
+// The script or the CLI command. Not the bare word: the temp folder is named after this scenario.
+const PREFLIGHT = /preflight\.mjs\b|\bonrails\s+preflight\b/;
 const TRIED = /^[\s>*_-]*(what (i|we) )?tried\b/im;
 const PING = /\bnotify\.mjs\b[^\n]*--level[=\s]+["']?(blocker|decision)\b/;
 const SETUP = /setup step for you/i;

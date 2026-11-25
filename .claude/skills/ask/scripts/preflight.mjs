@@ -235,7 +235,9 @@ export function render(report) {
   if (blocked.some((r) => ["repo", "registry", "versions"].includes(r.id))) out.push("Installs are blocked: don't scaffold or build until they work. Work that needs no install goes on.");
   for (const r of open) out.push("", r.label, ...r.ladder.map((l) => `  ${l.rung}. ${l.text}`));
   if (blocked.length) {
-    out.push("", "Still blocked after rungs 1 to 3? Send this, once, through the ask skill:", "",
+    out.push("", "Still blocked after rungs 1 to 3? Send ONE message. Write all of it, with its Tried line filled in, on the issue",
+      "(with issues as files: in the issue's file, under \"## Comments\", plus `needs-human` on its Labels line). Then ping once.",
+      "A line in chat or in docs/state.md alone is not the record. The message:", "",
       `Setup step for you · Unblock the agent's sandbox (${TOOLS[report.tool]}) · about 5 minutes`, "",
       ...blocked.map((r, i) => `${i + 1}. ${r.label}: ${r.ladder.at(-1).text.replace(/^The person, last: /, "")}`), "",
       "Tried: <for each one, what you tried on rungs 1 to 3, and why it didn't clear it>",

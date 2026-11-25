@@ -28,7 +28,7 @@ Asking the person is the last rung, not the first move. For each `✗` row, work
 Then:
 
 - **Run preflight again** after rungs 1 to 3. A "Fix it yourself" that failed twice counts as blocked: add it to the message.
-- **The one message.** Preflight prints its draft: a single "Setup step for you" with a numbered fix for every row still blocked, written for your tool. Fill in its `Tried:` line. It lists what you tried on each rung and why that didn't clear it, so the person can see you didn't give up early. Send it through `ask`'s steps: one `needs-human` record, one ping.
+- **The one message.** Preflight prints its draft: a single "Setup step for you" with a numbered fix for every row still blocked, written for your tool. Fill in its `Tried:` line. It lists what you tried on each rung and why that didn't clear it, so the person can see you didn't give up early. Send it through `ask`'s steps: one `needs-human` record, one ping. The record holds the whole message, the `Tried:` line included: on the issue, or with issues as files, in the issue's file under `## Comments` with `needs-human` on its `Labels:` line. A line in chat or in "Waiting on you" alone is not the record.
 - **Never scaffold a half-app.** Installs blocked (the registry, the repo or Node row)? Don't scaffold, and don't build. No app without its dependencies, and no "install them from your terminal" after the fact. Work that needs no install goes on: the grill, the wireframes, the plan, the issues.
 - **Record it.** With `--record`, `docs/state.md` says `Environment: ok`, or names the open rows. `/back` reads it.
 

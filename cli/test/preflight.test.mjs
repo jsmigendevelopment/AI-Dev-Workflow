@@ -78,6 +78,8 @@ test("AC-100-1: /idea, /join, /back and build each run preflight as a first step
     assert.match(text, /references\/preflight\.md/, `${skill} points to the ladder`);
   }
   assert.match(read(".agents/skills/ask/SKILL.md"), /\| `references\/preflight\.md` \|/);
+  // AGENTS.md loads in every session, so the rule holds even when no skill fires.
+  assert.match(read("AGENTS.md"), /^14\. \*\*Preflight before you build\.\*\*.*preflight\.mjs.*Scaffold nothing.*ONE message/m);
 });
 
 test("AC-100-2: a blocked registry, .git and loopback give one table, every fix for the tool, and ONE message", async () => {
