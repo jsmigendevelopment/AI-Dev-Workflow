@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- **Releases are cut only when the owner asks.** `RELEASING.md` says so: no version bump, tag or publish after merges on any automation level.
+
 ## [0.7.0] - 2026-11-24
 
 ### Changed
