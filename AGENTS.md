@@ -29,7 +29,7 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
 10. **Reuse before you build:** an open-source library first, then a free-tier SaaS, then build it yourself.
 11. **Never sit idle without telling the person.** If GitHub or any service says you're rate-limited or blocked, say what's blocked and when it resets (`gh api rate_limit` shows it, and checking it doesn't count against the limit). Send it the "Needs you" way below: an FYI, or a blocker if nothing else can move. Then keep doing everything that doesn't need that service, and pick the blocked work back up after the reset. A blocker is never just a chat line: try every route you're allowed (a denied command gets one plain retry), then, in the same turn, record what's left as `needs-human` with a "Setup step for you" and ping `--level blocker` (`ask`).
 12. **Never force-push, and never push straight to `main`.** Changes reach main through a pull request.
-13. **Ask before using the strongest model tier** (not on Full automation), unless `docs/profile.toml` says not to (see the `routing` skill).
+13. **Ask before using the strongest model tier, once per session** (not on Full automation), unless `docs/profile.toml` says not to (see the `routing` skill).
 
 ## Code
 

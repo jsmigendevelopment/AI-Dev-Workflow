@@ -80,3 +80,16 @@ test("init copies the home profile into a project without one, and leaves an exi
   init(noHome, { home: tmp(), log: logger() });
   assert.ok(!exists(noHome, "docs/profile.toml"));
 });
+
+// #100 AC-3: the tier question is asked once, at setup, and saved as ask_before_strongest.
+test("AC-100-3: profile init asks once about the strongest model, and a yes turns the per-job question off", async () => {
+  const home = tmp();
+  const ask = fakeAsk(["", "", "", "", "", "", "", "yes"]);
+  assert.equal(await profileInit({ home, ask, log: logger() }), 0);
+  assert.match(read(home, ".onrails/profile.toml"), /^ask_before_strongest = false +# ask before/m);
+  assert.equal(ask.questions.filter((q) => q.startsWith("May the planner use your strongest model without asking each time?")).length, 1);
+
+  const kept = tmp();
+  assert.equal(await profileInit({ home: kept, ask: fakeAsk([]), log: logger() }), 0);
+  assert.match(read(kept, ".onrails/profile.toml"), /^ask_before_strongest = true/m, "Enter keeps asking on");
+});

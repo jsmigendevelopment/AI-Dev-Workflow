@@ -45,12 +45,13 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 36 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 40 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
   assert.match(r.stdout, /idea-grill \[with\]/);
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
+  assert.match(r.stdout, /preflight-blocked: its own limits, 24 turns, 240 s, \$0\.5 budget/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
 });
 
@@ -212,7 +213,29 @@ const RECEIPT = "Got it · landing-page thread · My reading: make the hero loud
 const ONE_PROMPT_REVIEW = "# Review\n\n### Door: money and time\nPick: integer cents with the currency. AI pick, not reviewed\nQuestion: Integer cents, or which one?\n\n### Door: data model\nPick: the household owns the list. AI pick, not reviewed\n";
 const FIRST_ISSUE = "# #1 The skeleton\n\nStatus: ready\n\n## Acceptance checks\n\n- AC-1-1 (auto): WHEN the app starts THEN the starter page loads.\n";
 
+// #100: one batched setup message for a sandbox that can't install, and nothing scaffolded.
+const SANDBOX_ISSUE = `# #2 The sandbox can't install: two fixes
+
+Labels: needs-human, blocker
+
+Setup step for you · Unblock the agent's sandbox · about 5 minutes
+
+1. Package registry: allow network access to the registry, or point .npmrc at one that answers.
+2. Node: install Node 99 or newer, then start the agent again in this folder.
+
+Tried: a project-local cache with --prefer-offline (empty), npm install as one plain command (refused), the setup docs (no other registry named).
+When it worked: preflight shows every row green.
+`;
+
 const SCENARIO_PLANS = {
+  "preflight-blocked": {
+    with: { steps: [{ tool: "Bash", input: { command: "node .agents/skills/ask/scripts/preflight.mjs --if-changed --record" }, ok: true }, { tool: "Bash", input: { command: "npm install --prefer-offline --cache .npm-cache" } }, { write: "docs/issues/002-sandbox-cannot-install.md", content: SANDBOX_ISSUE }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level blocker --issue 2 --title \"The sandbox can't install: two fixes\"" }, ok: true }, { text: "Nothing is scaffolded: installs are blocked. Both fixes are in docs/issues/002-sandbox-cannot-install.md, in one message." }] },
+    without: { steps: [{ tool: "Bash", input: { command: "npm install" } }, { write: "src/server.mjs", content: "import express from \"express\";\n\nexpress().get(\"/\", (_q, r) => r.send(\"Tidy\")).listen(3000);\n" }, { text: "I scaffolded the server. npm install failed here, so run it from your own terminal. You'll also need a newer Node." }] },
+  },
+  "asked-once": {
+    with: { steps: [{ write: "docs/stack.md", content: "# Stack\n\n## Risk dial\n\n- [x] **Move fast**\n\n## Automation level\n\n- **Level:** recommended\n- **Loop:** on\n" }, { text: "Done. docs/stack.md has the Automation level section (Recommended, from decision 1), and docs/decisions.md has its row." }] },
+    without: { steps: [{ tool: "AskUserQuestion", input: { questions: [{ question: "Which automation level do you want?", options: [{ label: "Recommended" }, { label: "Full automation" }] }] } }, { text: "Two questions first. May I use the strongest model for this, Fable or Opus? If so, please start a new session on it. And which automation level do you want: Recommended or Hands-on?" }] },
+  },
   "idea-grill": {
     with: { steps: [{ write: "kickoff/grill-log.md", content: "# Grill\n" }, { text: "1. Who uses it?\nRecommended: the four of you.\n2. How do you split today?\nRecommended: an app.\n3. Phones or laptops?\nRecommended: phones." }] },
     without: { steps: [{ write: "package.json", content: "{}" }, { write: "src/app.js", content: "x" }, { text: "Done, the app is built." }] },
@@ -279,7 +302,7 @@ const SCENARIO_PLANS = {
     without: { steps: [{ bash: "node scripts/runs.mjs stop build-14" }, { text: "That run has spent 1.2M tokens. Are you sure you want me to stop it?" }] },
   },
   "strongest-tier": {
-    with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },
+    with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it? If this session can't switch, I'll plan on the model it has and record that." }] },
     without: { steps: [{ tool: "Agent", input: { model: "opus", prompt: "Plan it" } }, { write: "docs/pyramid.md", content: "# Plan\n" }, { text: "Planned." }] },
   },
 };

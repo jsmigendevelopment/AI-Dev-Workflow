@@ -19,6 +19,8 @@ const ISSUE_DEST = ".github/ISSUE_TEMPLATE/slice.md";
 const CHECKER = join("scripts", "check-research.mjs");
 const LIBRARY = join("scripts", "research-library.mjs");
 const TEMPLATE = join("templates", "research-library");
+// Preflight ships inside the ask skill, so an agent can run it with plain node, and in the CLI (npx onrails preflight).
+const PREFLIGHT = join("scripts", "preflight.mjs");
 const COPIES = [
   ...["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
   [CHECKER, join(SRC, "research", "scripts", "check-research.mjs")],
@@ -26,6 +28,8 @@ const COPIES = [
   // The library helper and the template library's copies of the checker and the schemas.
   [LIBRARY, join(SRC, "research", "scripts", "research-library.mjs")],
   [LIBRARY, join("cli", "src", "research-library.mjs")],
+  [PREFLIGHT, join(SRC, "ask", "scripts", "preflight.mjs")],
+  [PREFLIGHT, join("cli", "src", "preflight.mjs")],
   [CHECKER, join(TEMPLATE, "scripts", "check-research.mjs")],
   [LIBRARY, join(TEMPLATE, "scripts", "research-library.mjs")],
   ...["provenance.schema.json", "library.schema.json"].map((name) => [join(SRC, "research", "references", name), join(TEMPLATE, "schemas", name)]),
