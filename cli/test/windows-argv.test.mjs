@@ -35,7 +35,7 @@ test("AC-138-1: WHEN the CLI runs npm on Windows with Node in C:\\Program Files\
   assert.deepEqual(npm, ["npm", "install", "-g", "corepack"]);
   assert.equal(sys.exec(npm), true);
   const shim = join(nodejs, "npm.cmd");
-  assert.deepEqual(calls, [{ argv: [ComSpec, "/d", "/s", "/c", `""${shim}" install -g corepack"`], verbatim: true }]);
+  assert.deepEqual(calls, [{ argv: [ComSpec, "/d", "/v:off", "/s", "/c", `""${shim}" install -g corepack"`], verbatim: true }]);
   assert.ok(!calls.some((c) => c.argv.some((a) => a === join(sh, "npm") || a === join(nodejs, "npm"))), "no extension-less npm starts");
 });
 
@@ -45,6 +45,6 @@ test("AC-138-2: WHEN a command path has spaces THEN the argv built for cmd.exe q
   // that is the last argument below: /s drops the outer pair, so the quoted path stays one word.
   const l = launch(["C:\\Program Files\\nodejs\\npm.cmd", "install", "-g", "corepack"], { platform: "win32", env: { ComSpec } });
   assert.equal(l.file, ComSpec);
-  assert.deepEqual(l.args, ["/d", "/s", "/c", "\"\"C:\\Program Files\\nodejs\\npm.cmd\" install -g corepack\""]);
+  assert.deepEqual(l.args, ["/d", "/v:off", "/s", "/c", "\"\"C:\\Program Files\\nodejs\\npm.cmd\" install -g corepack\""]);
   assert.equal(l.verbatim, true, "Node would escape the quotes again without windowsVerbatimArguments");
 });

@@ -162,7 +162,7 @@ test("AC-215-1: on Windows, a claude.cmd in <project>/node_modules/.bin never ru
   const { calls, run } = recorder();
   const sys = realSystem({ projectDir: project, platform: "win32", env, run });
   await offerStart(project, "idea", { sys, start: true, interactive: false, log: logger() });
-  assert.deepEqual(calls.map((c) => c.argv), [[ComSpec, "/d", "/s", "/c", `""${join(installed, "claude.cmd")}" /idea"`]]);
+  assert.deepEqual(calls.map((c) => c.argv), [[ComSpec, "/d", "/v:off", "/s", "/c", `""${join(installed, "claude.cmd")}" /idea"`]]);
 });
 
 test("AC-215-1: WHEN the only claude on PATH is in a folder inside the project THEN init --start through the binary says it wasn't found and it never runs", { skip: process.platform === "win32" }, () => {

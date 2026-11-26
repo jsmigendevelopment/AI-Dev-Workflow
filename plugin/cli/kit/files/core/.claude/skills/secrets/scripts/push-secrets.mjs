@@ -16,8 +16,9 @@
 // variable SECRETS_MODE to "repository", and this pushes repository secrets and variables named
 // TEST_<name> and PRODUCTION_<name> instead: the names the pack's workflows read in that mode.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { commandFor, repoRoot } from "./command-for.mjs";
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
@@ -29,12 +30,6 @@ const only = args.includes("--env") ? args[args.indexOf("--env") + 1] : null;
 // `git init`. The same rule and lookup as setup-github.mjs, connect and the TanStack pack's
 // ci-mode.ts; cli/test/deploy-keys-followups runs the same fixtures on all four (#160).
 const CI_ACTIONS = /^ci[ \t]*=[ \t]*"actions"[ \t]*(?:#.*)?\r?$/m;
-function repoRoot(start) {
-  for (let dir = start; ; dir = dirname(dir)) {
-    if (existsSync(join(dir, ".git"))) return dir;
-    if (dirname(dir) === dir) return null;
-  }
-}
 function ci() {
   const start = process.cwd();
   const top = repoRoot(start) ?? start;
@@ -45,54 +40,14 @@ function ci() {
   }
 }
 
-// A folder's real path, or null when it doesn't exist (then it holds no tool).
-function realDir(dir) {
-  try {
-    return realpathSync(dir);
-  } catch {
-    return null;
-  }
-}
-// True when dir is root or inside it. Only a ".." path segment leaves root.
-function within(dir, root) {
-  const rel = relative(root, dir);
-  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
-}
-
-// How a command starts, with no shell: { file, args, env, verbatim } or { why } (#237). The rule of launch and
-// toolPath in the CLI's system.mjs, which this script can't import: the full path on PATH (PATHEXT on Windows),
-// never from a relative entry or a folder inside the repo, because Windows looks a bare name up in the current
-// folder first. A Windows .cmd shim (npx.cmd) starts only through cmd.exe, by ComSpec's full path, with plain words.
-function commandFor(cmd, cmdArgs, { platform = process.platform, env = process.env } = {}) {
-  const win = platform === "win32";
-  const top = realDir(repoRoot(process.cwd()) ?? process.cwd());
-  const exts = win ? (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter((ext) => /^\.(com|exe|bat|cmd)$/i.test(ext)) : [""];
-  const isFile = (file) => existsSync(file) && statSync(file).isFile();
-  let found = null;
-  let skipped = false;
-  for (const entry of (env.PATH || env.Path || "").split(win ? ";" : ":").filter(Boolean)) {
-    const file = exts.map((ext) => join(entry, cmd + ext)).find(isFile);
-    if (!file) continue;
-    const dir = isAbsolute(entry) && realDir(entry);
-    if (dir && !(top && within(dir, top))) { found = file; break; }
-    skipped = true;
-  }
-  if (!found) return { why: skipped ? `${cmd} found only inside this repo, not run` : `${cmd} isn't on your PATH` };
-  if (!win) return { file: found, args: cmdArgs, env };
-  // A .cmd shim starts a bare `node`: this stops cmd.exe, and what it starts, looking in the current folder first.
-  const winEnv = { ...env, NoDefaultCurrentDirectoryInExePath: "1" };
-  if (!/\.(cmd|bat)$/i.test(found)) return { file: found, args: cmdArgs, env: winEnv };
-  if (!cmdArgs.every((arg) => /^[\w.:=/@$+,-]+$/.test(arg))) return { why: `only plain words go to cmd.exe, not: ${cmdArgs.join(" ")}` };
-  // cmd.exe expands %NAME% even inside quotes. /s drops the line's outer quotes, so a path with a space stays one word.
-  if (found.includes("%")) return { why: `cmd.exe would expand the % in ${found}` };
-  const cmdExe = env.ComSpec || join(env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
-  return { file: cmdExe, args: ["/d", "/s", "/c", `""${found}" ${cmdArgs.join(" ")}"`], env: winEnv, verbatim: true };
-}
-
 // "repository" only when the repository variable says so. A read that fails keeps environments.
 function secretsMode() {
+  const how = commandFor("gh", ["variable", "get", "SECRETS_MODE"]);
+  if (how.why) return "environment";
   try {
-    const out = execFileSync("gh", ["variable", "get", "SECRETS_MODE"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    const out = execFileSync(how.file, how.args, {
+      encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], env: how.env, windowsVerbatimArguments: how.verbatim,
+    });
     return out.trim() === "repository" ? "repository" : "environment";
   } catch {
     return "environment";
@@ -165,27 +120,29 @@ for (const env of envs) {
     const gh = githubTarget(name, env, mode);
     const targets = m.secret
       ? [...(GITHUB ? [["gh", ["secret", "set", gh.name, ...gh.where]]] : []), ...(WRANGLER ? [["npx", ["wrangler", "secret", "put", name, "--env", env]]] : [])]
-      : GITHUB ? [["gh", ["variable", "set", gh.name, ...gh.where, "--body", value]]] : [];
+      : GITHUB ? [["gh", ["variable", "set", gh.name, ...gh.where], value]] : [];
     if (!targets.length) {
       const why = m.secret ? "a secret, and nothing takes one on ci = \"local\" without --wrangler" : "a plain variable: it goes in wrangler.jsonc vars";
       console.log(`${env}: ${name} ${DRY ? "would be" : "is"} stored nowhere (${why})`);
     }
     let stored = false;
     let missed = false;
-    for (const [cmd, cmdArgs] of targets) {
+    // A plain variable's value is a target's third item: it goes on --body, never in the words commandFor checks.
+    for (const [cmd, cmdArgs, body] of targets) {
       const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})` : "Cloudflare secret";
       if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); stored = true; continue; }
-      // npx only for now: gh still starts by its bare name until #238.
-      const how = cmd === "npx" ? commandFor(cmd, cmdArgs) : { file: cmd, args: cmdArgs };
+      const how = commandFor(cmd, cmdArgs);
       if (how.why) {
         failed++;
         missed = true;
         console.log(`${env}: FAILED ${name} as a ${where}: ${how.why}`);
         continue;
       }
+      // cmd.exe never gets a value: through a gh.cmd, gh variable set reads it from stdin, as with no --body (#238).
+      const line = body === undefined || how.verbatim ? how.args : [...how.args, "--body", body];
       try {
-        execFileSync(how.file, how.args, {
-          input: m.secret ? value : undefined, stdio: ["pipe", "ignore", "pipe"], env: how.env, windowsVerbatimArguments: how.verbatim,
+        execFileSync(how.file, line, {
+          input: m.secret || how.verbatim ? value : undefined, stdio: ["pipe", "ignore", "pipe"], env: how.env, windowsVerbatimArguments: how.verbatim,
         });
         console.log(`${env}: set ${name} as a ${where}`);
         stored = true;

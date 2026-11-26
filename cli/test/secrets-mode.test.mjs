@@ -29,11 +29,15 @@ if (argv[0] === "api" && argv.includes("--jq")) say((process.env.FAKE_VISIBILITY
 if (argv[0] === "api" && argv.some((a) => a.endsWith("/rulesets"))) say("[]");
 `;
 
+// Each repo's fake gh lives in a folder of its own, outside the repo, as an installed gh is: push-secrets and
+// setup-github never start a gh from a folder inside the repo (#238).
+const bins = new Map();
+
 function repo() {
   const dir = tmp("onrails-secrets-");
-  mkdirSync(join(dir, "bin"));
-  writeFileSync(join(dir, "bin", "gh"), FAKE_GH);
-  chmodSync(join(dir, "bin", "gh"), 0o755);
+  bins.set(dir, tmp("onrails-fake-bin-"));
+  writeFileSync(join(bins.get(dir), "gh"), FAKE_GH);
+  chmodSync(join(bins.get(dir), "gh"), 0o755);
   execFileSync("git", ["init", "-q", dir], { env: safeEnv() });
   execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"], { env: safeEnv() });
   writeFileSync(join(dir, ".env.example"), "# scope: test,production\nAPI_TOKEN=\n# scope: production, secret: no\nSITE_URL=\n");
@@ -50,7 +54,7 @@ function run(file, dir, args, env = {}) {
     cwd: dir,
     encoding: "utf8",
     input: "",
-    env: safeEnv({ FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir, ...env }, { bins: [join(dir, "bin")] }),
+    env: safeEnv({ FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir, ...env }, { bins: [bins.get(dir)] }),
   });
   let calls = [];
   try {
