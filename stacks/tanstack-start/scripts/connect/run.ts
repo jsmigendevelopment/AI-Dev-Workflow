@@ -3,6 +3,7 @@
 import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
+import { readCi } from '../cloudflare/ci-mode.ts'
 import { type Folders, groupsFor, type Place, statusReader } from './places.ts'
 import { parseProviders, type Provider, secretPrefixes } from './providers.ts'
 import { githubRepo } from './repo.ts'
@@ -111,7 +112,7 @@ function planFor(ctx: Context, providers: Provider[], needed: Set<string> | null
             `  ⚠ ${name}: couldn't check whether it's already set in ${unknown.map((p) => p.label).join(', ')}.`,
           )
       }
-      ctx.say(`  ${name}: ${words.join(', ')}`)
+      ctx.say(`  ${name}: ${words.length ? words.join(', ') : 'GitHub only, not used on ci = "local"'}`)
       for (const w of warnings.splice(0)) ctx.say(w)
     }
     if (todos.length) plan.push({ provider, todos })
@@ -170,6 +171,10 @@ async function walkAndReport(ctx: Context, plan: Array<{ provider: Provider; tod
 
 /** Which GitHub repository values go to, and under which names. */
 function sayGithub({ repo, secretsMode, say }: Context) {
+  if (secretsMode === 'none')
+    return say(
+      'ci = "local" (docs/stack.md): nothing goes to GitHub. Values go to local files and Cloudflare.',
+    )
   say(
     repo
       ? `GitHub repository: ${repo} (from the origin remote).`
@@ -213,7 +218,8 @@ export async function connect(args: string[], io: Io): Promise<number> {
     folders,
     run,
     repo,
-    secretsMode: readSecretsMode(run, repo),
+    // From the app's folder, as setup-cloudflare: the nearest docs/stack.md up to the root (#160).
+    secretsMode: readSecretsMode(run, repo, readCi(folders.app)),
     secretPrefixes: secretPrefixes(providers),
     platform: io.platform,
     env: io.env,

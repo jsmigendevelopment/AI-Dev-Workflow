@@ -1,5 +1,5 @@
-// Licence allow-list, run in CI: `pnpm check:licenses`. Fails on any installed package whose
-// licence is not on the list, naming the package. Exceptions name the package, the reason and the
+// Licence allow-list: `pnpm check:licenses`, run before merge by `pnpm check:merge`. Fails on any
+// installed package whose licence is not on the list, naming the package. Exceptions name the package, the reason and the
 // date they were checked. Policy: .agents/skills/dependencies in the kit (permissive only in
 // shipped code; no AGPL, SSPL, BUSL, source-available or GPL).
 import { execFileSync } from 'node:child_process'

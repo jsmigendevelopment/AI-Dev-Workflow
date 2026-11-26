@@ -58,14 +58,14 @@ For each need: open source first, then a free-tier SaaS, then build it.
 How carefully changes are gated. Pick one.
 
 - [ ] **Move fast:** startup or side project, no real users yet. Agents merge after automated review, and the person reviews by using the app.
-- [ ] **Careful:** real users or real money. The person reads every schema and migration change and skims every API change before merge.
-- [ ] **Strict:** bank, health, or anything regulated. The person approves every merge, and there's a second human reviewer for security.
+- [ ] **Careful:** real users or real money. Below Full, the person reads every schema and migration change and skims every API change before merge. On Full, those changes get an extra agent review instead (#103).
+- [ ] **Strict:** bank, health, or anything regulated. Below Full, the person approves every merge, and there's a second human reviewer for security. On Full, a fresh `pr-review` and `pr-security` stand in, never a person (#103).
 
 Whatever the dial, the **always-stop list** in `AGENTS.md` still applies: production, secrets, real data and money always wait for the person.
 
 ## Automation level
 
-How much agents do without the person (the `automation` skill). The risk dial above is how careful each merge is. When they disagree, the more careful one wins. Change it any time with `/automation`.
+How much agents do without the person (the `automation` skill). The risk dial above is how careful each merge is. Below Full, when they disagree, the more careful one wins. On Full, a careful dial adds reviews, never a person (#103). Change it any time with `/automation`.
 
 - **Level:** recommended  <!-- recommended | full | hands-on | custom -->
 - **Loop:** on  <!-- on | off -->
@@ -76,6 +76,12 @@ How much agents do without the person (the `automation` skill). The risk dial ab
 - **In flight at once:** 3  <!-- issues claimed and not yet merged, counting claimed work waiting on the person; 1 on Hands-on; the loop finishes one before it starts another -->
 - **Overnight loop:** off  <!-- on | off; /afk offers it when off -->
 - **Ping level:** decisions  <!-- decisions | blockers | critical; read by notify.mjs -->
+
+## Checks and deploys
+
+ci = "local"
+
+`local` (the default, and the only recommendation): every check, preview and deploy runs from the agent's session, never from GitHub Actions. Before each merge, an agent other than the builder runs the checks on the exact head commit and posts the `onrails/check` commit status. `actions` only if the person turns it on themselves.
 
 ## Logs
 
@@ -88,4 +94,5 @@ The rules: `guide/environments.md` in the kit. Local, test, preview and producti
 
 - Test URL: 
 - Preview per pull request: yes / no
-- Production: deployed by the person only. Production keys live only in the GitHub `production` environment, which waits for the person's approval (set up by `setup-github.mjs`). On GitHub Free with a private repo there are no environments: keys are `PRODUCTION_` repository secrets, with no required reviewer, and the gate is the manual run plus typing "deploy production".
+- Production URL (`SITE_URL`): 
+- Production: deployed only after the person's yes, from the session (the web pack: `pnpm deploy:production --confirm "deploy production"`). Production keys live on the production host (`wrangler secret put --env production`), never in the repo.

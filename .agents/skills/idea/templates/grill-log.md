@@ -8,7 +8,7 @@ Mode: full | auto
 
 - Model and effort: <model> at <effort> (recommended: yes | no, and why)
 
-Every answer has a source, from the labels in `grill`'s "Keep the record": person, default, AI, AI pick, approved at review, or changed at review.
+Every answer has a source, from the labels in `grill`'s "Keep the record": person, default, AI, AI pick, approved at review, or changed at review. Fill it in when you log the answer. Below Full, the person's own answer is "person". On Full, a seed answer the pitch gave is "person (pitch)", and a guess is "AI pick, not reviewed".
 
 ## Coverage map
 
@@ -46,17 +46,17 @@ About 10 questions per topic, fewer if answers come fast. Move on after three ro
 **Q1.** 
 **Recommended:** 
 **Answer:** 
-**Source:** person
+**Source:** 
 
 **Q2.** 
 **Recommended:** 
 **Answer:** 
-**Source:** person
+**Source:** 
 
 **Q3.** 
 **Recommended:** 
 **Answer:** 
-**Source:** person
+**Source:** 
 
 ## Auto grill
 

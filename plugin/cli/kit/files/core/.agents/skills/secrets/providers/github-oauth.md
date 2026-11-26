@@ -30,6 +30,14 @@ You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare p
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against GitHub's and Cloudflare's docs on 2026-11-26.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `ACCESS_GITHUB_CLIENT_ID`, `ACCESS_GITHUB_CLIENT_SECRET` | https://github.com/settings/applications/new | An **OAuth app**. **Application name:** the app's. **Homepage URL:** `https://<team>.cloudflareaccess.com`. **Authorization callback URL:** `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`. Leave **Enable Device Flow** off. No scopes here: Access asks for orgs, teams and email when the person clicks **Authorize** (walkthrough step 5). **Register application** (it shows only the client ID). Stop there: the person presses **Generate a new client secret** (shown once). `[V]` |
+
 ## Walkthrough · about 3 minutes
 
 1. Open https://github.com/settings/applications/new. This is an **OAuth app**, not a GitHub App. (Same page: profile picture → **Settings** → **Developer settings** → **OAuth Apps** → **New OAuth App**.) `[V]`

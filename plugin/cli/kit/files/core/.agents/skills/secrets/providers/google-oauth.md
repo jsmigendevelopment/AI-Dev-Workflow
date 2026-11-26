@@ -29,6 +29,14 @@ You need your **team domain** first: `<team>.cloudflareaccess.com`. setup-cloudf
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Google's and Cloudflare's docs on 2026-11-26.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `ACCESS_GOOGLE_CLIENT_ID`, `ACCESS_GOOGLE_CLIENT_SECRET` | https://console.cloud.google.com/auth/clients | A project and a consent screen first (walkthrough steps 1 and 2). **Create client**, **Application type:** Web application. **Authorized JavaScript origins:** `https://<team>.cloudflareaccess.com`. **Authorized redirect URIs:** `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`. No scopes to pick here: Access asks for the email at sign-in. Stop there: the person presses **Create**. The secret shows when the client is made. `[V]` |
+
 ## Walkthrough · about 5 minutes
 
 1. Make a project: https://console.cloud.google.com/projectcreate. Any name. Click **Create**. `[V]` (Cloudflare: "Create a new project ... select Create")

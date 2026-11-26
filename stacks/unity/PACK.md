@@ -100,7 +100,7 @@ Unity -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -te
 
 Warnings as errors need a compiler response file in `Assets/` (for example `csc.rsp` with `-warnaserror+`) [I]. Confirm it works on 6.3 before relying on it.
 
-Where e2e is weaker than web: PlayMode tests check behaviour, not how the game looks, feels or plays. There's no equivalent of the `qa` browser check. **A person plays every build that matters.** Acceptance checks tagged `agent` on the web pack mostly become checks for a human here. What a human checks: the main loop is fun and readable, controls feel right, art and audio load, performance is acceptable on the target device, and each target platform's build launches.
+Where e2e is weaker than web: PlayMode tests check behaviour, not how the game looks, feels or plays. There's no equivalent of the `qa` browser check. **Below Full, a person plays every build that matters.** Acceptance checks tagged `agent` on the web pack mostly become checks for a human here. What a human checks: the main loop is fun and readable, controls feel right, art and audio load, performance is acceptable on the target device, and each target platform's build launches. **On Full,** run the parts an agent can: the PlayMode tests, and each target's build launched headless where the runner has that platform. Record what no person played (fun, feel, art, audio, the device) on the pull request as "AI pick, not reviewed", merge on the reviews, and add a "play this build" line to the FYI.
 
 ## Auth and backend
 

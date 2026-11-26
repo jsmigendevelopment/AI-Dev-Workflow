@@ -99,14 +99,14 @@ You rarely need these. The four commands call them for you.
 | Dial | Who merges | Pick it when |
 |---|---|---|
 | 🟢 **Move fast** | Agents, after the checks pass | Side project or startup, no real users yet |
-| 🟡 **Careful** | Agents. The person reads schema and API changes first. | Real users or real money |
-| 🔴 **Strict** | The person approves every merge | Bank, health, anything regulated |
+| 🟡 **Careful** | Agents. Below Full, the person reads schema and API changes first; on Full, an extra review. | Real users or real money |
+| 🔴 **Strict** | The person approves every merge (below Full; on Full, an extra review and a security review) | Bank, health, anything regulated |
 
 | Lane | Checks before merge | When |
 |---|---|---|
 | **tiny** | CI · code review | Copy, styling, config. No logic. |
 | **normal** | CI · code review · QA on the preview | Most issues |
-| **risky** | Normal · security review · the person | Auth, secrets, personal data, money, migrations, new dependencies |
+| **risky** | Normal · security review · the person (below Full; on Full, an extra review) | Auth, secrets, personal data, money, migrations, new dependencies |
 
 🛑 **Always waits for a person, whatever the dial:** production, secrets, deleting or migrating real data, and spending money.
 
@@ -114,7 +114,7 @@ You rarely need these. The four commands call them for you.
 
 ## 🎚️ Automation level
 
-The risk dial is how careful each merge is. The automation level is how much agents do without you. The more careful one wins. Asked first in `/idea` and `/join`. Change it with `/automation`.
+The risk dial is how careful each merge is. The automation level is how much agents do without you. Below Full, the more careful one wins. On Full, a careful dial adds reviews, never a person (#103). Asked first in `/idea` and `/join`. Change it with `/automation`.
 
 | Level | Agents do | You do |
 |---|---|---|

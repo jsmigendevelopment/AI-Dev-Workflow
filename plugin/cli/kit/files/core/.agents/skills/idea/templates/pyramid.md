@@ -3,7 +3,7 @@
 ## Slice 0: the skeleton
 
 - [ ] The app runs locally, and the person has seen it
-- [ ] CI runs every check on every pull request
+- [ ] Every check runs from the session before each merge (`onrails/check`), with no GitHub Actions
 - [ ] Boundary check on
 - [ ] Main deploys to test. Test URL: 
 - [ ] A preview per pull request (if the host offers one)
@@ -39,14 +39,14 @@ Pass 3 done = **MVP complete on the test site.** Not launch. Launch is the perso
 
 | # | Step | Slice | Try it | Size | After |
 |---|---|---|---|---|---|
-| 1 | The skeleton | slice 0 | Open http://localhost:3000, then the test URL: the starter page shows the app's name | 5 · sets up the app, CI and the test deploy | |
+| 1 | The skeleton | slice 0 | Open http://localhost:3000, then the test URL: the starter page shows the app's name | 5 · sets up the app, the checks and the test deploy | |
 
 ## Done means
 
 A step is done when all of this is true, and not before:
 
 - every `auto` acceptance check has a passing test that carries its ID;
-- CI is green on the merged commit, and the lane's reviews passed on that same commit;
+- the checks passed on the merged head commit (`coordinate` step 6.1) and on main after the merge (step 8), and the lane's reviews passed on that same head commit;
 - it's merged to main, live on the test site, and the smoke test passed;
 - its try line is on the "To try" list in `docs/state.md`.
 

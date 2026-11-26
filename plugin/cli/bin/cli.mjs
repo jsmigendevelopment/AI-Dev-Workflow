@@ -36,6 +36,7 @@ Usage:
   npx onrails doctor [dir] --fix [--yes] [--dry-run]
                                           offer a fix for each problem, run it after a yes
   npx onrails preflight [dir] [--record] [--if-changed] [--json] [--model <id>] [--effort <level>]
+                        [--tool <name>] [--mark-read]
                                           for agents: probe this session's sandbox (repo, .git, the
                                           registry, GitHub, loopback, a browser, Node) and print one
                                           table with the fix ladder for each failure
@@ -43,7 +44,7 @@ Usage:
                                           CPU, memory, and which are stale (owner gone, or past their time)
   npx onrails ps [dir] --stop <id|all|stale|pid> [--yes]
                                           stop them: TERM, then KILL after 5 s. Asks first for a PID
-                                          onRails didn't start
+                                          onRails didn't start, or another live session's
   npx onrails accounts [dir]              list the profile's accounts and their config folders
   npx onrails add <pack> [dir] [--force]  copy a stack pack into the project
   npx onrails add --list                  list the stack packs

@@ -10,7 +10,7 @@ Two separate dials. Explain both in one sentence each when you ask:
 - **The automation level** says how much agents do without you: run the loop, open pull requests, merge, keep going overnight.
 - **The risk dial** says how careful each merge is: which changes you must read first (schema, API, every merge).
 
-When the two disagree, the more careful one wins. On Full automation the dial only adds reviews, never a person gate (#103): a careful dial gets schema changes an extra review, not your wait.
+Below Full, when the two disagree, the more careful one wins. On Full automation the dial only adds reviews, never a person gate (#103): a careful dial gets schema changes an extra review, not your wait.
 
 ## The four levels
 
@@ -84,7 +84,7 @@ Recommended and Hands-on keep every wait: the review and the wireframe approval.
 |---|---|
 | `coordinate` | Whether the loop runs, how many issues are in flight, who merges each lane, and whether it opens pull requests. |
 | `build` | Whether to open the pull request or stop at a pushed branch. |
-| `pr-review` | Whether the verdict says the person must look before merge. |
+| `pr-review` | Whether the verdict says the person must look before merge (below Full; on Full it says no, outside the always-stop list). |
 | `issues` | Writing who merges into each issue's lane. |
 | `afk` | Whether the loop keeps going overnight. |
 | `notify.mjs` (via `ask`) | The ping level. |

@@ -1,11 +1,24 @@
 // Test helpers: temp folders, captured output and small fake kits for update tests.
-import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { after } from "node:test";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { hash, toNative, writeFile } from "../src/files.mjs";
 import { storedName } from "../src/kit.mjs";
 
-export const tmp = (prefix = "onrails-") => mkdtempSync(join(tmpdir(), prefix));
+// Every folder tmp() makes is removed when the test file ends, so a run leaves nothing in TMPDIR (#142).
+// Retries, because a child a test started may still be closing a file in it.
+const made = [];
+after(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+});
+
+/** A new empty temp folder, removed when the test file ends. */
+export function tmp(prefix = "onrails-") {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  made.push(dir);
+  return dir;
+}
 
 export function logger() {
   const lines = [];
@@ -50,4 +63,33 @@ export function fakeAsk(answers = []) {
   const ask = async (question) => (ask.questions.push(question), queue.shift() ?? "");
   ask.questions = [];
   return ask;
+}
+
+// A fake `gh` for the coordinate scripts: `gh api <path>` answers from a map, and every call is logged.
+const FAKE_GH = `#!/usr/bin/env node
+const fs = require("fs");
+const argv = process.argv.slice(2);
+fs.appendFileSync(process.env.FAKE_LOG, argv.join(" ") + "\\n");
+const api = JSON.parse(fs.readFileSync(process.env.FAKE_API, "utf8"));
+const path = argv.filter((a) => a !== "api" && !a.startsWith("--")).at(-1);
+if (!(path in api)) { process.stderr.write("HTTP 404: " + path + "\\n"); process.exit(1); }
+if (api[path]?.ghError) { process.stderr.write(api[path].ghError + "\\n"); process.exit(1); }
+process.stdout.write(JSON.stringify(argv.includes("--slurp") ? [api[path]] : api[path]));
+`;
+export const unixOnly = { skip: process.platform === "win32" ? "the fake gh is a shebang script" : false };
+
+// Puts the fake gh in dir/bin. `api` maps an API path to its answer; `{ ghError: "<stderr>" }` makes gh fail with
+// that text, the way a refused or broken call does. The env to spawn with drops the shell's
+// REPO and HEAD_SHA, so a test never depends on them; `env` adds variables. `calls()` is the log so far.
+export function fakeGh(dir, api, env = {}) {
+  mkdirSync(join(dir, "bin"), { recursive: true });
+  writeFileSync(join(dir, "bin", "gh"), FAKE_GH);
+  chmodSync(join(dir, "bin", "gh"), 0o755);
+  writeFileSync(join(dir, "api.json"), JSON.stringify(api));
+  const log = join(dir, "calls.log");
+  const shell = Object.fromEntries(Object.entries(process.env).filter(([name]) => !["REPO", "HEAD_SHA"].includes(name)));
+  return {
+    env: { ...shell, PATH: `${join(dir, "bin")}${delimiter}${process.env.PATH}`, FAKE_API: join(dir, "api.json"), FAKE_LOG: log, ...env },
+    calls: () => (existsSync(log) ? readFileSync(log, "utf8") : ""),
+  };
 }

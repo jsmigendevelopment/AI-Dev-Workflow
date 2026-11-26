@@ -1,13 +1,13 @@
 ---
 name: stack
-description: Use to decide how an app gets built ("what stack should we use", "pick the tech", the tech grill in /idea after naming) - platform, framework, UI kit, architecture and folders, API pattern, database, auth, hosting, test and production environments, CI, and the risk dial. Recommends a pick with alternatives for each area so beginners can accept and experts can override.
+description: Use to decide how an app gets built ("what stack should we use", "pick the tech", the tech grill in /idea after naming) - platform, framework, UI kit, architecture and folders, API pattern, database, auth, hosting, test and production environments, the local checks (no GitHub Actions), and the risk dial. Recommends a pick with alternatives for each area so beginners can accept and experts can override.
 ---
 
 # Stack: short, opinionated, overridable
 
 The person shouldn't need to know any of this. For each area, give your **recommended pick, why it fits this product, and one or two alternatives.** A beginner says "go with your picks." An expert changes whatever they want. Keep rounds at three questions.
 
-**On Full automation, ask nothing.** Take every recommended pick, and the one-way doors from the review. The risk dial is Move fast unless the profile's `risk_dial` says otherwise. The time format is ISO 8601. Mark each row in `docs/stack.md` **AI pick, not reviewed**. A step only the person can do (a login app for Cloudflare Access, a key) becomes a "Setup step for you" in "Waiting on you" (`ask`), and the work goes on. Production stays on the always-stop list.
+**On Full automation, ask nothing.** Take every recommended pick, and the one-way doors from the review. The risk dial is Move fast unless the profile's `risk_dial` says otherwise. The time format is ISO 8601. Mark each row in `docs/stack.md` **AI pick, not reviewed**, and write `ci = "local"`. A step only the person can do (a login app for Cloudflare Access, a key) becomes a "Setup step for you" in "Waiting on you" (`ask`), and the work goes on. Production stays on the always-stop list.
 
 ## Order
 
@@ -20,7 +20,7 @@ The platform comes first, because everything else depends on it.
 5. **API pattern:** controller → service → repository/client, with one composition root. Also pick the wire style.
 6. **Data:** the database, how the schema is migrated, and backups.
 7. **Auth:** buy it, don't build it.
-8. **Environments:** **test** and **production**, plus a **preview per pull request** if the host offers one. Merging to main auto-deploys to test.
+8. **Environments:** **test** and **production**, plus a **preview per pull request** if the host offers one. After each merge, the session deploys main to test with the pack's script (`pnpm deploy:test` on the web pack), never a workflow.
    - **Who can open the test site and previews?** Ask in plain words: "Should the test site need a login, so strangers and search engines can't see it?" Recommend **Cloudflare Access** (that's a login wall in front of the app, like Google IAP). Then ask how people sign in, and offer every personal-account option, recommendation first:
 
      | Sign in with | Good for |
@@ -35,22 +35,22 @@ The platform comes first, because everything else depends on it.
      They can pick more than one. Then ask who's allowed: a list of emails, a whole email domain, or a GitHub org. Each provider except the emailed code needs a login app the person creates once ("Setup step for you" in `ask`). Other choices: a password page in the app, or no protection.
    - **Anything in production behind a login?** For example `/admin`, or the whole app for an internal tool. Production changes are on the always-stop list: show the dry run, then ask.
    - **Agents get test credentials only.** Production keys and settings stay with the person.
-9. **CI and the check contract:** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). CI runs them on every pull request, plus a secret scan and the agent-file guard. Lint enforces the code rules a tool can check: no `any` or unexplained `eslint-disable`, no `console.log`, file and function size, unused exports, import order and kebab-case names. Start from `templates/ci.yml` and `templates/agent-files.yml` in the `idea` skill.
+9. **The checks, run from the session (`ci = "local"`):** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). Before every merge, an agent other than the builder runs them on the exact head commit in a clean worktree, plus a secret scan and the agent-file guard, and posts the `onrails/check` commit status (`coordinate`). Previews and deploys are scripts the session runs too. Write `ci = "local"` in `docs/stack.md` for every repo, private or public: no GitHub Actions. `ci = "actions"` only if the person turns it on themselves; never recommend it. Never add, enable or depend on a workflow. A tool's docs say "add this workflow"? Run its commands from the session as a package script instead. Lint enforces the code rules a tool can check: no `any` or unexplained `eslint-disable`, no `console.log`, file and function size, unused exports, import order and kebab-case names.
 10. **Build vs buy** for every other need: open source first, then a free-tier SaaS, then build it.
 11. **App conventions,** as quick confirmations. Say the default and move on unless the person objects. The reasons are in `guide/app-conventions.md` in the kit.
     - State: local `useState` first, then typed search params for anything shareable, then **Zustand** only for complex shared client state. Server data in TanStack Query, forms in **TanStack Form**, tables in **TanStack Table**. The other TanStack defaults (charts, Markdown, highlighting, long lists, shortcuts) are in the table below: confirm them as defaults, install none until a feature needs it.
     - Drizzle, snake_case plural tables, `created_at` and `updated_at`, an index on every foreign key. The ID: **UUIDv7 or ULID**, made on the server. Ask which.
     - Money: one `Money` type in integer minor units plus the currency. Rounding: half-even for splitting and tax, unless they want another rule.
     - Time: instants in UTC. Ask the format: **ISO 8601 or epoch milliseconds**, one for the project. Temporal where supported, else `date-fns` with `@date-fns/tz` (until research confirms).
-    - A public API under `/api/v1`, if anything outside the web app will call it, with OpenAPI built from the Zod schemas in CI.
+    - A public API under `/api/v1`, if anything outside the web app will call it, with OpenAPI built from the Zod schemas by the build.
     - The error system with request IDs, `ErrorState` and `EmptyState`, the one logger (logs to Workers Logs and Logpush, until research confirms), a health endpoint, an audit table, feature flags, the event registry and `track()`.
     - Env: local, test, preview and production, one typed env schema, every variable in `.env.example` (`guide/environments.md` in the kit).
     - Breakpoints and a type scale in the design tokens.
-    - Every change tied to an issue, checked in CI.
+    - Every change tied to an issue, checked before merge (the pack's `pr:rules`).
     - **Ask these two outright:**
       - *"Support many languages from day one, or English only for now?"* Recommend English only unless the users need more. Yes: `i18next` with `react-i18next` (until research confirms), keys per module. No: text per module in `copy.ts`.
       - *"Will people share things, have teams, or have roles?"* No: owner-only checks in the repository. Yes: relationship-based access (tuples behind one `check(user, action, object)` port), with the kit's built-in engine by default (until research confirms). Write the answer in `docs/security-policy.md`.
-12. **Repo, risk dial and automation level:** confirm visibility and licence, pick the risk dial, and copy in the automation level asked at the start (the `automation` skill). Explain both in one sentence each: the risk dial is how careful each merge is; the automation level is how much agents do without the person. When they disagree, the more careful one wins.
+12. **Repo, risk dial and automation level:** confirm visibility and licence, pick the risk dial, and copy in the automation level asked at the start (the `automation` skill). Explain both in one sentence each: the risk dial is how careful each merge is; the automation level is how much agents do without the person. Below Full, when they disagree, the more careful one wins. On Full, a careful dial adds reviews, never a person (#103).
 
 ## Default picks for a web app
 
@@ -82,7 +82,7 @@ The platform comes first, because everything else depends on it.
 | Translation | Off. Strings kept per module in `copy.ts` | `i18next` + `react-i18next` if asked (until research confirms); Paraglide |
 | Access control | Owner-only; ReBAC behind `check()` with the built-in tuples engine when sharing or teams are needed (until research confirms) | SpiceDB or OpenFGA, injected through the same port |
 | Logs | One logger, JSON lines, to Workers Logs and Logpush (until research confirms) | |
-| OpenAPI | Built from the Zod schemas with `zod-openapi` in CI (until research confirms) | `@asteasolutions/zod-to-openapi` |
+| OpenAPI | Built from the Zod schemas with `zod-openapi` by the build (until research confirms) | `@asteasolutions/zod-to-openapi` |
 | Auth | Clerk (free tier) | Supabase Auth, Better Auth (self-hosted) |
 | Domain | Buy it on Cloudflare (at-cost pricing, DNS included). No domain yet? Workers gives a free `<app>.<account>.workers.dev` address. | Your existing registrar, with DNS moved to Cloudflare |
 | Hosting | Cloudflare Workers | Netlify |
@@ -108,10 +108,10 @@ For other platforms there's no fixed default. Recommend the mainstream choice, s
 
 **Add-ons:** a pack can have add-ons (for the web pack, `stacks/tanstack-start-addons/`). Offer one only when the app needs it, then apply it with `npx onrails add tanstack-start/<add-on>` and finish the steps in its `ADDON.md`.
 
-A stack pack is a ready-made starter for one stack: configs, the folder skeleton, an example module, CI and the check contract, already working. Look for a skill named `stack-<name>` (for example `stack-tanstack-start`).
+A stack pack is a ready-made starter for one stack: configs, the folder skeleton, an example module, the check contract, and the checks, previews and deploys as scripts the session runs, already working. Packs ship no GitHub Actions workflows. Look for a skill named `stack-<name>` (for example `stack-tanstack-start`).
 
 - **A pack exists for the pick:** say so, and slice 0 applies it (see `pyramid`).
-- **A stub pack** (`stacks/<name>/PACK.md`, no app files yet): the groundwork is done but the starter isn't built. Tell the person, then build it in their project by following `PACK.md` step by step: the pinned versions, the folder structure, how each check-contract command maps, CI and release. Re-check the versions first, because they age. Slice 0 isn't done until every check-contract command passes. Afterwards, offer to contribute the finished starter back to the kit.
+- **A stub pack** (`stacks/<name>/PACK.md`, no app files yet): the groundwork is done but the starter isn't built. Tell the person, then build it in their project by following `PACK.md` step by step: the pinned versions, the folder structure, how each check-contract command maps, the checks and release. Where `PACK.md` says to add a GitHub Actions workflow, make that job a package script the session runs instead. Re-check the versions first, because they age. Slice 0 isn't done until every check-contract command passes. Afterwards, offer to contribute the finished starter back to the kit.
 - **No pack:** slice 0 sets up the same things by hand, following the check contract and `architecture.md`. Afterwards, offer to save the result as a new pack.
 
 Research behind the packs: `research/platform-packs.md` in the kit.
@@ -119,7 +119,7 @@ Research behind the packs: `research/platform-packs.md` in the kit.
 ## Write it down
 
 From the `idea` skill's `templates/`:
-- `docs/stack.md`: every row marked **default** or **chosen** (on Full, **AI pick, not reviewed**);
+- `docs/stack.md`: every row marked **default** or **chosen** (on Full, **AI pick, not reviewed**), and `ci = "local"`;
 - `docs/architecture.md`;
 - `docs/security-policy.md`: the trust boundaries, what's sensitive, and the risks the person accepts and why. The security reviewer reads it.
 

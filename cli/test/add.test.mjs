@@ -13,8 +13,16 @@ test("add tanstack-start copies the pack, dotfiles included, and prints next ste
   const dir = tmp();
   const log = logger();
   assert.equal(addPack("tanstack-start", dir, { log }), 0);
-  for (const path of ["package.json", "wrangler.jsonc", "src/router.tsx", ".gitignore", ".env.example", ".github/workflows/ci.yml"]) {
+  for (const path of ["package.json", "wrangler.jsonc", "src/router.tsx", ".gitignore", ".env.example", ".github/dependabot.yml"]) {
     assert.ok(exists(dir, path), path);
+  }
+  // #132: no workflows; the checks, previews and deploys are package scripts the session runs.
+  assert.ok(!exists(dir, ".github/workflows"));
+  const scripts = JSON.parse(read(dir, "package.json")).scripts;
+  for (const [name, file] of [["deploy:preview", "scripts/deploy.ts"], ["deploy:test", "scripts/deploy.ts"], ["deploy:production", "scripts/deploy.ts"],
+    ["check:merge", "scripts/check-merge.ts"], ["pr:rules", "scripts/pr/check.ts"]]) {
+    assert.match(scripts[name], new RegExp(`^node ${file}`), name);
+    assert.ok(exists(dir, file), file);
   }
   assert.ok(!exists(dir, "node_modules"));
   assert.match(read(dir, ".gitignore"), /node_modules/);

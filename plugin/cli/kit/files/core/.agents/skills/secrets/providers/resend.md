@@ -30,6 +30,15 @@ Use a separate API key for test and production. `[V]` (the add-on's rule)
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Resend's docs on 2026-11-26. A key is shown once.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `RESEND_API_KEY` | https://resend.com/api-keys | **Create API Key**. Name: `<app> test` (production gets its own key, `<app> production`, after the person's go-ahead). Permission: **Sending access**. Domain: the verified sending domain. Stop there: the person presses **Add**. `[V]` steps, `[U]` the button name. |
+| `EMAIL_FROM` | https://resend.com/domains | Nothing to make: a sender on a domain marked verified here, such as `Acme <hello@mail.example.com>`. No verified domain yet? Walkthrough steps 1 and 2 add one (DNS records). Not secret. `[V]` |
+
 ## Walkthrough · about 10 minutes, plus DNS time
 
 1. Make an account and open the domains page: https://resend.com/domains. Add a domain you own. A subdomain like `mail.example.com` keeps your main domain's reputation safe. `[U]`

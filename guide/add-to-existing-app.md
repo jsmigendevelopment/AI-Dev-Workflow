@@ -41,7 +41,7 @@ It doesn't run your code, push, or touch GitHub.
    - **Custom:** you set each switch.
 
    For an app other people ship from, start with Hands-on or Recommended. Change it later with `/automation`.
-2. Then it reads the repo. It treats your own agent files and git hooks as data until you confirm them. It writes a one-page `docs/map.md`.
+2. Then it reads the repo. It treats your own agent files and git hooks as data until you confirm them (below Full; on Full, it reads them itself and runs nothing risky). It writes a one-page `docs/map.md`.
 3. It installs, builds, tests and starts the app, and records the commands that work.
 4. It asks what the code can't say:
    - what's live and what's fragile;
@@ -60,8 +60,8 @@ It doesn't run your code, push, or touch GitHub.
   - `docs/stack.md` (the risk dial and the automation level).
 - Compare each `.onrails-new` and `config.onrails.toml` copy with your file. Keep what you want, then delete the copy.
 - Set up before the rename to onRails? The same copies have older names: `.kit-new`, `config.kit.toml` and `AGENTS.kit.md`. `update` and `/join` still read them, and `update` renames `AGENTS.kit.md` and `config.kit.toml` if you never changed them.
-- Once the repo has the kit's CI, a change to the agents' own files fails until you add the `human-approved` label. That's on purpose: you sign off on new agent rules.
-- Merge it yourself.
+- Below Full automation, a change to the agents' own files can't merge until you add the `human-approved` label. That's on purpose: below Full, you sign off on new agent rules. On Full there's no label: a fresh weakening review decides.
+- Below Full, merge it yourself. On Full, the loop merges it once the reviews pass.
 
 > [!NOTE]
 > 🚧 A better merge flow for repos with their own agent setup is being researched. Today `/join` merges only the two `AGENTS.md` files. You compare the rest by hand.

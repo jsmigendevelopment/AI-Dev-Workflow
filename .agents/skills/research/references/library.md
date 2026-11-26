@@ -1,6 +1,6 @@
 # Capture to the library
 
-A research library is one private repo that holds the person's research from every project. Each capture is a pull request the person merges. The library says where things go in `research-library.json` at its root (shape: `library.schema.json`, next to this file). Follow the manifest, not your memory of a layout.
+A research library is one private repo that holds the person's research from every project. Below Full, each capture is a pull request the person merges (on Full this whole file is skipped). The library says where things go in `research-library.json` at its root (shape: `library.schema.json`, next to this file). Follow the manifest, not your memory of a layout.
 
 ## When
 

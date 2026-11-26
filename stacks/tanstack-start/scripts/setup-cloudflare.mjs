@@ -20,31 +20,31 @@
 // It needs `wrangler login` (the person runs it); for zone settings, a zone token in
 // CLOUDFLARE_ZONE_TOKEN; for Cloudflare Access, an account token in CLOUDFLARE_ACCESS_TOKEN.
 // Either can live in .env.cloudflare.local (git-ignored). It never prints a token.
+// What it makes for the smoke tests (the Access service token, the test site's password) goes in
+// .env.cloudflare.local as TEST_<name> or PRODUCTION_<name>, owner-only (mode 600), never printed.
+// It makes one only when that file is git-ignored and writable, saves the password there before
+// the Worker gets it, and deletes a new token again when its secret couldn't be saved. A failed
+// `wrangler secret put` of the password stops it with exit 1: rerun with --new-password.
+// GitHub environments and secrets get them too only when docs/stack.md says ci = "actions".
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 
+import { readCi } from './cloudflare/ci-mode.ts'
+import {
+  hasLocalValue,
+  LOCAL_FILE,
+  localFileProblem,
+  localValue,
+  saveLocalValue,
+} from './cloudflare/local-env.ts'
 import { setupCloudflare } from './cloudflare/setup.ts'
 
 const args = process.argv.slice(2)
 const value = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined)
 
-function localToken(name) {
-  if (process.env[name]) return process.env[name]
-  if (!existsSync('.env.cloudflare.local')) return undefined
-  const line = readFileSync('.env.cloudflare.local', 'utf8')
-    .split(/\r?\n/)
-    .find((l) => l.startsWith(`${name}=`))
-  return (
-    line
-      ?.slice(name.length + 1)
-      .trim()
-      .replace(/^(['"])(.*)\1$/, '$2') || undefined
-  )
-}
-
-const token = localToken('CLOUDFLARE_ZONE_TOKEN')
-const accessToken = localToken('CLOUDFLARE_ACCESS_TOKEN')
+const token = localValue('CLOUDFLARE_ZONE_TOKEN')
+const accessToken = localValue('CLOUDFLARE_ACCESS_TOKEN')
 const env = {
   ...process.env,
   CLOUDFLARE_ZONE_TOKEN: token ? 'set' : undefined,
@@ -93,6 +93,7 @@ if (protect !== undefined && !['access', 'password', 'none'].includes(protect)) 
 const code = await setupCloudflare(
   {
     dryRun: args.includes('--dry-run'),
+    ci: readCi(process.cwd()),
     zone: value('--zone'),
     account: value('--account'),
     botFightMode: args.includes('--bot-fight-mode'),
@@ -114,7 +115,10 @@ const code = await setupCloudflare(
     run,
     api,
     randomSecret: () => randomBytes(24).toString('base64url'),
-    secret: (name) => (name.startsWith('ACCESS_') ? localToken(name) : undefined),
+    secret: (name) => (name.startsWith('ACCESS_') ? localValue(name) : undefined),
+    localProblem: (create) => localFileProblem(LOCAL_FILE, process.cwd(), create),
+    saveLocal: (name, v) => saveLocalValue(name, v),
+    hasLocal: hasLocalValue,
     readText: (p) => readFileSync(p, 'utf8'),
     writeText: (p, t) => writeFileSync(p, t),
     exists: existsSync,

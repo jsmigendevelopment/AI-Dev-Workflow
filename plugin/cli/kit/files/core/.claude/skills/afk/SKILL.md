@@ -28,7 +28,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 3. **Confirm the safety basics** (long only):
    - paid overage or extra usage is **off**, unless the person wants it on;
    - agents have **test credentials only;**
-   - main's checks are green.
+   - main's checks are green: the `Main's checks:` line in `docs/state.md` says `Checks: pass @` main's current full sha (`git rev-parse origin/main`). Missing, older or a fail? Run "Check main" in `coordinate` step 8 first.
 
 4. **Mark yourself away and tell the other threads.** Run `node .agents/skills/afk/scripts/worklog.mjs presence afk "<how long> · <one line on what you were doing>" --until <the hard stop, ISO time in UTC> --merge "<what may merge>" --pings "<what pings>"`. No hard stop (Full automation, none set)? Pass `--open-ended` instead of `--until`: that away never goes stale. Use the rules you just set, for example `--merge "normal lane, to test" --pings "critical only"`. That writes `~/.onrails/presence.json`, which every loop on this machine reads before each sweep. It also logs the time, if the work log is on.
    - **Sheet:** if the profile sets `[board] sheet` and you have the Google Sheets connector, write the Presence tab (see "The Presence tab" in `../coordinate/board.md`). That's how cloud sessions learn you're away. A failed write is an ℹ️ FYI, never a blocker.

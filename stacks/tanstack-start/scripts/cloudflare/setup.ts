@@ -1,6 +1,6 @@
 // The logic behind scripts/setup-cloudflare.mjs, with every side effect injected (`Deps`), so the
 // planning is unit-tested with fakes (setup.test.ts). Reads run in a dry run too; writes never do.
-// It never prints a token or secret value, except the test site's password, once, when it makes one.
+// It never prints a token or secret value: the ones it makes go to .env.cloudflare.local (mode 600).
 import type { Deps, Log, Options } from './deps.ts'
 import { firstTestDeploy } from './first-deploy.ts'
 import { productionProtection, protection } from './protection.ts'
@@ -120,8 +120,12 @@ async function addonResources(
   if (!buckets.length && !queues.length) log('No R2 buckets or queues declared (no add-on needs them).')
 }
 
-/** Step 5: the account id and the deploy token, for GitHub Actions. */
+/** Step 4: the account id and the deploy token, for GitHub Actions. Only on `ci = "actions"`. */
 async function github(deps: Deps, options: Options, log: Log, chosen: Account) {
+  if (options.ci !== 'actions')
+    return log(
+      'None: docs/stack.md says ci = "local". The session deploys with the person\'s wrangler login, so nothing goes to GitHub.',
+    )
   log(`CLOUDFLARE_ACCOUNT_ID = ${chosen.id}   (not a secret, but stored as one by the workflows)`)
   const gh = await deps.run('gh', ['auth', 'status'])
   if (gh.status !== 0)

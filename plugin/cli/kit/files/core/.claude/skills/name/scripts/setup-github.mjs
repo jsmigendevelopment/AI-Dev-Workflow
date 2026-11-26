@@ -9,7 +9,7 @@
 // else it asks. Each step says which plan it needs. Steps your plan doesn't allow are skipped with the reason.
 //   Free:        Dependabot on every repo. Rules, environments and secret scanning on public repos only.
 //                A free private repo gets the repository variable SECRETS_MODE=repository instead:
-//                the pack's workflows then read repository secrets named TEST_<name> and
+//                push-secrets and connect then write repository secrets named TEST_<name> and
 //                PRODUCTION_<name>. Lost: a required reviewer and the main-only rule on production.
 //   Team:        adds rules on main, environments, deployment branches and environment secrets on
 //                private repos (also draft PRs, code owners and required reviewers on pull requests).
@@ -17,16 +17,20 @@
 //   Enterprise:  Team, plus environment protection rules on private repos, such as a required
 //                reviewer before a production deploy. Public repos get them on every plan.
 // It reads the repo from the git remote and calls only the REST API (no GraphQL, no `gh repo view`).
-// Main requires the `agent-files` check on every level, once .github/workflows/agent-files.yml is on the
-// default branch (required-checks.mjs says why). Run this again after the pull request that adds it
-// merges, or on a repo upgrading from the old ci.yml job: it adds the check to the existing rules.
-// On Full automation the weakening review's pass is what turns it green (#103, `automation`'s references/full.md).
-import { execFileSync } from "node:child_process";
+// Main requires at most the `onrails/check` commit status, which the local merge gate posts, never a
+// GitHub Actions check (required-checks.mjs says why). It first posts one probe status: if GitHub
+// refuses it here, main requires no status, and the output says why. Run this again on a repo that
+// used the old workflows: it swaps their checks for `onrails/check` in the rule it made, or drops
+// them all when statuses can't be posted, so no rule waits on a check nothing can post.
+// Environments, the production reviewer and SECRETS_MODE exist only for GitHub Actions: it makes
+// them only when docs/stack.md says ci = "actions". On ci = "local" (every repo, unless the person
+// turned Actions on) the session deploys read nothing from GitHub, so it skips them and says why.
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { GUARD_WORKFLOW, addAgentFiles, requiredChecks } from "./required-checks.mjs";
+import { LOCAL_CHECK, PROBE_CHECK, localChecks, requiredChecks } from "./required-checks.mjs";
 
 const PLANS = ["free", "team", "enterprise"];
 const args = process.argv.slice(2);
@@ -37,6 +41,11 @@ const run = (cmd, input) =>
 const api = (method, path, body) =>
   run(["api", "-X", method, path, ...(body ? ["--input", "-"] : [])], body ? JSON.stringify(body) : undefined);
 const git = (cmd) => execFileSync("git", cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+// The repository's top folder, where docs/ lives; this folder when git can't say.
+function repoRoot() {
+  const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  return top.status === 0 ? top.stdout.trim() : ".";
+}
 
 // --- Which plan? --plan, then the profile, then ask. ---
 function planFromArgs() {
@@ -46,8 +55,7 @@ function planFromArgs() {
   return { plan: (value || "").toLowerCase(), from: "--plan" };
 }
 function planFromProfile() {
-  let root = ".";
-  try { root = git(["rev-parse", "--show-toplevel"]); } catch {}
+  const root = repoRoot();
   const homes = [".onrails", ".ai-dev-workflow"].map((name) => join(homedir(), name, "profile.toml"));
   for (const file of [join(root, "docs", "profile.toml"), ...homes]) {
     if (!existsSync(file)) continue;
@@ -88,18 +96,43 @@ try {
 }
 const PUBLIC = visibility === "public";
 
+// --- ci = "actions" only when docs/stack.md says so (#139). ---
+// A trailing # comment is allowed. The nearest docs/stack.md from this folder (the app's) up to the
+// folder holding .git counts (#160). The same rule and lookup as push-secrets.mjs, connect and the
+// TanStack pack's ci-mode.ts; cli/test/deploy-keys-followups runs the same fixtures on all four.
+const CI_ACTIONS = /^ci[ \t]*=[ \t]*"actions"[ \t]*(?:#.*)?\r?$/m;
+function gitFolder(start) {
+  for (let dir = start; ; dir = dirname(dir)) {
+    if (existsSync(join(dir, ".git"))) return dir;
+    if (dirname(dir) === dir) return null;
+  }
+}
+function ciFromStack() {
+  const start = process.cwd();
+  const top = gitFolder(start) ?? start;
+  for (let dir = start; ; dir = dirname(dir)) {
+    const file = join(dir, "docs", "stack.md");
+    if (existsSync(file)) return CI_ACTIONS.test(readFileSync(file, "utf8")) ? "actions" : "local";
+    if (dir === top || dirname(dir) === dir) return "local";
+  }
+}
+const ACTIONS = ciFromStack() === "actions";
+
 // --- What each step needs. `min` is the lowest plan that allows it on a private repo. ---
 const ANY = { min: "free", label: "any plan" };
 const TEAM = { min: "team", label: "public repo, or Team if private" };
 const ENTERPRISE = { min: "enterprise", label: "public repo, or Enterprise if private" };
+// Steps that only GitHub Actions reads: skipped on ci = "local".
+const forActions = (needs) => ({ ...needs, actions: true });
 // Secret Protection is a paid add-on for Team and Enterprise. The plan alone can't say if it's on.
 const SECRET_PROTECTION = { min: "team", label: "public repo, or the Secret Protection add-on if private" };
 const allowed = (needs) => PUBLIC || PLANS.indexOf(PLAN) >= PLANS.indexOf(needs.min);
 
 const results = [];
-async function step(name, needs, fn) {
+async function step(name, needs, fn, plan = "") {
+  if (needs.actions && !ACTIONS) return results.push(["skipped", name, needs.label, 'ci = "local": the session deploys read nothing from GitHub']);
   if (!allowed(needs)) return results.push(["skipped", name, needs.label, `your plan is ${PLAN} and this repo is ${visibility}`]);
-  if (DRY) return results.push(["would do", name, needs.label, ""]);
+  if (DRY) return results.push(["would do", name, needs.label, plan]);
   try {
     const note = await fn();
     results.push(["done", name, needs.label, typeof note === "string" && !/^\s*[{\[]/.test(note) ? note.trim() : ""]);
@@ -136,27 +169,34 @@ await step("secret scanning + push protection", SECRET_PROTECTION, () =>
   }),
 );
 
-// 4. Rules on main: pull requests only, no force push or delete, green checks required.
-//    No approval required: GitHub won't let the author approve their own pull request.
-//    A free private repo relies on the kit's blocked git commands instead.
-const hasGuard = (() => {
+// 4. Rules on main: pull requests only, no force push or delete, and the local merge gate's
+//    `onrails/check` status required when this account can post statuses here. No approval
+//    required: GitHub won't let the author approve their own pull request. A free private repo
+//    relies on the kit's blocked git commands instead.
+// Can this account post a commit status? One probe on the default branch's head, under its own
+// context. A required status nothing can post would block every merge. Returns why not, or null.
+function statusRefused() {
   try {
-    run(["api", `repos/${repo}/contents/${GUARD_WORKFLOW}`]);
-    return true;
-  } catch {
-    return false; // not on the default branch yet: agent-files is added on a later run
+    const sha = run(["api", `repos/${repo}/commits/HEAD`, "--jq", ".sha"]).trim();
+    const description = "setup-github: this account can post commit statuses";
+    api("POST", `repos/${repo}/statuses/${sha}`, { state: "success", context: PROBE_CHECK, description });
+    return null;
+  } catch (e) {
+    return String(e.stderr || e.message).split("\n").find((l) => l.trim())?.trim().slice(0, 160) || "refused";
   }
-})();
+}
 await step("rules on main", TEAM, () => {
+  const refused = statusRefused();
+  const why = refused && `requires no status: GitHub refused a probe commit status here (${refused}). The merge gate's "Checks:" comment is the record. Run this again where statuses post to require ${LOCAL_CHECK}`;
   const existing = JSON.parse(run(["api", `repos/${repo}/rulesets`]));
   const mine = existing.find((r) => r.name === "protect-main");
   if (mine) {
     const full = JSON.parse(run(["api", `repos/${repo}/rulesets/${mine.id}`]));
-    const rules = addAgentFiles(full.rules ?? [], hasGuard);
-    if (!rules) return "already there";
+    const rules = localChecks(full.rules ?? [], !refused);
+    if (!rules) return why || "already there";
     const { name, target, enforcement, conditions, bypass_actors } = full;
     api("PUT", `repos/${repo}/rulesets/${mine.id}`, { name, target, enforcement, conditions, bypass_actors, rules });
-    return "added the agent-files check";
+    return why ? `updated, and ${why}` : `now requires ${LOCAL_CHECK}, and no Actions check`;
   }
   api("POST", `repos/${repo}/rulesets`, {
     name: "protect-main",
@@ -167,12 +207,12 @@ await step("rules on main", TEAM, () => {
       { type: "deletion" },
       { type: "non_fast_forward" },
       { type: "pull_request", parameters: { required_approving_review_count: 0, dismiss_stale_reviews_on_push: false, require_code_owner_review: false, require_last_push_approval: false, required_review_thread_resolution: false } },
-      { type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: requiredChecks(hasGuard) } },
+      ...(refused ? [] : [{ type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: requiredChecks() } }]),
     ],
   });
-});
+  return why || `requires ${LOCAL_CHECK}`;
+}, `posts a probe status first, and requires ${LOCAL_CHECK} only if it posts`);
 
-if (!hasGuard) results.push(["note", "rules on main", "", `agent-files isn't required yet: ${GUARD_WORKFLOW} isn't on the default branch. Run this again once it merges.`]);
 
 // 5. Environments. `test` and `production` deploy from main only. Put production secrets
 //    in the production environment only.
@@ -185,14 +225,14 @@ const envFromMain = async (name) => {
     if (!/already exists/i.test(String(e.stderr))) throw e;
   }
 };
-await step("environment: test (deploys from main)", TEAM, () => envFromMain("test"));
-await step("environment: production (deploys from main)", TEAM, () => envFromMain("production"));
+await step("environment: test (deploys from main)", forActions(TEAM), () => envFromMain("test"));
+await step("environment: production (deploys from main)", forActions(TEAM), () => envFromMain("production"));
 
 // 6. Production waits for you: you are its required reviewer. This is an environment protection
 //    rule, so a private repo needs Enterprise; Team and Pro don't include it. A separate step,
-//    so a Team repo still gets the production environment above. Without it, the deploy
-//    workflow's manual start is the gate: only you start a production deploy.
-await step("production: waits for your approval", ENTERPRISE, () =>
+//    so a Team repo still gets the production environment above. Without it, the gate is your
+//    yes before the session runs the production deploy.
+await step("production: waits for your approval", forActions(ENTERPRISE), () =>
   api("PUT", `repos/${repo}/environments/production`, {
     ...fromMain,
     reviewers: [{ type: "User", id: me.id }],
@@ -200,9 +240,9 @@ await step("production: waits for your approval", ENTERPRISE, () =>
   }),
 );
 
-// 7. GitHub Free, private repo: no environments, so the workflows read prefixed repository
-//    secrets. The variable is the switch the workflows, connect and push-secrets all read.
-const REPOSITORY_SECRETS = { min: "free", label: "GitHub Free, private repo only" };
+// 7. GitHub Free, private repo: no environments, so secrets go in prefixed repository secrets.
+//    The variable is the switch connect and push-secrets read.
+const REPOSITORY_SECRETS = forActions({ min: "free", label: "GitHub Free, private repo only" });
 if (!PUBLIC && PLAN === "free") {
   await step("secrets mode: repository (TEST_ and PRODUCTION_ names)", REPOSITORY_SECRETS, () => {
     run(["variable", "set", "SECRETS_MODE", "--body", "repository", "--repo", repo]);
@@ -222,16 +262,20 @@ if (!PUBLIC) {
     free: [
       "No rules on main, environments or secret scanning on a free private repo.",
       "Builders open normal pull requests (no drafts), and the kit's blocked git commands guard main.",
-      "Secrets are repository secrets named TEST_<name> and PRODUCTION_<name> (SECRETS_MODE=repository).",
-      "What that loses: production has no required reviewer and no main-only rule, and every workflow",
-      "on every branch can read the PRODUCTION_ secrets. The gate is the manual Run workflow plus typing",
-      "\"deploy production\" in its confirm box. Give write access only to people you trust with production.",
+      ACTIONS
+        ? "Secrets are repository secrets named TEST_<name> and PRODUCTION_<name> (SECRETS_MODE=repository)."
+        : "Secrets live in Cloudflare and .env.cloudflare.local, never in GitHub (ci = \"local\").",
+      "What that loses: production has no required reviewer and no main-only rule. No workflow runs here",
+      "(ci = \"local\"): the gate is your yes before the session runs the production deploy with",
+      "--confirm \"deploy production\". Give write access only to people you trust with production.",
       "Team adds rules and environments; Enterprise also adds the production approval. A public repo gets all of it free.",
     ],
     team: [
-      "Rules on main, environments and environment secrets are on. Draft pull requests work.",
-      "Production can't wait for your approval on a private repo without Enterprise. Only you start a",
-      "production deploy (it's a manual run), so that is the gate.",
+      ACTIONS
+        ? "Rules on main, environments and environment secrets are on. Draft pull requests work."
+        : "Rules on main are on. Draft pull requests work. No environments: nothing reads them (ci = \"local\").",
+      "Production can't wait for your approval on a private repo without Enterprise. The session",
+      "deploys production only after your yes, so that is the gate.",
     ],
     enterprise: ["Every step here is on your plan. Secret scanning still needs the Secret Protection add-on."],
   };
@@ -239,7 +283,9 @@ if (!PUBLIC) {
 }
 if (!DRY)
   console.log(
-    !PUBLIC && PLAN === "free"
-      ? "\nNext: put production keys in the PRODUCTION_ repository secrets (pnpm connect or push-secrets), never in the repo."
-      : "\nNext: put production keys in the production environment's secrets, never in the repo.",
+    !ACTIONS
+      ? "\nNext: put production keys in Cloudflare (pnpm connect, or push-secrets --wrangler), never in the repo or GitHub."
+      : !PUBLIC && PLAN === "free"
+        ? "\nNext: put production keys in the PRODUCTION_ repository secrets (pnpm connect or push-secrets), never in the repo."
+        : "\nNext: put production keys in the production environment's secrets, never in the repo.",
   );

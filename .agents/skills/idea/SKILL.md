@@ -27,7 +27,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
    - The profile's `[defaults] automation` is the suggested pick. Full picked? Say `automation`'s one-prompt line. Write the answer to `kickoff/decisions.md`. `stack` copies it into the "Automation level" section of `docs/stack.md` in step 7.
    - **Then ask: "Full grill or auto grill?"** In one line each: *full: I ask you about three questions at a time, topic by topic. Auto: you answer four questions, I make every other pick with two alternatives, and you review it all at once.* Full is the suggested pick for a first-time user. The profile's `[defaults] grill` overrides that. Write the answer to `kickoff/decisions.md`.
-   - **Then ask once, unless the profile already sets it:** *"May the planner use your strongest model without asking each time?"* Save the answer as `[routing] ask_before_strongest` in `docs/profile.toml` (a yes is `false`; make the file with that one key if there's none). It's the only time the kickoff asks. `routing`'s first rule reads it. On Full, don't ask: the current model is used.
+   - **Then ask once, unless the profile already says `ask_before_strongest = false`:** *"May the planner use your strongest model without asking each time?"* Save the answer as `[routing] ask_before_strongest` in `docs/profile.toml` (a yes is `false`; make the file with that one key if there's none). After a yes, the kickoff never asks again; after a no, step 9 asks once per session. `routing`'s first rule reads it. On Full, don't ask: the current model is used.
 
 1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter. On Full, the pitch came with `/idea`: play it back and go on, without waiting.
 
@@ -41,7 +41,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 5. **Intermission: name it and make the repo,** while stage 2 finishes. Open `name`. After an auto grill, the name was picked at the review, so start at its step 3. On Full, `name` asks nothing. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
 
-6. **Approve the wireframes.** Revise the full stage-2 set until the person says yes (`wireframes` stage 2, steps 5 and 6). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row. Auto grill doesn't skip it. **On Full,** skip the wait: record the row as "AI pick, not reviewed" (`wireframes` stage 2, step 6) and go on.
+6. **Approve the wireframes.** Below Full, revise the full stage-2 set until the person says yes (`wireframes` stage 2, steps 5 and 6). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row. Auto grill doesn't skip it. **On Full,** skip the wait: record the row as "AI pick, not reviewed" (`wireframes` stage 2, step 6) and go on.
 
 7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. After an auto grill, the one-way doors confirmed at the review are answers, not questions. On Full, take the recommended picks with no question round. Crucial unknowns go to `research` first (on Full, it decides and sends an FYI). It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
 

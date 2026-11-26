@@ -1,14 +1,16 @@
-// The checks about this project: the kit, the skills mirror, stale research, stale background processes, .env files, Playwright, wrangler.
+// The checks about this project: the kit (and Full automation on an old one), the skills mirror, stale research, stale background processes, .env files, Playwright, wrangler.
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { staleDossiers } from "./check-research.mjs";
 import { envChecks } from "./envfiles.mjs";
 import { readJson, toNative, walk } from "./files.mjs";
+import { fullOnOldKit } from "./full-kit.mjs";
 import { OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
 import { projectManifestName, readProjectManifest } from "./sync.mjs";
 import { MARKS } from "./marks.mjs";
 import { personalValues } from "./research-library.mjs";
-import { realSys, staleSummary } from "./procs.mjs";
+import { staleSummary } from "./procs.mjs";
+import { realSys } from "./procs-sys.mjs";
 
 function sameTree(a, b) {
   const fa = walk(a), fb = walk(b);
@@ -30,6 +32,8 @@ export function projectChecks(projectDir, { kitDir, sys }) {
     add(FAIL, `Kit v${manifest.kitVersion} installed, this CLI has v${cliKit}`, "Run: npx onrails@latest update", false,
       { print: ["npx onrails@latest update"] });
   } else add(OK, `Kit v${manifest.kitVersion} installed`);
+  const oldFull = manifest && fullOnOldKit(projectDir, manifest.kitVersion);
+  if (oldFull) add(FAIL, oldFull, "Run: npx onrails@latest update", false, { print: ["npx onrails@latest update"] });
   if (projectManifestName(projectDir) === OLD_PROJECT_MANIFEST) {
     add(INFO, `The kit's record still has its old name, ${OLD_PROJECT_MANIFEST} (it works). npx onrails update offers to rename it ${PROJECT_MANIFEST}`);
   }
@@ -82,12 +86,17 @@ function researchChecks(projectDir) {
 
 // Background processes an onRails session started and nobody stopped (#126). procs.mjs is synced from scripts/.
 // sys is the registry's machine (procs-sys.mjs), so tests can pass a fake.
+// A registry skipped for a mode is named with its chmod line, as list names it, so "nothing running" never hides it.
 export function processChecks(projectDir, { sys }) {
-  const { total, stale, unreadable } = staleSummary(projectDir, { sys });
-  if (unreadable) return [{ status: MARKS.INFO, label: "Background processes not checked (ps failed here)" }];
-  if (!total) return [];
-  if (!stale.length) return [{ status: MARKS.OK, label: `${total} registered background process(es), none stale` }];
-  return [{
+  const { total, stale, skipped, unreadable } = staleSummary(projectDir, { sys });
+  const notRead = skipped.map((why) => ({
+    status: MARKS.FAIL, required: false, label: `Process registry not read: ${why}`,
+    fix: "Run that chmod: it keeps the records, and its processes are listed and stopped again",
+  }));
+  if (unreadable) return [...notRead, { status: MARKS.INFO, label: "Background processes not checked (ps failed here)" }];
+  if (!total) return notRead;
+  if (!stale.length) return [...notRead, { status: MARKS.OK, label: `${total} registered background process(es), none stale` }];
+  return [...notRead, {
     status: MARKS.FAIL, required: false, label: `${stale.length} stale background process(es): ${stale.map((r) => `${r.id} ${r.command} (${r.stale})`).join(", ")}`,
     fix: "Run: npx onrails ps --stop stale",
   }];

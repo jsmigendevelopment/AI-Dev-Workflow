@@ -23,7 +23,7 @@ Build to WCAG 2.2 AA and prove it with automated scans plus a short manual pass.
 12. **Reflow at 320 px wide and survive text spacing.** No page-level horizontal scroll at 320 by 256 CSS px (400 % zoom). Anything holding text uses `min-height`, never a fixed `height`, so readers' spacing settings don't clip it.
 13. **Targets are at least 24 by 24 px or spaced apart.** Check at the narrowest width, where lists wrap.
 14. **Decorative visuals are hidden.** A decorative image has `alt=""`; a decorative canvas or SVG is `aria-hidden="true"` and unfocusable. Meaningful images get alt text that says what they show.
-15. **A green suite is a floor, not a pass.** Each release, one person does a short manual check: keyboard only, 200 % zoom, and one screen reader (NVDA with Chrome on Windows or VoiceOver on iPhone).
+15. **A green suite is a floor, not a pass.** Below Full, each release, one person does a short manual check: keyboard only, 200 % zoom, and one screen reader (NVDA with Chrome on Windows or VoiceOver on iPhone). **On Full,** run the parts an agent can: a keyboard-only pass and a 200 % zoom pass in Playwright on the main flow. Record what no screen reader checked on the release's pull request as "AI pick, not reviewed", go on, and add a "try it with a screen reader" line to the FYI.
 
 ## Checklist before merge
 

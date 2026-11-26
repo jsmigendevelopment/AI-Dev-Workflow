@@ -74,7 +74,7 @@ With no keys: the app builds and tests pass, `/files` shows the signed-out state
 6. `pnpm build` once, so `src/routeTree.gen.ts` picks up `/files` and `/api/files/$id`. Optionally, add a `/files` link to `src/components/site-header.tsx`.
 7. `pnpm exec eslint --fix . && pnpm format`: the pack's lint sorts imports, including the ones this add-on added.
 8. `pnpm check`.
-8. Before the first deploy: `node scripts/setup-cloudflare.mjs --dry-run`, show the person, then run it for real; it creates `app-files-test` and `app-files-production`. The deploy workflows apply the migration. R2 has a free tier; past it, storage and operations cost money, so creating the buckets is the person's yes.
+8. Before the first deploy: `node scripts/setup-cloudflare.mjs --dry-run`, show the person, then run it for real; it creates `app-files-test` and `app-files-production`. `pnpm deploy:test` and `pnpm deploy:production` apply the migration. R2 has a free tier; past it, storage and operations cost money, so creating the buckets is the person's yes.
 
 **Sweep abandoned uploads.** With the `jobs` add-on, register a handler and a daily cron:
 ```ts

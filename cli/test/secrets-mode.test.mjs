@@ -17,7 +17,7 @@ const FAKE_GH = `#!/usr/bin/env node
 const fs = require("fs");
 const argv = process.argv.slice(2);
 let stdin = "";
-try { stdin = fs.readFileSync(0, "utf8"); } catch {}
+try { stdin = fs.readFileSync(0, "utf8"); } catch { /* no stdin to read (closed, or a terminal that would block): the call had no input */ }
 fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ argv, stdin }) + "\\n");
 const say = (text) => { process.stdout.write(text); process.exit(0); };
 if (argv[0] === "variable" && argv[1] === "get") {
@@ -39,6 +39,9 @@ function repo() {
   writeFileSync(join(dir, ".env.example"), "# scope: test,production\nAPI_TOKEN=\n# scope: production, secret: no\nSITE_URL=\n");
   writeFileSync(join(dir, ".env.test.local"), "API_TOKEN=test-value-1\n");
   writeFileSync(join(dir, ".env.production.local"), "API_TOKEN=live-value-2\nSITE_URL=https://example.com\n");
+  // GitHub secrets and SECRETS_MODE are for GitHub Actions only (#139): ci = "local" is in ci-local-secrets.test.mjs.
+  mkdirSync(join(dir, "docs"));
+  writeFileSync(join(dir, "docs", "stack.md"), 'ci = "actions"\n');
   return dir;
 }
 
@@ -52,7 +55,9 @@ function run(file, dir, args, env = {}) {
   let calls = [];
   try {
     calls = readFileSync(join(dir, "calls.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
-  } catch {}
+  } catch {
+    // No calls.jsonl: the fake gh was never run, so there are no calls.
+  }
   return { ...r, calls };
 }
 // The fake gh is a shebang script, which Windows can't run.

@@ -2,16 +2,16 @@
 
 Where each setting and secret lives, how to add one, how to rotate one, and how a new teammate gets set up. The `secrets` skill runs the steps. This page has the rules and the reasons. Rule 16 in [app-conventions.md](app-conventions.md) is the short version.
 
-The examples name the default stack (Cloudflare Workers, GitHub Actions). Another host keeps the rule and swaps the tool.
+The examples name the default stack (Cloudflare Workers, deployed from the agent's session). Another host keeps the rule and swaps the tool. No environment is deployed by GitHub Actions: every repo is `ci = "local"` (`docs/stack.md`).
 
 ## 1. Four environments
 
 | Environment | What it is | Who deploys | Keys |
 |---|---|---|---|
 | **local** | the app on a developer's machine | the developer | test or sandbox keys, in their own `.env.local` |
-| **test** | the shared test site. Merging to main deploys it | CI | test keys, in the host and the GitHub `test` environment |
-| **preview** | one short-lived copy per pull request, if the host offers it | CI | the test environment's values |
-| **production** | the real app with real users | the person only | production keys, only in the host and the GitHub `production` environment |
+| **test** | the shared test site. Main is deployed to it after each merge | the session (`pnpm deploy:test`) | test keys, in the host |
+| **preview** | one short-lived copy per pull request, if the host offers it | the session (`pnpm deploy:preview <n>`) | the test environment's values |
+| **production** | the real app with real users | the session, only after the person's yes | production keys, only in the host |
 
 **Agents get test keys only.** Production keys and settings stay with the person (the always-stop list in `AGENTS.md`).
 
@@ -34,7 +34,7 @@ A setting that's safe to read in public (an app name, a feature flag's default, 
 ## 4. Secrets live only in secret stores
 
 - **The host's secret store:** `npx wrangler secret put NAME --env test`.
-- **GitHub environment secrets,** for CI: `gh secret set NAME --env test`.
+- **The deploy's own values** (the test site's service token for the smoke test): the shell or a git-ignored `.env.cloudflare.local`, read by the deploy script and handed only to the smoke test.
 - Never in the repo, a committed config file, a log, an error message or the client bundle.
 - A secret never gets a `VITE_` prefix. That prefix ships it to every browser.
 
@@ -42,7 +42,7 @@ A setting that's safe to read in public (an app name, a feature flag's default, 
 
 **Setup-only secrets** stay on the machine that runs the setup. The tokens a setup script needs, and the OAuth client secrets for a sign-in page such as Cloudflare Access (`ACCESS_GOOGLE_CLIENT_SECRET` and the like), go in a git-ignored file such as `.env.cloudflare.local` or the shell. Never a command-line argument: those show up in shell history and in the process list. The script sends the value to the one service that needs it and never prints it.
 
-**Why:** the app never needs these at runtime. Keeping them out of the host and out of CI means one less place they can leak.
+**Why:** the app never needs these at runtime. Keeping them out of the host means one less place they can leak.
 
 ## 5. Who can open each environment
 
@@ -51,7 +51,7 @@ A setting that's safe to read in public (an app name, a feature flag's default, 
 | **test** and **preview** | open, but `noindex` | Cloudflare Access (a sign-in page: Google, GitHub and others, or a one-time PIN by email) or a password page. The person picks at setup |
 | **production** | open to everyone (a "Coming soon" page until launch) | Access in front of all of it (an internal tool) or of some paths (`/admin/*`). A production change: dry run, then the person's yes |
 
-With Access on, the app also checks Access's signed token on every protected request, and refuses anything without a valid one. CI gets in with its own service token, stored per GitHub environment.
+With Access on, the app also checks Access's signed token on every protected request, and refuses anything without a valid one. The deploy scripts' smoke tests get in with a service token of their own, one for test and one for production.
 
 **Why:** a test site with real-looking data, or an admin page, should not be one leaked link away from anyone. Checking the token in the app too means a mistake in the Access settings fails closed, not open.
 

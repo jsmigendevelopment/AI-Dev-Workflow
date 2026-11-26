@@ -20,9 +20,10 @@ const CHECKER = join("scripts", "check-research.mjs");
 const LIBRARY = join("scripts", "research-library.mjs");
 const TEMPLATE = join("templates", "research-library");
 // Preflight ships inside the ask skill, so an agent can run it with plain node, and in the CLI (npx onrails preflight).
-const PREFLIGHT = join("scripts", "preflight.mjs");
+// preflight-sys.mjs is its system layer (#169): it goes wherever preflight.mjs goes.
+const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs"];
 // The process registry ships the same way: the ask skill for agents and the hooks, the CLI for npx onrails ps.
-const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-store.mjs"];
+const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-store.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
 const COPIES = [
   ...["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
   [CHECKER, join(SRC, "research", "scripts", "check-research.mjs")],
@@ -30,8 +31,7 @@ const COPIES = [
   // The library helper and the template library's copies of the checker and the schemas.
   [LIBRARY, join(SRC, "research", "scripts", "research-library.mjs")],
   [LIBRARY, join("cli", "src", "research-library.mjs")],
-  [PREFLIGHT, join(SRC, "ask", "scripts", "preflight.mjs")],
-  [PREFLIGHT, join("cli", "src", "preflight.mjs")],
+  ...PREFLIGHT.flatMap((name) => [[join("scripts", name), join(SRC, "ask", "scripts", name)], [join("scripts", name), join("cli", "src", name)]]),
   ...PROCS.flatMap((name) => [[join("scripts", name), join(SRC, "ask", "scripts", name)], [join("scripts", name), join("cli", "src", name)]]),
   [CHECKER, join(TEMPLATE, "scripts", "check-research.mjs")],
   [LIBRARY, join(TEMPLATE, "scripts", "research-library.mjs")],

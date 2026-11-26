@@ -34,6 +34,15 @@ You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare p
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Microsoft's and Cloudflare's docs on 2026-11-26. The person needs at least the **Application Developer** role, and an admin for the consent.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `ACCESS_ENTRA_CLIENT_ID`, `ACCESS_ENTRA_TENANT_ID` | https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade | **New registration**. A **Name**. **Supported account types:** **Single tenant only**. **Redirect URI:** **Web**, `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`. **Register**. Both IDs are on **Overview**, and neither is secret. `[V]` steps, `[U]` the deep link (else **Entra ID** → **App registrations**). |
+| `ACCESS_ENTRA_CLIENT_SECRET` | https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade | The app, then **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions**: `email`, `offline_access`, `openid`, `profile`, `User.Read`, **Add permissions**, **Grant admin consent**. Then **Certificates & secrets** → **Client secrets** → **New client secret**, a description and an expiry of 12 months or less (Microsoft's advice; 24 at most). Stop there: the person presses **Add**. The value shows once, and hides once they leave the page. `[V]` |
+
 ## Walkthrough · about 15 minutes
 
 1. Open https://entra.microsoft.com → **Entra ID** → **App registrations** → **New registration**. Enter a **Name**. **Supported account types:** **Single tenant only**. **Redirect URI:** platform **Web**, then paste: `[V]`

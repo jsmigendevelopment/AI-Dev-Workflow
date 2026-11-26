@@ -29,6 +29,14 @@ You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare p
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against LinkedIn's and Cloudflare's docs on 2026-11-26. It needs a **LinkedIn Page** and a logo.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `ACCESS_LINKEDIN_CLIENT_ID`, `ACCESS_LINKEDIN_CLIENT_SECRET` | https://www.linkedin.com/developers/apps/new | **App name**, the **LinkedIn Page**, **Upload a logo**, the **API Terms of Use**, **Create app**. **Products** → **Request Access** next to **Sign In with LinkedIn using OpenID Connect** (its scopes: `openid`, `profile`, `email`). **Auth** → **OAuth 2.0 settings**: add the callback URL. The **Client ID** is on **Auth**, and the **Client Secret** is hidden there. Stop there: the person presses **Show** (the eye) next to it. `[V]` steps, `[U]` the deep link and the button name. |
+
 ## Walkthrough · about 10 minutes
 
 1. Open https://www.linkedin.com/developers/apps/new. Enter an **App name**, pick a **LinkedIn Page** (or **Create a new LinkedIn page**), **Upload a logo**, agree to the **API Terms of Use**, then **Create app**. `[V]` steps, `[U]` the deep link.

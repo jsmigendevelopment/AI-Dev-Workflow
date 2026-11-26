@@ -49,7 +49,7 @@ title: "[pass N] <slice>: <what a user can do after this>"
 
 ## Risk flags
 
-<!-- Tick any that apply. One tick puts the issue in the risky lane: security review plus the human gate. -->
+<!-- Tick any that apply. One tick puts the issue in the risky lane: security review plus the human gate below Full (on Full, an extra review). -->
 - [ ] Auth or permissions
 - [ ] Secrets or config
 - [ ] Personal data
