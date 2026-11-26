@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="438" viewBox="0 0 352 438" role="img" aria-labelledby="title desc">
+  <title id="title">Install the kit</title>
+  <desc id="desc">Claude Code. Run claude plugin marketplace add jsmigendevelopment/onRails then claude plugin install core@onrails --scope user in a terminal. Start a new session. Codex. Run codex plugin marketplace add jsmigendevelopment/onRails then codex plugin add or@onrails in a terminal. npm. Run npx onrails init in your project folder.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="436" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <g fill="none" stroke="url(#rails)" stroke-width="2.5"><path d="M-4 24h360"/><path d="M-4 40h121c25 0 23-16 48-16"/><path d="M204 24c22 0 23 16 47 16h105"/></g>
+  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="24" r="5"/><circle cx="269" cy="24" r="5"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Install the kit</text><path d="M23 97V366" stroke="var(--line)" stroke-width="3"/><circle cx="23" cy="97" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="242" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="366" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><text x="45" y="102" class="label">Claude Code</text>
+  <text x="45" y="124" class="body">Run claude plugin marketplace add</text>
+  <text x="45" y="145" class="body">jsmigendevelopment/onRails then</text>
+  <text x="45" y="166" class="body">claude plugin install core@onrails</text>
+  <text x="45" y="187" class="body">--scope user in a terminal. Start</text>
+  <text x="45" y="208" class="body">a new session.</text>
+  <text x="45" y="247" class="label">Codex</text>
+  <text x="45" y="269" class="body">Run codex plugin marketplace add</text>
+  <text x="45" y="290" class="body">jsmigendevelopment/onRails then</text>
+  <text x="45" y="311" class="body">codex plugin add or@onrails in a</text>
+  <text x="45" y="332" class="body">terminal.</text>
+  <text x="45" y="371" class="label">npm</text>
+  <text x="45" y="393" class="body">Run npx onrails init in your</text>
+  <text x="45" y="414" class="body">project folder.</text>
+</svg>

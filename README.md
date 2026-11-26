@@ -1,6 +1,6 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-  <img src="assets/banner.svg" alt="onRails: put your AI on rails. A train passes Pitch, Grill, Slice and Ship at golden hour. By Jay Smigen, JS Dev." width="960">
+  <img src="assets/banner.svg" alt="onRails: put your AI on rails. The curved-track mark and a train passing Pitch, Grill, Slice and Ship at golden hour. By Jay Smigen, JS Dev." width="960">
 </picture>
 
 **onRails** helps AI agents plan, build, review and ship your app within rules you set.
@@ -25,14 +25,14 @@ Start a new Claude Code session. For other setups, see [Codex](#codex) or [npm](
 | [`/back`](.agents/skills/back/SKILL.md) · `$back` | Start or resume work | See what changed, who's working and what to do first. |
 | [`/afk`](.agents/skills/afk/SKILL.md) · `$afk` | Step away | Set a time, check usage and safety, then keep building until a hard stop. |
 
-The other 25 skills run for you. To run one step yourself, see the [cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself).
+The other 25 skills run for you. To run one step yourself, see the cheat sheet in [text](guide/cheat-sheet.md#run-one-step) or [infographics](guide/cheat-sheet-visual.md).
 
 [![npm package version](https://img.shields.io/npm/v/onrails?style=flat-square&color=a63407)](https://www.npmjs.com/package/onrails)
 [![Works with Claude Code](https://img.shields.io/badge/works%20with-Claude%20Code-7c3aed?style=flat-square)](#-install)
 [![Works with Codex](https://img.shields.io/badge/works%20with-Codex-2563eb?style=flat-square)](#codex)
 [![MIT licence](https://img.shields.io/badge/licence-MIT-55566b?style=flat-square)](LICENSE)
 
-[Install](#-install) · [Commands](#-the-four-commands) · [A run](#-what-a-run-looks-like) · [Guardrails](#-guardrails) · [Stacks](#-stacks-and-add-ons) · [Existing repo](#-add-it-to-a-repo-you-already-have) · [Cheat sheet](guide/cheat-sheet.md)
+[Install](#-install) · [Commands](#-the-four-commands) · [A run](#-what-a-run-looks-like) · [Guardrails](#-guardrails) · [Stacks](#-stacks-and-add-ons) · [Existing repo](#-add-it-to-a-repo-you-already-have) · Cheat sheet ([text](guide/cheat-sheet.md) · [infographics](guide/cheat-sheet-visual.md))
 
 ## More install options
 
@@ -317,7 +317,7 @@ The strongest model at high effort takes more time and usage. The cheapest model
 
 **Accounts.** More than one Claude or Codex account, like a work one and a personal one? `/idea` and `/join` ask once, walk you through signing each in with its own config folder (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`), and write `[accounts]` in your profile. **It's a fixed split by job or project that you set, never by usage.** onRails never spreads, balances or moves work between accounts to get past a limit. At a limit, that account's work waits for its reset, and the session tells you the reset time. Why: providers' terms can treat moving work as account rotation, and it puts your accounts at risk. A job for another account gets a ready-to-paste prompt for that account's session. Unattended work starts in a cloud session first (`[sessions] prefer = "cloud"`). `npx onrails accounts` lists them.
 
-→ [Job-by-job table](guide/cheat-sheet.md#-model-routing) · [The `routing` skill](.agents/skills/routing/SKILL.md)
+→ [Job-by-job table](guide/cheat-sheet.md#model-routing) · [The `routing` skill](.agents/skills/routing/SKILL.md)
 
 ## 🧭 Add it to a repo you already have
 
@@ -355,7 +355,7 @@ The strongest model at high effort takes more time and usage. The cheapest model
 
 | Guide | What's in it |
 |---|---|
-| 📄 [**Cheat sheet**](guide/cheat-sheet.md) | The commands, trigger phrases, the routing table, the dials and lanes |
+| 📄 **Cheat sheet** · [Text](guide/cheat-sheet.md) · [Infographics](guide/cheat-sheet-visual.md) | The commands, trigger phrases, the routing table, the dials and lanes |
 | [Add it to an existing app](guide/add-to-existing-app.md) | What `init` keeps, what `/join` asks, how to review it |
 | [Staying in the loop](guide/staying-in-the-loop.md) | When agents ping you, the board, the automation levels |
 | [Environments](guide/environments.md) | Local, test, preview and production. Where each key lives. |

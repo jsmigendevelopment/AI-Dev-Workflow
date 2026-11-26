@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="497" viewBox="0 0 352 497" role="img" aria-labelledby="title desc">
+  <title id="title">Shape the project</title>
+  <desc id="desc">/grill · $grill. Explore a feature three questions at a time. /wireframes · $wireframes. Try rough layouts, then approve the detailed screens. /name · $name. Pick a name and decide whether to create the repo. /stack · $stack. Choose the platform, data and deployment tools. /secrets · $secrets. Set up accounts and keys outside chat.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="495" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <g fill="none" stroke="url(#rails)" stroke-width="2.5"><path d="M-4 33h360"/><path d="M82 33h22c37 0 32-17 64-17h64"/><path d="M187 33h24c23 0 24 12 48 12h97"/></g>
+  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="33" r="5"/><circle cx="269" cy="33" r="5"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Shape the project</text><path d="M23 97V425" stroke="var(--line)" stroke-width="3"/><circle cx="23" cy="97" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="179" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="261" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="343" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="425" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><text x="45" y="102" class="key">/grill · $grill</text>
+  <text x="45" y="124" class="body">Explore a feature three</text>
+  <text x="45" y="145" class="body">questions at a time.</text>
+  <text x="45" y="184" class="key">/wireframes · $wireframes</text>
+  <text x="45" y="206" class="body">Try rough layouts, then approve</text>
+  <text x="45" y="227" class="body">the detailed screens.</text>
+  <text x="45" y="266" class="key">/name · $name</text>
+  <text x="45" y="288" class="body">Pick a name and decide whether</text>
+  <text x="45" y="309" class="body">to create the repo.</text>
+  <text x="45" y="348" class="key">/stack · $stack</text>
+  <text x="45" y="370" class="body">Choose the platform, data and</text>
+  <text x="45" y="391" class="body">deployment tools.</text>
+  <text x="45" y="430" class="key">/secrets · $secrets</text>
+  <text x="45" y="452" class="body">Set up accounts and keys outside</text>
+  <text x="45" y="473" class="body">chat.</text>
+</svg>

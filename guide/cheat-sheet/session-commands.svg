@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="499" viewBox="0 0 352 499" role="img" aria-labelledby="title desc">
+  <title id="title">Session commands</title>
+  <desc id="desc">/idea · $idea. Start a new app. Plan from pitch to issues and approve the screens before tech work. /join · $join. Set up an existing repo. Map it, run it and choose which conventions to keep. /back · $back. Resume work. See what changed, who’s working and what to try first. /afk · $afk. Step away. Set a time and check usage and safety before the loop carries on.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="497" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <g fill="none" stroke="url(#rails)" stroke-width="2.5"><path d="M-4 37h123c37 0 32-20 65-20h172"/><path d="M-4 43h123c37 0 32-20 65-20h172"/><path d="M38 37h19m147-20h21"/></g>
+  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="37" r="5"/><circle cx="269" cy="17" r="5"/></g><g transform="translate(192 20)"><path d="M-28-6h20m-17 5h15" stroke="var(--a)" opacity=".5" stroke-linecap="round"/><path d="M0-10h25q8 0 14 9l3 4H0q-3 0-3-4v-5q0-4 3-4Z" fill="url(#rails)"/><path d="M17-7h7q5 0 9 5H17Z" fill="var(--paper)"/><path d="M3-2h8" stroke="var(--paper)"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Session commands</text><path d="M23 97V406" stroke="var(--line)" stroke-width="3"/><g transform="translate(23 97)"><circle r="13" fill="var(--panel)" stroke="var(--line)"/><g fill="none" stroke="var(--a)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M-3 2c0-2-3-3-3-6a6 6 0 0 1 12 0c0 3-3 4-3 6zM-2 5h4"/></g></g><g transform="translate(23 200)"><circle r="13" fill="var(--panel)" stroke="var(--line)"/><g fill="none" stroke="var(--a)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><circle r="7"/><path d="m3-3-2 4-4 2 2-4z"/></g></g><g transform="translate(23 303)"><circle r="13" fill="var(--panel)" stroke="var(--line)"/><g fill="none" stroke="var(--a)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><circle r="3.5"/><path d="M0-9v2m0 14v2m-9-9h2m14 0h2M-6-6l1.5 1.5m9 9L6 6M6-6 4.5-4.5m-9 9L-6 6"/></g></g><g transform="translate(23 406)"><circle r="13" fill="var(--panel)" stroke="var(--line)"/><g fill="none" stroke="var(--a)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M5-5a7 7 0 1 0 1 10A8 8 0 0 1 5-5Z"/></g></g><text x="45" y="102" class="key">/idea · $idea</text>
+  <text x="45" y="124" class="body">Start a new app. Plan from pitch</text>
+  <text x="45" y="145" class="body">to issues and approve the screens</text>
+  <text x="45" y="166" class="body">before tech work.</text>
+  <text x="45" y="205" class="key">/join · $join</text>
+  <text x="45" y="227" class="body">Set up an existing repo. Map it,</text>
+  <text x="45" y="248" class="body">run it and choose which</text>
+  <text x="45" y="269" class="body">conventions to keep.</text>
+  <text x="45" y="308" class="key">/back · $back</text>
+  <text x="45" y="330" class="body">Resume work. See what changed,</text>
+  <text x="45" y="351" class="body">who’s working and what to try</text>
+  <text x="45" y="372" class="body">first.</text>
+  <text x="45" y="411" class="key">/afk · $afk</text>
+  <text x="45" y="433" class="body">Step away. Set a time and check</text>
+  <text x="45" y="454" class="body">usage and safety before the loop</text>
+  <text x="45" y="475" class="body">carries on.</text>
+</svg>

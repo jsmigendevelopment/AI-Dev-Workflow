@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="459" viewBox="0 0 352 459" role="img" aria-labelledby="title desc">
+  <title id="title">Use the plugin</title>
+  <desc id="desc">First session. Start with a bare command in Claude Code. In a new folder the plugin asks before installing the kit. Use the project’s skills once installed. Update. In Claude Code, run claude plugin marketplace update onrails, then claude plugin update core@onrails. In Codex, run codex plugin marketplace upgrade onrails. Cloud sessions. Use the repo’s skills. Personal plugins load in local sessions.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="457" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <g fill="none" stroke="url(#rails)" stroke-width="2.5"><path d="M-4 24h360"/><path d="M-4 40h121c25 0 23-16 48-16"/><path d="M204 24c22 0 23 16 47 16h105"/></g>
+  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="24" r="5"/><circle cx="269" cy="24" r="5"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Use the plugin</text><path d="M23 97V387" stroke="var(--line)" stroke-width="3"/><circle cx="23" cy="97" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="242" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="387" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><text x="45" y="102" class="label">First session</text>
+  <text x="45" y="124" class="body">Start with a bare command in</text>
+  <text x="45" y="145" class="body">Claude Code. In a new folder the</text>
+  <text x="45" y="166" class="body">plugin asks before installing the</text>
+  <text x="45" y="187" class="body">kit. Use the project’s skills once</text>
+  <text x="45" y="208" class="body">installed.</text>
+  <text x="45" y="247" class="label">Update</text>
+  <text x="45" y="269" class="body">In Claude Code, run claude plugin</text>
+  <text x="45" y="290" class="body">marketplace update onrails, then</text>
+  <text x="45" y="311" class="body">claude plugin update core@onrails.</text>
+  <text x="45" y="332" class="body">In Codex, run codex plugin</text>
+  <text x="45" y="353" class="body">marketplace upgrade onrails.</text>
+  <text x="45" y="392" class="label">Cloud sessions</text>
+  <text x="45" y="414" class="body">Use the repo’s skills. Personal</text>
+  <text x="45" y="435" class="body">plugins load in local sessions.</text>
+</svg>

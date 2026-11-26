@@ -12,6 +12,6 @@ Load a guide only when its row fits the job. Most runs need none: the skills car
 | [add-to-existing-app.md](add-to-existing-app.md) | Adding the kit to an app that already has code. |
 | [principles.md](principles.md) | Changing how the workflow works, and you need the why. |
 | [evidence.md](evidence.md) | Someone asks what a rule is based on, or a change would undo a tested rule. |
-| [cheat-sheet.md](cheat-sheet.md) | The person asks which command to type. |
+| Cheat sheet · [Text](cheat-sheet.md) · [Infographics](cheat-sheet-visual.md) | The person asks which command to type. |
 
 A skill with a `references/` folder has its own **References** table with the same "load when" rule. Edit the guide here, never its copy in `build/references/`: `node scripts/sync-skills.mjs` copies it.

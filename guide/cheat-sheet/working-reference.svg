@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="136" viewBox="0 0 352 136" role="img" aria-labelledby="title desc">
+  <title id="title">Working reference</title>
+  <desc id="desc">Look up how to start the kit, choose a model, review a change or reach the owner.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="134" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <text x="22" y="37" font-size="26" font-weight="700">Working reference</text><text x="22" y="65" class="body">Look up how to start the kit, choose</text><text x="22" y="87" class="body">a model, review a change or reach</text><text x="22" y="109" class="body">the owner.</text>
+</svg>

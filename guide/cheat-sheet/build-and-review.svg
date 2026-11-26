@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="394" viewBox="0 0 352 394" role="img" aria-labelledby="title desc">
+  <title id="title">Build and review</title>
+  <desc id="desc">/coordinate · $coordinate. Start the loop on ready issues. /build N · $build N. Build issue N inside its agreed scope. /diagnose · $diagnose. Find the cause of a failure or slowdown. /pr-review N · $pr-review N. Get a fresh review of pull request N.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="392" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <g fill="none" stroke="url(#rails)" stroke-width="2.5"><path d="M-4 33h360"/><path d="M82 33h22c37 0 32-17 64-17h64"/><path d="M187 33h24c23 0 24 12 48 12h97"/></g>
+  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="33" r="5"/><circle cx="269" cy="33" r="5"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Build and review</text><path d="M23 97V322" stroke="var(--line)" stroke-width="3"/><circle cx="23" cy="97" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="158" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="240" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="322" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><text x="45" y="102" class="key">/coordinate · $coordinate</text>
+  <text x="45" y="124" class="body">Start the loop on ready issues.</text>
+  <text x="45" y="163" class="key">/build N · $build N</text>
+  <text x="45" y="185" class="body">Build issue N inside its agreed</text>
+  <text x="45" y="206" class="body">scope.</text>
+  <text x="45" y="245" class="key">/diagnose · $diagnose</text>
+  <text x="45" y="267" class="body">Find the cause of a failure or</text>
+  <text x="45" y="288" class="body">slowdown.</text>
+  <text x="45" y="327" class="key">/pr-review N · $pr-review N</text>
+  <text x="45" y="349" class="body">Get a fresh review of pull</text>
+  <text x="45" y="370" class="body">request N.</text>
+</svg>

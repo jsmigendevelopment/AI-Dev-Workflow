@@ -1,143 +1,167 @@
-<p align="center">
-  <img src="../assets/cheat-sheet.svg" alt="onRails cheat sheet: /idea, /join, /back, /afk" width="100%">
-</p>
+# onRails cheat sheet
 
-## 💬 Commands
+Find your next command, run one skill, or check who approves a merge.
 
-| | With the plugin | With the kit in the project | Codex | Use it when | Or just say |
-|---|---|---|---|---|---|
-| 💡 | **`/or:idea`** | **`/idea`** | `$idea` | You have an idea for a new app | "I have an idea for an app" |
-| 🧭 | **`/or:join`** | **`/join`** | `$join` | You're new to a repo that isn't set up yet | "Help me get set up in this repo" |
-| ☀️ | **`/or:back`** | **`/back`** | `$back` | You're starting work, or back from a break | "I'm back" · "pick up where we left off" |
-| 🌙 | **`/or:afk`** | **`/afk`** | `$afk` | You're stepping away and want it to keep building | "brb" · "good night" |
+[Infographics](cheat-sheet-visual.md) · [Install options](../README.md#more-install-options)
 
-> [!TIP]
-> **Typing the command always works.** The plain phrase usually does, on a strong model.
+## Four commands
 
-**Which one do I type?**
+Use / in Claude Code and $ in Codex. The project’s copy of each skill wins.
 
-- **`/or:idea`** comes from the onRails plugin. It works in any folder, before the kit is there. The first time, it asks to install the kit into the folder. Then it hands off to the project's copy.
-- **`/idea`** is the project's own skill. It works once the kit is installed in the project, with or without the plugin.
-- With both, either one runs the project's copy. The project copy wins.
+### Session commands
 
-Install the plugin once, for your whole account, from a terminal:
-
-```bash
-claude plugin marketplace add jsmigendevelopment/onRails
-claude plugin install core@onrails --scope user
-```
-
-Inside Claude Code instead? `/plugin marketplace add …` then `/plugin install core@onrails`, and **pick "user"** as the scope. A project install only works in that folder.
-
-Codex: `codex plugin marketplace add jsmigendevelopment/onRails`, then `codex plugin add or@onrails`. Updates are by hand (`claude plugin marketplace update onrails`, then `claude plugin update core@onrails`). Cloud sessions don't load personal plugins; they use the repo's skills. Don't mix the plugin with `init --global`. → [README](../README.md#install-as-a-plugin)
-
-**Adding the kit to an app you already have?** → [Step by step](add-to-existing-app.md)
-
----
-
-## 🔧 Advanced: run one step yourself
-
-You rarely need these. The four commands call them for you.
-
-| Claude Code | Codex | Use it when |
-|---|---|---|
-| `/grill` | `$grill` | You want to be interviewed before a big feature, without a full kickoff |
-| `/research` | `$research` | A decision is crucial, unclear and costly to undo. It asks first: it uses your strongest model. |
-| `/wireframes` | `$wireframes` | You want to see, or change, the screens before they're built. Layout first, then the detailed design, which asks first: it uses your strongest model. |
-| `/pyramid` | `$pyramid` | You want to plan the slices and passes, or re-plan at a pass gate. It asks first too. |
-| `/issues` | `$issues` | You have a plan, feedback or a bug to turn into issues |
-| `/coordinate` | `$coordinate` | You want the build loop to start on the ready issues |
-| `/build N` | `$build N` | You want issue N built, and nothing else |
-| `/diagnose` | `$diagnose` | Something is broken, failing or slow and nobody knows why. Or say "debug this". |
-| `/pr-review N` | `$pr-review N` | You want a fresh review of pull request N |
-| `/pr-security N` | `$pr-security N` | Pull request N touches auth, secrets, personal data or money |
-| `/qa` | `$qa` | You want a change checked in a real browser, on the preview or the test site |
-| `/secrets` | `$secrets` | The app needs API keys or env vars wired up |
-| `/stack` | `$stack` | You want to pick the tech, or change a pick |
-| `/automation` | `$automation` | You want agents to do more or less on their own. Or say "switch to recommended". |
-
----
-
-## 🔑 Trigger phrases
-
-| Say | Get |
+| Claude Code · Codex | What happens |
 |---|---|
-| "Grill me. Three questions at a time, each with your recommended answer." | A real interview instead of silent guesses |
-| "Give me three options with trade-offs and a recommendation." | Choices, not the first idea it had |
-| "Use the `<name>` skill." | That skill, every time |
-| "Tracer bullets" · "vertical slices" | Thin, end-to-end features you can try right away |
-| "Modular monolith" | Feature modules you can split out later |
-| "Controller → service → repository" | An API that's easy to test and swap parts in |
-| "Review the diff in a fresh context. Don't read the description." | A reviewer that judges the code, not the story |
-| "What's out of scope?" | A fence, so it doesn't wander |
+| `/idea` · `$idea` | Start a new app. Plan from pitch to issues and approve the screens before tech work. |
+| `/join` · `$join` | Set up an existing repo. Map it, run it and choose which conventions to keep. |
+| `/back` · `$back` | Resume work. See what changed, who’s working and what to try first. |
+| `/afk` · `$afk` | Step away. Set a time and check usage and safety before the loop carries on. |
 
----
+## Run one step
 
-## 🧠 Model routing
+The four commands call these skills for you. To run a single step, type its name in your tool.
 
-<sub>Example setup, checked 2026-11. Swap in your own models.</sub>
+### Shape the project
 
-| Job | Tier · effort | Example |
-|---|---|---|
-| 🗣️ Your live thread (the loop) | Everyday · low | Opus 5.5 low |
-| 🔥 Grill, planning chat | Everyday · medium | Opus 5.5 medium |
-| ✏️ Wireframes stage 1, layout | Everyday · medium | Opus 5.5 medium |
-| 🏛️ CTO: research, pyramid, schema, API, wireframes stage 2 | **Strongest · high** | Fable 5.2 high |
-| 📋 Writing issues from the plan | Everyday · medium | Opus 5.5 medium |
-| 🔨 Build an issue | Everyday · low at complexity 1–4, medium at 5–7 or from pass 2 | Opus 5.5 low / medium |
-| 🔍 Code review | Never below the builder | Opus 5.5 low / medium |
-| 🛡️ Security review (risky only) | One step above review, plus a second vendor for personal data or money | Opus 5.5 medium + ChatGPT |
-| 🎨 Art | Creative | ChatGPT |
+| Claude Code · Codex | What happens |
+|---|---|
+| `/grill` · `$grill` | Explore a feature three questions at a time. |
+| `/wireframes` · `$wireframes` | Try rough layouts, then approve the detailed screens. |
+| `/name` · `$name` | Pick a name and decide whether to create the repo. |
+| `/stack` · `$stack` | Choose the platform, data and deployment tools. |
+| `/secrets` · `$secrets` | Set up accounts and keys outside chat. |
 
-**Start low. Escalate one step only after a verified failure.**
+### Plan the work
 
----
+| Claude Code · Codex | What happens |
+|---|---|
+| `/research` · `$research` | Investigate a decision that is costly to undo. |
+| `/pyramid` · `$pyramid` | Cut a pass into small changes you can try. |
+| `/issues` · `$issues` | Turn each step or piece of feedback into an issue. |
+| `/routing` · `$routing` | Choose the model tier and effort for each job. |
 
-## 🚦 Risk dial and lanes
+### Build and review
 
-| Dial | Who merges | Pick it when |
-|---|---|---|
-| 🟢 **Move fast** | Agents, after the checks pass | Side project or startup, no real users yet |
-| 🟡 **Careful** | Agents. The person reads schema and API changes first. | Real users or real money |
-| 🔴 **Strict** | The person approves every merge | Bank, health, anything regulated |
+| Claude Code · Codex | What happens |
+|---|---|
+| `/coordinate` · `$coordinate` | Start the loop on ready issues. |
+| `/build N` · `$build N` | Build issue N inside its agreed scope. |
+| `/diagnose` · `$diagnose` | Find the cause of a failure or slowdown. |
+| `/pr-review N` · `$pr-review N` | Get a fresh review of pull request N. |
 
-| Lane | Checks before merge | When |
-|---|---|---|
-| **tiny** | CI · code review | Copy, styling, config. No logic. |
-| **normal** | CI · code review · QA on the preview | Most issues |
-| **risky** | Normal · security review · the person | Auth, secrets, personal data, money, migrations, new dependencies |
+### Check and steer
 
-🛑 **Always waits for a person, whatever the dial:** production, secrets, deleting or migrating real data, and spending money.
+| Claude Code · Codex | What happens |
+|---|---|
+| `/pr-security N` · `$pr-security N` | Review risky changes in pull request N. |
+| `/qa` · `$qa` | Try the change in a real browser on the preview. |
+| `/ask` · `$ask` | Bring a decision or blocker to the owner. |
+| `/automation` · `$automation` | Set how much agents can do on their own. |
 
----
+### Web checks
 
-## 🎚️ Automation level
+| Claude Code · Codex | What happens |
+|---|---|
+| `/web-performance` · `$web-performance` | Check load time, layout shifts and bundle size. |
+| `/web-security` · `$web-security` | Check request limits and browser protections. |
+| `/seo` · `$seo` | Check metadata, indexing and share previews. |
+| `/a11y` · `$a11y` | Check keyboard access, contrast and reflow. |
 
-The risk dial is how careful each merge is. The automation level is how much agents do without you. The more careful one wins. Asked first in `/idea` and `/join`. Change it with `/automation`.
+### Tools and stack packs
 
-| Level | Agents do | You do |
-|---|---|---|
-| **Recommended** | Loop, build, review, merge tiny and normal, deploy to test | Approve risky and schema changes, answer decisions, try it |
-| **Full** | Everything, risky too, plus overnight. Never the always-stop list. | Answer blockers |
-| **Hands-on** | Plan, write issues, build one issue when asked | Open and merge every pull request |
-| **Custom** | You set each switch | |
+| Claude Code · Codex | What happens |
+|---|---|
+| `/dependencies` · `$dependencies` | Verify packages before adding them. |
+| `/writing-for-agents` · `$writing-for-agents` | Write instructions an agent can follow. |
+| `/stack-tanstack-start` · `$stack-tanstack-start` | Use the web app pack on Cloudflare. |
+| `/stack-monorepo-expo` · `$stack-monorepo-expo` | Use the shared web and mobile pack. |
 
----
+## Working reference
 
-## 🔔 Needs you
+Look up how to start the kit, choose a model, review a change or reach the owner.
 
-| Level | When | Ping |
-|---|---|---|
-| 🛑 **Blocker** | Always-stop list, unclear MVP core, critical security finding, production down, nothing else can move | Now |
-| ⏳ **Decision** | Schema or API gate, taste, scope or money, review cap hit, unclear issue, stale claim | Batched, at most every 30 min |
-| ℹ️ **FYI** | Ready to try, usage, rate limit and reset | Never. On the board and at `/back`. |
+### Install the kit
 
-- Away (`/afk`)? Only production down or a security hole pings.
-- Quiet hours and the batch window are in your profile under `[notify]`. Phone pings: set `NTFY_TOPIC`.
-- **The board:** `~/.onrails/boards/<project>.md`, or a Google Sheet with `[board] sheet`. Keep it open instead of watching threads.
+| Look up | What happens |
+|---|---|
+| Claude Code | Run `claude plugin marketplace add jsmigendevelopment/onRails` then `claude plugin install core@onrails --scope user` in a terminal. Start a new session. |
+| Codex | Run `codex plugin marketplace add jsmigendevelopment/onRails` then `codex plugin add or@onrails` in a terminal. |
+| npm | Run `npx onrails init` in your project folder. |
 
-→ [Pings, the board and automation](staying-in-the-loop.md)
+### Use the plugin
 
----
+| Look up | What happens |
+|---|---|
+| First session | Start with a bare command in Claude Code. In a new folder the plugin asks before installing the kit. Use the project’s skills once installed. |
+| Update | In Claude Code, run `claude plugin marketplace update onrails`, then `claude plugin update core@onrails`. In Codex, run `codex plugin marketplace upgrade onrails`. |
+| Cloud sessions | Use the repo’s skills. Personal plugins load in local sessions. |
 
-<p align="center"><sub><a href="../README.md">← Back to the README</a> · made by <a href="https://me.jsmigen.dev">jay</a></sub></p>
+### Trigger phrases
+
+| Look up | What happens |
+|---|---|
+| “Grill me” | Get three questions at a time, each with a recommended answer. |
+| “Give me three options” | Compare trade-offs and get a recommendation. |
+| “Use the … skill” | Name the step you want to run. |
+| “Tracer bullets” | Plan thin, end-to-end changes you can try. |
+| “Modular monolith” | Keep each feature in its own module. |
+| “Controller → service → repository” | Separate request handling, business logic and data access. |
+| “Review the diff in a fresh context” | Ask an independent reviewer to judge the code. |
+| “Start the loop” | Begin building ready issues. |
+| “What’s out of scope?” | Set the boundary for this issue. |
+
+### Model routing
+
+| Look up | What happens |
+|---|---|
+| Everyday · low | Run the live thread, write issues and check the preview. The README example is Claude Opus 5.5. |
+| Everyday · medium | Interview, plan and draw rough layouts. |
+| Strongest · high | Research, design screens, plan passes and define the schema and API. Ask first unless the profile allows it. The README example is Claude Fable 5.2. |
+
+### Build effort
+
+| Look up | What happens |
+|---|---|
+| Build and review | Build at low effort for complexity 1–4 and medium for 5–7 or from pass two. Review at least at the builder’s effort. |
+| Security and art | Security review goes one step higher. Add a second vendor for personal data or money when available. Use the creative tier for art. The README example is ChatGPT. |
+| Escalate | Start low. Go up one step after a failed check or a rejected review. |
+
+### Merge lanes
+
+| Look up | What happens |
+|---|---|
+| Tiny | Copy, styling or config. Run CI and code review. |
+| Normal | Add QA on the preview. |
+| Risky | Add security review for auth, secrets, personal data, money, migrations or new dependencies. Ask the owner unless Full automation allows the merge. |
+| Failed check | Return to a fresh builder. Park the issue after two rejected rounds. |
+
+### Risk dial
+
+| Look up | What happens |
+|---|---|
+| Move fast | For a project without real users yet. Agents merge once checks pass. |
+| Careful | For real users or money. The owner reads schema and API changes before agents merge. |
+| Strict | For regulated work. The owner approves every merge. |
+| Always ask | Wait before deleting or migrating real data, touching production settings or secrets, deploying or going public, or spending money. |
+| Running jobs | Ask before stopping or restarting a strongest-tier job. “Not yet” applies to new work. An explicit “stop it” stops the running job immediately. |
+
+### Automation level
+
+| Look up | What happens |
+|---|---|
+| Recommended | Agents build, review and merge tiny and normal changes, then deploy to test. You approve risky and schema changes. |
+| Full | Include risky work and overnight runs. The always-stop list still applies. |
+| Hands-on | Agents plan, write issues and build one when asked. You open and merge pull requests. |
+| Custom | Choose each switch. Where the two dials disagree, the more careful setting wins. |
+
+### Needs you
+
+| Look up | What happens |
+|---|---|
+| Blocker | Ping now. Other safe work continues. |
+| Decision | Batch questions about gates, scope, taste or money. By default, at most one ping every 30 minutes. |
+| FYI | Record progress, usage and rate limits on the board. Catch up with /back. |
+| Board | Open `~/.onrails/boards/<project>.md` or the configured Google Sheet. Quiet hours and the batch window live in the profile. |
+| While away | Only production going down or a live security hole interrupts you. |
+
+[Model examples](../README.md#-model-routing) · [Pings, quiet hours and the board](staying-in-the-loop.md) · [Add to an existing app](add-to-existing-app.md)

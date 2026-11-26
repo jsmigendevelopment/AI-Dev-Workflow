@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="352" height="806" viewBox="0 0 352 806" role="img" aria-labelledby="title desc">
+  <title id="title">Trigger phrases</title>
+  <desc id="desc">“Grill me”. Get three questions at a time, each with a recommended answer. “Give me three options”. Compare trade-offs and get a recommendation. “Use the … skill”. Name the step you want to run. “Tracer bullets”. Plan thin, end-to-end changes you can try. “Modular monolith”. Keep each feature in its own module. “Controller → service → repository”. Separate request handling, business logic and data access. “Review the diff in a fresh context”. Ask an independent reviewer to judge the code. “Start the loop”. Begin building ready issues. “What’s out of scope?”. Set the boundary for this issue.</desc>
+  <style>
+  svg{--ink:#0f1020;--muted:#55566b;--paper:#ffffff;--panel:#f7f7fb;--line:#e4e4ee;--a:#7c3aed;--b:#2563eb}
+  @media(prefers-color-scheme:dark){svg{--ink:#f2f2f7;--muted:#a3a4b8;--paper:#12121c;--panel:#0a0a12;--line:#262636;--a:#a78bfa;--b:#60a5fa}}
+  text{font-family:system-ui,sans-serif;fill:var(--ink)}
+  .body{font-size:16px;fill:var(--muted)}
+  .key{font-family:ui-monospace,monospace;font-size:16px;font-weight:650;fill:var(--a)}
+  .label{font-size:17px;font-weight:650}
+</style>
+  <defs><linearGradient id="rails"><stop style="stop-color:var(--a)"/><stop offset="1" style="stop-color:var(--b)"/></linearGradient></defs>
+  <rect x="1" y="1" width="350" height="804" rx="18" fill="var(--paper)" stroke="var(--line)"/>
+  <g fill="none" stroke="url(#rails)" stroke-width="2.5"><path d="M-4 24h360"/><path d="M-4 40h121c25 0 23-16 48-16"/><path d="M204 24c22 0 23 16 47 16h105"/></g>
+  <g fill="var(--paper)" stroke="var(--a)" stroke-width="3"><circle cx="47" cy="24" r="5"/><circle cx="269" cy="24" r="5"/></g><text x="21" y="72" font-size="24" font-weight="700" letter-spacing="-.7">Trigger phrases</text><path d="M23 97V755" stroke="var(--line)" stroke-width="3"/><circle cx="23" cy="97" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="179" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="261" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="322" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="404" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="486" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="590" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="694" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><circle cx="23" cy="755" r="4.5" fill="var(--paper)" stroke="var(--a)" stroke-width="2.5"/><text x="45" y="102" class="label">“Grill me”</text>
+  <text x="45" y="124" class="body">Get three questions at a time,</text>
+  <text x="45" y="145" class="body">each with a recommended answer.</text>
+  <text x="45" y="184" class="label">“Give me three options”</text>
+  <text x="45" y="206" class="body">Compare trade-offs and get a</text>
+  <text x="45" y="227" class="body">recommendation.</text>
+  <text x="45" y="266" class="label">“Use the … skill”</text>
+  <text x="45" y="288" class="body">Name the step you want to run.</text>
+  <text x="45" y="327" class="label">“Tracer bullets”</text>
+  <text x="45" y="349" class="body">Plan thin, end-to-end changes you</text>
+  <text x="45" y="370" class="body">can try.</text>
+  <text x="45" y="409" class="label">“Modular monolith”</text>
+  <text x="45" y="431" class="body">Keep each feature in its own</text>
+  <text x="45" y="452" class="body">module.</text>
+  <text x="45" y="491" class="label">“Controller → service →</text>
+  <text x="45" y="513" class="label">repository”</text>
+  <text x="45" y="535" class="body">Separate request handling,</text>
+  <text x="45" y="556" class="body">business logic and data access.</text>
+  <text x="45" y="595" class="label">“Review the diff in a fresh</text>
+  <text x="45" y="617" class="label">context”</text>
+  <text x="45" y="639" class="body">Ask an independent reviewer to</text>
+  <text x="45" y="660" class="body">judge the code.</text>
+  <text x="45" y="699" class="label">“Start the loop”</text>
+  <text x="45" y="721" class="body">Begin building ready issues.</text>
+  <text x="45" y="760" class="label">“What’s out of scope?”</text>
+  <text x="45" y="782" class="body">Set the boundary for this issue.</text>
+</svg>
