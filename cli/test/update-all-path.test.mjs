@@ -4,8 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, symlinkSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
-import { put, read, tmp, unixOnly } from "./helpers.mjs";
-import { BOTH, CLAUDE, PLANTED, esc, fake, homeInstall, machine, nodeOnly, pluginCalls, project, version } from "./update-all-helpers.mjs";
+import { fake, nodeOnly, put, read, tmp, unixOnly } from "./helpers.mjs";
+import { BOTH, CLAUDE, PLANTED, esc, homeInstall, machine, pluginCalls, project, version } from "./update-all-helpers.mjs";
 
 test("#178: update --all never runs a claude from the project, the current folder, a node_modules/.bin or a relative PATH entry", unixOnly, () => {
   const m = machine({ tools: ["claude"], plugins: ["claude"], global: false });

@@ -5,11 +5,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { put, read, tmp } from "./helpers.mjs";
+import { put, read, safeEnv, tmp } from "./helpers.mjs";
 
 const WORKLOG = fileURLToPath(new URL("../../.agents/skills/afk/scripts/worklog.mjs", import.meta.url));
 const presence = (home, ...args) => {
-  const r = spawnSync(process.execPath, [WORKLOG, "presence", ...args], { encoding: "utf8", cwd: tmp(), env: { ...process.env, HOME: home, USERPROFILE: home, CLAUDE_PROJECT_DIR: "" } });
+  const r = spawnSync(process.execPath, [WORKLOG, "presence", ...args], { encoding: "utf8", cwd: tmp(), env: safeEnv({ HOME: home, USERPROFILE: home, CLAUDE_PROJECT_DIR: "" }) });
   return JSON.parse(r.stdout);
 };
 const hoursAgo = (h) => new Date(Date.now() - h * 3600e3).toISOString();

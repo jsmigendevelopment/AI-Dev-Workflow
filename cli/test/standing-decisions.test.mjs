@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { tmp } from "./helpers.mjs";
+import { checkPath, safePath, tmp } from "./helpers.mjs";
 import { ALLOWED, mdFiles, read, scan, unconditionalAsks } from "./approval-scan.mjs";
 
 const AGENTS = ["AGENTS.md", "cli/kit/files/core/AGENTS.md", "plugin/cli/kit/files/core/AGENTS.md"];
@@ -337,8 +337,9 @@ test("AC-173-5: WHEN ask and full.md describe an always-stop 🛑 on Full THEN t
   const board = join(home, ".agents", "skills", "coordinate", "scripts");
   mkdirSync(board, { recursive: true });
   writeFileSync(join(board, "board.mjs"), 'import { writeFileSync } from "node:fs"; writeFileSync("board-ran", "");\n');
+  // #191: the child gets a safe PATH (a copy of node and the system folders), never the shell's.
   const notify = (...extra) => JSON.parse(execFileSync(process.execPath, [fileURLToPath(new URL("../../.claude/hooks/notify.mjs", import.meta.url)),
-    "--level", "blocker", "--title", "Deploy to production?", "--print", "--no-board", ...extra], { cwd: home, env: { HOME: home, USERPROFILE: home, PATH: process.env.PATH }, encoding: "utf8" }).trim().split("\n").at(-1));
+    "--level", "blocker", "--title", "Deploy to production?", "--print", "--no-board", ...extra], { cwd: home, env: checkPath({ HOME: home, USERPROFILE: home, PATH: safePath() }), encoding: "utf8" }).trim().split("\n").at(-1));
   assert.equal(notify().action, "held", "a blocker waits for /back while the person is away");
   assert.equal(existsSync(join(home, "board-ran")), false, "no board script ran");
   assert.equal(notify("--critical").action, "sent", "only --critical reaches the person while they're away");

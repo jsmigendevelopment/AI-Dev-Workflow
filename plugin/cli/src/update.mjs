@@ -1,13 +1,15 @@
 // update [dir] [--dry-run] [--yes]: bring an installed kit up to the version bundled in this CLI.
 import { rmSync } from "node:fs";
 import { resolve } from "node:path";
+import { ciLocal } from "./ci-local.mjs";
 import { NEW_SUFFIX, OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
 import { toNative } from "./files.mjs";
 import { FULL_OVERRIDE_KIT, fullOnOldKit, olderThan } from "./full-kit.mjs";
+import { CI_FIX, ciMode, workflowFiles } from "./preflight-ci.mjs";
 import { confirm } from "./prompt.mjs";
 import { apply, oldKitNewFiles, plan, projectManifestName, readProjectManifest, report } from "./sync.mjs";
 
-export async function update(dir = ".", { dryRun = false, kitDir, ask, yes = false, log = console.log } = {}) {
+export async function update(dir = ".", { dryRun = false, kitDir, ask, yes = false, log = console.log, run } = {}) {
   const projectDir = resolve(dir);
   const kit = loadKit(kitDir);
   const old = readProjectManifest(projectDir);
@@ -25,13 +27,23 @@ export async function update(dir = ".", { dryRun = false, kitDir, ask, yes = fal
   const oldName = projectManifestName(projectDir) === OLD_PROJECT_MANIFEST;
   if (dryRun) {
     if (oldName) log(`The kit's record is still ${OLD_PROJECT_MANIFEST}. update will offer to rename it ${PROJECT_MANIFEST}.`);
+    await offActions(projectDir, { dryRun, ask, yes, log, run });
     return 0;
   }
   const rename = oldName && await offerManifestRename({ ask, yes, log });
   apply(projectDir, kit, actions, oldName && !rename ? OLD_PROJECT_MANIFEST : PROJECT_MANIFEST);
   if (rename) rmSync(toNative(projectDir, OLD_PROJECT_MANIFEST));
   nextSteps(projectDir, actions, log);
+  await offActions(projectDir, { dryRun, ask, yes, log, run });
   return 0;
+}
+
+// A repo on ci = "local" that still has workflow files moves off Actions (#133). Its result is shown, and the kit
+// update stands either way: the kit's files are already written.
+async function offActions(projectDir, opts) {
+  if (ciMode(projectDir) !== "local" || !workflowFiles(projectDir).length) return;
+  opts.log(`\nThis repo is on ci = "local" and still has workflow files, so update runs ${CI_FIX}:`);
+  await ciLocal(projectDir, opts);
 }
 
 async function offerManifestRename({ ask, yes, log }) {

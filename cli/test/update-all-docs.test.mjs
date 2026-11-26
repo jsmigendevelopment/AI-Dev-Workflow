@@ -68,17 +68,19 @@ const leaks = (text) => runsAll(text) && LEAKS.some((re) => re.test(text.replace
 
 test("#178: no CLI test that runs update --all puts Node's own folder on a child's PATH, where an npm-installed claude or codex sits", () => {
   const run = String.raw`spawnSync(process.execPath, [CLI, "update", dir, "--all"], { env });`;
+  // Built from pieces, so #191's scan of every test file (safe-path.test.mjs) doesn't take these samples for code.
+  const ENV = "process" + ".env";
   const forms = [
     String.raw`const env = { PATH: dirname(process.execPath) };`,
     String.raw`const env = { PATH: path.dirname(execPath) };`,
-    String.raw`const env = { HOME: h, PATH: process.env.PATH };`,
-    String.raw`const env = { ...process.env, HOME: h };`,
+    String.raw`const env = { HOME: h, PATH: ${ENV}.PATH };`,
+    String.raw`const env = { ...${ENV}, HOME: h };`,
     String.raw`const env = { PATH: dirname(realpathSync(process.execPath)) };`,
     String.raw`const nodeDir = process.execPath.replace(/\/node$/, ""); const env = { PATH: nodeDir };`,
     String.raw`const env = { PATH: dirname(process.argv[0]) };`,
   ];
   for (const form of forms) assert.ok(leaks(`${form}\n${run}`), form);
-  assert.ok(leaks(String.raw`spawnSync(process.execPath, [CLI, ${"`update`"}, dir, ${"`--all`"}], { env: { PATH: process.env.PATH } });`), "--all in backticks");
+  assert.ok(leaks(String.raw`spawnSync(process.execPath, [CLI, ${"`update`"}, dir, ${"`--all`"}], { env: { PATH: ${ENV}.PATH } });`), "--all in backticks");
   assert.ok(!leaks(String.raw`symlinkSync(process.execPath, join(bin, "node"));` + `\nconst env = { PATH: bin };\n${run}`), "a temp folder with a link to node");
   const bad = readdirSync(TESTS).filter((f) => f.endsWith(".mjs") && f !== SELF).filter((f) => leaks(readFileSync(join(TESTS, f), "utf8")));
   assert.deepEqual(bad, [], "give each child a temp folder with only a link to node and its fakes");

@@ -1,10 +1,11 @@
-// Test helpers: temp folders, captured output and small fake kits for update tests.
+// Test helpers: temp folders, captured output, small fake kits for update tests, and a safe PATH for every child.
 import { after } from "node:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, existsSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join } from "node:path";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { hash, toNative, writeFile } from "../src/files.mjs";
 import { storedName } from "../src/kit.mjs";
+import { findCommand } from "../src/system.mjs";
 
 // Every folder tmp() makes is removed when the test file ends, so a run leaves nothing in TMPDIR (#142).
 // Retries, because a child a test started may still be closing a file in it.
@@ -19,6 +20,75 @@ export function tmp(prefix = "onrails-") {
   made.push(dir);
   return dir;
 }
+
+// #191: a test never runs the person's real claude or codex, which can sit next to Node (an npm global install).
+// A child's PATH holds only the test's fakes, a copy of node and the system folders. A copy, never a symlink:
+// Linux resolves a symlink for process.execPath, which leads back to Node's own folder.
+const PATH_KEY = /^path$/i;
+const SYSTEM = process.platform === "win32" ? [join(process.env.SystemRoot ?? "C:\\Windows", "System32")] : ["/usr/bin", "/bin"];
+const TOOLS = ["claude", "codex"].flatMap((name) => [name, `${name}.cmd`, `${name}.exe`]);
+const fakes = new Set();
+let ownNode;
+// npm's own scripts, found on the shell's PATH before it is replaced. They go next to the copy of node, so their
+// `#!/usr/bin/env node` starts that copy (#182's real runs start npm). Never a folder of them: claude can sit there too.
+const NPM = process.platform === "win32" ? [] : ["npm", "npx"].map((name) => [name, findCommand(name)]).filter(([, file]) => file);
+
+/** Writes an executable fake tool and records it as one of this test's fakes, the only claude or codex a child may see. */
+export function fake(dir, name, body) {
+  put(dir, name, body);
+  chmodSync(join(dir, name), 0o755);
+  fakes.add(realpathSync(join(dir, name)));
+}
+
+/** Puts a copy of node in dir (a new temp folder by default) and returns dir, so `#!/usr/bin/env node` fakes start. */
+export function nodeOnly(dir = tmp("onrails-node-")) {
+  const name = basename(process.execPath);
+  if (!ownNode) {
+    copyFileSync(process.execPath, (ownNode = join(tmp("onrails-node-"), name)));
+    for (const [cmd, file] of NPM) symlinkSync(realpathSync(file), join(dirname(ownNode), cmd));
+  }
+  // A hard link to this file's own copy costs no disk. Another drive, or a system without hard links, gets a copy.
+  try {
+    linkSync(ownNode, join(dir, name));
+  } catch {
+    copyFileSync(ownNode, join(dir, name));
+  }
+  return dir;
+}
+
+/**
+ * Throws if a folder on any PATH key of env (PATH, Path, path) holds a claude or codex that isn't one of this test's
+ * fakes. Relative entries are read from cwd. Returns env, so a hand-built env is checked where it's made.
+ */
+export function checkPath(env, cwd = process.cwd()) {
+  for (const [key, value] of Object.entries(env)) {
+    if (!PATH_KEY.test(key) || typeof value !== "string") continue;
+    for (const entry of value.split(delimiter).filter(Boolean)) {
+      for (const name of TOOLS) {
+        const file = resolve(cwd, entry, name);
+        if (existsSync(file) && !fakes.has(realpathSync(file))) throw new Error(`${file} on the child's ${key} isn't one of this test's fakes`);
+      }
+    }
+  }
+  return env;
+}
+
+/** A safe PATH: the given folders of fakes, then this file's copy of node (with npm and npx), then the system folders. */
+export function safePath(...dirs) {
+  if (!ownNode) nodeOnly();
+  return checkPath({ PATH: [...dirs, dirname(ownNode), ...SYSTEM].join(delimiter) }).PATH;
+}
+
+/** The env for a child: the shell's variables without any PATH key, a safePath() of `bins`, then `extra`, checked. */
+export function safeEnv(extra = {}, { bins = [], cwd } = {}) {
+  const shell = Object.fromEntries(Object.entries(process.env).filter(([name]) => !PATH_KEY.test(name)));
+  return checkPath({ ...shell, PATH: safePath(...bins), ...extra }, cwd);
+}
+
+// This test file's own PATH is safe too, so code it runs in-process (doctor's probes) and a child that inherits the
+// env never find the real tools.
+for (const name of Object.keys(process.env).filter((key) => PATH_KEY.test(key))) delete process.env[name];
+process.env.PATH = safePath();
 
 export function logger() {
   const lines = [];
@@ -87,9 +157,8 @@ export function fakeGh(dir, api, env = {}) {
   chmodSync(join(dir, "bin", "gh"), 0o755);
   writeFileSync(join(dir, "api.json"), JSON.stringify(api));
   const log = join(dir, "calls.log");
-  const shell = Object.fromEntries(Object.entries(process.env).filter(([name]) => !["REPO", "HEAD_SHA"].includes(name)));
   return {
-    env: { ...shell, PATH: `${join(dir, "bin")}${delimiter}${process.env.PATH}`, FAKE_API: join(dir, "api.json"), FAKE_LOG: log, ...env },
+    env: safeEnv({ REPO: undefined, HEAD_SHA: undefined, FAKE_API: join(dir, "api.json"), FAKE_LOG: log, ...env }, { bins: [join(dir, "bin")] }),
     calls: () => (existsSync(log) ? readFileSync(log, "utf8") : ""),
   };
 }

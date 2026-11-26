@@ -7,7 +7,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const read = (path) => readFileSync(join(REPO, path), "utf8");
@@ -100,13 +100,13 @@ function setupGithub(env = {}, extra = []) {
   mkdirSync(join(dir, "bin"));
   writeFileSync(join(dir, "bin", "gh"), FAKE_GH);
   chmodSync(join(dir, "bin", "gh"), 0o755);
-  execFileSync("git", ["init", "-q", dir]);
-  execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"]);
+  execFileSync("git", ["init", "-q", dir], { env: safeEnv() });
+  execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"], { env: safeEnv() });
   const r = spawnSync(process.execPath, [join(REPO, ".agents/skills/name/scripts/setup-github.mjs"), "--plan", "team", ...extra], {
     cwd: dir,
     encoding: "utf8",
     input: "",
-    env: { ...process.env, PATH: `${join(dir, "bin")}:${process.env.PATH}`, FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir, ...env },
+    env: safeEnv({ FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir, ...env }, { bins: [join(dir, "bin")] }),
   });
   const calls = readFileSync(join(dir, "calls.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
   return { r, calls };
