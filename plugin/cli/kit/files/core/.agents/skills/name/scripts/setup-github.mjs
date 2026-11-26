@@ -17,15 +17,17 @@
 //   Enterprise:  Team, plus environment protection rules on private repos, such as a required
 //                reviewer before a production deploy. Public repos get them on every plan.
 // It reads the repo from the git remote and calls only the REST API (no GraphQL, no `gh repo view`).
-// Main requires only the `onrails/check` commit status, which the local merge gate posts, never a
-// GitHub Actions check (required-checks.mjs says why). Run this again on a repo that used the old
-// workflows: it swaps their checks for `onrails/check` in the rule it made.
+// Main requires at most the `onrails/check` commit status, which the local merge gate posts, never a
+// GitHub Actions check (required-checks.mjs says why). It first posts one probe status: if GitHub
+// refuses it here, main requires no status, and the output says why. Run this again on a repo that
+// used the old workflows: it swaps their checks for `onrails/check` in the rule it made, or drops
+// them all when statuses can't be posted, so no rule waits on a check nothing can post.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { localChecks, requiredChecks } from "./required-checks.mjs";
+import { LOCAL_CHECK, PROBE_CHECK, localChecks, requiredChecks } from "./required-checks.mjs";
 
 const PLANS = ["free", "team", "enterprise"];
 const args = process.argv.slice(2);
@@ -96,9 +98,9 @@ const SECRET_PROTECTION = { min: "team", label: "public repo, or the Secret Prot
 const allowed = (needs) => PUBLIC || PLANS.indexOf(PLAN) >= PLANS.indexOf(needs.min);
 
 const results = [];
-async function step(name, needs, fn) {
+async function step(name, needs, fn, plan = "") {
   if (!allowed(needs)) return results.push(["skipped", name, needs.label, `your plan is ${PLAN} and this repo is ${visibility}`]);
-  if (DRY) return results.push(["would do", name, needs.label, ""]);
+  if (DRY) return results.push(["would do", name, needs.label, plan]);
   try {
     const note = await fn();
     results.push(["done", name, needs.label, typeof note === "string" && !/^\s*[{\[]/.test(note) ? note.trim() : ""]);
@@ -136,18 +138,33 @@ await step("secret scanning + push protection", SECRET_PROTECTION, () =>
 );
 
 // 4. Rules on main: pull requests only, no force push or delete, and the local merge gate's
-//    `onrails/check` status required. No approval required: GitHub won't let the author approve
-//    their own pull request. A free private repo relies on the kit's blocked git commands instead.
+//    `onrails/check` status required when this account can post statuses here. No approval
+//    required: GitHub won't let the author approve their own pull request. A free private repo
+//    relies on the kit's blocked git commands instead.
+// Can this account post a commit status? One probe on the default branch's head, under its own
+// context. A required status nothing can post would block every merge. Returns why not, or null.
+function statusRefused() {
+  try {
+    const sha = run(["api", `repos/${repo}/commits/HEAD`, "--jq", ".sha"]).trim();
+    const description = "setup-github: this account can post commit statuses";
+    api("POST", `repos/${repo}/statuses/${sha}`, { state: "success", context: PROBE_CHECK, description });
+    return null;
+  } catch (e) {
+    return String(e.stderr || e.message).split("\n").find((l) => l.trim())?.trim().slice(0, 160) || "refused";
+  }
+}
 await step("rules on main", TEAM, () => {
+  const refused = statusRefused();
+  const why = refused && `requires no status: GitHub refused a probe commit status here (${refused}). The merge gate's "Checks:" comment is the record. Run this again where statuses post to require ${LOCAL_CHECK}`;
   const existing = JSON.parse(run(["api", `repos/${repo}/rulesets`]));
   const mine = existing.find((r) => r.name === "protect-main");
   if (mine) {
     const full = JSON.parse(run(["api", `repos/${repo}/rulesets/${mine.id}`]));
-    const rules = localChecks(full.rules ?? []);
-    if (!rules) return "already there";
+    const rules = localChecks(full.rules ?? [], !refused);
+    if (!rules) return why || "already there";
     const { name, target, enforcement, conditions, bypass_actors } = full;
     api("PUT", `repos/${repo}/rulesets/${mine.id}`, { name, target, enforcement, conditions, bypass_actors, rules });
-    return "now requires onrails/check, and no Actions check";
+    return why ? `updated, and ${why}` : `now requires ${LOCAL_CHECK}, and no Actions check`;
   }
   api("POST", `repos/${repo}/rulesets`, {
     name: "protect-main",
@@ -158,10 +175,11 @@ await step("rules on main", TEAM, () => {
       { type: "deletion" },
       { type: "non_fast_forward" },
       { type: "pull_request", parameters: { required_approving_review_count: 0, dismiss_stale_reviews_on_push: false, require_code_owner_review: false, require_last_push_approval: false, required_review_thread_resolution: false } },
-      { type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: requiredChecks() } },
+      ...(refused ? [] : [{ type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: requiredChecks() } }]),
     ],
   });
-});
+  return why || `requires ${LOCAL_CHECK}`;
+}, `posts a probe status first, and requires ${LOCAL_CHECK} only if it posts`);
 
 
 // 5. Environments. `test` and `production` deploy from main only. Put production secrets

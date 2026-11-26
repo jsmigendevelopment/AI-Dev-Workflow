@@ -73,6 +73,8 @@ test("#132: stack, name and both pack skills never set up, wait on or require a 
   }
 });
 
+// A fake gh: it logs every call. FAKE_STATUS=refuse makes it refuse commit statuses the way a
+// proxy can (HTTP 403). FAKE_RULESETS and FAKE_RULESET are the rulesets GitHub already has.
 const FAKE_GH = `#!/usr/bin/env node
 const fs = require("fs");
 const argv = process.argv.slice(2);
@@ -80,32 +82,90 @@ let stdin = "";
 try { stdin = fs.readFileSync(0, "utf8"); } catch {}
 fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ argv, stdin }) + "\\n");
 const say = (text) => { process.stdout.write(text); process.exit(0); };
+const path = argv.find((a) => a.startsWith("repos/")) || "";
 if (argv[0] === "api" && argv[1] === "user") say(JSON.stringify({ login: "me", id: 1 }));
+if (path.endsWith("/commits/HEAD")) say("abc123\\n");
+if (path.includes("/statuses/") && process.env.FAKE_STATUS === "refuse") {
+  process.stderr.write("gh: Write access to this GitHub API path is not permitted through this proxy (HTTP 403)\\n");
+  process.exit(1);
+}
 if (argv[0] === "api" && argv.includes("--jq")) say("private\\n");
-if (argv[0] === "api" && argv.some((a) => a.endsWith("/rulesets"))) say("[]");
+if (path.endsWith("/rulesets") && !argv.includes("POST")) say(process.env.FAKE_RULESETS || "[]");
+if (/\\/rulesets\\/\\d+$/.test(path) && !argv.includes("PUT")) say(process.env.FAKE_RULESET || "{}");
 `;
 
-// The fake gh is a shebang script, which Windows can't run.
-test("AC-132-3: setup-github's rule on main requires only onrails/check, and it never looks for a workflow", { skip: process.platform === "win32" }, () => {
+/** Runs setup-github on the team plan against the fake gh, and returns its output and calls. */
+function setupGithub(env = {}, extra = []) {
   const dir = tmp("onrails-rules-");
   mkdirSync(join(dir, "bin"));
   writeFileSync(join(dir, "bin", "gh"), FAKE_GH);
   chmodSync(join(dir, "bin", "gh"), 0o755);
   execFileSync("git", ["init", "-q", dir]);
   execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"]);
-  const r = spawnSync(process.execPath, [join(REPO, ".agents/skills/name/scripts/setup-github.mjs"), "--plan", "team"], {
+  const r = spawnSync(process.execPath, [join(REPO, ".agents/skills/name/scripts/setup-github.mjs"), "--plan", "team", ...extra], {
     cwd: dir,
     encoding: "utf8",
     input: "",
-    env: { ...process.env, PATH: `${join(dir, "bin")}:${process.env.PATH}`, FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir },
+    env: { ...process.env, PATH: `${join(dir, "bin")}:${process.env.PATH}`, FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir, ...env },
   });
-  assert.equal(r.status, 0, r.stdout + r.stderr);
   const calls = readFileSync(join(dir, "calls.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
-  const post = calls.find((c) => c.argv.includes("POST") && c.argv.some((a) => a.endsWith("/rulesets")));
+  return { r, calls };
+}
+const writesTo = (calls, method, pattern) => calls.filter((c) => c.argv.includes(method) && c.argv.some((a) => pattern.test(a)));
+const statusRules = (rules) => rules.filter((x) => x.type === "required_status_checks");
+
+// The fake gh is a shebang script, which Windows can't run.
+const UNIX = { skip: process.platform === "win32" };
+
+test("AC-132-3: setup-github's rule on main requires only onrails/check, after a probe status posts, and it never looks for a workflow", UNIX, () => {
+  const { r, calls } = setupGithub();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const [probe] = writesTo(calls, "POST", /\/statuses\/abc123$/);
+  assert.ok(probe, "posted a probe status on the default branch's head");
+  assert.equal(JSON.parse(probe.stdin).context, "onrails/setup-probe");
+  const [post] = writesTo(calls, "POST", /\/rulesets$/);
   assert.ok(post, "created the rule on main");
-  const rules = JSON.parse(post.stdin).rules;
-  const checks = rules.find((x) => x.type === "required_status_checks").parameters.required_status_checks;
-  assert.deepEqual(checks, [{ context: "onrails/check" }]);
+  assert.ok(calls.indexOf(probe) < calls.indexOf(post), "probed first");
+  const [checks] = statusRules(JSON.parse(post.stdin).rules);
+  assert.deepEqual(checks.parameters.required_status_checks, [{ context: "onrails/check" }]);
   assert.deepEqual(calls.filter((c) => c.argv.join(" ").includes(".github/workflows")), []);
-  assert.match(r.stdout, /done\s+rules on main/);
+  assert.match(r.stdout, /done\s+rules on main\s+.*requires onrails\/check/);
+});
+
+test("AC-132-3: when GitHub refuses the probe status, the new rule on main requires no status, and says why", UNIX, () => {
+  const { r, calls } = setupGithub({ FAKE_STATUS: "refuse" });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const [post] = writesTo(calls, "POST", /\/rulesets$/);
+  const rules = JSON.parse(post.stdin).rules;
+  assert.deepEqual(statusRules(rules), [], "no required status");
+  assert.deepEqual(rules.map((x) => x.type), ["deletion", "non_fast_forward", "pull_request"], "the other rules stay");
+  assert.match(r.stdout, /done\s+rules on main\s+.*requires no status: GitHub refused a probe commit status here \(gh: Write access .*HTTP 403\)/);
+});
+
+test("#132: an existing rule is never left requiring a status nothing can post", UNIX, () => {
+  const ruleset = (checks) => JSON.stringify({ name: "protect-main", target: "branch", enforcement: "active", conditions: {}, bypass_actors: [],
+    rules: [{ type: "deletion" }, { type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: checks } }] });
+  const refused = { FAKE_STATUS: "refuse", FAKE_RULESETS: JSON.stringify([{ id: 7, name: "protect-main" }]) };
+
+  const kitOnly = setupGithub({ ...refused, FAKE_RULESET: ruleset([{ context: "onrails/check" }, { context: "checks" }]) });
+  assert.equal(kitOnly.r.status, 0, kitOnly.r.stdout + kitOnly.r.stderr);
+  const [put] = writesTo(kitOnly.calls, "PUT", /\/rulesets\/7$/);
+  assert.deepEqual(JSON.parse(put.stdin).rules, [{ type: "deletion" }], "the status rule goes when nothing is left in it");
+  assert.match(kitOnly.r.stdout, /updated, and requires no status/);
+
+  const other = setupGithub({ ...refused, FAKE_RULESET: ruleset([{ context: "onrails/check" }, { context: "vercel", integration_id: 8 }]) });
+  const [kept] = writesTo(other.calls, "PUT", /\/rulesets\/7$/);
+  const [checks] = statusRules(JSON.parse(kept.stdin).rules);
+  assert.deepEqual(checks.parameters.required_status_checks, [{ context: "vercel", integration_id: 8 }], "keeps a check the kit didn't add");
+
+  const ok = setupGithub({ FAKE_RULESETS: refused.FAKE_RULESETS, FAKE_RULESET: ruleset([{ context: "checks" }]) });
+  const [swapped] = writesTo(ok.calls, "PUT", /\/rulesets\/7$/);
+  assert.deepEqual(statusRules(JSON.parse(swapped.stdin).rules)[0].parameters.required_status_checks, [{ context: "onrails/check" }]);
+});
+
+test("#132: setup-github's dry run says it will probe, and posts no probe status", UNIX, () => {
+  const { r, calls } = setupGithub({}, ["--dry-run"]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(calls.filter((c) => c.argv.some((a) => a.includes("/statuses/") || a.includes("/rulesets"))), []);
+  assert.match(r.stdout, /would do\s+rules on main\s+.*posts a probe status first, and requires onrails\/check only if it posts/);
 });

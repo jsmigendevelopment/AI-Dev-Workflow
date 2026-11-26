@@ -5,12 +5,13 @@
 // Cloudflare sign-in: the person's `pnpm exec wrangler login`, or CLOUDFLARE_API_TOKEN in the shell.
 // A protected site's smoke test reads TEST_CF_ACCESS_CLIENT_ID and TEST_CF_ACCESS_CLIENT_SECRET
 // (or TEST_SITE_PASSWORD), and PRODUCTION_ ones for production, from the shell or
-// .env.cloudflare.local (git-ignored). They go only to the child that runs the smoke test.
+// .env.cloudflare.local (git-ignored). They go only to the child that runs the smoke test. The
+// deploy output is masked: every secret value the script can see prints as ***.
 // The logic and its tests are in scripts/deploy/.
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 
-import { localValue } from './cloudflare/local-env.ts'
+import { localEntries, localValue } from './cloudflare/local-env.ts'
 import type { ChildEnv, DeployDeps } from './deploy/deps.ts'
 import { deployPreview } from './deploy/preview.ts'
 import { deployProduction } from './deploy/production.ts'
@@ -43,6 +44,7 @@ const deps: DeployDeps = {
   wrangler: (args, env) => run('pnpm', ['exec', 'wrangler', ...args], env),
   status,
   local: (name) => localValue(name),
+  known: () => [...Object.entries(process.env), ...localEntries()],
   readText: (path) => readFileSync(path, 'utf8'),
   exists: existsSync,
   remove: (path) => rmSync(path, { force: true }),

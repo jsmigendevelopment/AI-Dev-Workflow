@@ -2,13 +2,13 @@
 // `pnpm test:visual --update` rewrites the baselines that changed; read each PNG before committing.
 // `--docker` runs them in Playwright's Linux image, where the baselines are made: fonts differ
 // between systems, so a baseline from a Mac fails on Linux. `pnpm check:merge` uses `--docker`.
-// The project folder is mounted. node_modules and .git are fresh empty volumes, so the host's
-// install and its git hooks are untouched (lefthook skips itself outside a git repo).
+// The git root is mounted, so a monorepo's lockfile is there (scripts/visual/docker.ts, and its test).
 // Not yet run by the kit's authors: expect to adjust the first run.
 import { spawnSync } from 'node:child_process'
+import { statSync } from 'node:fs'
+import { join, posix } from 'node:path'
 
-const IMAGE = 'mcr.microsoft.com/playwright:v1.65.1-noble' // keep in step with @playwright/test
-const PNPM = 'pnpm@12.21.0' // keep in step with packageManager in package.json
+import { dockerArgs } from './visual/docker.ts'
 
 const docker = process.argv.includes('--docker')
 const args = process.argv
@@ -26,32 +26,27 @@ const playwright = [
 if (!docker && args.includes('--update-snapshots=changed') && process.platform !== 'linux')
   console.warn('Updating baselines off Linux: they will not match. Use pnpm test:visual --update --docker.')
 
-const quote = (a: string) => `'${a.replaceAll("'", `'\\''`)}'`
-const inImage = `npm install -g ${PNPM} && pnpm install --frozen-lockfile && pnpm ${playwright.map(quote).join(' ')}`
+/** A git command's output, or '' outside a git repo. */
+const git = (gitArgs: string[]) => {
+  const r = spawnSync('git', gitArgs, { encoding: 'utf8' })
+  return r.status === 0 ? r.stdout.trim() : ''
+}
+
+function inDocker() {
+  const root = git(['rev-parse', '--show-toplevel']) || process.cwd()
+  const app = git(['rev-parse', '--show-prefix']).replace(/\/$/, '')
+  const packages = git(['-C', root, 'ls-files', '--', ':(glob)**/package.json'])
+    .split('\n')
+    .filter(Boolean)
+    .map((file) => posix.dirname(file).replace(/^\.$/, ''))
+  const gitFolder = statSync(join(root, '.git'), { throwIfNoEntry: false })?.isDirectory() ?? false
+  return spawnSync('docker', dockerArgs({ root, app, packages, gitFolder, command: playwright }), {
+    stdio: 'inherit',
+  })
+}
+
 const result = docker
-  ? spawnSync(
-      'docker',
-      [
-        'run',
-        '--rm',
-        '--ipc=host',
-        '-e',
-        'VISUAL=1',
-        '-v',
-        `${process.cwd()}:/work`,
-        '-v',
-        '/work/node_modules',
-        '-v',
-        '/work/.git',
-        '-w',
-        '/work',
-        IMAGE,
-        'sh',
-        '-c',
-        inImage,
-      ],
-      { stdio: 'inherit' },
-    )
+  ? inDocker()
   : spawnSync('pnpm', playwright, {
       stdio: 'inherit',
       env: { ...process.env, VISUAL: '1' },

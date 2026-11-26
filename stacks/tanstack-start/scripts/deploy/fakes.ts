@@ -11,6 +11,10 @@ export interface Place {
   branch: string
   dirty: boolean
   head: string
+  /** GitHub's main after `git fetch` (refs/remotes/origin/main). */
+  remoteMain: string
+  /** The checkout has commits GitHub's main doesn't (so it isn't just behind). */
+  localOnly: boolean
   /** The pull request as GitHub's REST API answers it. */
   pr: { headSha: string; fork: boolean; labels: string[] }
   /** Comments on the pull request: `[login, body]`. */
@@ -21,6 +25,12 @@ export interface Place {
   workers: string[]
   /** The step that fails: a command line prefix such as `pnpm build` or `wrangler deploy`. */
   failing?: string
+  /** The step that crashes (its promise rejects), the same way. */
+  crashing?: string
+  /** What `wrangler deploy` prints. */
+  deployPrints: string
+  /** What a failing or crashing command also prints, as a tool that echoes its environment would. */
+  echo: string
   smokePasses: boolean
   /** The status each try of the preview check gets; the last one repeats. */
   answers: number[]
@@ -33,10 +43,14 @@ export const freshPlace = (over: Partial<Place> = {}): Place => ({
   branch: 'main',
   dirty: false,
   head: HEAD,
+  remoteMain: HEAD,
+  localOnly: false,
   pr: { headSha: HEAD, fork: false, labels: [] },
   comments: [],
   migrations: [],
   workers: ['app-test', 'app-production'],
+  deployPrints: 'Uploaded\nDeployed triggers\n  https://app-x.ann.workers.dev\n',
+  echo: '',
   smokePasses: true,
   answers: [200],
   local: {},
@@ -63,6 +77,17 @@ const line = (cmd: string, args: string[], env: ChildEnv = {}) =>
     .map(([k, v]) => `${k}=${v} `)
     .join('')}${cmd} ${args.join(' ')}`
 
+/** A failed smoke test's output, with a request log that shows the headers it sent, as Playwright's can. */
+const smokeFailed = (env: ChildEnv = {}) =>
+  fail(
+    [
+      '1 failed',
+      '  home page answers 500',
+      `  GET / cf-access-client-id: ${env.CF_ACCESS_CLIENT_ID ?? ''}`,
+      `  cf-access-client-secret: ${env.CF_ACCESS_CLIENT_SECRET ?? ''} x-site-password: ${env.SITE_PASSWORD ?? ''}`,
+    ].join('\n'),
+  )
+
 function github(place: Place, args: string[]): CommandResult {
   const path = args.find((a) => a.startsWith('repos/') || a === 'user') ?? ''
   if (path === 'user') return ok('ann\n')
@@ -87,10 +112,13 @@ function github(place: Place, args: string[]): CommandResult {
   return ok('{}')
 }
 
-/** The local checkout: its branch, head, changes and the pull request's migrations. */
+/** The local checkout: its branch, head, changes, GitHub's main and the pull request's migrations. */
 function checkout(place: Place, args: string[]): CommandResult {
-  if (args[0] === 'rev-parse')
-    return ok(args.includes('--abbrev-ref') ? `${place.branch}\n` : `${place.head}\n`)
+  if (args[0] === 'rev-parse') {
+    if (args.includes('--abbrev-ref')) return ok(`${place.branch}\n`)
+    return ok(`${args.includes('refs/remotes/origin/main') ? place.remoteMain : place.head}\n`)
+  }
+  if (args[0] === 'merge-base') return place.localOnly ? fail('') : ok()
   if (args[0] === 'status') return ok(place.dirty ? ' M src/a.ts\n' : '')
   if (args[0] === 'diff') return ok(place.migrations.join('\n'))
   return ok()
@@ -107,7 +135,7 @@ function wrangler(place: Place, args: string[]): CommandResult {
       `Uploaded app-test\nVersion Preview URL: https://v1-app-test.ann.workers.dev\nAlias URL: https://${args[3]}-app-test.ann.workers.dev\n`,
     )
   if (cmd.startsWith('d1 time-travel info')) return ok('⛅️ wrangler\n{\n  "bookmark": "bm-42"\n}')
-  if (args[0] === 'deploy') return ok('Uploaded\nDeployed triggers\n  https://app-x.ann.workers.dev\n')
+  if (args[0] === 'deploy') return ok(place.deployPrints)
   return ok()
 }
 
@@ -116,31 +144,39 @@ export function fakes(place: Place) {
   const calls: string[] = []
   const lines: string[] = []
   const tries: Record<string, string>[] = []
-  const failing = (l: string) => place.failing !== undefined && l.includes(place.failing)
+  const matches = (l: string, prefix?: string) => prefix !== undefined && l.includes(prefix)
+  /** A failing or crashing step, else undefined so the fake answers normally. */
+  const broken = (l: string): Promise<CommandResult> | undefined => {
+    if (matches(l, place.crashing))
+      return Promise.reject(new Error(`${place.crashing} crashed\n${place.echo}`.trim()))
+    if (matches(l, place.failing))
+      return Promise.resolve(fail(`${place.failing} broke\n${place.echo}`.trim()))
+    return undefined
+  }
   const deps: DeployDeps = {
     run(cmd, args, env) {
       const l = line(cmd, args, env)
       calls.push(l)
-      if (failing(l)) return Promise.resolve(fail(`${place.failing} broke`))
+      const out = broken(l)
+      if (out) return out
       if (cmd === 'gh') return Promise.resolve(github(place, args))
       if (cmd === 'git') return Promise.resolve(checkout(place, args))
       if (cmd === 'pnpm' && args[0] === 'build') place.files['.wrangler/deploy/config.json'] = '{}'
       if (cmd === 'pnpm' && args[0]?.startsWith('test:'))
-        return Promise.resolve(
-          place.smokePasses ? ok('12 passed') : fail('1 failed\n  home page answers 500'),
-        )
+        return Promise.resolve(place.smokePasses ? ok('12 passed') : smokeFailed(env))
       return Promise.resolve(ok())
     },
     wrangler(args, env) {
       const l = line('wrangler', args, env)
       calls.push(l)
-      return Promise.resolve(failing(l) ? fail(`${place.failing} broke`) : wrangler(place, args))
+      return broken(l) ?? Promise.resolve(wrangler(place, args))
     },
     status(_url, headers) {
       tries.push(headers)
       return Promise.resolve(place.answers[Math.min(tries.length, place.answers.length) - 1]!)
     },
     local: (name) => place.local[name],
+    known: () => Object.entries(place.local),
     readText: (path) => place.files[path]!,
     exists: (path) => path in place.files,
     remove: (path) => void delete place.files[path],

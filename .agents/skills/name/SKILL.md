@@ -27,7 +27,7 @@ Naming waits until now because you can't name something before you know what it 
    ```bash
    gh repo create <owner>/<name> --private --source . --remote origin --push
    ```
-   Use `--public` if they chose public. If `gh` isn't signed in, ask them to run `gh auth login` first. If they'd rather create it themselves, wait for the URL, then add it as the remote and push. In slice 0, set up GitHub for them with `scripts/setup-github.mjs` from this skill (see `pyramid` step 1). It requires no GitHub Actions check: where the plan allows a rule on main, it asks only for the `onrails/check` commit status, which the local merge gate posts. Never add a workflow to the repo: `docs/stack.md` says `ci = "local"`.
+   Use `--public` if they chose public. If `gh` isn't signed in, ask them to run `gh auth login` first. If they'd rather create it themselves, wait for the URL, then add it as the remote and push. In slice 0, set up GitHub for them with `scripts/setup-github.mjs` from this skill (see `pyramid` step 1). It requires no GitHub Actions check: where the plan allows a rule on main, it asks at most for the `onrails/check` commit status, which the local merge gate posts. It posts one probe status first; if GitHub refuses it (some sessions can't post statuses), main requires no status, and the output says why: put that line in the FYI. A later session that can't post the status runs it again, and the requirement goes. Never add a workflow to the repo: `docs/stack.md` says `ci = "local"`.
    - If they'd rather wait, carry on locally. Issues are written as files until there's a remote (see `issues`).
 
 6. **Record** the name, visibility, licence and remote in `docs/decisions.md`.

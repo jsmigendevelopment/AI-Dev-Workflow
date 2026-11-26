@@ -1,5 +1,5 @@
 // What the three session deploys share: running a step, the checkout checks, the protection
-// headers for the smoke test, and the smoke test itself.
+// headers for the smoke test, the smoke test itself, the rollback after a failed one, and masking.
 import type { CommandResult } from '../cloudflare/deps.ts'
 import { LOCAL_FILE } from '../cloudflare/local-env.ts'
 import { type EnvName, type EnvResources, readResources } from '../cloudflare/wrangler-config.ts'
@@ -13,6 +13,34 @@ export class Stop extends Error {}
  * A `SITE_URL` in the shell is dropped: only the production build sets it, on purpose.
  */
 export const targetEnv = (target: EnvName): ChildEnv => ({ CLOUDFLARE_ENV: target, SITE_URL: undefined })
+
+/** A name whose value is a secret: a token, secret, password, key or client ID. */
+const SECRET_NAME =
+  /(^|[_-])(token|authtoken|secret|password|passwd|pass|pat|key|apikey|auth|client_id|credentials?|cookie)([_-]|$)/i
+
+/**
+ * Runs a deploy with its output masked: every secret value in the shell or .env.cloudflare.local
+ * (by name, which covers the protection's client ID, secret and password) is replaced by *** in each
+ * log line and in the stop message. Commands still get the real values, and parsing reads raw output.
+ */
+export async function masking(deps: DeployDeps, work: (deps: DeployDeps) => Promise<void>) {
+  const values = deps
+    .known()
+    .filter(([name, value]) => value && SECRET_NAME.test(name))
+    .flatMap(([, value]) => [value!, encodeURIComponent(value!)])
+  const hidden = [...new Set(values)].sort((a, b) => b.length - a.length)
+  const mask = (text: string) => hidden.reduce((out, value) => out.replaceAll(value, '***'), text)
+  try {
+    await work({ ...deps, log: (line) => deps.log(mask(line)) })
+  } catch (error) {
+    if (error instanceof Stop) throw new Stop(mask(error.message))
+    if (error instanceof Error) {
+      error.message = mask(error.message)
+      error.stack = error.stack && mask(error.stack)
+    }
+    throw error
+  }
+}
 
 /** The last lines of a command's output, for a failure message. */
 export const tail = (r: CommandResult, lines = 30) =>
@@ -34,7 +62,12 @@ export async function headSha(deps: DeployDeps) {
   return (await step(deps, 'read the commit', deps.run('git', ['rev-parse', 'HEAD']))).trim()
 }
 
-/** Test and production deploys go out from a clean checkout of main, so what ships is what merged. */
+const ORIGIN_MAIN = 'refs/remotes/origin/main'
+
+/**
+ * Test and production deploys go out from a clean checkout of main that is exactly GitHub's main:
+ * not behind it, and with no commit GitHub doesn't have. So what ships is what merged.
+ */
 export async function onCleanMain(deps: DeployDeps) {
   const branch = (await deps.run('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim()
   if (branch !== 'main')
@@ -43,6 +76,21 @@ export async function onCleanMain(deps: DeployDeps) {
     )
   if ((await deps.run('git', ['status', '--porcelain'])).stdout.trim())
     throw new Stop('the checkout has uncommitted changes. Deploy from a clean checkout of main.')
+  const fetched = await deps.run('git', ['fetch', '--quiet', 'origin', `+refs/heads/main:${ORIGIN_MAIN}`])
+  if (fetched.status !== 0)
+    throw new Stop(
+      `could not fetch main from GitHub, so this checkout can't be compared with it:\n${tail(fetched, 5)}\nNothing was deployed.`,
+    )
+  const here = (await deps.run('git', ['rev-parse', 'HEAD'])).stdout.trim()
+  const github = (await deps.run('git', ['rev-parse', ORIGIN_MAIN])).stdout.trim()
+  if (here && here === github) return
+  const behind = (await deps.run('git', ['merge-base', '--is-ancestor', 'HEAD', ORIGIN_MAIN])).status === 0
+  throw new Stop(
+    behind
+      ? `this checkout of main (${here.slice(0, 7)}) is behind GitHub's main (${github.slice(0, 7)}). Run: git pull --ff-only, then deploy again. Nothing was deployed.`
+      : `this checkout of main (${here.slice(0, 7)}) has commits that aren't on GitHub's main (${github.slice(0, 7)}), so they were never reviewed. ` +
+          'Only what merged on GitHub deploys: get them there through a pull request, then deploy from an up-to-date main. Nothing was deployed.',
+  )
 }
 
 export const workersDevUrl = (out: string) => /https:\/\/[a-z0-9.-]+\.workers\.dev/.exec(out)?.[0]
@@ -76,11 +124,48 @@ export function gateEnv(deps: DeployDeps, target: EnvName, vars: Record<string, 
   return env
 }
 
+/** The smoke test's browser, before anything is written: a failed install then changes nothing. */
+export const installChromium = (deps: DeployDeps) =>
+  step(deps, 'install Chromium', deps.run('pnpm', ['exec', 'playwright', 'install', 'chromium']))
+
 /** Runs a smoke suite against a deployed URL. The caller decides what a failure means. */
-export async function smoke(deps: DeployDeps, script: string, url: string, gate: ChildEnv) {
-  await step(deps, 'install Chromium', deps.run('pnpm', ['exec', 'playwright', 'install', 'chromium']))
+export function smoke(deps: DeployDeps, script: string, url: string, gate: ChildEnv) {
   deps.log(`- smoke test (pnpm ${script}) against ${url}`)
   return deps.run('pnpm', [script], { BASE_URL: url, ...gate })
+}
+
+/** What happened after a failed check. Its text says plainly when the new version is still live. */
+async function rollBack(deps: DeployDeps, env: ChildEnv, worker: string, sha: string) {
+  deps.log('- roll back to the previous version')
+  const back = await deps
+    .wrangler(['rollback', '--yes', '--message', `smoke failed on ${sha}`], env)
+    .catch((error: unknown): CommandResult => ({ status: 1, stdout: '', stderr: String(error) }))
+  if (back.status === 0) return 'Rolled back: the previous version is serving again.'
+  return (
+    `The rollback failed too:\n${tail(back, 5)}\n` +
+    `The new version (${sha}) is live on ${worker} and untested. Roll it back by hand now: pnpm exec wrangler rollback --name ${worker}`
+  )
+}
+
+/**
+ * Runs what follows a successful `wrangler deploy` (finding the URL, the smoke test). Any failure in
+ * it, a stop or a crash, rolls the code back, so a version that never passed its smoke test doesn't
+ * stay live. `after` ends the stop message: what the rollback didn't undo, and what to do next.
+ */
+export async function afterDeploy(
+  deps: DeployDeps,
+  at: { env: ChildEnv; worker: string; sha: string; after: string },
+  verify: () => Promise<void>,
+) {
+  try {
+    await verify()
+  } catch (error) {
+    const why =
+      error instanceof Stop
+        ? error.message
+        : `the deploy script crashed after the deploy: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
+    throw new Stop(`${why}\n\n${await rollBack(deps, at.env, at.worker, at.sha)}\n${at.after}`)
+  }
 }
 
 /** A build leaves a redirect to its flattened config; later `--env` commands must not follow it. */

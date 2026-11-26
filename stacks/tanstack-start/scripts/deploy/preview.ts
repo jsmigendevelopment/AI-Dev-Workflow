@@ -2,11 +2,21 @@
 // A new version of the TEST Worker under its own alias (https://pr-<n>-<test worker>.<subdomain>.
 // workers.dev), uploaded, not deployed: the test site's live version doesn't change. It uses the
 // test database and test keys, never production's, and never migrates. One comment on the pull
-// request holds the link, updated on each run. Skipped for forks and the `lane:tiny` label.
+// request holds the link, updated on each run. Skipped for forks and the `lane:tiny` label. The
+// deploy output is masked.
 import { gateHeaders } from '../../e2e/gate-headers.ts'
 import { workerExists } from '../cloudflare/first-deploy.ts'
 import type { DeployDeps } from './deps.ts'
-import { clearRedirect, environment, gateEnv, step, Stop, targetEnv, workersDevUrl } from './shared.ts'
+import {
+  clearRedirect,
+  environment,
+  gateEnv,
+  masking,
+  step,
+  Stop,
+  targetEnv,
+  workersDevUrl,
+} from './shared.ts'
 
 const MARKER = '<!-- preview-url -->'
 const TEST = targetEnv('test')
@@ -88,7 +98,7 @@ async function postComment(deps: DeployDeps, pr: string, body: string) {
   deps.log(`- ${id ? 'updated' : 'posted'} the preview comment on #${pr}`)
 }
 
-export async function deployPreview(deps: DeployDeps, pr: string) {
+async function preview(deps: DeployDeps, pr: string) {
   if (!/^\d+$/.test(pr)) throw new Stop('give the pull request number: pnpm deploy:preview <n>')
   const info = await readPullRequest(deps, pr)
   if (info.head.repo?.full_name !== info.base.repo.full_name)
@@ -130,3 +140,5 @@ export async function deployPreview(deps: DeployDeps, pr: string) {
     clearRedirect(deps)
   }
 }
+
+export const deployPreview = (deps: DeployDeps, pr: string) => masking(deps, (masked) => preview(masked, pr))

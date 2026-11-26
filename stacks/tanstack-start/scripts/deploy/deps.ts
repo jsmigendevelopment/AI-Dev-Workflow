@@ -14,6 +14,8 @@ export interface DeployDeps {
   status(url: string, headers: Record<string, string>): Promise<number>
   /** A value from the shell, else from .env.cloudflare.local. Never logged. */
   local(name: string): string | undefined
+  /** Every name and value in the shell and in .env.cloudflare.local, only to mask the secret ones. */
+  known(): [string, string | undefined][]
   readText(path: string): string
   exists(path: string): boolean
   remove(path: string): void

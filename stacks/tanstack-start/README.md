@@ -181,9 +181,11 @@ The app's secrets per environment: `pnpm connect` in your own terminal walks eac
 
 Every deploy runs from the agent's session (or your terminal), never from GitHub Actions. Sign in to Cloudflare once with `pnpm exec wrangler login` (or set `CLOUDFLARE_API_TOKEN` in the shell).
 
-- **Test:** `pnpm deploy:test`, from a clean checkout of main after each merge. It builds, applies the migrations to the test D1, deploys, and runs `pnpm test:deployed` against the deployed URL. If that fails, `wrangler rollback` puts the previous version back, and it prints what to put in a bug issue.
+- **Test:** `pnpm deploy:test`, from a clean checkout of main after each merge. It builds, applies the migrations to the test D1, deploys, and runs `pnpm test:deployed` against the deployed URL. If anything fails after the deploy (no URL, a failed smoke test, a crash), `wrangler rollback` puts the previous version back, and it prints what to put in a bug issue.
 - **Previews:** `pnpm deploy:preview <n>`, on the pull request's exact head commit, before review. It uploads a version of the test Worker with the alias `pr-<n>`, checks it answers, and keeps one comment with its URL up to date. It uses the test database and never migrates it (the comment warns when the pull request adds a migration). Skipped for forks and the `lane:tiny` label.
-- **Production:** `pnpm deploy:production --confirm "deploy production"`, only after the person's yes. Without the confirmation it prints the plan and changes nothing. It builds with `SITE_URL`, takes a D1 Time Travel bookmark, migrates, deploys and smoke-tests; on failure it rolls back the code and prints the restore command with the bookmark. Restoring data is the person's call.
+- **Production:** `pnpm deploy:production --confirm "deploy production"`, only after the person's yes. Without the confirmation it prints the plan and changes nothing. It builds with `SITE_URL`, takes a D1 Time Travel bookmark, migrates, deploys and smoke-tests; on any failure after the deploy it rolls back the code and prints the restore command with the bookmark. Restoring data is the person's call.
+
+Test and production deploy only GitHub's main: each fetches it first and stops, deploying nothing, when the checkout is behind it or has a commit that isn't on it. Each installs the smoke test's browser before it writes anything. If a rollback fails too, the stop message says the new version is live and untested, with the command to roll it back by hand. The deploy output is masked.
 
 A protected site's smoke test needs its values in the shell or `.env.cloudflare.local` (git-ignored): `TEST_CF_ACCESS_CLIENT_ID` and `TEST_CF_ACCESS_CLIENT_SECRET`, or `TEST_SITE_PASSWORD`, for test and previews; `PRODUCTION_` ones for production. Without them, the deploy stops before it changes anything.
 
@@ -247,7 +249,7 @@ The pack ships no GitHub Actions workflows, and `docs/stack.md` says `ci = "loca
 
 The agent-file guard (`agent-files.mjs`) runs from the session too. Never add a workflow: if a tool's docs say "add this workflow", run its commands from the session as a package script.
 
-**Screenshots.** Baselines live in `e2e/visual.spec.ts-snapshots/`, one per page, theme and device. After an intended UI change: `pnpm test:visual --update --docker`, look at every changed PNG, commit them. Fonts render differently on macOS, Windows and other Linux images, so baselines made outside Playwright's image fail there. No Docker? Skip them and say so in the pull request. `--docker` was written from the old workflow and is not yet run by the kit's authors.
+**Screenshots.** Baselines live in `e2e/visual.spec.ts-snapshots/`, one per page, theme and device. After an intended UI change: `pnpm test:visual --update --docker`, look at every changed PNG, commit them. Fonts render differently on macOS, Windows and other Linux images, so baselines made outside Playwright's image fail there. `--docker` mounts the git root and installs from there, so it also works from `apps/web` in the monorepo pack, where the lockfile is at the root. No Docker? Skip them and say so in the pull request. `--docker` was written from the old workflow and is not yet run by the kit's authors.
 
 **Dependabot** opens one grouped npm update a week, and the security updates `setup-github.mjs` turns on. Nothing merges on its own: each bump is a normal pull request through the same checks and review. `pnpm install` also installs a pre-commit hook (lefthook) that formats and lints the staged files.
 
