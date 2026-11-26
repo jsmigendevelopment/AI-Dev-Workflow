@@ -1,10 +1,11 @@
 // Test helpers: temp folders, captured output, small fake kits for update tests, and a safe PATH for every child.
 import { after } from "node:test";
-import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, existsSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, existsSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { hash, toNative, writeFile } from "../src/files.mjs";
 import { storedName } from "../src/kit.mjs";
+import { findCommand } from "../src/system.mjs";
 
 // Every folder tmp() makes is removed when the test file ends, so a run leaves nothing in TMPDIR (#142).
 // Retries, because a child a test started may still be closing a file in it.
@@ -28,6 +29,9 @@ const SYSTEM = process.platform === "win32" ? [join(process.env.SystemRoot ?? "C
 const TOOLS = ["claude", "codex"].flatMap((name) => [name, `${name}.cmd`, `${name}.exe`]);
 const fakes = new Set();
 let ownNode;
+// npm's own scripts, found on the shell's PATH before it is replaced. They go next to the copy of node, so their
+// `#!/usr/bin/env node` starts that copy (#182's real runs start npm). Never a folder of them: claude can sit there too.
+const NPM = process.platform === "win32" ? [] : ["npm", "npx"].map((name) => [name, findCommand(name)]).filter(([, file]) => file);
 
 /** Writes an executable fake tool and records it as one of this test's fakes, the only claude or codex a child may see. */
 export function fake(dir, name, body) {
@@ -39,7 +43,10 @@ export function fake(dir, name, body) {
 /** Puts a copy of node in dir (a new temp folder by default) and returns dir, so `#!/usr/bin/env node` fakes start. */
 export function nodeOnly(dir = tmp("onrails-node-")) {
   const name = basename(process.execPath);
-  if (!ownNode) copyFileSync(process.execPath, (ownNode = join(tmp("onrails-node-"), name)));
+  if (!ownNode) {
+    copyFileSync(process.execPath, (ownNode = join(tmp("onrails-node-"), name)));
+    for (const [cmd, file] of NPM) symlinkSync(realpathSync(file), join(dirname(ownNode), cmd));
+  }
   // A hard link to this file's own copy costs no disk. Another drive, or a system without hard links, gets a copy.
   try {
     linkSync(ownNode, join(dir, name));
@@ -66,7 +73,7 @@ export function checkPath(env, cwd = process.cwd()) {
   return env;
 }
 
-/** A safe PATH: the given folders of fakes, then this file's copy of node, then the system folders. */
+/** A safe PATH: the given folders of fakes, then this file's copy of node (with npm and npx), then the system folders. */
 export function safePath(...dirs) {
   if (!ownNode) nodeOnly();
   return checkPath({ PATH: [...dirs, dirname(ownNode), ...SYSTEM].join(delimiter) }).PATH;

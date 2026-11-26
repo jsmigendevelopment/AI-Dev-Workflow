@@ -12,13 +12,15 @@
 // It changes nothing else: a temp file, a temp branch (or a temp git config key), a temp folder
 // outside the repo and a local port are made and removed.
 // Exit 0: nothing to fix. 1: something to fix or blocked. 2: a bad flag. No dependencies.
-// The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs; sync-skills.mjs copies
-// both into the ask skill and the CLI (npx onrails preflight).
+// The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs and preflight-layout.mjs; sync-skills.mjs
+// copies all three into the ask skill and the CLI. Before the read, never start it through npx (#182): npx changes PATH
+// and which onrails runs, in ways the repo can steer.
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isRead, markRead, realSys, tempFolders } from "./preflight-sys.mjs";
+import { pathOutside, repoLayout, tempFolders } from "./preflight-layout.mjs";
+import { isRead, markRead, realSys } from "./preflight-sys.mjs";
 
 /** The checks, in the order the table prints them. */
 export const CHECKS = ["repo", "git", "registry", "github", "loopback", "browser", "versions", "model"];
@@ -158,7 +160,11 @@ function checkRepo(dir, tool) {
 
 // Until the person's own session has marked the repo read (#169), no probe runs code the repo chose. `safe` holds:
 // read; outside, an empty temp folder outside the repo; and git, the settings that keep the repo's hooks from running.
+// closed: the repo's layout can't be read, so no PATH folder is kept and no command runs before the read (#182).
+const CLOSED = "the repo's checkouts can't all be read, so no PATH folder is used yet: checked after the repo is read";
+
 async function checkGit(dir, tool, sys, safe) {
+  if (safe.closed) return { status: "limited", detail: CLOSED };
   const git = (args) => sys.run("git", args, { cwd: dir, ...safe.git });
   const top = await git(["rev-parse", "--show-toplevel"]);
   if (!top) return { status: "blocked", detail: "git isn't installed", ladder: ladder("git", tool) };
@@ -184,6 +190,7 @@ const PLAIN_REGISTRY = /^registry[ \t]*=[ \t]*(https?:\/\/[\w.-]+(:\d{1,5})?(\/[
 const NO_AWAY = "no empty temp folder outside the repo could be made, so it's checked after the repo is read";
 
 async function checkRegistry(dir, tool, sys, pm, safe) {
+  if (safe.closed) return { status: "limited", detail: CLOSED };
   const named = safe.read ? null : PLAIN_REGISTRY.exec(small(join(dir, ".npmrc")))?.[1];
   const how = safe.read ? { cwd: dir } : safe.away;
   if (!how) return { status: "limited", detail: NO_AWAY };
@@ -206,6 +213,7 @@ async function checkRegistry(dir, tool, sys, pm, safe) {
 const PLAIN_REMOTE = /^(https?:\/\/[^\s@-][^\s@]*|ssh:\/\/([\w.-]+@)?[A-Za-z0-9][\w.-]*(:\d{1,5})?\/\S+|[\w.-]+@[A-Za-z0-9][\w.-]*:[^\s-]\S*)$/;
 
 async function checkGithub(dir, sys, safe) {
+  if (safe.closed) return { status: "limited", detail: CLOSED };
   const remote = await sys.run("git", ["remote", "get-url", "origin"], { cwd: dir, ...safe.git });
   const url = remote?.ok ? remote.out.trim().split("\n")[0] : "";
   const away = safe.read ? { cwd: dir } : safe.away;
@@ -261,7 +269,7 @@ function ownYarnVersion(dir) {
 /** The manager's version: { version, unread }. unread marks a manager found on PATH but not run, as the repo isn't read yet. */
 async function managerVersion(dir, sys, pm, safe) {
   if (!safe.read) {
-    if (!sys.has(pm)) return { version: null };
+    if (!sys.has(pm, safe.path)) return { version: null };
     return { version: pm === "yarn" ? ownYarnVersion(dir) : null, unread: true };
   }
   const have = await sys.run(pm, ["--version"], { cwd: dir });
@@ -279,6 +287,7 @@ async function checkVersions(dir, tool, sys, pkg, manager, safe) {
     return { status: "limited", detail: `Node ${node} (needs ${want}); unrecognised packageManager in package.json, so none ran. `
       + "Preflight runs only npm, pnpm, yarn or bun, with a plain or prerelease version" };
   }
+  if (safe.closed) return { status: "limited", detail: `Node ${node} (needs ${want}); ${manager.name}: ${CLOSED}` };
   const { name: pm, version: pin } = manager;
   const { version, unread } = await managerVersion(dir, sys, pm, safe);
   // A prerelease pin (4.0.0-rc.42) keeps the name and its probe. Only a plain pin's major is compared.
@@ -318,9 +327,14 @@ export async function probe(dir, sys = realSys(), given = {}) {
   const manager = readManager(pkg);
   const pm = manager?.name ?? Object.entries(LOCKS).find(([file]) => existsSync(join(dir, file)))?.[1] ?? "npm";
   const read = isRead(dir);
-  const temps = tempFolders(dir, sys.platform);
+  // Before the read, every command is found on, and given, a PATH with no folder inside any checkout of the repo (#182).
+  // When the repo's layout can't be read, that PATH is empty and the rows that need a command wait for the read.
+  const layout = repoLayout(dir);
+  const temps = tempFolders(dir, sys.platform, layout);
+  const path = read ? {} : pathOutside(dir, sys.platform, sys.env, layout);
+  const away = temps.away && { ...temps.away, env: { ...temps.away.env, ...path } };
   // An empty hooks folder: no hook the repo ships, or names in its config, runs on the temp branch.
-  const safe = { read, away: temps.away, git: read ? {} : { config: [`core.hooksPath=${temps.hooks}`] } };
+  const safe = { read, away, path, closed: !read && !layout, git: read ? {} : { config: [`core.hooksPath=${temps.hooks}`], env: path } };
   try {
     const loop = await sys.loopback();
     const found = {
