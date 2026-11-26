@@ -5,7 +5,7 @@ The loop runs the same steps. Only where it reads and writes changes. Pick the c
 | Case | When | Issues | Merges |
 |---|---|---|---|
 | **No remote** | `git remote` prints nothing | files in `docs/issues/` | locally, on main |
-| **Push, no API: another host** | a remote that isn't GitHub | files in `docs/issues/` | queued for the person to merge on that host (step 8); the loop keeps building |
+| **Push, no API: another host** | a remote that isn't GitHub | files in `docs/issues/` | through that host's own CLI when the session is signed in to it (step 8); otherwise queued for the person to merge on that host. The loop keeps building |
 | **Push, no API: rate-limited** | GitHub's `resources.core` or `resources.graphql` `remaining` is 0, or a `gh` call failed with a rate-limit 403 or 429 | on GitHub, from the sweep cache | queued, replayed after the limit |
 
 Rate-limited ends at the later of the two `reset` times in `gh api rate_limit`. A secondary limit (a 403 or 429 with a `retry-after` header) has no `reset`: it ends `retry-after` seconds after the failed call. Say the case once in your report: *"Local mode: no remote."* or *"Local mode until 14:05 UTC: GitHub's API limit."*
@@ -56,10 +56,11 @@ Git pushes and pulls work, and don't count against GitHub's limit. So builders b
    - **Pick** from the sweep cache, `<project>-issues.json` and `<project>-prs.json`. Start only an issue that is unclaimed there, has no `feat/<n>-` branch on the remote (`git ls-remote origin 'refs/heads/feat/<n>-*'`), and has no claim on the `claims` branch.
    - **Claim** in a file too, since the GitHub claim waits in the queue: on branch `claims`, write `docs/issues/NNN-short-title.md` with `Status: in-progress · claimed by <session> at <time>`, commit it and `git push origin claims`. Other sessions read that branch before they claim.
    - **After the limit,** replay the queue in order. Before each line, check it isn't done already (the pull request exists, the comment is there). A merge still uses `--match-head-commit <sha>`, after the `Checks: pass @ <sha>` comment for that commit is posted (the status, best effort, just before it), and gets step 8's `qa` smoke run on the test site after it. Delete each line once it's done, then the `claims` branch. Then leave local mode.
-8. **Another host:** the kit drives only GitHub's API, so nothing replays the queue.
+8. **Another host:** the kit drives only GitHub's API. The host's own command-line tool can stand in for it, for example `glab` (GitLab) or `tea` (Gitea).
    - **Status updates** (`Status:` lines, comments, verdicts) go on branch `loop-status`: commit them there and `git push origin loop-status`. Never on main.
-   - Each sweep, send the new queue lines to the person as one ⏳ decision through `ask`: the pull requests to open and the reviewed commits to merge, with their shas. Once the person has merged one, pull main and run step 8's `qa` smoke run on it, against the test site or a local dev server.
+   - **Signed in to that tool** (its own sign-in check passes, such as `glab auth status`)? Merge through it the way the loop merges on GitHub, under the same gates (`coordinate` step 6.5): open the pull or merge request for each `pr-open` line, put the `Checks: pass @ <sha>` and review lines on it, then read its head commit with the tool and merge only when it equals the reviewed sha. Never merge by branch name, and never push main. Then pull main and run step 8's `qa` smoke run on it.
+   - **Not signed in, or no such tool?** Keep the queue. Below Full, send the new queue lines to the person each sweep as one ⏳ decision through `ask`: the pull requests to open and the reviewed commits to merge, with their shas. On Full, put them in the next batched ℹ️ FYI and keep building. Once the person has merged one, pull main and run step 8's `qa` smoke run on it, against the test site or a local dev server.
 
 The always-stop list applies in every case. Below Full, the human gates apply too. On Full, the only person gate is an always-stop item (`coordinate` step 6.5). A gate the person owns waits on a `needs-human` line in the issue and "Waiting on you" in `docs/state.md`.
 
-**Done when** each sweep has run from the files or the cache, and the queue is empty, waiting for its limit to end, or sent to the person.
+**Done when** each sweep has run from the files or the cache, and the queue is empty, waiting for its limit to end, or sent to the person (on Full, in the FYI).
