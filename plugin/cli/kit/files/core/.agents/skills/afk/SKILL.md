@@ -1,13 +1,14 @@
 ---
 name: afk
-description: Use when the person is stepping away and wants the build loop to keep going ("afk", "brb", "taking a break", "going to lunch", "signing off", "good night", "keep building while I sleep") - asks how long, checks usage and asks what to do at a limit, sets safe unattended rules, writes the state note first, sets a watchdog and a hard stop, keeps the loop running until the person is /back, and ends with a short retro.
+description: Use when the person is stepping away and wants the build loop to keep going ("afk", "taking a break", "going to lunch", "signing off", "good night", "keep building while I sleep") - asks how long, checks usage and asks what to do at a limit, sets safe unattended rules, writes the state note first, sets a watchdog and a hard stop, keeps the loop running until the person is /back, and ends with a short retro.
 ---
 
 # /afk: keep building while you're away
 
 ## Steps
 
-1. **How long?** Ask, or read it from what the person said ("brb" is a short break, "good night" is the night).
+1. **How long?** Ask, or read it from what the person said ("going to lunch" is a short break, "good night" is the night).
+   - **"brb", "hold on" or "pause" on its own** is a pause, not this skill: follow "Pause and stop" in `ask`. "I'm done for the day" with no loop to keep going is a stop.
    - **Short break** (under about 2 hours): the loop keeps going as normal. Anything that needs the person waits for them.
    - **Long** (the night, or longer): the full unattended rules below.
    - **Check the automation level** in `docs/stack.md` (see `automation`):
@@ -43,7 +44,7 @@ description: Use when the person is stepping away and wants the build loop to ke
    - the limit choice;
    - the hard stop, or "none".
 
-   Commit it. If the session dies at 3 a.m., this note is all `/back` will have. Stop the dev server if this session started it.
+   Commit it. If the session dies at 3 a.m., this note is all `/back` will have. Stop what this session started for the person, the dev server first: `node .agents/skills/ask/scripts/procs.mjs list --mine`, then `procs.mjs stop <id>` for each.
 
 6. **Run the loop** (`coordinate`) under the rules below. For every merge, add one line to "Merged while away" in `docs/state.md`, next to the "To try" line `coordinate` writes.
 
@@ -74,6 +75,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 - **Hard stop:** the time the person set. On Full automation there's none unless they set one. On the other levels, the default is 10 hours. At the hard stop, even with work left:
   - stop the sweep timer (`coordinate`, "Start", step 1), and stop merging. Start no new builders. Pull requests still in review, and builders that finish and push, wait for `/back`;
   - run the retro once (the "Retro" section in `back`), and write `Retro done <time>` in the `/afk` section, so a later wake doesn't run it again;
+  - stop everything this session started: `node .agents/skills/ask/scripts/procs.mjs stop mine`. Its list must say nothing is running;
   - write the final state with its findings to `docs/state.md`, and stop. Kit drafts wait there for the person.
 
 ## Checking usage

@@ -9,7 +9,7 @@
 | 💡 | **`/or:idea`** | **`/idea`** | `$idea` | You have an idea for a new app | "I have an idea for an app" |
 | 🧭 | **`/or:join`** | **`/join`** | `$join` | You're new to a repo that isn't set up yet | "Help me get set up in this repo" |
 | ☀️ | **`/or:back`** | **`/back`** | `$back` | You're starting work, or back from a break | "I'm back" · "pick up where we left off" |
-| 🌙 | **`/or:afk`** | **`/afk`** | `$afk` | You're stepping away and want it to keep building | "brb" · "good night" |
+| 🌙 | **`/or:afk`** | **`/afk`** | `$afk` | You're stepping away and want it to keep building | "going to lunch" · "good night" |
 
 > [!TIP]
 > **Typing the command always works.** The plain phrase usually does, on a strong model.

@@ -8,7 +8,7 @@ Last checked: 2026-11-23. Official docs:
 
 How: the docs site was blocked here, so the pages were read from GitHub's public docs repo (`github/docs`, commit of 2026-11-20). `[V]` = matches that source. `[U]` = not checked.
 
-**What it's for.** Only repos whose `docs/stack.md` says `ci = "actions"`: their workflows deploy with the values stored in three GitHub environments, `test`, `production` and `preview`. Environment secrets are only given to jobs that name that environment, so test jobs never see production keys. On `ci = "local"` (every repo, unless the person turned Actions on) skip this file: nothing reads GitHub's copies, so `setup-github`, setup-cloudflare, `push-secrets` and `pnpm connect` write none of them (`docs/decisions.md` row 15 in the kit).
+**What it's for.** Only repos whose `docs/stack.md` says `ci = "actions"`: their workflows deploy with the values stored in three GitHub environments, `test`, `production` and `preview`. Environment secrets are only given to jobs that name that environment, so test jobs never see production keys. On `ci = "local"` (every repo, unless the person turned Actions on) skip this file: nothing reads GitHub's copies, so `setup-github`, setup-cloudflare, `push-secrets` and `pnpm connect` write none of them (`docs/decisions.md` row 27 in the kit).
 
 **For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
 
