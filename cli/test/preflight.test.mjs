@@ -199,7 +199,7 @@ test("only a known package manager runs, and only a plain version is printed", a
 test("a known package manager with a prerelease version keeps its name: its probe runs, and only the version compare is skipped", async () => {
   const pkg = JSON.stringify({ packageManager: "yarn@4.0.0-rc.42" });
   const sys = fakeSys({ answers: { ...BLOCKED, "yarn --version": { ok: true, out: "3.8.7" } }, env: { CLAUDECODE: "1" } });
-  const report = await probe(project({ "package.json": pkg }), sys);
+  const report = await probe(project({ "package.json": pkg, "docs/state.md": "# State\n" }), sys);
   assert.ok(sys.calls.includes("yarn --version"), `ran: ${sys.calls.join(" | ")}`);
   const row = report.results.find((r) => r.id === "versions");
   assert.equal(row.status, "ok", "a prerelease pin isn't compared");

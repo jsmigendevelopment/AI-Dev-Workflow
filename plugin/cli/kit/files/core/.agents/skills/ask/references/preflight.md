@@ -13,7 +13,7 @@ node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <you
 - **When:** the first step of `/idea`, `/join`, `/back` and `build`.
 - **Once `docs/state.md` exists,** add `--if-changed --record`. It writes the result to the `Environment:` line there. When that line says ok and the sandbox hasn't changed (same machine, tool, Node and install settings), it skips every probe.
 - `–` rows are fine. GitHub at `–` means the loop runs in local mode (`../../coordinate/references/local-mode.md`).
-- **Before `/join` has read a repo** (no `docs/state.md` yet), a `yarnPath` in a yarn config would make `yarn --version` run the repo's own yarn, and a `.corepack.env` can make corepack's `yarn` or `pnpm` fetch a release the repo chose. So preflight runs no package manager while a `.yarnrc.yml` or `.yarnrc` (yarn: the folder, a parent folder or the home folder) or a `.corepack.env` (the folder or a parent folder) is near, on the given path or its real path. It reads the version from a plain `yarnPath` file name, or shows a `–` row. Every command it runs has `COREPACK_ENV_FILE=0`.
+- **Before `/join` has read a repo** (no `docs/state.md` yet), preflight runs no `<pm> --version` at all: a package manager can run files or a release the repo chose, even on `--version`. It finds the manager on PATH without running it, reads a yarn version from a plain `yarnPath` file name where there is one, and shows a `–` row: "version checked after the repo is read". Run preflight again once `docs/state.md` exists. Every command it runs has `COREPACK_ENV_FILE=0`.
 
 **Done when** the table is printed and every `✗` row has been through the steps below.
 

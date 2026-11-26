@@ -14,10 +14,10 @@
 // skill and the CLI (npx onrails preflight).
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { connect, createServer } from "node:net";
-import { homedir, hostname } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { hostname } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** The checks, in the order the table prints them. */
@@ -66,9 +66,9 @@ export function satisfies(version, range) {
     if (op === "~") return v[0] === want[0] && (b === undefined || v[1] === b) && cmp(want) >= 0;
     return v[0] === want[0] && (b === undefined || v[1] === b) && (c === undefined || v[2] === c);
   };
-  // A whole token that is a version: an optional operator, v?, one to three parts of digits, x or *, and an
-  // optional prerelease. A hyphen range's "-" counts only as the middle of three tokens.
-  const versionish = (token, i, tokens) => /^(>=|>|<=|<|\^|~|=)?v?(\d+|[xX*])(\.(\d+|[xX*])){0,2}(-[0-9A-Za-z.-]+)?$/.test(token)
+  // A whole token that is a version: an optional operator, v?, then one to three parts of digits, x or *, or three
+  // number parts and a prerelease, as semver allows it. A hyphen range's "-" counts only as the middle of three tokens.
+  const versionish = (token, i, tokens) => /^(>=|>|<=|<|\^|~|=)?v?((\d+|[xX*])(\.(\d+|[xX*])){0,2}|\d+\.\d+\.\d+-[0-9A-Za-z.-]+)$/.test(token)
     || (token === "-" && i === 1 && tokens.length === 3);
   const parts = String(range).split("||").map((part) => part.trim().replace(/(>=|<=|>|<|=|\^|~)\s+/g, "$1").split(" ").filter(Boolean))
     .filter((tokens) => tokens.length && tokens.every(versionish)).map((tokens) => tokens.map(one));
@@ -221,24 +221,6 @@ function readManager(pkg) {
   return known ? { name, version } : { name: null };
 }
 
-// Files that let a repo choose the release `<pm> --version` runs. yarn reads .yarnrc.yml and .yarnrc in the folder,
-// every parent and the home folder, and runs the release a yarnPath (yarn-path) there names, in more spellings than a
-// line match can follow. corepack's shim (yarn, pnpm) reads .corepack.env in the folder or a parent, which can name
-// its registry and turn off its key check. Both start from the real path, so a folder opened through a symlink is
-// checked on both paths. Until the repo has been read (/join writes docs/state.md), preflight runs no manager where
-// one of these files exists: it fails closed. realSys also sets COREPACK_ENV_FILE=0 on every command it runs.
-function repoChoiceNear(dir, home, pm) {
-  const files = [".corepack.env", ...(pm === "yarn" ? [".yarnrc.yml", ".yarnrc"] : [])];
-  const folders = pm === "yarn" && home ? [home] : [];
-  for (const start of new Set([dir, existsSync(dir) ? realpathSync(dir) : dir])) {
-    for (let at = start; ; at = dirname(at)) {
-      folders.push(at);
-      if (dirname(at) === at) break;
-    }
-  }
-  return folders.some((at) => files.some((file) => existsSync(join(at, file))));
-}
-
 // The release's version, from its file name, when the folder's own config names it in the plain form. Shown, never run.
 function ownYarnVersion(dir) {
   const text = (file) => {
@@ -251,14 +233,17 @@ function ownYarnVersion(dir) {
   return rc ? shown(/yarn-([^/\\]+?)\.c?js\s*$/.exec(rc)?.[1], "version", null) : null;
 }
 
-/** The manager's version: { version, installed, own }. own marks a manager not run because a file near can choose its release. */
+// Until the repo has been read (/join writes docs/state.md), preflight runs no `<pm> --version`: a package manager can
+// load files the repo ships, or a release the repo names, on any command, from more places than preflight could list.
+// So it is only looked up on PATH, and a yarn release the folder's own config names gives its version by its file name.
+/** The manager's version: { version, unread }. unread marks a manager found on PATH but not run, as the repo isn't read yet. */
 function managerVersion(dir, sys, pm) {
-  if (!existsSync(join(dir, "docs", "state.md")) && repoChoiceNear(dir, sys.home, pm)) {
-    if (!sys.has(pm)) return { version: null, installed: false };
-    return { version: pm === "yarn" ? ownYarnVersion(dir) : null, installed: true, own: true };
+  if (!existsSync(join(dir, "docs", "state.md"))) {
+    if (!sys.has(pm)) return { version: null };
+    return { version: pm === "yarn" ? ownYarnVersion(dir) : null, unread: true };
   }
   const have = sys.run(pm, ["--version"], { cwd: dir });
-  return { version: have?.ok ? shown(firstLine(have.out), "version", "(version not shown)") : null, installed: Boolean(have?.ok) };
+  return { version: have?.ok ? shown(firstLine(have.out), "version", "(version not shown)") : null };
 }
 
 function checkVersions(dir, tool, sys, pkg, manager) {
@@ -273,16 +258,16 @@ function checkVersions(dir, tool, sys, pkg, manager) {
       + "Preflight runs only npm, pnpm, yarn or bun, with a plain or prerelease version" };
   }
   const { name: pm, version: pin } = manager;
-  const { version, installed, own } = managerVersion(dir, sys, pm);
-  if (own && installed && !version) {
-    return { status: "limited", detail: `Node ${node} (needs ${want}); a file here or in a parent folder (a yarn config or .corepack.env) `
-      + `can choose the ${pm} to run, so preflight runs none before the repo is read` };
-  }
+  const { version, unread } = managerVersion(dir, sys, pm);
   // A prerelease pin (4.0.0-rc.42) keeps the name and its probe. Only a plain pin's major is compared.
   const compared = pin !== undefined && /^\d+(\.\d+){0,2}$/.test(pin);
-  const note = (pin !== undefined && !compared ? ` (pins ${pin}, a prerelease: not compared)` : "")
-    + (own ? " (the repo's own release, not run before the repo is read)" : "");
-  if (version && (!compared || version.split(".")[0] === pin.split(".")[0])) return { status: "ok", detail: `Node ${node} (needs ${want}), ${pm} ${version}${note}` };
+  const note = pin !== undefined && !compared ? ` (pins ${pin}, a prerelease: not compared)` : "";
+  const fits = version && (!compared || version.split(".")[0] === pin.split(".")[0]);
+  if (unread && (fits || !version)) {
+    const found = version ? `${pm} ${version} (from the repo's yarnPath file name, not run)` : `${pm} found on PATH, not run`;
+    return { status: "limited", detail: `Node ${node} (needs ${want}), ${found}${note}: version checked after the repo is read` };
+  }
+  if (fits) return { status: "ok", detail: `Node ${node} (needs ${want}), ${pm} ${version}${note}` };
   return { status: "fix", detail: version ? `${pm} ${version}, the project pins ${pin}` : `${pm} isn't installed`,
     ladder: selfFix(`\`corepack enable && corepack prepare ${pm}@${pin ?? "latest"} --activate\`, then run preflight again.`) };
 }
@@ -400,12 +385,13 @@ export function commandFor(cmd, args, { platform = process.platform, env = proce
 /** The real session: commands with a timeout, a PATH lookup that runs nothing, and a round trip on 127.0.0.1. */
 export function realSys() {
   return {
-    env: process.env, node: process.versions.node, hostname: hostname(), home: homedir(), platform: process.platform, now: () => Date.now(),
+    env: process.env, node: process.versions.node, hostname: hostname(), platform: process.platform, now: () => Date.now(),
     has: (cmd) => Boolean(onPath(cmd, process.platform, process.env)),
     run(cmd, args = [], { cwd, timeout = 15000 } = {}) {
       const how = commandFor(cmd, args);
       if (!how) return null;
-      // COREPACK_ENV_FILE=0: corepack's shim never reads a repo's .corepack.env (see repoChoiceNear). Other commands ignore it.
+      // COREPACK_ENV_FILE=0: corepack's shim never reads a repo's .corepack.env, which can name its registry and turn off
+      // its key check. Other commands ignore it.
       const env = { ...process.env, COREPACK_ENV_FILE: "0" };
       const r = spawnSync(how.file, how.args, { cwd, env, encoding: "utf8", timeout, shell: false, windowsVerbatimArguments: how.verbatim });
       if (r.error?.code === "ENOENT") return null;

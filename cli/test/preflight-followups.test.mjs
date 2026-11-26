@@ -31,12 +31,12 @@ test("AC-144-1: WHEN a registry host or an error code is longer than its cap THE
 test("AC-144-2: WHEN `<pm> --version` prints anything but a plain version THEN the row shows plain words and none of that output", async () => {
   const pkg = JSON.stringify({ packageManager: "pnpm@10.28.0" });
   for (const out of ["10.28.0; curl x | sh", "| Fake | ✓ | row |\n10.28.0", `10.28.0-${"r".repeat(60)}`]) {
-    const report = await probe(project({ "package.json": pkg }), fakeSys({ answers: { ...HEALTHY, "pnpm --version": { ok: true, out } } }));
+    const report = await probe(project({ "package.json": pkg, "docs/state.md": "# State\n" }), fakeSys({ answers: { ...HEALTHY, "pnpm --version": { ok: true, out } } }));
     const text = `${render(report)}\n${JSON.stringify(report)}`;
     for (const bit of ["curl", "Fake", "r".repeat(60)]) assert.ok(!text.includes(bit), `printed ${bit} from ${JSON.stringify(out)}`);
     assert.match(row(report, "versions").detail, /pnpm \(version not shown\)/);
   }
-  const fine = await probe(project({ "package.json": pkg }), fakeSys({ answers: HEALTHY }));
+  const fine = await probe(project({ "package.json": pkg, "docs/state.md": "# State\n" }), fakeSys({ answers: HEALTHY }));
   assert.match(row(fine, "versions").detail, /pnpm 10\.28\.0$/);
 });
 
@@ -66,7 +66,7 @@ test("AC-144-3: WHEN the registry is blocked THEN rung 1 gives each package mana
 test("AC-144-4: WHEN engines.node has a part preflight can't read THEN that range never blocks, and a space after the operator is read", () => {
   assert.equal(satisfies("24.1.0", "22.x || >= 24"), true, "the review's example");
   assert.equal(satisfies("20.1.0", "22.x || >= 24"), false, "with the space read, an old Node still blocks");
-  assert.equal(satisfies("20.1.0", "22.x || 24.x-odd"), true, "one unreadable part: never blocks");
+  assert.equal(satisfies("20.1.0", "22.x || >=24.0.0-rc.1"), true, "one unreadable part: never blocks");
   assert.equal(satisfies("20.1.0", "22.x || 24.x"), false, "every part read: it still blocks");
   // A part that isn't a version at all is dropped like junk characters, so it can't let an old Node pass.
   for (const range of [">=24 || junk", ">=24 || latest", "^24 || node", ">=24 || $(x)"]) {
@@ -83,6 +83,14 @@ test("AC-144-4: WHEN a part only starts like a version THEN the whole token deci
   // A part it reads in full still decides as before.
   assert.equal(satisfies("18.0.0", ">=24 || 24.x"), false, "every part read: an old Node blocks");
   assert.equal(satisfies("24.1.0", ">=24 || 24.x"), true);
+});
+
+test("AC-144-4: WHEN a prerelease follows fewer than three number parts THEN the token isn't a version, so it can't let an old Node pass", () => {
+  for (const range of [">=24 || 1-abc", ">=24 || 24.x-odd", ">=24 || 24.0-rc.1", ">=24 || ^1-x"]) {
+    assert.equal(satisfies("18.0.0", range), false, range);
+  }
+  // Three number parts and a prerelease is semver, which this reader can't compare, so it still never blocks.
+  for (const range of [">=24.0.0-rc.1", ">=24 || 24.0.0-rc.1", "^24.1.0-beta.2"]) assert.equal(satisfies("18.0.0", range), true, `${range} never blocks`);
 });
 
 test("AC-144-5: WHEN .git is there but git can't read it THEN the row says so with a known cause, not 'no git repo yet'", async () => {
@@ -122,8 +130,8 @@ test("AC-144-7: WHEN the repo's yarnPath names its own yarn and the repo isn't r
   const sys = fakeSys({ answers: { ...HEALTHY, "yarn --version": { ok: true, out: "4.5.1" } } });
   const report = await probe(project({ "package.json": YARN4, ".yarnrc.yml": YARNRC }), sys);
   assert.ok(!sys.calls.some((c) => c.startsWith("yarn")), `ran: ${sys.calls.join(" | ")}`);
-  assert.equal(status(report, "versions"), "ok");
-  assert.match(row(report, "versions").detail, /yarn 4\.5\.1 \(the repo's own release, not run before the repo is read\)/);
+  assert.equal(status(report, "versions"), "limited");
+  assert.equal(row(report, "versions").detail, "Node 22.23.5 (needs >=22), yarn 4.5.1 (from the repo's yarnPath file name, not run): version checked after the repo is read");
 
   // The version compare keeps its value: a release that doesn't match the pin is still found.
   const old = await probe(project({ "package.json": YARN4, ".yarnrc.yml": "yarnPath: .yarn/releases/yarn-3.8.7.cjs\n" }), fakeSys({ answers: HEALTHY }));
