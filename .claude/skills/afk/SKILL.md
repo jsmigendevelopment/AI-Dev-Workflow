@@ -7,9 +7,9 @@ description: Use when the person is stepping away and wants the build loop to ke
 
 ## Steps
 
-1. **How long?** Ask, or read it from what the person said ("going to lunch" is a short break, "good night" is the night).
+1. **How long?** Below Full, ask, or read it from what the person said ("going to lunch" is a short break, "good night" is the night). On Full, don't ask: read it from what they said, and if they said nothing, it's long with no hard stop.
    - **"brb", "hold on" or "pause" on its own** is a pause, not this skill: follow "Pause and stop" in `ask`. "I'm done for the day" with no loop to keep going is a stop.
-   - **Short break** (under about 2 hours): the loop keeps going as normal. Anything that needs the person waits for them.
+   - **Short break** (under about 2 hours): the loop keeps going as normal. Below Full, anything that needs the person waits for them. On Full, only the exceptions in `automation`'s `references/full.md` wait.
    - **Long** (the night, or longer): the full unattended rules below.
    - **Check the automation level** in `docs/stack.md` (see `automation`):
      - **Hands-on:** no loop. Write the state note (step 5) and stop.
@@ -80,7 +80,7 @@ description: Use when the person is stepping away and wants the build loop to ke
   - stop the sweep timer and the supervisor (`coordinate`, "Start", step 1: `timer.mjs cancelled` and `timer.mjs supervisor-cancelled`), and stop merging. Start no new builders. Pull requests still in review, and builders that finish and push, wait for `/back`;
   - run the retro once (the "Retro" section in `back`), and write `Retro done <time>` in the `/afk` section, so a later wake doesn't run it again;
   - stop everything this session started: `node .agents/skills/ask/scripts/procs.mjs stop mine`. Its list must say nothing is running;
-  - write the final state with its findings to `docs/state.md`, and stop. Kit drafts wait there for the person.
+  - write the final state with its findings to `docs/state.md`, and stop. Below Full, kit drafts wait there for the person. On Full, the retro filed them (`back`, Retro step 5).
 
 ## Checking usage
 
@@ -88,9 +88,9 @@ description: Use when the person is stepping away and wants the build loop to ke
   ```bash
   claude -p "ok" --output-format stream-json --verbose
   ```
-  This isn't documented, so its shape can change. If it's missing, ask the person to read `/usage` to you.
+  This isn't documented, so its shape can change. If it's missing, below Full, ask the person to read `/usage` to you; on Full, say "usage unknown" in the FYI and go on.
   Another Claude account: put its `CLAUDE_CONFIG_DIR=<config_dir>` in front. That reads its usage; it never moves work to it.
-- **Codex and others:** ask the person to check their usage page.
+- **Codex and others:** below Full, ask the person to check their usage page. On Full, say "usage unknown" in the FYI and go on.
 - You can't predict exactly what a queue will cost. Until `docs/state.md` has a week of "tokens per merged issue", say "X% used, N issues queued, no estimate yet."
 
 ---
