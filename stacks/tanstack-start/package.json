@@ -34,6 +34,11 @@
     "connect": "node scripts/connect.mjs",
     "cf-typegen": "wrangler types -c wrangler.jsonc",
     "check:budgets": "node scripts/budgets/check-budgets.ts",
+    "check:merge": "node scripts/check-merge.ts",
+    "pr:rules": "node scripts/pr/check.ts",
+    "deploy:preview": "node scripts/deploy.ts preview",
+    "deploy:test": "node scripts/deploy.ts test",
+    "deploy:production": "node scripts/deploy.ts production",
     "check:licenses": "node scripts/check-licenses.ts",
     "lhci": "node -e \"require('fs').rmSync('.lighthouseci',{recursive:true,force:true})\" && pnpm dlx @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs",
     "icons": "node scripts/generate-icons.ts"

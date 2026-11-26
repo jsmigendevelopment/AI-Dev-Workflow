@@ -65,7 +65,7 @@ Apply this **before** the `jobs`, `stripe` or `r2-uploads` add-ons, or port thei
    # (supabase start). Remote: the Supabase session pooler URL, set in your shell only when migrating.
    DATABASE_URL=
    ```
-8. Update the README's "Set up D1" section and the "D1 adapter" comments. CI's "migrations match the tables" step keeps working (`drizzle-kit generate` needs no database).
+8. Update the README's "Set up D1" section and the "D1 adapter" comments. `pnpm check:merge`'s "migrations match the tables" check keeps working (`drizzle-kit generate` needs no database).
 9. `pnpm exec eslint --fix . && pnpm format`: the pack's lint sorts imports, including the ones this add-on added.
 10. `pnpm check`.
 10. The person: creates the Supabase project (free tier), copies the **Session pooler** connection string (port 5432, not the transaction pooler on 6543: Hyperdrive does its own pooling), runs `pnpm exec wrangler hyperdrive create app-db --connection-string="..."` and pastes the id into `wrangler.jsonc`, then migrates once with `DATABASE_URL="..." pnpm db:migrate`. Test and production are separate Supabase projects and separate Hyperdrive configs.

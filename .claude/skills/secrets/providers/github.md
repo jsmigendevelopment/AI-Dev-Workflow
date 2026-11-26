@@ -27,7 +27,9 @@ How: the docs site was blocked here, so the pages were read from GitHub's public
 
 ## What the workflows read
 
-TanStack Start pack (`.github/workflows/deploy-test.yml`, `deploy-production.yml`, `preview.yml`):
+**The packs ship no workflows now** (`ci = "local"`): their deploys run from the session and read nothing from GitHub, so nothing below is read unless the person turned on `ci = "actions"` themselves. Moving these values to where the session deploys read them is #139. The session deploys' names are in the `stack-tanstack-start` skill, Environments and deploys.
+
+TanStack Start pack, as its old workflows read them (`deploy-test.yml`, `deploy-production.yml`, `preview.yml`):
 
 | Name | Kind | test | production | preview | Who sets it |
 |---|---|---|---|---|---|
@@ -48,7 +50,7 @@ Add-ons add these (their `ADDON.md` says so):
 | `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_DSN` | variable | test, production | sentry |
 | `VITE_CF_BEACON_TOKEN` | variable | test, production | analytics |
 
-Monorepo + Expo pack (`.github/workflows/ci.yml`): repository variables (not environment ones) `E2E_API_URL` and `E2E_CLERK_PUBLISHABLE_KEY`. Both public.
+The monorepo + Expo pack ships no workflow, so it reads no GitHub variables: its Maestro build takes `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` from the shell.
 
 ## Walkthrough · about 5 minutes
 

@@ -16,7 +16,12 @@
     "test:e2e:mobile": "turbo run test:e2e --filter=./apps/mobile",
     "build": "turbo run build",
     "boundaries:report": "turbo boundaries",
-    "connect": "pnpm -C apps/web connect"
+    "connect": "pnpm -C apps/web connect",
+    "check:merge": "pnpm -C apps/web check:merge",
+    "pr:rules": "pnpm -C apps/web pr:rules",
+    "deploy:preview": "pnpm -C apps/web deploy:preview",
+    "deploy:test": "pnpm -C apps/web deploy:test",
+    "deploy:production": "pnpm -C apps/web deploy:production"
   },
   "devDependencies": {
     "eslint": "catalog:",

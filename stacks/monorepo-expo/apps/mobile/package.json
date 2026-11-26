@@ -12,6 +12,8 @@
     "test": "jest",
     "build": "expo export --platform ios --platform android --output-dir dist",
     "test:e2e": "maestro test e2e",
+    "e2e:build:android": "expo prebuild --platform android --no-install && cd android && ./gradlew assembleRelease --no-daemon",
+    "e2e:build:ios": "expo prebuild --platform ios && xcodebuild -workspace ios/App.xcworkspace -scheme App -configuration Release -sdk iphonesimulator -derivedDataPath build CODE_SIGNING_ALLOWED=NO",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "expo:doctor": "expo-doctor"
   },

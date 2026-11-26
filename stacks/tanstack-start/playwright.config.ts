@@ -6,7 +6,7 @@ import { E2E_ACCESS, E2E_PASSWORD } from './e2e/helpers'
 const port = 4173
 // Optional: point at a browser you already have instead of `playwright install`.
 const launchOptions = { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined }
-// Set by the deploy workflows: test a deployed URL instead of a local build (`pnpm test:deployed`,
+// Set by the deploy scripts: test a deployed URL instead of a local build (`pnpm test:deployed`,
 // or `pnpm test:coming-soon` while production is not launched).
 const deployed = process.env.BASE_URL?.replace(/\/$/, '')
 const local = (p: number) => `http://localhost:${p}`

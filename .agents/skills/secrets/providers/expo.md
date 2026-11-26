@@ -15,7 +15,7 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY   the same Clerk key as the web app (see clerk
 
 `EXPO_PUBLIC_*` values are never secrets: anyone with the app can read them.
 
-**No token is needed today.** The pack's CI builds without EAS, so `EXPO_TOKEN` isn't used. You need one only if you later run `eas` in CI. `[V]` (the pack's `ci.yml` has no EAS step)
+**No token is needed today.** Nothing in the pack runs `eas` for you, so `EXPO_TOKEN` isn't used. You need one only to run `eas` somewhere you can't sign in. `[V]` (the pack has no EAS step)
 
 **For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
 

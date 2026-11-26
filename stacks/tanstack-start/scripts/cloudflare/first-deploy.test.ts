@@ -21,7 +21,7 @@ describe('the first test deploy', () => {
     expect(output()).toContain('would deploy the test Worker app-test as the Coming soon page')
   })
 
-  it('builds, migrates and deploys the test Worker as CI does, before the secrets, never production', async () => {
+  it('builds, migrates and deploys the test Worker as pnpm deploy:test does, before the secrets, never production', async () => {
     const world = freshWorld()
     const f = files()
     const { code, calls, output } = await run(world, f)

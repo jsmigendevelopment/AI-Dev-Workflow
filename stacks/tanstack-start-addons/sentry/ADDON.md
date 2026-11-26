@@ -1,12 +1,12 @@
 # sentry
 
-Error monitoring with Sentry: uncaught errors and the controllers' "unhandled" logs from the Worker, React errors from the browser, and readable stack traces from source maps uploaded in CI.
+Error monitoring with Sentry: uncaught errors and the controllers' "unhandled" logs from the Worker, React errors from the browser, and readable stack traces from source maps uploaded by the deploy builds.
 
 | | |
 |---|---|
 | **Choose it when** | real people use the app and you need to hear about errors before they tell you |
 | **Alternatives** | Cloudflare Workers Logs alone (already on: `observability` in `wrangler.jsonc`, server side only); Highlight or GlitchTip (self-hosted, Sentry-compatible) |
-| **Env vars** | Worker: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`. Build: `VITE_SENTRY_DSN`. CI: `SENTRY_AUTH_TOKEN` (secret), `SENTRY_ORG`, `SENTRY_PROJECT` |
+| **Env vars** | Worker: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`. Build: `VITE_SENTRY_DSN`. Deploy builds: `SENTRY_AUTH_TOKEN` (secret), `SENTRY_ORG`, `SENTRY_PROJECT` |
 | **Packages** | `@sentry/cloudflare@11.13.0`, `@sentry/react@11.13.0`; dev: `@sentry/vite-plugin@11.13.0` |
 | **Issue** | `Skills: build, web-security` · lane `normal` (`risky` if the person's risk dial treats a new data processor as risky) |
 | **Vendor setup** | Sentry's agent handoff and CLI sign-in, the kit's way (the handoff code is a credential): `.agents/skills/secrets/setup/sentry.md`. Keys: `.agents/skills/secrets/providers/sentry.md` |
@@ -60,7 +60,7 @@ With no DSN the app builds, tests pass and nothing is sent.
    ```ts
    import { sentryVitePlugin } from '@sentry/vite-plugin'
 
-   // Source maps go to Sentry only when the build has a token (CI on deploy). The browser's maps
+   // Source maps go to Sentry only when the build has a token (a deploy build). The browser's maps
    // are then deleted from dist/, so they are never served.
    const sentry = process.env.SENTRY_AUTH_TOKEN
      ? sentryVitePlugin({
@@ -90,18 +90,9 @@ With no DSN the app builds, tests pass and nothing is sent.
    SENTRY_DSN=
    SENTRY_ENVIRONMENT=
    VITE_SENTRY_DSN=
-   # CI only, for source map upload: SENTRY_AUTH_TOKEN (a secret), SENTRY_ORG, SENTRY_PROJECT.
+   # Deploy builds only, for source map upload: SENTRY_AUTH_TOKEN (a secret), SENTRY_ORG, SENTRY_PROJECT.
    ```
-8. CI: upload source maps only from the deploy builds: the `pnpm build` step of `.github/workflows/deploy-test.yml` and of `deploy-production.yml`. Never in `preview.yml` or `ci.yml` (pull requests). On each of those two steps (`deploy-production.yml` already has an `env:` with `SITE_URL`: add these to it):
-   ```yaml
-   - run: pnpm build
-     env:
-       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-       SENTRY_ORG: ${{ vars.SENTRY_ORG }}
-       SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
-       VITE_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
-   ```
-   Put `SENTRY_AUTH_TOKEN` in the secrets and `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_DSN` in the variables of the GitHub environments `test` and `production`. The workflow files are agent-rules files: the pull request needs the `human-approved` label.
+8. Upload source maps only from the deploy builds, which run from the session (the pack ships no GitHub Actions workflows): `pnpm deploy:test` and `pnpm deploy:production` hand their build the shell's variables. Set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` and `VITE_SENTRY_DSN` for those two commands only, never for `pnpm deploy:preview` or `pnpm check` (pull requests). For example, keep them in `.env.sentry.local` (git-ignored by `.env.*`) and run `set -a; . ./.env.sentry.local; set +a; pnpm deploy:test` in a shell of its own. Never print the token or pass it as an argument.
 9. The page CSP: let the browser SDK reach the ingest host. In `src/lib/security-headers.ts`, import the helper and use it in `CSP_EXTRA`:
    ```ts
    import { sentryIngestOrigin } from './monitoring'
@@ -115,7 +106,7 @@ With no DSN the app builds, tests pass and nothing is sent.
    }
    ```
    With no DSN at build time the list is empty, so the CSP (and the "ships with none" unit test) are unchanged. Never widen `connect-src` to `https://*.sentry.io`.
-10. Keys stay with the person: they create the Sentry project, set `SENTRY_DSN` with `pnpm exec wrangler secret put SENTRY_DSN --env test` and `--env production` (the `vars` from step 4 name the environment), and add the CI secret and variables.
+10. Keys stay with the person: they create the Sentry project, set `SENTRY_DSN` with `pnpm exec wrangler secret put SENTRY_DSN --env test` and `--env production` (the `vars` from step 4 name the environment), and keep the source-map token where the deploys run (step 8).
 11. `pnpm exec eslint --fix . && pnpm format`: the pack's lint sorts imports, including the ones this add-on added.
 12. `pnpm check`.
 
@@ -127,7 +118,7 @@ Both add-ons own `src/server.ts`, and the CLI won't overwrite the one you alread
 
 - `pnpm test` runs the monitoring tests (off without a DSN, scrubbing).
 - Locally: put `SENTRY_DSN=<a test project's DSN>` in `.dev.vars`, **rebuild**, `pnpm preview`, and hit a route that throws. The event shows up in Sentry with no cookie or IP. Remove the DSN, rebuild, and nothing is sent. (`pnpm preview` uses the vars from build time.)
-- After a CI deploy build: `ls dist/client/assets/*.map` finds nothing, and a browser error in Sentry shows original source lines.
+- After a deploy build: `ls dist/client/assets/*.map` finds nothing, and a browser error in Sentry shows original source lines.
 
 Checked for this add-on, locally: with `SENTRY_DSN` pointing at a local HTTP listener, one `console.error('unhandled', …)` and one uncaught error from a route each sent one event to the listener, in the right environment, with no cookie or IP in the payload. With no DSN and a fresh build, nothing was sent.
 
