@@ -10,25 +10,35 @@ import { askAgain, fixable, load, logFor, untrusted, update } from "./procs-stor
 const PROCS = fileURLToPath(new URL("./procs.mjs", import.meta.url));
 const WATCH_HOURS = 24;
 const ID_CHARS = 40;
+const COMMAND_CHARS = 80;
 const NAMED = 5;
 // What a terminal may act on, reorder or hide: controls (C0, DEL, C1), format characters (every bidi control, the
 // zero-width ones, U+FEFF, tag characters, the soft hyphen), lone surrogates, and line and paragraph separators.
-// \p{Cs} is a backstop: JSON.stringify already escapes lone surrogates. One TOKEN is a JSON escape or one code point,
-// so a cut never splits either.
-const UNSAFE = /^[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]$/u;
+// \p{Cs} is a backstop: JSON.stringify already escapes lone surrogates. Default_Ignorable_Code_Point adds what draws
+// nothing though it isn't a format character: the Hangul fillers, variation selectors, the combining grapheme joiner
+// (#231). One TOKEN is a JSON escape or one code point, so a cut never splits either.
+const UNSAFE = /^[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]$/u;
+// Combining marks stack on one letter: past MARKS in a row, each is escaped, so a long run can't hide or smear text.
+const MARK = /^\p{M}$/u;
+const MARKS = 3;
 const TOKEN = /\\u[0-9a-f]{4}|\\.|./gsu;
 // \uXXXX for each UTF-16 unit, so a character past U+FFFF (a tag character) escapes as its whole pair.
 const escape = (t) => t.replace(/[\s\S]/g, (u) => `\\u${u.charCodeAt(0).toString(16).padStart(4, "0")}`);
 
-// A record's id made safe to print on one line (#233): JSON-quoted, each UNSAFE character escaped as \uXXXX, and cut
-// to ID_CHARS characters, the last one an ellipsis. With bare, an id that needs no escape and no cut prints as it is.
-function printable(id, { bare = false } = {}) {
-  const tokens = (JSON.stringify(id) ?? "no id").match(TOKEN).map((t) => (UNSAFE.test(t) ? escape(t) : t));
+// A record's id or command made safe to print on one line (#233, #231): JSON-quoted, each UNSAFE character and each
+// mark past MARKS in a row escaped as \uXXXX, and cut to max characters, the last one an ellipsis. With bare, text
+// that needs no escape and no cut prints as it is.
+function printable(id, { bare = false, max = ID_CHARS, none = "no id" } = {}) {
+  let marks = 0;
+  const tokens = (JSON.stringify(id) ?? none).match(TOKEN).map((t) => {
+    marks = MARK.test(t) ? marks + 1 : 0;
+    return UNSAFE.test(t) || marks > MARKS ? escape(t) : t;
+  });
   const text = tokens.join("");
-  if (bare && text === `"${id}"` && text.length <= ID_CHARS) return id;
-  if (text.length <= ID_CHARS) return text;
+  if (bare && text === `"${id}"` && text.length <= max) return id;
+  if (text.length <= max) return text;
   let out = "";
-  for (const t of tokens) { if (out.length + t.length > ID_CHARS - 1) break; out += t; }
+  for (const t of tokens) { if (out.length + t.length > max - 1) break; out += t; }
   return `${out}\u2026`;
 }
 
@@ -125,11 +135,12 @@ export function sessionStart(sys, log, { dir, me }) {
   if (skipped.length) {
     log("### A process registry was skipped (the process registry)");
     for (const why of skipped) log(`- ${why}`);
-    log("Until then its processes aren't listed, stopped or cleaned up at session end. Tell the person in your first reply, with that chmod.");
+    log("Until then its processes aren't listed, stopped or cleaned up at session end. Tell the person in your first reply, with what it says to do.");
   }
   if (!stale.length) return 0;
   log("### Background processes left running (the process registry)");
-  for (const r of stale) log(`- ${printable(r.id, { bare: true })} · ${r.command} · ${age(sys.now() - Date.parse(r.startedAt))} · ${r.stale}`);
+  const command = (r) => printable(r.command, { bare: true, max: COMMAND_CHARS, none: "no command" });
+  for (const r of stale) log(`- ${printable(r.id, { bare: true })} · ${command(r)} · ${age(sys.now() - Date.parse(r.startedAt))} · ${r.stale}`);
   log(`onRails started them. Stop them now with \`${SCRIPT} stop stale\`, and say so in your first reply.`);
   return 0;
 }

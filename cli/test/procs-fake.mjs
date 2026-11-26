@@ -18,7 +18,8 @@ export const repoFile = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, 
 // user is the only member of a group (true, false, or null for "can't tell"). acl: what it answers when asked
 // whether a folder has a POSIX ACL (true, false for none, or null for "can't tell"). winAcl(path): the fake Windows
 // ACL reader, { owned, writers } or null; by default every path is this user's and no other account can write it.
-export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "", hidden = false, privateGroup = false, acl = false, winAcl = () => ({ owned: true, writers: [] }) } = {}) {
+// fsType(path): the file system a folder is on, as /proc/self/mountinfo names it (#231); ext4 by default.
+export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "", hidden = false, privateGroup = false, acl = false, winAcl = () => ({ owned: true, writers: [] }), fsType = () => "ext4" } = {}) {
   let clock = NOW, next = 7000;
   const live = new Map();
   const put1 = (pid, p) => live.set(pid, { parent: 1, group: pid, start: `start-${pid}`, args: "node x", cpu: "0.0% CPU", mem: 2048, onTerm: "exit", ...p });
@@ -31,6 +32,7 @@ export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s
     privateGroup: () => privateGroup,
     acl: () => acl,
     winAcl: (path) => winAcl(path),
+    fsType: (path) => fsType(path),
     now: () => clock, advance: (ms) => { clock += ms; },
     git: (dir, args) => git(dir, args),
     info: (pids) => new Map(pids.filter((p) => live.has(p)).map((p) => [p, live.get(p)])),

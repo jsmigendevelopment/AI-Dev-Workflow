@@ -93,11 +93,12 @@ function researchChecks(projectDir) {
 // Background processes an onRails session started and nobody stopped (#126). procs.mjs is synced from scripts/.
 // sys is the registry's machine (procs-sys.mjs), so tests can pass a fake.
 // A registry skipped for a mode is named with its chmod line, as list names it, so "nothing running" never hides it.
+// One skipped for what else this user can fix (a Windows ACL, a shared folder above it, #231) is named with its fix.
 export function processChecks(projectDir, { sys }) {
   const { total, stale, skipped, unreadable } = staleSummary(projectDir, { sys });
   const notRead = skipped.map((why) => ({
     status: MARKS.FAIL, required: false, label: `Process registry not read: ${why}`,
-    fix: "Run that chmod: it keeps the records, and its processes are listed and stopped again",
+    fix: `${why.includes("run chmod") ? "Run that chmod" : "Do what it says"}: it keeps the records, and its processes are listed and stopped again`,
   }));
   if (unreadable) return [...notRead, { status: MARKS.INFO, label: "Background processes not checked (ps failed here)" }];
   if (!total) return notRead;

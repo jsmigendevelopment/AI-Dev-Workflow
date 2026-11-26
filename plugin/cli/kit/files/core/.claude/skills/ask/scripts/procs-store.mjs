@@ -10,12 +10,15 @@
 // whose root only this user can write (docs/decisions.md row 69). On Windows the owner and who may write come from
 // the ACL. Its records count only when the file holds its own inode, which update() writes into it: a patch, an
 // unpacked archive or a copy is a new file, so its records read as none (#174, row 106). Inode numbers are reused, so
-// the mark is a filter, not a proof: each record still needs a live process with the same start time.
+// the mark is a filter, not a proof: each record still needs a live process with the same start time. Every folder
+// on the way to the one that holds .onrails (the repo root, or the home folder) must be this user's or root's, and
+// nobody else may write it, sticky folders aside; on Linux it must be on a file system whose ACLs getfacl shows (#231).
 // No dependencies. The master copy is scripts/procs-store.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { randomBytes } from "node:crypto";
 import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
+import { pathProblem } from "./procs-path.mjs";
 
 const readText = (p) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
 const IGNORE = "*\n";
@@ -88,13 +91,17 @@ function aclProblem(sys, path) {
 
 // A folder the registry reads from or writes into: missing, or a real folder of this user's, right where its
 // name says, that nobody else can write. shared: ~/.onrails, which other kit files share, may be group-writable,
-// never world-writable (docs/decisions.md row 67).
+// never world-writable (docs/decisions.md row 67), and then only with no ACL: a named entry may write through the
+// group bits, its mask (#231). With them off, no entry can write, so the ACL isn't asked.
 function folderProblem(sys, dir, shared = false) {
   const k = kind(dir);
   if (k === "missing") return null;
   if (k !== "dir") return `${dir} is a symlink or not a folder`;
   if (sys.platform !== "win32" && realpathSync(dir) !== join(realpathSync(dirname(dir)), basename(dir))) return `${dir} isn't the folder its name says`;
-  return shared ? ownerProblem(sys, lstatSync(dir), dir, "o-w", 0o002) : ownerProblem(sys, lstatSync(dir), dir, "700");
+  if (!shared) return ownerProblem(sys, lstatSync(dir), dir, "700");
+  const s = lstatSync(dir), why = ownerProblem(sys, s, dir, "o-w", 0o002);
+  if (why || sys.platform === "win32" || !(s.mode & 0o020) || sys.acl?.(dir) === false) return why;
+  return `the group can write ${dir}, and it has an ACL, or whether it has one can't be told: run chmod g-w ${dir}`;
 }
 
 // The repo root holds the name .onrails, so whoever can write it can put any folder there. Others never; the group
@@ -105,10 +112,18 @@ function rootProblem(sys, root) {
   const s = lstatSync(root);
   if (s.uid !== sys.uid) return `the repo at ${root} belongs to another user`;
   if (s.mode & 0o002) return `others can write the repo at ${root}: run chmod o-w ${root}`;
-  if (!(s.mode & 0o020) || s.mode & 0o1000) return null;
-  const why = `the group can write the repo at ${root}`, fix = `run chmod g-w ${root}`;
+  return s.mode & 0o1000 ? null : groupProblem(sys, s, root, `the group can write the repo at ${root}`);
+}
+
+/**
+ * Why the group can write path (s its lstat), or null: no group write bit, or this user's own group with no one else
+ * in it and no ACL. why opens the message. Preflight asks it of the folders it runs from (#232), so the rule is one.
+ */
+export function groupProblem(sys, s, path, why) {
+  if (!(s.mode & 0o020)) return null;
+  const fix = `run chmod g-w ${path}`;
   if (s.gid !== sys.gid) return `${why}, and it isn't this user's alone: ${fix}`;
-  if (sys.acl?.(root) !== false) return `${why}, and it has an ACL, or whether it has one can't be told: ${fix}`;
+  if (sys.acl?.(path) !== false) return `${why}, and it has an ACL, or whether it has one can't be told: ${fix}`;
   return sys.privateGroup?.(s.gid) === true ? null : `${why}, and it isn't this user's alone: ${fix}`;
 }
 
@@ -120,7 +135,7 @@ const folders = (sys, path) => folderProblem(sys, dirname(path), path === homeRe
  * error counts as untrusted, never as untracked. The file is checked again, through the open file, when it is read.
  */
 export function untrusted(sys, path) {
-  const why = folders(sys, path);
+  const why = holderProblem(sys, dirname(dirname(path)), path === homeRegistry(sys)) ?? folders(sys, path);
   if (why) return why;
   const k = kind(path);
   if (!["missing", "file"].includes(k)) return `${path} is a symlink or the wrong kind of file`;
@@ -139,6 +154,11 @@ function gitProblem(sys, path) {
   if (tracked === null) return `git ls-files failed in ${root}, so it can't tell whether a branch wrote ${dir}`;
   return tracked ? `git tracks files in ${dir}, so a branch could have written them` : null;
 }
+
+// The folder that holds .onrails and every folder on the way to it (procs-path.mjs, #231). On Windows only the home
+// folder's ACL is read here, and the repo root's in gitProblem: each folder above would cost a PowerShell start.
+const holderProblem = (sys, holder, home) => (sys.platform !== "win32" ? pathProblem(sys, holder, home, groupProblem)
+  : home ? aclProblem(sys, holder) : null);
 
 // Opens a file once, checks what was opened (a regular file of this user's that nobody else can write, and not
 // huge) and reads that same file. The name is never opened twice: it could point somewhere else by the second time.
@@ -164,7 +184,7 @@ function readChecked(sys, path, groupOk = false) {
 // a 002 umask before #156, still gives its entries, so the write that fixes it keeps them (docs/decisions.md row 70).
 function readIndex(sys, kept = false) {
   const path = indexPath(sys);
-  const folderWhy = folderProblem(sys, dirname(path), true);
+  const folderWhy = holderProblem(sys, dirname(dirname(path)), true) ?? folderProblem(sys, dirname(path), true);
   if (folderWhy) return { list: [], why: folderWhy };
   const { text, why } = readChecked(sys, path, kept);
   try {
@@ -178,9 +198,12 @@ const candidates = (sys, dir) => [...new Set([registryPath(sys, dir), homeRegist
 /** Every registry to look at: this folder's, the home one, and each repo's that a record was ever added to. Trusted ones only. */
 export const registries = (sys, dir) => candidates(sys, dir).filter((p) => !untrusted(sys, p));
 
-/** Why each registry, or the index, skipped only for a mode this user can fix with chmod was skipped: a list names them, so none hides in silence. */
+// What a skip this user can fix says to do: a chmod, or where to keep the repo (#231: Windows ACLs and file systems too).
+const FIX = /run chmod|keep the repo|use a repo/;
+
+/** Why each registry, or the index, skipped for something this user can fix was skipped: a list names them, so none hides in silence. */
 export const fixable = (sys, dir) => [...new Set([...candidates(sys, dir).map((p) => untrusted(sys, p)), readIndex(sys).why])]
-  .filter((why) => why?.includes("run chmod"));
+  .filter((why) => FIX.test(why ?? ""));
 
 // Only the records of a file whose mark is its own inode: update() writes it into the file. A patch, an unpacked
 // archive or a copy makes a new file, so its records read as none, and the next write replaces them; moving the
@@ -267,6 +290,6 @@ function remember(sys, path) {
     if (list.includes(path) && !why) return;
     mkdirSync(dirname(indexPath(sys)), { recursive: true, mode: 0o700 });
     const next = [...new Set([...list, path])];
-    if (!folderProblem(sys, dirname(indexPath(sys)), true)) replace(indexPath(sys), () => JSON.stringify({ registries: next }, null, 2) + "\n");
+    if (!holderProblem(sys, dirname(dirname(indexPath(sys))), true) && !folderProblem(sys, dirname(indexPath(sys)), true)) replace(indexPath(sys), () => JSON.stringify({ registries: next }, null, 2) + "\n");
   } catch { /* the home folder may be read-only in a sandbox */ }
 }
