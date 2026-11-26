@@ -8,3 +8,13 @@ migrations/meta
 playwright-report
 test-results
 .lighthouseci
+
+# The onRails kit's own files (#146). `onrails update` replaces a kit file only while it matches the
+# kit's copy, so a reformat would turn it into your own edit and stop its updates.
+.agents
+.claude
+.codex
+AGENTS.md
+CLAUDE.md
+.github/ISSUE_TEMPLATE/slice.md
+.onrails.json
