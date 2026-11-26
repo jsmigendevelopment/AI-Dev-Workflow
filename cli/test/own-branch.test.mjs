@@ -18,14 +18,18 @@ const PERMISSIONS = Object.fromEntries(
   Object.entries(ACCESS).map(([login, [permission, role_name]]) => [`repos/acme/app/collaborators/${login}/permission`, { permission, role_name }]),
 );
 
-/** own-branch.mjs on pull request 7 of acme/app by `author`, whose branch `ref` lives in the repo `from`; issue 5 has `comments`. */
-function own({ from = "acme/app", ref = "feat/5-share", author = "builder", comments = [CLAIM(ref)], args = ["7", "--repo", "acme/app"], env = {}, api = {} } = {}) {
+/**
+ * own-branch.mjs on pull request 7 of acme/app by `author`, whose branch `ref` lives in the repo `from`; issue 5 has
+ * `comments`, and the pull request changes `files`. `api` answers last, so a test can replace any answer.
+ */
+function own({ from = "acme/app", ref = "feat/5-share", author = "builder", comments = [CLAIM(ref)], files = [], args = ["7", "--repo", "acme/app"], env = {}, api = {} } = {}) {
   const dir = tmp("onrails-own-");
   const fake = fakeGh(dir, {
     ...PERMISSIONS,
-    ...api,
-    "repos/acme/app/pulls/7": { number: 7, user: author && { login: author }, head: { sha: HEAD, ref, repo: from && { full_name: from } } },
+    "repos/acme/app/pulls/7": { number: 7, user: author && { login: author }, changed_files: files.length, head: { sha: HEAD, ref, repo: from && { full_name: from } } },
+    "repos/acme/app/pulls/7/files": files,
     "repos/acme/app/issues/5/comments": comments,
+    ...api,
   }, env);
   return { ...spawnSync(process.execPath, [SCRIPT, ...args], { cwd: dir, encoding: "utf8", env: fake.env }), calls: fake.calls() };
 }
@@ -258,4 +262,92 @@ test("AC-131-1: only a real read, triage or none, or a 404 for the user, is no w
   assert.equal(odd.status, 2, odd.stderr);
   assert.equal(odd.stdout, "");
   assert.match(odd.stderr, /Couldn't check odd's access/);
+});
+
+// #226: Dependabot's bumps go through the local gate like the loop's own branches, with no claim.
+const BOT = "dependabot[bot]";
+const BUMP = "dependabot/npm_and_yarn/vite-8.4.0";
+const changed = (...paths) => paths.map((p) => (Array.isArray(p) ? { filename: p[1], previous_filename: p[0], status: "renamed" } : { filename: p, status: "modified" }));
+const bump = (more = {}) => own({ author: BOT, ref: BUMP, comments: [], files: changed("package.json", "pnpm-lock.yaml"), ...more });
+const bumpPull = (sha = HEAD, files = 2) => ({ number: 7, user: { login: BOT }, changed_files: files, head: { sha, ref: BUMP, repo: { full_name: "acme/app" } } });
+
+test("AC-226-1: WHEN a Dependabot pull request changes only package.json and the lockfile THEN own-branch.mjs exits 0 for it", unixOnly, () => {
+  const r = bump();
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, `${HEAD}: ${BUMP} is a Dependabot bump of manifests and lockfiles only\n`);
+  assert.doesNotMatch(r.calls, /issues\/|collaborators\//, "no claim and no access check for the bot");
+  const lists = {
+    "a workspace's manifest": changed("apps/web/package.json", "pnpm-lock.yaml"),
+    "npm's lockfile": changed("package.json", "package-lock.json"),
+    "yarn's lockfile": changed("package.json", "yarn.lock"),
+    "the lockfile alone": changed("pnpm-lock.yaml"),
+  };
+  for (const [name, files] of Object.entries(lists)) assert.equal(bump({ files, ref: "dependabot/npm_and_yarn/apps/web/tanstack-2a9f0c1e" }).status, 0, name);
+});
+
+test("AC-226-2: WHEN a Dependabot pull request changes any other file THEN own-branch.mjs exits 1, with no sha", unixOnly, () => {
+  const lists = {
+    "a source file too": changed("package.json", "pnpm-lock.yaml", "src/app.ts"),
+    "the workspace file": changed("package.json", "pnpm-workspace.yaml"),
+    "npm's config": changed(".npmrc", "pnpm-lock.yaml"),
+    "a workflow": changed(".github/workflows/x.yml"),
+    "a look-alike name": changed("package.json.bak", "not-package.json"),
+    "a rename into a manifest": changed(["src/app.ts", "package.json"]),
+    "no files at all": [],
+  };
+  for (const [name, files] of Object.entries(lists)) {
+    const r = bump({ files });
+    assert.equal(r.status, 1, name);
+    assert.equal(r.stdout, "", name);
+    assert.match(r.stderr, /only runs the loop's own branches/, name);
+  }
+  assert.match(bump({ files: changed("package.json", "src/app.ts") }).stderr, /src\/app\.ts/, "it names the file");
+  const many = bump({ api: { "repos/acme/app/pulls/7": bumpPull(HEAD, 3001) } });
+  assert.equal(many.status, 1, "more files than GitHub lists can't be checked");
+  assert.equal(many.stdout, "");
+});
+
+test("AC-226-2: WHEN a Dependabot pull request's head is in a fork THEN own-branch.mjs exits 1, its files not read", unixOnly, () => {
+  for (const from of ["someone/app", null]) {
+    const r = bump({ from });
+    assert.equal(r.status, 1, String(from));
+    assert.equal(r.stdout, "");
+    assert.doesNotMatch(r.calls, /\/files/);
+  }
+});
+
+test("AC-226-2: only dependabot[bot] on a dependabot/ branch with plain characters counts as a bump", unixOnly, () => {
+  for (const ref of ["feat/5-share", "dependabot/", "dependabot/npm_and_yarn/vite;true", "dependabot/npm_and_yarn/vi te", "dependabot//vite", "renovate/vite-8.4.0"]) {
+    const r = bump({ ref });
+    assert.equal(r.status, 1, ref);
+    assert.equal(r.stdout, "", ref);
+    assert.doesNotMatch(r.calls, /\/files/, ref);
+  }
+  for (const author of ["dependabot", "dependabot-bot", "builder"]) {
+    const r = bump({ author });
+    assert.equal(r.status, 1, author);
+    assert.equal(r.stdout, "", author);
+    assert.doesNotMatch(r.calls, /\/files/, author);
+  }
+});
+
+test("AC-226-2: a file list that doesn't match the pull request, or a head that moved while it was read, exits 2 with no sha", unixOnly, () => {
+  for (const [name, answer] of Object.entries({ "a short list": bumpPull(HEAD, 3), "a moved head": { sequence: [bumpPull(), bumpPull("d".repeat(40))] } })) {
+    const r = bump({ api: { "repos/acme/app/pulls/7": answer } });
+    assert.equal(r.status, 2, `${name}: ${r.stderr}`);
+    assert.equal(r.stdout, "", name);
+  }
+});
+
+test("AC-226-3: WHEN dependencies is read THEN it says how a Dependabot bump reaches main on each level", () => {
+  const skill = read(".agents/skills/dependencies/SKILL.md");
+  const part = skill.slice(skill.indexOf("**Dependabot keeps running"), skill.indexOf("**The kit's default libraries**"));
+  for (const level of ["Recommended", "Full", "Custom", "Hands-on"]) assert.match(part, new RegExp(`\\*\\*[^*]*\\b${level}\\b[^*]*\\*\\*`), level);
+  assert.match(part, /own-branch\.mjs/);
+  assert.match(part, /`no-issue`/);
+  assert.match(part, /changes any other file, or comes from a fork/);
+  assert.doesNotMatch(part, /labels them `needs-human` today|#226 plans them/);
+  const exit0 = read(".agents/skills/coordinate/SKILL.md").split("\n").find((l) => l.trim().startsWith("- Exit 0")) ?? "";
+  assert.match(exit0, /`dependabot\[bot\]`/);
+  assert.match(exit0, /`no-issue`/);
 });
