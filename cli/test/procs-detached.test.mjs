@@ -5,7 +5,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { homeRegistry } from "../src/procs-store.mjs";
+import { isId, newId } from "../src/procs-records.mjs";
+import { homeRegistry, registryPath } from "../src/procs-store.mjs";
 import { AGENT, MIN, NOW, fakeSys, records, run, seed, signals, startDev } from "./procs-fake.mjs";
 
 const NO_PID = { CLAUDE_CODE_SESSION_ID: "s-1" };
@@ -127,6 +128,38 @@ test("AC-174-3: WHEN --guard, --registry or --grace is given twice THEN the comm
     assert.match(r.out, new RegExp(`${flag} is given twice`), flag);
     assert.deepEqual(signals(sys), [], flag);
     assert.deepEqual(ids(sys), ["p01d0", "pcafe"], `${flag}: every record is kept`);
+  }
+});
+
+// Nice to have 3 of round 3: the same check covers every command, not only the reaper.
+test("AC-174-3: WHEN start is given --why twice THEN it is refused and nothing starts or is signalled", async () => {
+  const sys = fakeSys();
+  const r = await run(sys, ["start", "--why", "show the person #12", "--why", "x", "--until", "the person leaves", "--", "pnpm", "dev"]);
+  assert.equal(r.code, 2);
+  assert.match(r.out, /--why is given twice/);
+  assert.deepEqual(sys.calls, [], "no spawn and no signal");
+  assert.deepEqual(records(sys), []);
+});
+
+test("AC-174-3: WHEN ps is given --stop twice THEN it is refused and nothing is signalled", async () => {
+  const sys = fakeSys({ procs: { 4000: {} } });
+  seed(sys, { id: "pold1", pid: 4000, start: "start-4000", command: "pnpm dev" }); // stale: --stop stale alone would stop it
+  const r = await run(sys, ["ps", "--stop", "pnone", "--stop", "stale"]);
+  assert.equal(r.code, 2);
+  assert.match(r.out, /--stop is given twice/);
+  assert.deepEqual(signals(sys), []);
+  assert.ok(sys.live.has(4000));
+  assert.deepEqual(ids(sys), ["pold1"]);
+});
+
+// Nice to have 1 of round 3: isId writes out newId's shape a second time, so the two must not drift apart,
+// or session-end would quietly pass no record to the reaper.
+test("AC-174-3: every id newId makes passes isId", () => {
+  const sys = fakeSys();
+  const path = registryPath(sys, sys.cwd);
+  for (let i = 0; i < 256; i++) {
+    const id = newId(sys, path);
+    assert.ok(isId(id), id);
   }
 });
 
