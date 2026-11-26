@@ -1,5 +1,5 @@
-// The fake transcripts for the show-it-early eval (#99, #141). run.test.mjs runs the good and bad ones with every
-// other scenario; show-it-early.test.mjs runs the shortcuts. Kept out of run.test.mjs, which is past 500 lines.
+// The fake transcripts for the show-it-early eval (#99, #141). scenarios.test.mjs runs the good and bad ones with
+// every other scenario; show-it-early.test.mjs runs the shortcuts.
 
 const STACK = "# Stack\n\nNode, no framework yet. Test site on Cloudflare Workers, not set up.\n\n## Checks and deploys\n\nci = \"local\"\n";
 const CI = "on: pull_request\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm run check\n";

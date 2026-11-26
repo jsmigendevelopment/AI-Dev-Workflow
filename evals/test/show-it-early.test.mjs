@@ -1,5 +1,5 @@
 // AC-141-2 of #141: the show-it-early eval asks for no GitHub Actions workflow and fails a run that writes one. Its
-// own file, so run.test.mjs, already past 500 lines, doesn't grow.
+// own file, like each scenario's transcript tests (#180).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";

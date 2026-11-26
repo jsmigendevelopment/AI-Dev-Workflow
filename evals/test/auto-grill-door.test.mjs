@@ -1,13 +1,13 @@
-// #108, follow-ups to the auto-grill-door eval: stricter door checks and fewer false failures. Its own file,
-// so run.test.mjs, already past 500 lines, doesn't grow.
+// The auto-grill-door eval's transcripts: #102's reviews, then #108's follow-ups, stricter door checks and fewer
+// false failures.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { AUTO_GRILL_PLAN, REVIEWS_108, reviewPlan } from "./auto-grill-reviews.mjs";
+import { AUTO_GRILL_PLAN, REVIEWS, REVIEWS_108, reviewPlan } from "./auto-grill-reviews.mjs";
 import { failedChecks } from "./failed-checks.mjs";
+import { setup, skipWin } from "./harness.mjs";
 
-const skipWin = process.platform === "win32" ? "the fake claude is a shebang script" : false;
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 
 const cases = (prefix) => Object.entries(REVIEWS_108).filter(([name]) => name.startsWith(prefix));
@@ -32,4 +32,14 @@ test("#108 item 5: the grill-log template leaves every Source blank, and says wh
   assert.ok(sources?.length > 0, "the template has Source lines");
   for (const line of sources) assert.equal(line.trimEnd(), "**Source:**", "no default source");
   assert.match(template, /Below Full, the person's own answer is "person"\. On Full.*"person \(pitch\)".*"AI pick, not reviewed"/);
+});
+
+// AC-6 of #102: the reviewers' transcripts. Each bad one fails exactly its listed checks; each good one passes.
+test("auto-grill-door: buried or kept float picks fail, door-first reviews pass", { skip: skipWin }, () => {
+  for (const [name, { review, fails }] of Object.entries(REVIEWS)) {
+    const { run, resultsFile } = setup({ "auto-grill-door": { with: reviewPlan(review), without: { steps: [{ text: "x" }] } } });
+    run("--scenario", "auto-grill-door");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, fails, name);
+  }
 });
