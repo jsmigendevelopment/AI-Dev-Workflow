@@ -89,7 +89,8 @@ test("AC-152-1: WHEN the kit and the TanStack Start pack are installed and docs/
   // What /idea writes: each template copied into docs/ under its own name.
   cpSync(join(app, ".agents/skills/idea/templates"), join(app, "docs"), { recursive: true });
   const docs = readdirSync(join(app, "docs")).map((name) => `docs/${name}`);
-  assert.ok(docs.filter((path) => path.endsWith(".md")).length >= 13, `found ${docs.length} docs`);
+  const markdown = docs.filter((path) => path.endsWith(".md")).length;
+  assert.ok(markdown >= 13, `found ${markdown} Markdown docs`);
   const entries = prettierIgnores(".prettierignore", readApp(app, ".prettierignore"));
   assert.deepEqual(uncovered(entries, docs), []);
   // Only the root docs/: an app folder called docs, like a docs route or section, keeps its check.
