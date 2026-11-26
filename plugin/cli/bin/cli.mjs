@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { accountsList } from "../src/accounts.mjs";
 import { addPack, listAddons, listPacks } from "../src/add.mjs";
+import { ciLocal } from "../src/ci-local.mjs";
 import { doctor } from "../src/doctor.mjs";
 import { doctorFix } from "../src/fix.mjs";
 import { initGlobal } from "../src/global.mjs";
@@ -37,6 +38,10 @@ Usage:
                                           bring everything to the latest: the Claude Code and
                                           Codex plugins, the global entry skills, this project's
                                           kit, then doctor and a before and after summary
+  npx onrails ci local [dir] [--dry-run] [--yes]
+                                          move this repo off GitHub Actions: turn Actions off, then
+                                          open a pull request that removes .github/workflows/ and
+                                          writes ci = "local" to docs/stack.md. Asks once below Full
   npx onrails doctor [dir]                check your tools and the kit
   npx onrails doctor [dir] --fix [--yes] [--dry-run]
                                           offer a fix for each problem, run it after a yes
@@ -116,6 +121,9 @@ async function run(command, args, flags, { ask, yes }) {
     case "update":
       if (flags.has("--all")) return updateAll(args[0], { dryRun: flags.has("--dry-run"), ask, yes });
       return update(args[0], { dryRun: flags.has("--dry-run"), ask, yes });
+    case "ci":
+      if (args[0] !== "local") return fail(`Unknown ci command: ${args[0] ?? ""} (use local)`);
+      return ciLocal(args[1], { dryRun: flags.has("--dry-run"), ask, yes });
     case "doctor":
       if (!flags.has("--fix")) return doctor(args[0]);
       return doctorFix(args[0], { ask, yes, dryRun: flags.has("--dry-run") });

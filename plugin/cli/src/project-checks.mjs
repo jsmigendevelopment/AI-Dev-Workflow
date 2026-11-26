@@ -1,4 +1,4 @@
-// The checks about this project: the kit (and Full automation on an old one), the skills mirror, stale research, stale background processes, .env files, Playwright, wrangler.
+// The checks about this project: the kit (and Full automation on an old one), the skills mirror, stale research, stale background processes, .env files, GitHub Actions, Playwright, wrangler.
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { staleDossiers } from "./check-research.mjs";
@@ -8,6 +8,7 @@ import { fullOnOldKit } from "./full-kit.mjs";
 import { OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
 import { projectManifestName, readProjectManifest } from "./sync.mjs";
 import { MARKS } from "./marks.mjs";
+import { CI_FIX, actionsOn, ciMode, githubRepo, workflowFiles } from "./preflight-ci.mjs";
 import { personalValues } from "./research-library.mjs";
 import { staleSummary } from "./procs.mjs";
 import { realSys } from "./procs-sys.mjs";
@@ -62,6 +63,7 @@ export function projectChecks(projectDir, { kitDir, sys }) {
   checks.push(...processChecks(projectDir, { sys: { ...realSys(), home: sys.home } }));
   checks.push(...profileChecks(projectDir));
   checks.push(...envChecks(projectDir, MARKS));
+  checks.push(...actionsChecks(projectDir, sys));
   const deps = projectDeps(projectDir);
   if (deps["@playwright/test"]) checks.push(playwrightCheck(projectDir, sys));
   if (["wrangler.jsonc", "wrangler.json", "wrangler.toml"].some((f) => existsSync(join(projectDir, f)))) {
@@ -100,6 +102,26 @@ export function processChecks(projectDir, { sys }) {
     status: MARKS.FAIL, required: false, label: `${stale.length} stale background process(es): ${stale.map((r) => `${r.id} ${r.command} (${r.stale})`).join(", ")}`,
     fix: "Run: npx onrails ps --stop stale",
   }];
+}
+
+// No GitHub Actions on ci = "local" (#133): workflow files, or Actions still on, each get the one command that fixes both.
+// preflight-ci.mjs is synced from scripts/. The Actions setting is asked of GitHub only for a github.com remote.
+function actionsChecks(projectDir, sys) {
+  const { OK, FAIL, INFO } = MARKS;
+  if (ciMode(projectDir) === "actions") return [];
+  const fix = { fix: `Run: ${CI_FIX}`, remedy: { print: [CI_FIX] }, required: false };
+  const checks = [];
+  const files = workflowFiles(projectDir);
+  if (files.length) checks.push({ status: FAIL, label: `${files.length} workflow file(s) in .github/workflows/ on ci = "local": ${files.join(", ")}`, ...fix });
+  const remote = sys.probe("git", ["remote", "get-url", "origin"], { cwd: projectDir });
+  const repo = remote?.ok ? githubRepo(remote.out) : null;
+  if (!repo) return checks;
+  const perms = sys.probe("gh", ["api", `repos/${repo}/actions/permissions`], { cwd: projectDir });
+  const on = perms?.ok ? actionsOn(perms.all) : null;
+  if (on) checks.push({ status: FAIL, label: `GitHub Actions is on for ${repo} (ci = "local")`, ...fix });
+  else if (on === null) checks.push({ status: INFO, label: `GitHub Actions setting for ${repo} not checked (gh didn't answer: sign in with gh auth login)` });
+  else if (!files.length) checks.push({ status: OK, label: `No GitHub Actions: no workflow files, and Actions is off for ${repo}` });
+  return checks;
 }
 
 // The research library's name and path are personal (research-library.mjs). A project copy must not hold them.
