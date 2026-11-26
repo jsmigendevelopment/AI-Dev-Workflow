@@ -62,7 +62,7 @@ export function inspect(recs, live, me, now) {
  * list and doctor never write.
  */
 export function survey(sys, dir, me, { prune = false } = {}) {
-  const all = registries(sys, dir).map((path) => ({ path, recs: load(path) }));
+  const all = registries(sys, dir).map((path) => ({ path, recs: load(path, sys) }));
   const live = sys.info(all.flatMap((x) => livePids(x.recs)));
   if (!live) return null;
   return all.flatMap(({ path, recs }) => {
@@ -81,8 +81,8 @@ export function newRecord(sys, me, flags, fields) {
   };
 }
 
-export function newId(path) {
-  const taken = new Set(load(path).map((r) => r.id));
+export function newId(sys, path) {
+  const taken = new Set(load(path, sys).map((r) => r.id));
   for (;;) { const id = `p${randomBytes(2).toString("hex")}`; if (!taken.has(id)) return id; }
 }
 

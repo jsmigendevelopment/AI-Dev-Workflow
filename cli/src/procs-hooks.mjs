@@ -5,7 +5,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MINUTE, SCRIPT, age, inspect, livePids, newId, newRecord, past, sameStart, survey } from "./procs-records.mjs";
 import { forget, stopRecords } from "./procs-stop.mjs";
-import { load, logFor, update } from "./procs-store.mjs";
+import { askGitAgain, fixable, load, logFor, untrusted, update } from "./procs-store.mjs";
 
 const PROCS = fileURLToPath(new URL("./procs.mjs", import.meta.url));
 const WATCH_HOURS = 24;
@@ -13,10 +13,10 @@ const WATCH_HOURS = 24;
 // The watcher stops paused and timed records when their time is up, even if the session sits open for days.
 // It is a record too, so stop and session end stop it, and it ends itself when no timed record is left.
 export function ensureWatcher(sys, path, me) {
-  const watchers = load(path).filter((r) => r.kind === "watcher");
+  const watchers = load(path, sys).filter((r) => r.kind === "watcher");
   const live = sys.info(livePids(watchers)) ?? new Map();
   if (watchers.some((r) => sameStart(r.start, live.get(r.pid)))) return;
-  const id = newId(path);
+  const id = newId(sys, path);
   const pid = sys.spawn([process.execPath, PROCS, "watch", "--registry", path], { cwd: dirname(path), log: logFor(sys, path, "watch") });
   if (!pid) return;
   const start = sys.info([pid])?.get(pid)?.start;
@@ -26,9 +26,14 @@ export function ensureWatcher(sys, path, me) {
   update(sys, path, (procs) => [...procs, newRecord(sys, me, flags, fields)]);
 }
 
-/** One pass of the watcher: stops what's past its time or pause. Returns how many timed records are left. */
+/**
+ * One pass of the watcher: stops what's past its time or pause. Returns how many timed records are left, or null
+ * when the registry can't be trusted now (git may track it since a checkout): then nothing is read or written.
+ */
 export async function expire(sys, path) {
-  const recs = load(path).filter((r) => r.kind !== "watcher");
+  askGitAgain(sys);
+  if (untrusted(sys, path)) return null;
+  const recs = load(path, sys).filter((r) => r.kind !== "watcher");
   const live = sys.info(livePids(recs));
   if (!live) return 0;
   const seen = inspect(recs, live, {}, sys.now());
@@ -41,13 +46,22 @@ export async function expire(sys, path) {
 
 export async function watch(sys, path) {
   const end = sys.now() + WATCH_HOURS * 60 * MINUTE;
-  while (sys.now() < end && (await expire(sys, path)) > 0) await sys.sleep(MINUTE);
+  let left = 0;
+  while (sys.now() < end && (left = await expire(sys, path)) > 0) await sys.sleep(MINUTE);
+  if (left === null) return 1; // the registry can't be trusted now: it is left exactly as it is
+  askGitAgain(sys);
   update(sys, path, (procs) => procs.filter((r) => r.pid !== sys.selfPid));
   return 0;
 }
 
 export function sessionStart(sys, log, { dir, me }) {
   const stale = (survey(sys, dir, me, { prune: true }) ?? []).filter((r) => r.stale);
+  const skipped = fixable(sys, dir);
+  if (skipped.length) {
+    log("### A process registry was skipped (the process registry)");
+    for (const why of skipped) log(`- ${why}`);
+    log("Until then its processes aren't listed, stopped or cleaned up at session end. Tell the person in your first reply, with that chmod.");
+  }
   if (!stale.length) return 0;
   log("### Background processes left running (the process registry)");
   for (const r of stale) log(`- ${r.id} · ${r.command} · ${age(sys.now() - Date.parse(r.startedAt))} · ${r.stale}`);
@@ -74,7 +88,7 @@ export async function sessionEnd(sys, log, { dir, me }) {
 }
 
 export async function reap(sys, path, ids, grace) {
-  const recs = load(path).filter((r) => ids.includes(r.id));
+  const recs = load(path, sys).filter((r) => ids.includes(r.id));
   await stopRecords(sys, recs, { grace });
   update(sys, path, (procs) => procs.filter((r) => !ids.includes(r.id)));
   return 0;
