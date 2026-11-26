@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
-import { exists, put, tmp } from "./helpers.mjs";
+import { exists, put, safeEnv, tmp } from "./helpers.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
-const run = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8" });
+const run = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", env: safeEnv() });
 
 test("--version prints the package version", () => {
   const r = run("--version");
@@ -37,7 +37,7 @@ test("init through the binary installs the kit", () => {
 
 test("profile and doctor --fix through the binary, with a temp home and piped answers", () => {
   const home = tmp();
-  const env = { ...process.env, HOME: home, USERPROFILE: home };
+  const env = safeEnv({ HOME: home, USERPROFILE: home });
   const show = spawnSync(process.execPath, [CLI, "profile", "show"], { encoding: "utf8", env });
   assert.equal(show.status, 1);
   const made = spawnSync(process.execPath, [CLI, "profile", "init"], { encoding: "utf8", env, input: "octo\nteam\n" });
@@ -55,7 +55,7 @@ test("profile and doctor --fix through the binary, with a temp home and piped an
 
 test("accounts through the binary is read-only: it never offers to move the old home folder", () => {
   const home = tmp();
-  const env = { ...process.env, HOME: home, USERPROFILE: home };
+  const env = safeEnv({ HOME: home, USERPROFILE: home });
   put(home, ".ai-dev-workflow/profile.toml", '[accounts.work]\nlabel = "Work"\ntool = "claude"\nconfig_dir = "~/.claude-work"\n');
   const r = spawnSync(process.execPath, [CLI, "accounts", tmp()], { encoding: "utf8", env, input: "" });
   assert.equal(r.status, 0, r.stderr);
@@ -66,7 +66,7 @@ test("accounts through the binary is read-only: it never offers to move the old 
 
 test("signature through the binary reads its own value flags, and --help lists it", () => {
   const home = tmp(), dir = tmp();
-  const env = { ...process.env, HOME: home, USERPROFILE: home };
+  const env = safeEnv({ HOME: home, USERPROFILE: home });
   put(dir, "docs/profile.toml", '[me.signature]\nname = "Ada Example"\nname_url = "https://example.com"\n');
   const r = spawnSync(process.execPath, [CLI, "signature", "--style", "compact"], { encoding: "utf8", env, cwd: dir });
   assert.equal(r.status, 0, r.stderr);

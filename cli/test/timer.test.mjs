@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, run } from "../../.agents/skills/coordinate/scripts/timer.mjs";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/coordinate/scripts/timer.mjs", import.meta.url));
 const STATE = "# State\n\n- **Phase:** building pass 1\n\n## Waiting on you\n\n";
@@ -17,7 +17,7 @@ function state(text = STATE) {
   const file = join(tmp("onrails-timer-"), "state.md");
   writeFileSync(file, text);
   const timer = (now, ...args) => {
-    const r = spawnSync(process.execPath, [SCRIPT, ...args, "--file", file, "--now", now], { encoding: "utf8" });
+    const r = spawnSync(process.execPath, [SCRIPT, ...args, "--file", file, "--now", now], { encoding: "utf8", env: safeEnv() });
     return { code: r.status, out: (r.stdout + r.stderr).trim() };
   };
   return { timer, text: () => readFileSync(file, "utf8") };

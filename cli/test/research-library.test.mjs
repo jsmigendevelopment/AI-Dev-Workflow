@@ -3,13 +3,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, readFileSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkPrivate, entryPaths, insertEntry, readLibrarySetting, readManifest, REQUIRED, resolvePath, stripPersonal, validateManifest } from "../../scripts/research-library.mjs";
 import { doctor } from "../src/doctor.mjs";
 import { libraryInit } from "../src/library-init.mjs";
 import { copyProfileIfMissing, profileCopy } from "../src/profile.mjs";
-import { exists, logger, put, read, tmp } from "./helpers.mjs";
+import { exists, logger, put, read, safeEnv, tmp } from "./helpers.mjs";
 
 const repo = (path) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 const SCRIPT = repo("scripts/research-library.mjs");
@@ -104,7 +104,7 @@ function fakeGh(answers) {
   const cases = Object.entries(answers).map(([repoName, out]) => `  repos/${repoName}) ${out} ;;`).join("\n");
   put(bin, "gh", `#!/bin/sh\n[ "$1" = api ] || exit 9\ncase "$2" in\n${cases}\n  *) echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;;\nesac\n`);
   chmodSync(join(bin, "gh"), 0o755);
-  return { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}` };
+  return safeEnv({}, { bins: [bin] });
 }
 const runPrivate = (repoName, env) => spawnSync(process.execPath, [SCRIPT, "private", repoName], { env, encoding: "utf8" });
 
@@ -139,7 +139,7 @@ test("research-library init copies the template into a new folder, and the copy 
   assert.ok(!exists(dir, ".github/workflows"));
   assert.match(read(dir, "README.md"), /node scripts\/research-library\.mjs private/);
   assert.match(log.text(), /gh repo create <owner>\/<name> --private/);
-  const r = spawnSync(process.execPath, [join(dir, "scripts", "check-library.mjs")], { encoding: "utf8" });
+  const r = spawnSync(process.execPath, [join(dir, "scripts", "check-library.mjs")], { encoding: "utf8", env: safeEnv() });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /library: 0 dossiers, 0 errors/);
 });
@@ -157,11 +157,11 @@ test("research-library init never overwrites: a manifest or any clashing file st
 
 test("the CLI routes research-library init and rejects other subcommands", () => {
   const cli = repo("cli/bin/cli.mjs");
-  const bad = spawnSync(process.execPath, [cli, "research-library", "pull"], { encoding: "utf8" });
+  const bad = spawnSync(process.execPath, [cli, "research-library", "pull"], { encoding: "utf8", env: safeEnv() });
   assert.equal(bad.status, 2);
   assert.match(bad.stderr, /Unknown research-library command: pull/);
   const dir = join(tmp("onrails-libcli-"), "lib");
-  const ok = spawnSync(process.execPath, [cli, "research-library", "init", dir], { encoding: "utf8" });
+  const ok = spawnSync(process.execPath, [cli, "research-library", "init", dir], { encoding: "utf8", env: safeEnv() });
   assert.equal(ok.status, 0, ok.stderr);
   assert.ok(exists(dir, "research-library.json"));
 });

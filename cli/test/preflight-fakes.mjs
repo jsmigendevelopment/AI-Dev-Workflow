@@ -2,11 +2,12 @@
 // so no test needs a network. The real-run helpers at the end run the real script in throwaway repos (#169).
 import { after } from "node:test";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { markRead } from "../src/preflight-sys.mjs";
-import { put, tmp } from "./helpers.mjs";
+import { findCommand } from "../src/system.mjs";
+import { checkPath, put, safeEnv, tmp } from "./helpers.mjs";
 
 export const NOW = Date.parse("2026-11-25T22:10:00Z");
 
@@ -74,13 +75,10 @@ export const status = (report, id) => report.results.find((r) => r.id === id).st
 
 const SCRIPT = fileURLToPath(new URL("../src/preflight.mjs", import.meta.url));
 
-/** The first file on this session's PATH with that name. */
-const which = (cmd) => (process.env.PATH ?? "").split(delimiter).map((dir) => join(dir, cmd)).find((f) => existsSync(f));
-
 /** A PATH folder that holds only the named real commands, so nothing else preflight runs is found. */
 export function pathWith(...cmds) {
   const bin = temp("onrails-read-bin-");
-  for (const cmd of cmds) symlinkSync(which(cmd), join(bin, cmd));
+  for (const cmd of cmds) symlinkSync(findCommand(cmd), join(bin, cmd));
   return bin;
 }
 
@@ -90,11 +88,11 @@ export function pathWith(...cmds) {
  */
 export function runScript(dir, env, ...flags) {
   const vars = { HOME: temp("onrails-read-home-"), ...(typeof env === "string" ? { PATH: env } : env) };
-  const r = spawnSync(process.execPath, [SCRIPT, dir, ...flags], { cwd: dir, encoding: "utf8", env: vars, timeout: 60000 });
+  const r = spawnSync(process.execPath, [SCRIPT, dir, ...flags], { cwd: dir, encoding: "utf8", env: checkPath(vars, dir), timeout: 60000 });
   return flags.includes("--json") ? JSON.parse(r.stdout) : r;
 }
 
-export const sh = (dir, ...args) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+export const sh = (dir, ...args) => spawnSync("git", args, { cwd: dir, encoding: "utf8", env: safeEnv() });
 
 /** A git repo with one commit, then the extra lines in .git/config, and the files given. */
 export function gitRepo(config, files = {}) {

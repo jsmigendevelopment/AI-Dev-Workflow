@@ -7,7 +7,7 @@ import fs, { chmodSync, chownSync, mkdirSync, renameSync, symlinkSync, writeFile
 import { syncBuiltinESMExports } from "node:module";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 import { soleMember } from "../src/procs-sys.mjs";
 import { NOW, fakeSys, inRepo, run, seed, signals, startDev } from "./procs-fake.mjs";
 
@@ -153,13 +153,13 @@ function runApart(home, cmd) {
     const sys = fakeSys({ stdin: '{"session_id":"s-1"}' });
     sys.home = process.argv[1];
     console.log("RESULT:" + JSON.stringify(await run(sys, [process.argv[2]])));`;
-  return spawnSync(process.execPath, ["--input-type=module", "-e", code, home, cmd], { encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL" });
+  return spawnSync(process.execPath, ["--input-type=module", "-e", code, home, cmd], { encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL", env: safeEnv() });
 }
 
 test("AC-156-4: WHEN procs-index.json is a FIFO or a link to /dev/zero THEN list and the session hooks still finish at once", posix, (t) => {
-  if (spawnSync("mkfifo", ["--help"]).error) return t.skip("no mkfifo here");
+  if (spawnSync("mkfifo", ["--help"], { env: safeEnv() }).error) return t.skip("no mkfifo here");
   const plants = {
-    "a FIFO": (index) => spawnSync("mkfifo", ["-m", "600", index]),
+    "a FIFO": (index) => spawnSync("mkfifo", ["-m", "600", index], { env: safeEnv() }),
     "a link to /dev/zero": (index) => symlinkSync("/dev/zero", index),
   };
   for (const [name, plant] of Object.entries(plants)) {

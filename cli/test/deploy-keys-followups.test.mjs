@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 import { calls, envFiles, fakeBin, fakeEnv, gh, lastLine, PUSH, run, script, SETUP, UNIX } from "./secrets-fakes.mjs";
 import { readCi } from "../../stacks/tanstack-start/scripts/cloudflare/ci-mode.ts";
 import { connect } from "../../stacks/tanstack-start/scripts/connect/run.ts";
@@ -56,8 +56,8 @@ const FIXTURES = [
 function makeRepo({ root, app }) {
   const dir = tmp("onrails-ci-nested-");
   fakeBin(dir);
-  execFileSync("git", ["init", "-q", dir]);
-  execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"]);
+  execFileSync("git", ["init", "-q", dir], { env: safeEnv() });
+  execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"], { env: safeEnv() });
   const providers = join(dir, ".agents", "skills", "secrets", "providers");
   mkdirSync(providers, { recursive: true });
   writeFileSync(join(providers, "demo.md"), DEMO);
