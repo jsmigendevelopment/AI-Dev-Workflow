@@ -1,8 +1,9 @@
 // Where CI runs, from the `ci = "..."` line in docs/stack.md. "actions" only when it says so:
 // every repo is `ci = "local"` unless the person turned GitHub Actions on themselves. On local,
 // setup-cloudflare and connect write nothing to GitHub (decision in docs/decisions.md, #139).
-// The kit's push-secrets.mjs and setup-github.mjs read it with the same rule; the CLI's
-// ci-local-secrets test runs the same cases against both.
+// setup-cloudflare and connect call readCi with the app's folder. The kit's push-secrets.mjs and
+// setup-github.mjs keep their own copy of the rule and the lookup; the CLI's ci-local-secrets and
+// deploy-keys-followups tests run the same cases and nested fixtures on all four (#160).
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 

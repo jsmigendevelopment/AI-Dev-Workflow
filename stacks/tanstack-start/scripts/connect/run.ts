@@ -218,7 +218,8 @@ export async function connect(args: string[], io: Io): Promise<number> {
     folders,
     run,
     repo,
-    secretsMode: readSecretsMode(run, repo, readCi(folders.root)),
+    // From the app's folder, as setup-cloudflare: the nearest docs/stack.md up to the root (#160).
+    secretsMode: readSecretsMode(run, repo, readCi(folders.app)),
     secretPrefixes: secretPrefixes(providers),
     platform: io.platform,
     env: io.env,

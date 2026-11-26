@@ -70,7 +70,7 @@ When a step adds a service, it adds its variables here in this format.
       ```
       On a Cloudflare stack, add `--wrangler`. On `ci = "local"` (`docs/stack.md`) it writes nothing to GitHub, so without `--wrangler` it pushes nothing.
    4. Show the list and ask *"Push these?"* On a yes, run it again without `--dry-run`.
-   5. Read its last line. Only `Every value is stored somewhere.` lets you offer to delete `.env.production.local`. `Stored nowhere: ...` names each value no place took (on `ci = "local"` without `--wrangler`, every one; a plain variable even with it): keep the file, tell the person those names, and where each belongs (a plain variable goes in `wrangler.jsonc` vars). On Full automation the offer stays a no while any name is stored nowhere.
+   5. Read its last line and its exit code. Only `Every value is stored somewhere.` with exit code 0 lets you offer to delete `.env.production.local`. `Stored nowhere: ...` names each value no place took (on `ci = "local"` without `--wrangler`, every one; a plain variable even with it): keep the file, tell the person those names, and where each belongs (a plain variable goes in `wrangler.jsonc` vars). `Not stored everywhere (a destination FAILED above): ...` names each value one place took and another refused (GitHub yes, the Worker no). A non-zero exit means a destination failed, whatever the last line says: keep the file, fix the `FAILED` line's cause and run it again. On Full automation the offer stays a no while any value is unstored or the exit code isn't 0.
 
 6. **Check it works.** Start the app. A missing variable fails at startup with its name (the pack's env schema does this). Then report which variables are set where, by name only.
 
