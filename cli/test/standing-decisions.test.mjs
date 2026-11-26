@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const AGENTS = ["AGENTS.md", "cli/kit/files/core/AGENTS.md", "plugin/cli/kit/files/core/AGENTS.md"];
+const NAMING_ROW = "lifts only the repeated asks: one 🛑 that cites the row and pings once";
 const ALWAYS_STOP = "**Never an always-stop item.** No row lifts one, at any level, Full included: the person gives the go-ahead for it themselves.";
 
 /** Rule 16 and its bullets, from an AGENTS.md text. */
@@ -48,9 +49,10 @@ test("#143 item 1: rule 16 says recorded decisions outrank a skill's gate, in ev
   for (const file of AGENTS) {
     const text = read(file);
     assert.match(text, /^16\. \*\*The person's recorded decisions outrank a skill's default gate\.\*\* A gate is a wait for permission or a choice\..*search `docs\/decisions\.md` and `docs\/stack\.md` for a standing answer \(`ask`, step 0\)\..*`Covered by decision <n>`/m, file);
-    // #159 round 2, must 2, option (a): a row never lifts an always-stop item; a row that names one lifts only the wait.
+    // #159 round 2, must 2, option (a), and round 3, must 2: a row never lifts an always-stop item; a row that names one
+    // lifts only the repeated asks, and it stays one 🛑 that pings.
     assert.ok(rule16(text).includes(ALWAYS_STOP), `${file}: no row lifts an always-stop item`);
-    assert.ok(rule16(text).includes('A row that names the item ("deploy to production after the checks pass") lifts only the wait: one wait-free ⏳ record that cites the row'), `${file}: a naming row lifts only the wait`);
+    assert.ok(rule16(text).includes(`A row that names the item ("deploy to production after the checks pass") ${NAMING_ROW}.`), `${file}: a naming row lifts only the repeated asks`);
     assert.ok(rule16(text).includes("No agent decides it in the person's place, on Full either."), `${file}: not on Full either`);
     assert.doesNotMatch(rule16(text), /needs a row that names it before you go ahead/, `${file}: a naming row is no go-ahead`);
     // AGENTS.md agrees with itself: the always-stop list and the Full section still park these items.
@@ -60,9 +62,9 @@ test("#143 item 1: rule 16 says recorded decisions outrank a skill's gate, in ev
     assert.deepEqual(rules, rules.map((_, i) => i + 1), `${file}: rules numbered 1 to ${rules.length}, each once`);
   }
   assert.ok(step0().includes("**An item on the always-stop list** is never lifted by a row, at any level, Full included: the person gives the go-ahead for it themselves."), "ask step 0");
-  assert.match(step0(), /A row that names it \("deploy to production after the checks pass"\) lifts only the wait\. Then it is one wait-free ⏳ record, not a 🛑 blocker, unless it is also harm/, "ask step 0 says what a naming row does");
-  assert.match(humanGate(), /waits for the person's own go-ahead at every level, Full included: no row lifts it \(rule 16\)\. A row that names the item lifts only the wait/, "coordinate step 6.5");
-  assert.match(read(".agents/skills/automation/references/full.md"), /A decision row that names one of these doesn't lift it: the row lifts only the wait/, "full.md");
+  assert.ok(step0().includes('A row that names it ("deploy to production after the checks pass") lifts only the repeated asks. Then it is one 🛑 that cites the row and pings once'), "ask step 0 says what a naming row does");
+  assert.ok(humanGate().includes(`waits for the person's own go-ahead at every level, Full included: no row lifts it (rule 16). A row that names the item ${NAMING_ROW}.`), "coordinate step 6.5");
+  assert.ok(read(".agents/skills/automation/references/full.md").includes(`A decision row that names one of these doesn't lift it: the row ${NAMING_ROW}, and the person still gives the go-ahead themselves`), "full.md");
 });
 
 test("#143 item 2: ask's step 0 searches decisions.md and stack.md before any ask, and cites the row", () => {
@@ -161,35 +163,97 @@ test("#159 must 4: a row lifts a wait for permission or a choice, never a report
   assert.match(step0(), /A gate is a wait for permission or a choice/);
 });
 
-test("#159 nice 4: coordinate's human gate says no row lifts an always-stop item, and a naming row lifts only the wait", () => {
-  assert.match(humanGate(), /A change that touches an always-stop item \(real data, production\) waits for the person's own go-ahead at every level, Full included: no row lifts it \(rule 16\)\. A row that names the item lifts only the wait: one wait-free ⏳ record that cites the row, not a 🛑, with no repeated asks\./);
+test("#159 nice 4: coordinate's human gate says no row lifts an always-stop item, and a naming row lifts only the repeated asks", () => {
+  assert.ok(humanGate().includes(`A change that touches an always-stop item (real data, production) waits for the person's own go-ahead at every level, Full included: no row lifts it (rule 16). A row that names the item ${NAMING_ROW}.`));
   assert.doesNotMatch(humanGate(), /still needs a row that names it/);
 });
 
+test("#159 round 3 must 2: an always-stop item with a naming row is one 🛑 that pings once, the same in every place; no place calls it a ⏳", () => {
+  const changelog = read("CHANGELOG.md").split("\n").find((l) => l.includes("(#143).**")) ?? "";
+  const places = { "ask step 0": step0(), "coordinate step 6.5": humanGate(), "full.md": read(".agents/skills/automation/references/full.md"),
+    "row 41": row("Rule 16"), "row 42": row("What a person's row lifts"), "the CHANGELOG line": changelog };
+  for (const file of AGENTS) places[`${file}: rule 16`] = rule16(read(file));
+  for (const [name, text] of Object.entries(places)) {
+    assert.ok(text.length > 0, `${name} found`);
+    assert.doesNotMatch(text, /wait-free|⏳ record|not a 🛑|naming row[^.]*⏳|names (?:it|one|the item)[^.]*lifts only the wait\b/, `${name}: a naming row is a 🛑, never a ⏳`);
+  }
+  for (const name of ["ask step 0", "coordinate step 6.5", "full.md", "row 42", "the CHANGELOG line"]) assert.match(places[name], /one 🛑 that cites (?:the row|it) and pings once/, name);
+  // The harm rule holds as written: an always-stop 🛑 always pings, whatever the rows say.
+  for (const file of AGENTS) assert.ok(rule16(read(file)).includes(HARM), file);
+  assert.ok(step0().includes(HARM), "ask step 0");
+  assert.doesNotMatch(step0(), /unless it is also harm/, "ask step 0 has no case where an always-stop item doesn't ping");
+});
+
 // The owner, 2026-11-26: "there is no such thing as a human approved label, we are in full automation. nothing needs
-// human approval". So no skill text asks the person for `human-approved` or any approval unless it says below Full.
-// The exceptions are the owner's standing ones: the always-stop list and the person's own logins, plus the lines
-// that define the Full override itself.
-const ASKS_APPROVAL = /`human-approved`|yes, merge|\bask(?:s|ing)? (?:the person|them|you)\b[^.]*\b(?:approv|review|yes\b|go-ahead|sign-off)|\bwait(?:s|ing)? for (?:their |the person.s |a |an |any )?(?:approv|yes\b|go-ahead|sign-off)|\badd the (?:`human-approved` )?label\b/i;
+// human approval". So no skill text asks the person for `human-approved` or any approval unless the same sentence
+// says below Full. The exceptions are the owner's standing ones: paying, the person's own logins and the always-stop
+// list, plus the lines that define the Full override itself.
+const WHO = "(?:the person|the owner|them|you)";
+const ASKS_APPROVAL = new RegExp([
+  "`human-approved`", "yes, merge", "\\badd the (?:`human-approved` )?label\\b",
+  `\\bask(?:s|ing)? ${WHO}\\b[^.]*(?:\\b(?:approv|review|yes\\b|go-ahead|sign[- ]?off)|before merg|\\b(?:open|try) it\\b)`,
+  "\\bwait(?:s|ing)? (?:for|on) (?:their |the person.s |the owner.s |your |a |an |any )?(?:approv|yes\\b|go-ahead|sign[- ]?off|ok\\b|okay\\b)",
+  "^(?:that|this|it) needs the person\\b(?![:'’])", "\\bneeds (?:the person.s|the owner.s|their|your) (?:approv|yes\\b|go\\b|go-ahead|sign[- ]?off|ok\\b)",
+  "\\b(?:the person|the owner) merges\\b", "\\bmerge it yourself\\b",
+  "\\bget (?:a|their|your|the person.s|the owner.s) (?:yes|ok|okay|approval|go-ahead|sign[- ]?off)\\b",
+  "\\buntil (?:they|the person|the owner|you) says? (?:yes|go|ok)\\b", "\\bsign(?:s|ed)?[- ]?off\\b",
+].join("|"), "i");
 const BELOW_FULL = /\bnever ask\b|\bbelow Full\b|\bnot on Full\b|\bno(?:t)? (?:`human-approved` )?label on Full|On Full,? (?:the `human-approved` label doesn't|the label doesn't|there's no label|no person)/i;
+/** The sentences of a line that ask for an approval with no below-Full condition in that same sentence. */
+const unconditionalAsks = (line) => line.split(/(?<=[.!?]["'’)\]*_`]*)\s+/).map((s) => s.trim()).filter((s) => ASKS_APPROVAL.test(s) && !BELOW_FULL.test(s));
 const ALLOWED = [
+  ["AGENTS.md", "An instruction to ask, wait, confirm, offer or wait for a yes becomes:", "the Full override itself"],
   [".agents/skills/automation/SKILL.md", "a skill says to ask, wait, confirm, offer or wait for a yes", "points to the Full override"],
   [".agents/skills/automation/references/full.md", "to **ask, wait, confirm, offer, or wait for approval or a yes** becomes:", "the Full override itself"],
+  [".agents/skills/stack-tanstack-start/SKILL.md", "nobody sees the app on the real address until they say go live", "going public: always-stop"],
   [".agents/skills/stack-tanstack-start/SKILL.md", "Put a Cloudflare sign-in in front of <all of production", "production settings: always-stop"],
   [".agents/skills/stack-tanstack-start/SKILL.md", "Going live makes the app public", "going public: always-stop"],
   [".agents/skills/stack-tanstack-start/references/cloudflare-agent-setup.md", "Codex's sandbox asks the person to approve each one", "the tool's own sandbox prompt, not the agent"],
   [".agents/skills/test-by-hand-as-the-user/SKILL.md", "In the person's own browser or accounts, ask first.", "the person's own logins; parked on Full"],
+  [".agents/skills/web-security/SKILL.md", "Changing a dashboard or account setting needs the person's approval of the exact change.", "production settings in their own accounts: always-stop"],
+  ["stacks/tanstack-start/README.md", "until the person says go live", "going public: always-stop"],
+  ["stacks/electron-desktop/PACK.md", "signing off until the person says yes", "code signing needs a paid certificate: paying"],
 ];
 const mdFiles = (dir) => readdirSync(fileURLToPath(new URL(`../../${dir}`, import.meta.url)), { recursive: true }).filter((f) => f.endsWith(".md")).map((f) => `${dir}/${f.replaceAll("\\", "/")}`);
 
-test("#159 round 2, the owner's words: no skill, template or reference asks for human-approved or any approval without a below-Full condition", () => {
+test("#159 round 3 must 1: pr-review's item 8 and the Expo device check keep the person below Full only; on Full the agent decides and records the gap", () => {
+  const item8 = read(".agents/skills/pr-review/SKILL.md").match(/^8\. \*\*Instruction files:\*\*.*$/m)?.[0] ?? "";
+  assert.match(item8, /Below Full, that needs the person\. On Full, the code review and the local guard decide it/);
+  const expo = read(".agents/skills/stack-monorepo-expo/SKILL.md").split("## What an agent can't verify")[1] ?? "";
+  assert.match(expo, /Below Full, ask the person to open it in Expo Go or a preview build/);
+  assert.match(expo, /below Full, ask the person to run the Maestro flows on a simulator/);
+  assert.match(expo, /\*\*On Full,\*\* run the Maestro flows yourself where a simulator or emulator is available\. None\? Record the gap on the pull request \(what no device checked\) as "AI pick, not reviewed", merge on the reviews, and add a "try it on a device" line to the FYI\./);
+  assert.match(read("stacks/monorepo-expo/README.md"), /Below Full, the agent asks the person to try it on a device before merge\. On Full, it runs the Maestro flows itself where a simulator is available; with none, it records the gap on the pull request, merges on the reviews and adds a "try it on a device" line to its FYI\./);
+});
+
+test("#159 round 3 nice 2 and 3: row 40 keeps the owner's exact words and says #104 carries the review-cap change", () => {
+  const r40 = read("docs/decisions.md").split("\n").find((l) => l.includes("Full automation means full automation.")) ?? "";
+  assert.ok(r40.includes('"full automation means full automation. i don\'t want to go afk and come back to a stopped ai with issues remaining for any reason"'), "first quote, exact");
+  assert.ok(r40.includes('"there is no such thing as a human approved label, we are in full automation. nothing needs human approval"'), "second quote, exact");
+  assert.match(r40, /This change records the rule\. #104, in the Now milestone, carries the review-cap change in `coordinate` step 6\./);
+  assert.match(r40, /\| person \|$/);
+});
+
+test("#159 round 3 must 1 and nice 1: the scan catches every phrasing the review listed, one sentence at a time", () => {
+  const phrasings = ["That needs the person.", "Ask the person to check it on a device before merge.", "The person merges it.", "Then wait for their OK.",
+    "Get a yes before merging.", "Ask the owner to approve.", "Wait until they say go.", "Revise until they say yes.", "Get the person's sign off.",
+    "Merge it yourself.", "Ask the person to open it in Expo Go.", "It needs the person's go."];
+  for (const s of phrasings) assert.deepEqual(unconditionalAsks(s), [s], s);
+  // The condition counts only in the sentence that asks: a long line can't hide an ask behind another sentence's "below Full".
+  assert.deepEqual(unconditionalAsks("Below Full, the person adds the label. Then wait for their OK."), ["Then wait for their OK."]);
+  assert.deepEqual(unconditionalAsks("**Below Full, revise until they say yes** to the full set."), []);
+  // Not an approval: the person's accounts, a general "what needs the person", a sha you merge.
+  for (const s of ["This needs the person's accounts, so ask.", "Anything that needs the person goes through `ask`.", "Use the sha you merge."]) assert.deepEqual(unconditionalAsks(s), [], s);
+});
+
+test("#159 round 2, the owner's words: no skill, template or reference asks for human-approved or any approval without a below-Full condition in the same sentence", () => {
   const files = ["AGENTS.md", "README.md", ...mdFiles(".agents/skills"), ...mdFiles("guide"), ...mdFiles("stacks")];
   const found = [];
   for (const file of files) {
     read(file).split("\n").forEach((line, i) => {
-      if (!ASKS_APPROVAL.test(line) || BELOW_FULL.test(line)) return;
+      // A named exception is one line, found by its words.
       if (ALLOWED.some(([f, words]) => f === file && line.includes(words))) return;
-      found.push(`${file}:${i + 1}: ${line.trim().slice(0, 120)}`);
+      for (const s of unconditionalAsks(line)) found.push(`${file}:${i + 1}: ${s.slice(0, 120)}`);
     });
   }
   assert.deepEqual(found, [], "ask for human-approved or an approval only below Full, or name the owner's exception");

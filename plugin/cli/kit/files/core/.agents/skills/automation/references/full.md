@@ -24,7 +24,7 @@ Each one is parked, not waited on. Record it under "Waiting on you" in `docs/sta
 - **The rest of the always-stop list:** production settings and secrets, deploying to production, going public.
 - **A running strongest-tier job (#118):** never stop or restart one on your own call, or on a message that only might mean stop (`ask`, "A running job"). Let it finish.
 
-A decision row that names one of these doesn't lift it: the row lifts only the wait, and the person still gives the go-ahead themselves (rule 16 in `AGENTS.md`).
+A decision row that names one of these doesn't lift it: the row lifts only the repeated asks: one 🛑 that cites the row and pings once, and the person still gives the go-ahead themselves (rule 16 in `AGENTS.md`).
 
 ## The weakening review (#103)
 
