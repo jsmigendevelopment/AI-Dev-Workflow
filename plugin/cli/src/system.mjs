@@ -126,8 +126,8 @@ export function realSystem({ projectDir = process.cwd(), platform = process.plat
     home: homedir(),
     env,
   };
-  // Where a command may run from: toolPath's answer for a bare name. has, probe, exec, spawnInteractive and the
-  // process check all use it, so the plan doctor --fix shows and the run can't disagree.
+  // Where a command may run from: toolPath's answer for a bare name. has, probe, exec and doctor's process check
+  // all use it, so the plan doctor --fix shows and the run can't disagree.
   const where = (name) => toolPath(name, sys, projectDir);
   // How argv starts: by full path through launch, with no shell (a .cmd shim through cmd.exe). null when the command
   // is found only where a project could have put it, or launch won't hand its words to cmd.exe.
@@ -153,9 +153,9 @@ export function realSystem({ projectDir = process.cwd(), platform = process.plat
       return { ok: r.status === 0, out: all.split(/\r?\n/)[0] ?? "", all, stdout: (r.stdout ?? "").trim() };
     },
     // Hand the terminal to an interactive program (an agent session) and wait for it to end.
+    // Still by bare name through launch: init --start moves to the search in #215.
     spawnInteractive(argv, { cwd } = {}) {
-      const how = start(argv);
-      if (!how) throw new Error(`Could not start ${argv[0]}: ${where(argv[0]).why ?? "it can't run here"}`);
+      const how = launch(argv, { platform, env });
       const r = run(how.file, how.args, { cwd, env: how.env, stdio: "inherit", windowsVerbatimArguments: how.verbatim });
       if (r.error) throw new Error(`Could not start ${argv[0]}: ${r.error.message}`);
       return r.status ?? 1;
