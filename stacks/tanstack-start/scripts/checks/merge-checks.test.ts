@@ -11,16 +11,28 @@ interface Machine {
   /** `git status --porcelain migrations` after `pnpm db:generate`. */
   newMigration?: string
   files: string[]
+  /** The pnpm on PATH, and the app's package.json. */
+  pnpm: string
+  packageJson: string
 }
 
 function machine(over: Partial<Machine> = {}) {
-  const m: Machine = { tools: [], failing: [], files: [], ...over }
+  const m: Machine = {
+    tools: [],
+    failing: [],
+    files: [],
+    pnpm: '12.21.0',
+    packageJson: '{ "packageManager": "pnpm@12.21.0" }',
+    ...over,
+  }
   const calls: string[] = []
+  const removed: string[] = []
   const ok = (stdout = ''): CommandResult => ({ status: 0, stdout, stderr: '' })
   const deps: CheckDeps = {
     run(cmd, args) {
       const line = `${cmd} ${args.join(' ')}`
       calls.push(line)
+      if (line === 'pnpm --version') return Promise.resolve(ok(`${m.pnpm}\n`))
       if (args[0] === '--version' || line === 'docker info')
         return Promise.resolve(m.tools.includes(cmd) ? ok() : { status: 1, stdout: '', stderr: 'not found' })
       if (m.failing.includes(line))
@@ -29,15 +41,18 @@ function machine(over: Partial<Machine> = {}) {
       return Promise.resolve(ok())
     },
     exists: (path) => m.files.includes(path),
+    read: (path) => (path === '/app/package.json' ? m.packageJson : undefined),
+    tempDir: () => '/tmp/scan-1',
+    remove: (path) => void removed.push(path),
   }
-  return { deps, calls }
+  return { deps, calls, removed }
 }
 
 async function report(over: Partial<Machine> = {}) {
-  const { deps, calls } = machine(over)
+  const { deps, calls, removed } = machine(over)
   const lines: string[] = []
   const code = await runChecks(mergeChecks(deps, '/app', '/repo'), (l) => lines.push(l))
-  return { code, calls, out: lines.join('\n') }
+  return { code, calls, removed, out: lines.join('\n') }
 }
 
 describe('pnpm check:merge', () => {
@@ -62,14 +77,14 @@ describe('pnpm check:merge', () => {
 
   it('uses the tools on PATH first, then Docker, for the secret scan, Semgrep and the screenshots', async () => {
     const local = await report({ tools: ['gitleaks', 'semgrep'] })
-    expect(local.calls).toContain('gitleaks detect --no-git --source /repo --redact')
+    expect(local.calls).toContain('gitleaks detect --no-git --source /tmp/scan-1/files --redact')
     expect(local.calls).toContain(
       'semgrep scan --config p/typescript --config p/react --error --metrics=off --exclude e2e',
     )
 
     const docker = await report({ tools: ['docker'] })
     expect(docker.calls).toContain(
-      'docker run --rm -v /repo:/repo ghcr.io/gitleaks/gitleaks:v8.18.4 detect --no-git --source /repo --redact',
+      'docker run --rm -v /tmp/scan-1/files:/repo ghcr.io/gitleaks/gitleaks:v8.18.4 detect --no-git --source /repo --redact',
     )
     expect(docker.calls).toContainEqual(
       expect.stringMatching(
@@ -101,5 +116,46 @@ describe('pnpm check:merge', () => {
       'node /repo/.agents/skills/research/scripts/check-research.mjs docs/research --base origin/main',
     )
     expect(out).toContain('pass  docs/research')
+  })
+
+  it('AC-150-5: WHEN the secret scan runs THEN it scans a copy of what git tracks at HEAD, never the checkout’s git-ignored files', async () => {
+    for (const tools of [['gitleaks'], ['docker']]) {
+      const { code, calls, removed } = await report({ tools })
+      expect(code).toBe(0)
+      const archive = calls.indexOf(
+        'git -C /repo archive --format=tar --prefix=files/ -o /tmp/scan-1/tracked.tar HEAD',
+      )
+      const extract = calls.indexOf('tar -xf /tmp/scan-1/tracked.tar -C /tmp/scan-1')
+      const scan = calls.findIndex((c) => c.includes('detect --no-git'))
+      expect(archive).toBeGreaterThan(-1)
+      expect(archive).toBeLessThan(extract)
+      expect(extract).toBeLessThan(scan)
+      expect(calls.join('\n')).not.toContain('-v /repo:/repo')
+      expect(calls.filter((c) => c.startsWith('gitleaks detect'))).not.toContain(
+        'gitleaks detect --no-git --source /repo --redact',
+      )
+      expect(removed).toEqual(['/tmp/scan-1'])
+    }
+  })
+
+  it('AC-150-5: WHEN git can’t copy the tracked files THEN the secret scan fails and scans nothing', async () => {
+    const failing = ['git -C /repo archive --format=tar --prefix=files/ -o /tmp/scan-1/tracked.tar HEAD']
+    const { code, calls, removed, out } = await report({ tools: ['gitleaks'], failing })
+    expect(code).toBe(1)
+    expect(out).toContain('fail  secret scan (gitleaks)')
+    expect(calls.filter((c) => c.startsWith('gitleaks detect'))).toEqual([])
+    expect(removed).toEqual(['/tmp/scan-1'])
+  })
+
+  it('AC-150-8: WHEN the pnpm on PATH isn’t the version package.json pins THEN check:merge fails and says how to fix it', async () => {
+    const { code, out } = await report({ pnpm: '10.28.0' })
+    expect(code).toBe(1)
+    expect(out).toContain('fail  the pnpm package.json pins')
+    expect(out).toContain('pnpm 10.28.0 is first on PATH, and package.json pins pnpm@12.21.0')
+  })
+
+  it('AC-150-8: WHEN the pnpm on PATH is the pinned one THEN that check passes', async () => {
+    const { out } = await report()
+    expect(out).toContain('pass  the pnpm package.json pins')
   })
 })

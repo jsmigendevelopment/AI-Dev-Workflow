@@ -6,10 +6,12 @@
 // A protected site's smoke test reads TEST_CF_ACCESS_CLIENT_ID and TEST_CF_ACCESS_CLIENT_SECRET
 // (or TEST_SITE_PASSWORD), and PRODUCTION_ ones for production, from the shell or
 // .env.cloudflare.local (git-ignored). They go only to the child that runs the smoke test. The
-// deploy output is masked: every secret value the script can see prints as ***.
+// deploy output is masked: every secret value the script can see prints as ***. One deploy of each
+// kind runs at a time, and only with the pnpm package.json pins.
 // The logic and its tests are in scripts/deploy/.
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 
 import { localEntries, localValue } from './cloudflare/local-env.ts'
 import type { ChildEnv, DeployDeps } from './deploy/deps.ts'
@@ -39,6 +41,28 @@ async function status(url: string, headers: Record<string, string>) {
   }
 }
 
+/** Writes a new file; false when it exists already (the deploy lock). */
+function create(path: string, text: string) {
+  mkdirSync(dirname(path), { recursive: true })
+  try {
+    writeFileSync(path, text, { flag: 'wx' })
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false
+    throw error
+  }
+}
+
+/** Signal 0 checks a process exists without touching it. EPERM: it exists, under another user. */
+function alive(pid: number) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
 const deps: DeployDeps = {
   run,
   wrangler: (args, env) => run('pnpm', ['exec', 'wrangler', ...args], env),
@@ -48,6 +72,9 @@ const deps: DeployDeps = {
   readText: (path) => readFileSync(path, 'utf8'),
   exists: existsSync,
   remove: (path) => rmSync(path, { force: true }),
+  create,
+  alive,
+  pid: process.pid,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log: (line) => console.log(line),
 }

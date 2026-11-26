@@ -4,10 +4,11 @@
 // test database and test keys, never production's, and never migrates. One comment on the pull
 // request holds the link, updated on each run. Skipped for forks and the `lane:tiny` label. Only from
 // the pull request's exact head commit with no uncommitted changes, after an install from the
-// lockfile. The deploy output is masked.
+// lockfile. One preview of each pull request at a time (lock.ts). The deploy output is masked.
 import { gateHeaders } from '../../e2e/gate-headers.ts'
 import { workerExists } from '../cloudflare/first-deploy.ts'
 import type { DeployDeps } from './deps.ts'
+import { oneAtATime } from './lock.ts'
 import {
   clearRedirect,
   environment,
@@ -102,7 +103,6 @@ async function postComment(deps: DeployDeps, pr: string, body: string) {
 }
 
 async function preview(deps: DeployDeps, pr: string) {
-  if (!/^\d+$/.test(pr)) throw new Stop('give the pull request number: pnpm deploy:preview <n>')
   const info = await readPullRequest(deps, pr)
   if (info.head.repo?.full_name !== info.base.repo.full_name)
     return deps.log(`Skipped: #${pr} comes from a fork, and a preview would run its code with the test keys.`)
@@ -149,4 +149,9 @@ async function preview(deps: DeployDeps, pr: string) {
   }
 }
 
-export const deployPreview = (deps: DeployDeps, pr: string) => masking(deps, (masked) => preview(masked, pr))
+export async function deployPreview(deps: DeployDeps, pr: string) {
+  if (!/^\d+$/.test(pr)) throw new Stop('give the pull request number: pnpm deploy:preview <n>')
+  return masking(deps, (masked) =>
+    oneAtATime(masked, `preview-${pr}`, `pnpm deploy:preview ${pr}`, () => preview(masked, pr)),
+  )
+}

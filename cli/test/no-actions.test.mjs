@@ -79,7 +79,7 @@ const FAKE_GH = `#!/usr/bin/env node
 const fs = require("fs");
 const argv = process.argv.slice(2);
 let stdin = "";
-try { stdin = fs.readFileSync(0, "utf8"); } catch {}
+try { stdin = fs.readFileSync(0, "utf8"); } catch { /* no stdin to read (closed, or a terminal that would block): the call had no input */ }
 fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ argv, stdin }) + "\\n");
 const say = (text) => { process.stdout.write(text); process.exit(0); };
 const path = argv.find((a) => a.startsWith("repos/")) || "";

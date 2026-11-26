@@ -3,10 +3,17 @@
 // `pnpm check`, which leaves the build the budgets read. A check that can't run here (no Docker, no
 // docs/research) is skipped with the reason, never passed: the gate's comment lists the skips.
 import type { CommandResult } from '../cloudflare/deps.ts'
+import { pnpmProblem } from '../pnpm-pin.ts'
 
 export interface CheckDeps {
   run(cmd: string, args: string[], cwd?: string): Promise<CommandResult>
   exists(path: string): boolean
+  /** A file's text, or undefined when it can't be read. */
+  read(path: string): string | undefined
+  /** A new empty folder for a scratch copy. */
+  tempDir(): string
+  /** Removes a file or folder and everything in it. */
+  remove(path: string): void
 }
 
 type Outcome = { result: 'pass' | 'fail' | 'skip'; note?: string }
@@ -82,15 +89,47 @@ const research = (deps: CheckDeps, root: string): Check => ({
   },
 })
 
+const pinnedPnpm = (deps: CheckDeps, app: string, root: string): Check => ({
+  name: 'the pnpm package.json pins',
+  async run() {
+    const version = await deps.run('pnpm', ['--version'])
+    const onPath = version.status === 0 ? version.stdout : ''
+    const problem =
+      pnpmProblem(deps.read(`${app}/package.json`), onPath) ??
+      pnpmProblem(deps.read(`${root}/package.json`), onPath)
+    return problem ? { result: 'fail', note: problem } : { result: 'pass' }
+  },
+})
+
+/** gitleaks over `files`, with the tool on PATH or in Docker. */
+async function gitleaks(deps: CheckDeps, how: 'local' | 'docker', files: string): Promise<Outcome> {
+  const args = ['detect', '--no-git', '--source', how === 'docker' ? '/repo' : files, '--redact']
+  if (how === 'local') return outcome(await deps.run('gitleaks', args))
+  return outcome(await deps.run('docker', ['run', '--rm', '-v', `${files}:/repo`, GITLEAKS, ...args]))
+}
+
+/**
+ * Scans a copy of what git tracks at HEAD, not the checkout: in a dev checkout the git-ignored
+ * .env.local, .dev.vars and .env.cloudflare.local hold the person's own keys, and would fail it.
+ */
 const secretScan = (deps: CheckDeps, root: string): Check => ({
   name: 'secret scan (gitleaks)',
   async run() {
     const how = await tool(deps, 'gitleaks')
-    const args = ['detect', '--no-git', '--source', how === 'docker' ? '/repo' : root, '--redact']
-    if (how === 'local') return outcome(await deps.run('gitleaks', args))
-    if (how === 'docker')
-      return outcome(await deps.run('docker', ['run', '--rm', '-v', `${root}:/repo`, GITLEAKS, ...args]))
-    return { result: 'skip', note: 'needs gitleaks or Docker' }
+    if (!how) return { result: 'skip', note: 'needs gitleaks or Docker' }
+    const tree = deps.tempDir()
+    try {
+      const tar = `${tree}/tracked.tar`
+      const copied = outcome(
+        await deps.run('git', ['-C', root, 'archive', '--format=tar', '--prefix=files/', '-o', tar, 'HEAD']),
+      )
+      if (copied.result === 'fail') return copied
+      const extracted = outcome(await deps.run('tar', ['-xf', tar, '-C', tree]))
+      if (extracted.result === 'fail') return extracted
+      return await gitleaks(deps, how, `${tree}/files`)
+    } finally {
+      deps.remove(tree)
+    }
   },
 })
 
@@ -131,6 +170,7 @@ const screenshots = (deps: CheckDeps): Check => ({
 
 /** The checks, in order. `app` is this app's folder; `root` the git root (the monorepo's for apps/web). */
 export const mergeChecks = (deps: CheckDeps, app: string, root: string): Check[] => [
+  pinnedPnpm(deps, app, root),
   command(deps, 'bundle budgets (after pnpm check)', 'pnpm', ['check:budgets']),
   migrationsMatch(deps),
   command(deps, 'no high or critical advisories', 'pnpm', ['audit', '--audit-level=high']),

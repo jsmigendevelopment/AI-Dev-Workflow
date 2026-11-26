@@ -19,6 +19,12 @@ export interface DeployDeps {
   readText(path: string): string
   exists(path: string): boolean
   remove(path: string): void
+  /** Creates a file only if it doesn't exist yet (its folder too). False when it already exists. */
+  create(path: string, text: string): boolean
+  /** Whether a process with this PID is still running on this machine. */
+  alive(pid: number): boolean
+  /** This process's PID. */
+  pid: number
   sleep(ms: number): Promise<void>
   log(line: string): void
 }

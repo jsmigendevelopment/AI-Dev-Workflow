@@ -18,6 +18,8 @@ export interface DockerRun {
   gitFolder: boolean
   /** What runs after `pnpm` in the app's folder. */
   command: string[]
+  /** The host's `uid:gid`, when it isn't root: what the run writes is handed back to it. */
+  owner?: string
 }
 
 const quote = (a: string) => `'${a.replaceAll("'", `'\\''`)}'`
@@ -27,7 +29,11 @@ const inside = (path: string) => posix.join('/work', path)
 export function dockerArgs(run: DockerRun): string[] {
   const folders = [...new Set(['', run.app, ...run.packages])]
   const volumes = folders.flatMap((folder) => ['-v', inside(posix.join(folder, 'node_modules'))])
-  const script = `npm install -g ${PNPM} && pnpm --dir /work install --frozen-lockfile && pnpm ${run.command.map(quote).join(' ')}`
+  const tests = `npm install -g ${PNPM} && pnpm --dir /work install --frozen-lockfile && pnpm ${run.command.map(quote).join(' ')}`
+  // The container runs as root, so dist/, .wrangler/, test-results/ and new baselines would be
+  // root's on a Linux host, and the next build there couldn't clean them. Keep the tests' status.
+  const giveBack = `find /work \\( -path '*/node_modules' -o -path /work/.git \\) -prune -o -user 0 -exec chown -h ${run.owner} {} +`
+  const script = run.owner ? `${tests}; status=$?; ${giveBack}; exit $status` : tests
   return [
     'run',
     '--rm',

@@ -29,6 +29,14 @@ export interface Place {
   crashing?: string
   /** What `wrangler deploy` prints. */
   deployPrints: string
+  /** `wrangler deploy` makes the new version live, then fails setting routes, as wrangler 4.164 can. */
+  partWay: boolean
+  /** The newest deployment's message (`wrangler deployments list`); none listed when undefined. */
+  live?: string
+  /** The pnpm on PATH (`pnpm --version`). */
+  pnpm: string
+  /** PIDs of the processes still running. */
+  running: number[]
   /** What a failing or crashing command also prints, as a tool that echoes its environment would. */
   echo: string
   smokePasses: boolean
@@ -36,6 +44,8 @@ export interface Place {
   answers: number[]
   /** Values in the shell or .env.cloudflare.local. */
   local: Record<string, string>
+  /** What `known()` lists, when it isn't `local` (the names masking sees). */
+  listed?: [string, string][]
   files: Record<string, string>
 }
 
@@ -50,11 +60,15 @@ export const freshPlace = (over: Partial<Place> = {}): Place => ({
   migrations: [],
   workers: ['app-test', 'app-production'],
   deployPrints: 'Uploaded\nDeployed triggers\n  https://app-x.ann.workers.dev\n',
+  partWay: false,
+  live: 'main 0000000',
+  pnpm: '12.21.0',
+  running: [],
   echo: '',
   smokePasses: true,
   answers: [200],
   local: {},
-  files: { 'wrangler.jsonc': PACK_CONFIG },
+  files: { 'wrangler.jsonc': PACK_CONFIG, 'package.json': '{ "packageManager": "pnpm@12.21.0" }' },
   ...over,
 })
 
@@ -116,6 +130,7 @@ function github(place: Place, args: string[]): CommandResult {
 function checkout(place: Place, args: string[]): CommandResult {
   if (args[0] === 'rev-parse') {
     if (args.includes('--abbrev-ref')) return ok(`${place.branch}\n`)
+    if (args.includes('--git-common-dir')) return ok('.git\n')
     return ok(`${args.includes('refs/remotes/origin/main') ? place.remoteMain : place.head}\n`)
   }
   if (args[0] === 'merge-base') return place.localOnly ? fail('') : ok()
@@ -135,9 +150,30 @@ function wrangler(place: Place, args: string[]): CommandResult {
       `Uploaded app-test\nVersion Preview URL: https://v1-app-test.ann.workers.dev\nAlias URL: https://${args[3]}-app-test.ann.workers.dev\n`,
     )
   if (cmd.startsWith('d1 time-travel info')) return ok('⛅️ wrangler\n{\n  "bookmark": "bm-42"\n}')
-  if (args[0] === 'deploy') return ok(place.deployPrints)
-  return ok()
+  if (args[0] === 'deployments' && args[1] === 'list') return ok(deployments(place.live))
+  const message = args[args.indexOf('--message') + 1]
+  if (args[0] === 'rollback') place.live = message
+  if (args[0] !== 'deploy') return ok()
+  place.live = message
+  return place.partWay
+    ? fail('Uploaded app\n✘ [ERROR] A request to the Cloudflare API (/zones/z1/workers/routes) failed.')
+    : ok(place.deployPrints)
 }
+
+/** `wrangler deployments list --json`: an older deployment, and `live` as the newest, out of order. */
+const deployments = (live?: string) =>
+  JSON.stringify(
+    live === undefined
+      ? []
+      : [
+          { id: 'd2', created_on: '2026-11-02T10:00:00Z', annotations: { 'workers/message': live } },
+          {
+            id: 'd1',
+            created_on: '2026-11-01T10:00:00Z',
+            annotations: { 'workers/message': 'main 9999999' },
+          },
+        ],
+  )
 
 /** Fakes for git, gh, pnpm, wrangler, the site and the files, over one mutable place. */
 export function fakes(place: Place) {
@@ -161,6 +197,7 @@ export function fakes(place: Place) {
       if (out) return out
       if (cmd === 'gh') return Promise.resolve(github(place, args))
       if (cmd === 'git') return Promise.resolve(checkout(place, args))
+      if (cmd === 'pnpm' && args[0] === '--version') return Promise.resolve(ok(`${place.pnpm}\n`))
       if (cmd === 'pnpm' && args[0] === 'build') place.files['.wrangler/deploy/config.json'] = '{}'
       if (cmd === 'pnpm' && args[0]?.startsWith('test:'))
         return Promise.resolve(place.smokePasses ? ok('12 passed') : smokeFailed(env))
@@ -176,10 +213,17 @@ export function fakes(place: Place) {
       return Promise.resolve(place.answers[Math.min(tries.length, place.answers.length) - 1]!)
     },
     local: (name) => place.local[name],
-    known: () => Object.entries(place.local),
+    known: () => place.listed ?? Object.entries(place.local),
     readText: (path) => place.files[path]!,
     exists: (path) => path in place.files,
     remove: (path) => void delete place.files[path],
+    create(path, text) {
+      if (path in place.files) return false
+      place.files[path] = text
+      return true
+    },
+    alive: (pid) => place.running.includes(pid),
+    pid: 4242,
     sleep: () => Promise.resolve(),
     log: (l) => void lines.push(l),
   }

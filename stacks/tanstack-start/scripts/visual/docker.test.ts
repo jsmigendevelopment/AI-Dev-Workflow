@@ -37,4 +37,23 @@ describe('pnpm test:visual --docker', () => {
     const args = dockerArgs({ root: '/gate', app: '', packages: [''], gitFolder: false, command })
     expect(pair(args, '-v')).toEqual(['/gate:/work', '/work/node_modules'])
   })
+
+  it('AC-150-6: WHEN the host user isn’t root THEN the files the run writes are handed back to them, and the tests’ exit status is kept', () => {
+    const args = dockerArgs({
+      root: '/app',
+      app: '',
+      packages: [''],
+      gitFolder: true,
+      command,
+      owner: '1000:1000',
+    })
+    const script = args.at(-1)!
+    expect(script).toMatch(
+      /^npm install -g pnpm@12\.21\.0 && .* && pnpm 'exec' 'playwright' 'test' '--project=visual-desktop'; status=\$\?; /,
+    )
+    expect(script).toContain(
+      "find /work \\( -path '*/node_modules' -o -path /work/.git \\) -prune -o -user 0 -exec chown -h 1000:1000 {} +",
+    )
+    expect(script).toMatch(/; exit \$status$/)
+  })
 })
