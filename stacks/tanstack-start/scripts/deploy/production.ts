@@ -1,9 +1,10 @@
 // `pnpm deploy:production --confirm "deploy production"`: main to production. Production is on the
 // always-stop list: run it only after the person's yes. Without the typed confirmation it only says
-// what it would do. Order: build (with SITE_URL), a D1 Time Travel bookmark (the restore point),
-// migrate, deploy, smoke test. Any failure after the deploy (no URL, a failed smoke test, a crash)
-// puts the previous version back and prints the command that would restore the data. Restoring data
-// is never automatic: it is the person's call. The deploy output is masked.
+// what it would do. Order: install from the lockfile, build (with SITE_URL), a D1 Time Travel
+// bookmark (the restore point), migrate, deploy, smoke test. A failed migration or deploy step prints
+// the command that would restore the data. Any failure after the deploy (no URL, a failed smoke test,
+// a crash) also puts the previous version back. Restoring data is never automatic: it is the
+// person's call. The deploy output is masked.
 // Until the person says go live, env.production.vars.LAUNCHED is "false" and the smoke test checks
 // the Coming soon page; once it is "true", the real app.
 import type { DeployDeps } from './deps.ts'
@@ -11,9 +12,11 @@ import {
   afterDeploy,
   clearRedirect,
   environment,
+  failure,
   gateEnv,
   headSha,
   installChromium,
+  installDependencies,
   masking,
   onCleanMain,
   smoke,
@@ -28,12 +31,14 @@ export const CONFIRM = 'deploy production'
 const PRODUCTION = targetEnv('production')
 
 const PLAN = [
+  'install dependencies from the lockfile (pnpm install --frozen-lockfile)',
   'build main with CLOUDFLARE_ENV=production and SITE_URL',
   'take a D1 Time Travel bookmark (refuses to migrate without one)',
   'apply the D1 migrations to production',
   'deploy the production Worker',
   'smoke test it on workers.dev: the Coming soon page until LAUNCHED is "true", then the app',
-  'on any failure after the deploy: roll the code back and print the restore command (data is the person’s call)',
+  'on a failed migration or deploy: print the restore command (data is the person’s call)',
+  'on any failure after the deploy: also roll the code back',
 ]
 
 const restore = (bookmark: string) =>
@@ -48,10 +53,28 @@ function bookmarkOf(out: string): string | undefined {
   }
 }
 
+/** How to put the data back to the bookmark. Printed, never run: restoring data is the person's call. */
+const restoreText = (bookmark: string) =>
+  'If a migration damaged the data, the person can restore the database to before this run ' +
+  `(it overwrites every write since; ask first):\n  ${restore(bookmark)}`
+
 /** What a stop after the deploy ends with: the rollback never touches data, and how to restore it. */
-const afterText = (bookmark: string) =>
-  'A rollback puts back code, never data. If a migration damaged the data, the person can restore the ' +
-  `database to before this run (it overwrites every write since; ask first):\n  ${restore(bookmark)}`
+const afterText = (bookmark: string) => `A rollback puts back code, never data. ${restoreText(bookmark)}`
+
+/**
+ * Migrates, then deploys. A stop or crash in either also prints the restore command: a half-applied
+ * migration is when it matters most.
+ */
+async function migrateAndDeploy(deps: DeployDeps, bookmark: string, sha: string) {
+  try {
+    const migrate = ['d1', 'migrations', 'apply', 'DB', '--remote', '-c', 'wrangler.jsonc']
+    await step(deps, 'apply the D1 migrations to production', deps.wrangler(migrate, PRODUCTION))
+    const command = ['deploy', '--message', `production ${sha}`]
+    return await step(deps, 'deploy the production Worker', deps.wrangler(command, PRODUCTION))
+  } catch (error) {
+    throw new Stop(`${failure(error, 'before the deploy finished')}\n\n${restoreText(bookmark)}`)
+  }
+}
 
 async function deploy(deps: DeployDeps, confirm: string | undefined) {
   if (confirm !== CONFIRM) {
@@ -66,6 +89,7 @@ async function deploy(deps: DeployDeps, confirm: string | undefined) {
   const sha = (await headSha(deps)).slice(0, 7)
   const siteUrl = deps.local('SITE_URL')
   if (!siteUrl) deps.log('SITE_URL is not set: canonicals point at localhost and production is sent noindex.')
+  await installDependencies(deps)
   await installChromium(deps)
   try {
     await step(
@@ -80,10 +104,7 @@ async function deploy(deps: DeployDeps, confirm: string | undefined) {
     if (!bookmark)
       throw new Stop('no bookmark: refusing to migrate without a restore point. Nothing was changed.')
     deps.log(`  restore point: ${bookmark}`)
-    const migrate = ['d1', 'migrations', 'apply', 'DB', '--remote', '-c', 'wrangler.jsonc']
-    await step(deps, 'apply the D1 migrations to production', deps.wrangler(migrate, PRODUCTION))
-    const command = ['deploy', '--message', `production ${sha}`]
-    const out = await step(deps, 'deploy the production Worker', deps.wrangler(command, PRODUCTION))
+    const out = await migrateAndDeploy(deps, bookmark, sha)
     const at = { env: PRODUCTION, worker: production.worker, sha, after: afterText(bookmark) }
     await afterDeploy(deps, at, async () => {
       // workers.dev first: it is outside the zone, so Bot Fight Mode never challenges the smoke test.

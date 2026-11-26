@@ -1,8 +1,8 @@
-// `pnpm deploy:test`: main to the test site, run from the session after each merge. Build, migrate
-// the test database, deploy, then the smoke test against the deployed URL. Any failure after the
-// deploy (no URL, a failed smoke test, a crash) puts the previous version back and stops with what
-// to put in a bug issue. The deploy output is masked. The very first test deploy is
-// setup-cloudflare's (the same commands), so the first pull request has a Worker to preview on.
+// `pnpm deploy:test`: main to the test site, run from the session after each merge. Install from the
+// lockfile, build, migrate the test database, deploy, then the smoke test against the deployed URL.
+// Any failure after the deploy (no URL, a failed smoke test, a crash) puts the previous version back
+// and stops with what to put in a bug issue. The deploy output is masked. The very first test deploy
+// is setup-cloudflare's (the same commands), so the first pull request has a Worker to preview on.
 import type { DeployDeps } from './deps.ts'
 import {
   afterDeploy,
@@ -11,6 +11,7 @@ import {
   gateEnv,
   headSha,
   installChromium,
+  installDependencies,
   masking,
   onCleanMain,
   smoke,
@@ -30,6 +31,7 @@ async function deploy(deps: DeployDeps) {
   const test = environment(deps, 'test')
   const gate = gateEnv(deps, 'test', test.vars)
   const sha = (await headSha(deps)).slice(0, 7)
+  await installDependencies(deps)
   await installChromium(deps)
   try {
     // No SITE_URL: the test site is sent noindex everywhere.

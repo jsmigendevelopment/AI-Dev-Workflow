@@ -62,6 +62,20 @@ export async function headSha(deps: DeployDeps) {
   return (await step(deps, 'read the commit', deps.run('git', ['rev-parse', 'HEAD']))).trim()
 }
 
+/**
+ * Stops when the checkout has uncommitted or untracked changes, or git can't tell: the build would
+ * ship them under a commit that doesn't hold them. `then` says what to do instead.
+ */
+export async function noChanges(deps: DeployDeps, then: string) {
+  const status = await deps.run('git', ['status', '--porcelain'])
+  if (status.status !== 0)
+    throw new Stop(
+      `git couldn't tell whether the checkout has uncommitted changes:\n${tail(status, 5)}\n${then}`,
+    )
+  if (status.stdout.trim())
+    throw new Stop(`the checkout has uncommitted changes:\n${tail(status, 10)}\n${then}`)
+}
+
 const ORIGIN_MAIN = 'refs/remotes/origin/main'
 
 /**
@@ -74,8 +88,7 @@ export async function onCleanMain(deps: DeployDeps) {
     throw new Stop(
       `deploys go out from main, and this checkout is on "${branch}". Run: git switch main && git pull`,
     )
-  if ((await deps.run('git', ['status', '--porcelain'])).stdout.trim())
-    throw new Stop('the checkout has uncommitted changes. Deploy from a clean checkout of main.')
+  await noChanges(deps, 'Deploy from a clean checkout of main. Nothing was deployed.')
   const fetched = await deps.run('git', ['fetch', '--quiet', 'origin', `+refs/heads/main:${ORIGIN_MAIN}`])
   if (fetched.status !== 0)
     throw new Stop(
@@ -124,6 +137,13 @@ export function gateEnv(deps: DeployDeps, target: EnvName, vars: Record<string, 
   return env
 }
 
+/**
+ * The lockfile's dependencies, before anything runs from node_modules. An older pnpm doesn't install
+ * on its own before a run, so a merged dependency bump could otherwise ship without being installed.
+ */
+export const installDependencies = (deps: DeployDeps) =>
+  step(deps, 'install dependencies from the lockfile', deps.run('pnpm', ['install', '--frozen-lockfile']))
+
 /** The smoke test's browser, before anything is written: a failed install then changes nothing. */
 export const installChromium = (deps: DeployDeps) =>
   step(deps, 'install Chromium', deps.run('pnpm', ['exec', 'playwright', 'install', 'chromium']))
@@ -147,6 +167,12 @@ async function rollBack(deps: DeployDeps, env: ChildEnv, worker: string, sha: st
   )
 }
 
+/** A stop's own message, or a crash and its stack, to start a longer stop message with. */
+export const failure = (error: unknown, when: string) =>
+  error instanceof Stop
+    ? error.message
+    : `the deploy script crashed ${when}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
+
 /**
  * Runs what follows a successful `wrangler deploy` (finding the URL, the smoke test). Any failure in
  * it, a stop or a crash, rolls the code back, so a version that never passed its smoke test doesn't
@@ -160,10 +186,7 @@ export async function afterDeploy(
   try {
     await verify()
   } catch (error) {
-    const why =
-      error instanceof Stop
-        ? error.message
-        : `the deploy script crashed after the deploy: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
+    const why = failure(error, 'after the deploy')
     throw new Stop(`${why}\n\n${await rollBack(deps, at.env, at.worker, at.sha)}\n${at.after}`)
   }
 }

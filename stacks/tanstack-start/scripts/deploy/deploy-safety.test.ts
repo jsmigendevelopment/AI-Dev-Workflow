@@ -71,6 +71,23 @@ describe('pnpm deploy:production after a successful wrangler deploy', () => {
   })
 })
 
+describe('pnpm deploy:production after the bookmark, before the deploy succeeds', () => {
+  it('prints the restore command when the migration or the deploy step fails or crashes, and never runs it', async () => {
+    const steps = ['d1 migrations apply', 'wrangler deploy']
+    for (const over of steps.flatMap((s) => [{ failing: s }, { crashing: s }])) {
+      const { code, calls, stopped } = await attempt(freshPlace(over), (deps) =>
+        deployProduction(deps, CONFIRM),
+      )
+      expect(code).toBe(1)
+      expect(stopped).toContain(
+        'pnpm exec wrangler d1 time-travel restore DB --bookmark=bm-42 --env production -c wrangler.jsonc',
+      )
+      expect(stopped).toContain(over.failing ? 'broke' : 'crashed')
+      expect(calls.join('\n')).not.toMatch(/time-travel restore|wrangler rollback/)
+    }
+  })
+})
+
 describe.each(DEPLOYS)('pnpm $name deploys only what is on GitHub’s main', ({ deploy }) => {
   it('fetches main and goes on when this checkout is exactly GitHub’s main', async () => {
     const { code, calls } = await attempt(freshPlace(), deploy)
@@ -101,6 +118,25 @@ describe.each(DEPLOYS)('pnpm $name deploys only what is on GitHub’s main', ({ 
     const { code, calls, stopped } = await attempt(freshPlace({ failing: 'git fetch' }), deploy)
     expect(code).toBe(1)
     expect(stopped).toContain('could not fetch main from GitHub')
+    expect(writes(calls)).toEqual([])
+  })
+})
+
+const ALL = [...DEPLOYS, { name: 'deploy:preview', deploy: (deps: DeployDeps) => deployPreview(deps, '12') }]
+
+describe.each(ALL)('pnpm $name installs from the lockfile first', ({ deploy }) => {
+  it('runs pnpm install --frozen-lockfile before anything runs from node_modules', async () => {
+    const { code, calls } = await attempt(freshPlace(), deploy)
+    expect(code).toBe(0)
+    const install = calls.indexOf('pnpm install --frozen-lockfile')
+    expect(install).toBeGreaterThan(-1)
+    expect(install).toBeLessThan(calls.findIndex((c) => /pnpm (build|exec|test:)|wrangler /.test(c)))
+  })
+
+  it('writes nothing when the install fails', async () => {
+    const { code, calls, stopped } = await attempt(freshPlace({ failing: 'pnpm install' }), deploy)
+    expect(code).toBe(1)
+    expect(stopped).toContain('"install dependencies from the lockfile" failed')
     expect(writes(calls)).toEqual([])
   })
 })

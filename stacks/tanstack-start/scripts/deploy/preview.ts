@@ -2,8 +2,9 @@
 // A new version of the TEST Worker under its own alias (https://pr-<n>-<test worker>.<subdomain>.
 // workers.dev), uploaded, not deployed: the test site's live version doesn't change. It uses the
 // test database and test keys, never production's, and never migrates. One comment on the pull
-// request holds the link, updated on each run. Skipped for forks and the `lane:tiny` label. The
-// deploy output is masked.
+// request holds the link, updated on each run. Skipped for forks and the `lane:tiny` label. Only from
+// the pull request's exact head commit with no uncommitted changes, after an install from the
+// lockfile. The deploy output is masked.
 import { gateHeaders } from '../../e2e/gate-headers.ts'
 import { workerExists } from '../cloudflare/first-deploy.ts'
 import type { DeployDeps } from './deps.ts'
@@ -11,7 +12,9 @@ import {
   clearRedirect,
   environment,
   gateEnv,
+  installDependencies,
   masking,
+  noChanges,
   step,
   Stop,
   targetEnv,
@@ -110,8 +113,13 @@ async function preview(deps: DeployDeps, pr: string) {
       `this checkout is at ${head.slice(0, 7)} and #${pr} is at ${info.head.sha.slice(0, 7)}. ` +
         `Preview its exact head: git fetch origin pull/${pr}/head && git switch --detach FETCH_HEAD`,
     )
+  await noChanges(
+    deps,
+    `A preview of #${pr} must be exactly its commit: commit and push them, or run it from a clean checkout. Nothing was uploaded.`,
+  )
   const test = environment(deps, 'test')
   const gate = gateEnv(deps, 'test', test.vars)
+  await installDependencies(deps)
   const exists = await workerExists(deps, test.worker).catch((error: unknown) => {
     throw new Stop(error instanceof Error ? error.message : String(error))
   })

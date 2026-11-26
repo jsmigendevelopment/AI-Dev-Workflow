@@ -79,6 +79,18 @@ describe('pnpm deploy:preview', () => {
     expect(changes(calls)).toEqual([])
   })
 
+  it('uploads nothing and posts no comment when the checkout has uncommitted changes, or git can’t tell', async () => {
+    for (const over of [{ dirty: true }, { failing: 'git status' }]) {
+      const place = freshPlace(over)
+      const { code, stopped, calls } = await attempt(place, preview())
+      expect(code).toBe(1)
+      expect(stopped).toContain('uncommitted changes')
+      expect(stopped).toContain('A preview of #12 must be exactly its commit')
+      expect(changes(calls)).toEqual([])
+      expect(place.comments).toEqual([])
+    }
+  })
+
   it('stops with the fix when the test Worker does not exist yet', async () => {
     const { code, stopped, calls } = await attempt(freshPlace({ workers: [] }), preview())
     expect(code).toBe(1)
@@ -144,7 +156,7 @@ describe('pnpm deploy:test', () => {
   })
 
   it('goes out only from a clean checkout of main', async () => {
-    for (const over of [{ branch: 'feat/12-tags' }, { dirty: true }]) {
+    for (const over of [{ branch: 'feat/12-tags' }, { dirty: true }, { failing: 'git status' }]) {
       const { code, stopped, calls } = await attempt(freshPlace(over), deployTest)
       expect(code).toBe(1)
       expect(stopped).toMatch(/git switch main|uncommitted changes/)
