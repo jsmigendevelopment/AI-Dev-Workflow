@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { doctor } from "../src/doctor.mjs";
 import { init } from "../src/init.mjs";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fake, logger, put, safeEnv, tmp, unixOnly } from "./helpers.mjs";
@@ -91,9 +91,11 @@ console.log("9.9.9");
 `;
 
 // Runs `doctor dir` as a child in cwd, with `bins` first on a safe PATH. Returns its output and the fakes' runs.
-function doctorChild(dir, { bins, cwd = dir }) {
+// fill(home), when given, puts files in the child's temp HOME first.
+function doctorChild(dir, { bins, cwd = dir, fill }) {
   const log = join(tmp("onrails-log-"), "calls.log");
   const home = tmp("onrails-home-");
+  fill?.(home);
   const env = safeEnv({ FAKE_LOG: log, HOME: home, USERPROFILE: home }, { bins, cwd });
   const r = spawnSync(process.execPath, [CLI, "doctor", dir], { cwd, env, encoding: "utf8" });
   return { stdout: r.stdout, calls: existsSync(log) ? readFileSync(log, "utf8") : "" };
@@ -149,4 +151,57 @@ test("#185: a fix command runs only by the full path the PATH search found, neve
   fake(outside, "fix-tool-185", TOOL("outside"));
   assert.equal(execIn(dir, [projectBin, outside], log), "true");
   assert.equal(readFileSync(log, "utf8"), "outside enable\n");
+});
+
+// #185 round 1: the process check's git and ps (procs-sys.mjs) go through the same PATH search. The pair outside the
+// project answers: git says "not a repo", so the home registry is read, and its one record makes the check ask ps
+// about PIDs 4000 and 600.
+const OUTSIDE = (name) => `#!/usr/bin/env node
+const args = process.argv.slice(2);
+require("fs").appendFileSync(process.env.FAKE_LOG, "outside-${name} " + args.join(" ") + "\\n");
+if (args[0] === "--version") console.log("${name} version 9.9.9");
+process.exitCode = ${name === "git" ? 'args[0] === "--version" ? 0 : 1' : "0"};
+`;
+function homeRecord(home) {
+  put(home, ".onrails/procs.json", JSON.stringify({ version: 1, procs: [{ id: "pold1", kind: "process", pid: 4000, group: true,
+    start: "start-4000", command: "pnpm dev", why: "w", until: "u", deadline: null, state: "running", pausedUntil: null, label: "other",
+    startedAt: "2026-01-01T00:00:00Z", session: "s-old", agent: { pid: 600, start: "start-600" } }] }));
+  chmodSync(join(home, ".onrails"), 0o700);
+  chmodSync(join(home, ".onrails", "procs.json"), 0o600);
+}
+
+test("AC-185-1: WHEN a planted git and ps sit in <project>/node_modules/.bin first on PATH THEN doctor's process check never runs them, and the git and ps outside the project answer", unixOnly, () => {
+  const dir = tmp(), outside = tmp("onrails-bin-"), projectBin = join(dir, "node_modules", ".bin");
+  for (const name of ["git", "ps"]) {
+    fake(projectBin, name, TOOL("planted"));
+    fake(outside, name, OUTSIDE(name));
+  }
+  const r = doctorChild(dir, { bins: [projectBin, outside], fill: homeRecord });
+  assert.doesNotMatch(r.calls, /^planted/m, r.calls);
+  assert.ok(r.calls.split("\n").includes(`outside-git -C ${dir} rev-parse --git-common-dir`), r.calls);
+  assert.match(r.calls, /^outside-ps .* -p 4000,600$/m, r.calls);
+});
+
+test("#185 round 1: WHEN a tool is found only where doctor won't run it THEN doctor says where, as update --all does", unixOnly, () => {
+  const dir = tmp(), projectBin = join(dir, "node_modules", ".bin");
+  fake(projectBin, "claude", TOOL("planted"));
+  const r = doctorChild(dir, { bins: [projectBin] });
+  assert.equal(r.calls, "");
+  assert.match(r.stdout, /✗ Neither Claude Code nor Codex found \(claude found only in a node_modules\/\.bin, not run\)\n/);
+});
+
+// The first command pnpmPlan picks on the real system, in a child with `bins` first on a safe PATH.
+const INSTALLERS = new URL("../src/installers.mjs", import.meta.url).href;
+function pnpmFirst(dir, bins) {
+  const code = `import { realSystem } from ${JSON.stringify(SYSTEM)}; import { pnpmPlan } from ${JSON.stringify(INSTALLERS)};
+process.stderr.write(pnpmPlan(realSystem({ projectDir: ${JSON.stringify(dir)} })).run[0].join(" "));`;
+  return spawnSync(process.execPath, ["--input-type=module", "-e", code], { cwd: dir, env: safeEnv({}, { bins }), encoding: "utf8" }).stderr;
+}
+
+test("#185 round 1: doctor --fix plans with the PATH search exec runs, so a corepack only the project ships counts as missing", unixOnly, () => {
+  const dir = tmp(), outside = tmp("onrails-bin-"), projectBin = join(dir, "node_modules", ".bin");
+  fake(projectBin, "corepack", TOOL("planted"));
+  assert.equal(pnpmFirst(dir, [projectBin]), "npm install -g corepack");
+  fake(outside, "corepack", TOOL("outside"));
+  assert.equal(pnpmFirst(dir, [projectBin, outside]), "corepack enable");
 });

@@ -20,11 +20,18 @@ export function runChecks(projectDir, { kitDir, sys = realSystem({ projectDir })
   add(major >= 22 ? OK : FAIL, `Node ${process.versions.node}`, "Install Node 22 or newer from https://nodejs.org", true,
     { print: ["Install Node 22 or newer from https://nodejs.org"] });
 
+  // A "not found" label, plus where each tool was found and not run, as update --all says it (#185), so nobody
+  // installs a second copy. A test's fake system has no where.
+  const notFound = (label, ...names) => {
+    const whys = names.map((name) => sys.where?.(name)).filter((w) => w?.found).map((w) => w.why);
+    return whys.length ? `${label} (${whys.join("; ")})` : label;
+  };
+
   const git = sys.probe("git", ["--version"]);
-  add(git?.ok ? OK : FAIL, git?.ok ? git.out : "git not found", "Install git from https://git-scm.com", true, installPlan("git", sys));
+  add(git?.ok ? OK : FAIL, git?.ok ? git.out : notFound("git not found", "git"), "Install git from https://git-scm.com", true, installPlan("git", sys));
 
   const gh = sys.probe("gh", ["--version"]);
-  add(gh?.ok ? OK : FAIL, gh?.ok ? gh.out : "GitHub CLI (gh) not found", "Install it from https://cli.github.com", false, installPlan("gh", sys));
+  add(gh?.ok ? OK : FAIL, gh?.ok ? gh.out : notFound("GitHub CLI (gh) not found", "gh"), "Install it from https://cli.github.com", false, installPlan("gh", sys));
   if (gh?.ok) {
     const auth = sys.probe("gh", ["auth", "status"]);
     add(auth?.ok ? OK : FAIL, auth?.ok ? "gh is signed in" : "gh is not signed in", "Run: gh auth login", false,
@@ -32,7 +39,7 @@ export function runChecks(projectDir, { kitDir, sys = realSystem({ projectDir })
   } else add(INFO, "gh sign-in not checked (gh not installed)");
 
   const pnpm = sys.probe("pnpm", ["--version"]);
-  add(pnpm?.ok ? OK : FAIL, pnpm?.ok ? `pnpm ${pnpm.out}` : "pnpm not found",
+  add(pnpm?.ok ? OK : FAIL, pnpm?.ok ? `pnpm ${pnpm.out}` : notFound("pnpm not found", "pnpm"),
     "Run: corepack enable && corepack prepare pnpm@latest --activate", false, pnpmPlan(sys));
 
   const claude = sys.probe("claude", ["--version"]);
@@ -41,7 +48,7 @@ export function runChecks(projectDir, { kitDir, sys = realSystem({ projectDir })
     add(claude?.ok ? OK : INFO, claude?.ok ? `Claude Code ${claude.out}` : "Claude Code not installed (optional, you have Codex)");
     add(codex?.ok ? OK : INFO, codex?.ok ? `Codex ${codex.out}` : "Codex not installed (optional, you have Claude Code)");
   } else {
-    add(FAIL, "Neither Claude Code nor Codex found", "Install one: npm i -g @anthropic-ai/claude-code, or npm i -g @openai/codex",
+    add(FAIL, notFound("Neither Claude Code nor Codex found", "claude", "codex"),"Install one: npm i -g @anthropic-ai/claude-code, or npm i -g @openai/codex",
       true, { print: agentInstallLines(sys.platform) });
   }
 

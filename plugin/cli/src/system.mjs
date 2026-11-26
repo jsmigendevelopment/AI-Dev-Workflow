@@ -1,22 +1,31 @@
 // The outside world doctor talks to, in one object so tests can swap in fakes:
 //   platform, isRoot, home, env, cwd
-//   has(name)                 is a command on PATH? (a file lookup, no shell)
+//   where(name)               toolPath's answer: { path } it may run, or { why } (and { found }) when it may not
+//   has(name)                 may a command run? (where's file lookup, no shell)
 //   probe(cmd, args, {cwd})   run a read-only check: { ok, out (first line), all, stdout } or null
 //   exec(argv, {cwd})         run a fix the person said yes to, output shown live: true/false
 //   spawnInteractive(argv, {cwd})  hand the terminal to an agent session: its exit code
 // probe and exec run a command only by the full path toolPath finds, never one a project ships (#185).
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
 import { projectManifestName } from "./sync.mjs";
 
+// The file names a command can have. On Windows only a PATHEXT one, as cmd.exe runs it: npm and corepack put an
+// extension-less sh script next to each .cmd shim, and Node can't start that script (#185).
+function names(name, { env, platform }) {
+  if (platform !== "win32") return [name];
+  const exts = (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean);
+  return exts.some((ext) => name.toLowerCase().endsWith(ext.toLowerCase())) ? [name] : exts.map((ext) => name + ext);
+}
+
 export function findCommand(name, { env = process.env, platform = process.platform } = {}) {
-  const exts = platform === "win32" ? ["", ...(env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";")] : [""];
+  const files = names(name, { env, platform });
   for (const dir of (env.PATH || env.Path || "").split(delimiter)) {
     if (!dir) continue;
-    for (const ext of exts) {
-      const file = join(dir, name + ext);
+    for (const fileName of files) {
+      const file = join(dir, fileName);
       if (existsSync(file) && statSync(file).isFile()) return file;
     }
   }
@@ -109,52 +118,53 @@ export function launch(argv, { platform = process.platform, env = process.env } 
 }
 
 // projectDir is the project doctor checks: toolPath skips PATH entries inside it, and inside the current folder.
-export function realSystem({ projectDir = process.cwd() } = {}) {
-  const platform = process.platform;
+// platform, env and run (spawnSync) are for tests: a fake Windows, where nothing starts.
+export function realSystem({ projectDir = process.cwd(), platform = process.platform, env = process.env, run = spawnSync } = {}) {
   const sys = {
     platform,
     isRoot: typeof process.getuid === "function" && process.getuid() === 0,
     home: homedir(),
-    env: process.env,
+    env,
   };
-  // How probe and exec start argv: by full path through launch, with no shell (a .cmd shim through cmd.exe). null
-  // when the command is found only where a project could have put it, or launch won't hand its words to cmd.exe.
+  // Where a command may run from: toolPath's answer for a bare name. has, probe, exec, spawnInteractive and the
+  // process check all use it, so the plan doctor --fix shows and the run can't disagree.
+  const where = (name) => toolPath(name, sys, projectDir);
+  // How argv starts: by full path through launch, with no shell (a .cmd shim through cmd.exe). null when the command
+  // is found only where a project could have put it, or launch won't hand its words to cmd.exe.
   const start = ([cmd, ...args]) => {
-    const file = isAbsolute(cmd) ? cmd : toolPath(cmd, sys, projectDir).path;
+    const file = isAbsolute(cmd) ? cmd : where(cmd).path;
     if (!file) return null;
     try {
-      return launch([file, ...args], { platform });
+      return launch([file, ...args], { platform, env });
     } catch {
       return null; // shown as a missing tool or a failed fix, the same as one that isn't there
     }
   };
   return {
     ...sys,
-    has: (name) => findCommand(name) !== null,
+    where,
+    has: (name) => Boolean(where(name).path),
     probe(cmd, args, { cwd } = {}) {
       const how = start([cmd, ...args]);
       if (!how) return null;
-      const r = spawnSync(how.file, how.args, { cwd, env: how.env, encoding: "utf8", timeout: 15000, windowsVerbatimArguments: how.verbatim });
+      const r = run(how.file, how.args, { cwd, env: how.env, encoding: "utf8", timeout: 15000, windowsVerbatimArguments: how.verbatim });
       if (r.error || r.status === null) return null;
       const all = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
       return { ok: r.status === 0, out: all.split(/\r?\n/)[0] ?? "", all, stdout: (r.stdout ?? "").trim() };
     },
     // Hand the terminal to an interactive program (an agent session) and wait for it to end.
     spawnInteractive(argv, { cwd } = {}) {
-      const { file, args, env, verbatim } = launch(argv);
-      const r = spawnSync(file, args, { cwd, env, stdio: "inherit", windowsVerbatimArguments: verbatim });
+      const how = start(argv);
+      if (!how) throw new Error(`Could not start ${argv[0]}: ${where(argv[0]).why ?? "it can't run here"}`);
+      const r = run(how.file, how.args, { cwd, env: how.env, stdio: "inherit", windowsVerbatimArguments: how.verbatim });
       if (r.error) throw new Error(`Could not start ${argv[0]}: ${r.error.message}`);
       return r.status ?? 1;
     },
     exec(argv, { cwd } = {}) {
       const how = start(argv);
       if (!how) return false;
-      try {
-        execFileSync(how.file, how.args, { cwd, env: how.env, stdio: "inherit", windowsVerbatimArguments: how.verbatim });
-        return true;
-      } catch {
-        return false;
-      }
+      const r = run(how.file, how.args, { cwd, env: how.env, stdio: "inherit", windowsVerbatimArguments: how.verbatim });
+      return !r.error && r.status === 0;
     },
   };
 }

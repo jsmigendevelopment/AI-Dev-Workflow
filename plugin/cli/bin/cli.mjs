@@ -158,7 +158,7 @@ function initAndStart(dir = ".", start, ask) {
   if (code !== 0) return code;
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI);
   console.log("");
-  return offerStart(resolve(dir), cmd, { start, sys: realSystem(), ask, interactive });
+  return offerStart(resolve(dir), cmd, { start, sys: realSystem({ projectDir: resolve(dir) }), ask, interactive });
 }
 
 function fail(message) {
