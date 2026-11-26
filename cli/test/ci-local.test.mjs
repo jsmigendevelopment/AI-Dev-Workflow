@@ -165,7 +165,7 @@ test("AC-200-3: WHEN the checkout's workflow files differ from the default branc
   assert.match(text, /removes \.github\/workflows\/old\.yml/);
   assert.doesNotMatch(text, /ci\.yml|deploy\.yml/, "not the checkout's files");
   assert.doesNotMatch(text, /removes \.github\/workflows\/nested$/m, "only files, as GitHub reads them");
-  assert.match(text, /from the default branch \(origin\/main\)/);
+  assert.match(text, /from the default branch \(origin\/main, as last fetched\)/, "git's copy, which can be older than GitHub's");
 
   const unknown = fakeRun(dir, { answers: { [ORIGIN_HEAD]: { ok: false, out: "", err: "fatal: ref refs/remotes/origin/HEAD is not a symbolic ref" } } });
   const none = logger();
@@ -232,4 +232,16 @@ test("#133: update leaves workflows alone on ci = \"actions\", and runs nothing 
   const none = fakeRun(clean);
   assert.equal(await update(clean, { kitDir: makeKit("0.2.0", { "AGENTS.md": "v2\n" }), log: logger(), run: none.run }), 0);
   assert.deepEqual(none.calls, []);
+});
+
+test("#200 round 1: WHEN git worktree remove fails THEN ci local runs git worktree prune, so no record of the folder is left", async () => {
+  const dir = repo();
+  const fake = fakeRun(dir, { answers: { "git worktree remove": { ok: false, out: "", err: "", signal: "SIGINT" } } });
+  assert.equal(await ciLocal(dir, { log: logger(), run: fake.run }), 0);
+  const removed = fake.calls.findIndex((c) => c.startsWith("git worktree remove --force"));
+  assert.equal(fake.calls[removed + 1], "git worktree prune");
+
+  const ok = fakeRun(dir);
+  assert.equal(await ciLocal(dir, { log: logger(), run: ok.run }), 0);
+  assert.ok(!ok.calls.includes("git worktree prune"), "only after a failed remove");
 });
