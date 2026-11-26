@@ -57,7 +57,7 @@ test("AC-151-4: clean-up-server: the good transcript passes every check, the bad
   assert.ok(stat === "" || stat.startsWith("Z"), `PID ${pid} is gone once the eval has run: ${stat}`);
 });
 
-test("AC-151-1: clean-up-server: in a runner whose TZ isn't UTC, the server the bad transcript leaves is gone", { skip: skipWin }, (t) => {
+test("AC-151-1: clean-up-server: in a runner whose TZ isn't UTC, the server the bad transcript leaves is gone (#196)", { skip: skipWin }, (t) => {
   const seen = tempDir(t, "seen-pids-");
   const [start, read, report] = CLEAN_PLAN.without.steps;
   // The arm's folder goes once the run ends, so a step copies its server.pids out first. By its full path, not
