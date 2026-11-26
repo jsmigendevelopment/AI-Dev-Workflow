@@ -130,8 +130,12 @@ test("#233: WHEN a skipped id holds an ANSI escape THEN session-end prints it es
   assert.equal(await skippedAs("\u001b[31mx"), '"\\u001b[31mx"');
 });
 
-test("#233: WHEN a skipped id holds a C1 control, DEL, a bidi override or a line separator THEN session-end prints each escaped", async () => {
+test("#233: WHEN a skipped id holds a C1 control, DEL, a bidi control, a format character or a line separator THEN session-end prints each escaped", async () => {
   assert.equal(await skippedAs("\u009b31m\u007f\u202eevil\u2066\u2028"), '"\\u009b31m\\u007f\\u202eevil\\u2066\\u2028"');
+  // Round 2 of #244: the bidi marks, the last Bidi_Control characters that printed raw.
+  assert.equal(await skippedAs("x\u200ey\u200fz\u061c"), '"x\\u200ey\\u200fz\\u061c"');
+  // Invisible format characters: a zero-width space, the BOM, the soft hyphen and a tag character (one escape per half).
+  assert.equal(await skippedAs("a\u200bb\ufeffc\u00add\u{e0041}"), '"a\\u200bb\\ufeffc\\u00add\\udb40\\udc41"');
 });
 
 test("#233: WHEN a skipped id is long THEN session-end prints at most 40 characters, never half an escape or a surrogate pair", async () => {
@@ -139,6 +143,9 @@ test("#233: WHEN a skipped id is long THEN session-end prints at most 40 charact
   assert.equal(await skippedAs(`${"b".repeat(34)}\u009bcc`), `"${"b".repeat(34)}\u2026`, "the escape would pass 40: it goes whole");
   assert.equal(await skippedAs(`${"d".repeat(37)}\u{1f600}`), `"${"d".repeat(37)}\u2026`, "the pair would pass 40: it goes whole");
   assert.equal(await skippedAs("e".repeat(38)), `"${"e".repeat(38)}"`, "40 characters with the quotes: kept whole");
+  // Round 2 of #244: JSON.stringify's own escape for ESC goes whole too, and a pair well inside 40 prints raw.
+  assert.equal(await skippedAs(`${"a".repeat(36)}\u001b`), `"${"a".repeat(36)}…`, "JSON's escape would pass 40: it goes whole");
+  assert.equal(await skippedAs("f\u{1f600}g"), '"f\u{1f600}g"', "a pair is one character, not two escapes");
 });
 
 test("#233: WHEN session-end skips 12 records THEN it counts all 12 and names the first 5, then and 7 more", async () => {

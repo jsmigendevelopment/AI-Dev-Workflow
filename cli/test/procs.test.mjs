@@ -146,6 +146,14 @@ test("#233: WHEN a stale record's id holds an ANSI escape, a C1 control and a bi
   assert.doesNotMatch(out, /[\u001b\u009b\u202e]/);
 });
 
+// Round 2 of #244: the bare path keeps the 40-character cut, so a long plain id can't make one huge line.
+test("#233: WHEN a stale record's plain id is 200 characters THEN session start prints it quoted and cut to 40", async () => {
+  const sys = fakeSys({ procs: { 4000: {} } });
+  seed(sys, { id: "a".repeat(200), pid: 4000, start: "start-4000", command: "pnpm dev" });
+  const { out } = await run(sys, ["session-start"]);
+  assert.ok(out.split("\n").includes(`- "${"a".repeat(38)}\u2026 \u00b7 pnpm dev \u00b7 3d 0h \u00b7 its owner session is gone`), out);
+});
+
 test("AC-5: WHEN a process wasn't registered by onRails THEN ps --stop asks before touching it", async () => {
   const no = fakeSys({ procs: { 4242: {} } });
   const asked = [];
