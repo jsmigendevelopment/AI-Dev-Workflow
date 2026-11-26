@@ -5,12 +5,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GUARD_WORKFLOW, changedPaths, decide, level, submodules, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
 import { addAgentFiles, requiredChecks } from "../../.agents/skills/name/scripts/required-checks.mjs";
-import { tmp } from "./helpers.mjs";
+import { fakeGh, tmp, unixOnly } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/coordinate/scripts/agent-files.mjs", import.meta.url));
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
@@ -246,65 +246,55 @@ test("the script: verify-run exits 0 on a real green run that still passes, 1 on
   assert.equal(go([run(1)], [PASS(), FAIL()]), 1, "a fail posted after the green run");
 });
 
-// #131: the guard runs from the session before a merge, with no workflow. A fake gh answers the API from a file.
-const FAKE_GH = `#!/usr/bin/env node
-const fs = require("fs");
-const argv = process.argv.slice(2);
-fs.appendFileSync(process.env.FAKE_LOG, argv.join(" ") + "\\n");
-const api = JSON.parse(fs.readFileSync(process.env.FAKE_API, "utf8"));
-const path = argv.filter((a) => a !== "api" && !a.startsWith("--")).at(-1);
-if (!(path in api)) { process.stderr.write("HTTP 404: " + path + "\\n"); process.exit(1); }
-process.stdout.write(JSON.stringify(argv.includes("--slurp") ? [api[path]] : api[path]));
-`;
-const UNIX = { skip: process.platform === "win32" ? "the fake gh is a shebang script" : false };
-
-function gate(args, { comments = [PASS()], stack = FULL, local = null } = {}) {
+// #131 item 3: the guard runs from the session before a merge, with no workflow. Item 3 has no AC ID of its own.
+function gate(args, { comments = [PASS()], stack = FULL, local = null, env = {} } = {}) {
   const dir = tmp("onrails-gate-");
-  mkdirSync(join(dir, "bin"));
-  writeFileSync(join(dir, "bin", "gh"), FAKE_GH);
-  chmodSync(join(dir, "bin", "gh"), 0o755);
-  if (local) (mkdirSync(join(dir, "docs")), writeFileSync(join(dir, "docs", "stack.md"), local));
+  if (local) {
+    mkdirSync(join(dir, "docs"));
+    writeFileSync(join(dir, "docs", "stack.md"), local);
+  }
   const p = "repos/acme/app";
-  writeFileSync(join(dir, "api.json"), JSON.stringify({
+  const fake = fakeGh(dir, {
     [`${p}/pulls/7`]: { head: { sha: HEAD }, changed_files: 1 },
     [`${p}/pulls/7/files`]: [{ filename: "AGENTS.md" }],
     [`${p}/issues/7/comments`]: comments,
     [`${p}/issues/7/labels`]: [],
     [`${p}/collaborators/owner/permission`]: { permission: "admin" },
     [`${p}/contents/docs/stack.md`]: { content: Buffer.from(stack).toString("base64") },
-  }));
-  const log = join(dir, "calls.log");
-  const r = spawnSync(process.execPath, [SCRIPT, "gate", ...args], { cwd: dir, encoding: "utf8",
-    env: { ...process.env, PATH: `${join(dir, "bin")}${delimiter}${process.env.PATH}`, FAKE_API: join(dir, "api.json"), FAKE_LOG: log } });
-  return { ...r, calls: existsSync(log) ? readFileSync(log, "utf8") : "" };
+  }, env);
+  const r = spawnSync(process.execPath, [SCRIPT, "gate", ...args], { cwd: dir, encoding: "utf8", env: fake.env });
+  return { ...r, calls: fake.calls() };
 }
 
-test("AC-131-1: gate passes at the pinned head with no workflow run, and reads no Actions API", UNIX, () => {
+test("#131 item 3: gate passes at the pinned head with no workflow run, and reads no Actions API", unixOnly, () => {
   const r = gate(["7", "--repo", "acme/app", "--head", HEAD]);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, new RegExp(`^${HEAD}: the weakening review passed`));
   assert.doesNotMatch(r.calls, /check-runs|actions\//);
 });
 
-test("AC-131-1: gate fails when the head moved, or on a fail posted after the pass", UNIX, () => {
+test("#131 item 3: gate fails when the head moved, or on a fail posted after the pass", unixOnly, () => {
   const moved = gate(["7", "--repo", "acme/app", "--head", OLD]);
   assert.equal(moved.status, 1);
   assert.match(moved.stderr, /head moved/);
   assert.equal(gate(["7", "--repo", "acme/app", "--head", HEAD], { comments: [PASS(), FAIL()] }).status, 1);
 });
 
-test("AC-131-1: gate reads the level from the default branch, not the checkout it runs in", UNIX, () => {
+test("#131 item 3: gate reads the level from the default branch, not the checkout it runs in", unixOnly, () => {
   const r = gate(["7", "--repo", "acme/app", "--head", HEAD], { stack: RECOMMENDED, local: FULL });
   assert.equal(r.status, 1);
   assert.match(r.stderr, /human-approved/);
 });
 
-test("AC-131-1: gate needs the pull request, the repo and the head, and calls nothing without them", UNIX, () => {
-  for (const args of [["7", "--repo", "acme/app"], ["--repo", "acme/app", "--head", HEAD], ["7", "--head", HEAD]]) {
-    const r = gate(args);
-    assert.equal(r.status, 1, args.join(" "));
-    assert.match(r.stderr, /gate <n> --repo <owner>\/<name> --head <sha>/);
-    assert.equal(r.calls, "", args.join(" "));
+test("#131 item 3: gate needs the pull request, the repo and the head, even with REPO set, and calls nothing without them", unixOnly, () => {
+  for (const env of [{}, { REPO: "acme/app" }]) {
+    for (const args of [["7", "--repo", "acme/app"], ["--repo", "acme/app", "--head", HEAD], ["7", "--head", HEAD]]) {
+      const r = gate(args, { env });
+      const label = `${args.join(" ")} ${JSON.stringify(env)}`;
+      assert.equal(r.status, 1, label);
+      assert.match(r.stderr, /gate <n> --repo <owner>\/<name> --head <sha>/, label);
+      assert.equal(r.calls, "", label);
+    }
   }
 });
 

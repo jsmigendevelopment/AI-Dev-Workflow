@@ -117,8 +117,10 @@ export function verifyRuns(runs) {
   return { pass: true, why: `agent-files passed at the head (run ${latest.id}, ${GUARD_WORKFLOW}, pull_request_target)` };
 }
 
-const gh = (...args) => execFileSync("gh", ["api", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-const pages = (path) => JSON.parse(gh("--paginate", "--slurp", path)).flat();
+/** `gh api` with these arguments, its output as text. Throws when gh fails. */
+export const gh = (...args) => execFileSync("gh", ["api", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+/** Every page of an API list, as one array. */
+export const pages = (path) => JSON.parse(gh("--paginate", "--slurp", path)).flat();
 
 /** Logins with write, maintain or admin access. A login whose check fails counts as no access. */
 function writers(repo, logins) {
@@ -184,31 +186,34 @@ function fromFlags(argv) {
   };
 }
 
+/** `<n> --repo owner/name --head <sha>`. Env REPO stands in for --repo only when env is passed. */
+export function prArgs(args, env = {}) {
+  const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+  return { pr: /^\d+$/.test(args[0] ?? "") ? args[0] : null, repo: flag("--repo") ?? env.REPO ?? null, head: flag("--head") ?? null };
+}
+
 /** The guard from the session (#131): the live decision at the pinned head, with no workflow run. */
-function gate(argv, env) {
-  const repo = argv.includes("--repo") ? argv[argv.indexOf("--repo") + 1] : env.REPO;
-  const pinned = argv.includes("--head") ? argv[argv.indexOf("--head") + 1] : null;
-  const pr = /^\d+$/.test(argv[1] ?? "") ? argv[1] : null;
-  if (!pr || !repo || !pinned) return { pass: false, why: "Usage: agent-files.mjs gate <n> --repo <owner>/<name> --head <sha>" };
+function gate(argv) {
+  const { pr, repo, head } = prArgs(argv.slice(1));
+  if (!pr || !repo || !head) return { pass: false, why: "Usage: agent-files.mjs gate <n> --repo <owner>/<name> --head <sha>" };
   // Like the workflow, the level comes from the default branch, so a pull request can't change it.
-  const r = decide({ ...fromApi(repo, pr, pinned, defaultStack(repo)), expected: pinned });
-  return { ...r, why: `${pinned}: ${r.why}` };
+  const r = decide({ ...fromApi(repo, pr, head, defaultStack(repo)), expected: head });
+  return { ...r, why: `${head}: ${r.why}` };
 }
 
 export function main(argv, env = process.env) {
   let r;
   if (argv[0] === "gate") {
-    r = gate(argv, env);
+    r = gate(argv);
   } else if (argv[0] === "verify-run") {
     if (argv.includes("--runs")) {
       r = verifyMerge(JSON.parse(readFileSync(argv[argv.indexOf("--runs") + 1], "utf8")), decide(fromFlags(argv)));
     } else {
-      const repo = argv.includes("--repo") ? argv[argv.indexOf("--repo") + 1] : env.REPO;
-      const pinned = argv.includes("--head") ? argv[argv.indexOf("--head") + 1] : null;
+      const { pr, repo, head: pinned } = prArgs(argv.slice(1), env);
       // The guard's checkout reads docs/stack.md from the default branch; here, read it from there too.
-      const live = fromApi(repo, argv[1], pinned, defaultStack(repo));
+      const live = fromApi(repo, pr, pinned, defaultStack(repo));
       const sha = pinned || live.head;
-      r = verifyMerge(runsFromApi(repo, argv[1], sha), decide({ ...live, expected: sha }));
+      r = verifyMerge(runsFromApi(repo, pr, sha), decide({ ...live, expected: sha }));
       r.why = `${sha}: ${r.why}`;
     }
   } else {
