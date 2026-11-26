@@ -39,6 +39,7 @@ export const storedName = (place: Place, name: string) =>
 
 /** GitHub places for one variable: an environment each, or one prefixed repository name each. */
 function githubPlaces(spec: VarSpec, has: (s: Scope) => boolean, mode: SecretsMode): Place[] {
+  if (mode === 'none') return []
   const kind = spec.secret ? 'secret' : 'variable'
   const envs = (['test', 'preview', 'production'] as const).filter(has)
   if (mode === 'environment')
@@ -66,7 +67,7 @@ function placesIn(spec: VarSpec, scopes: Scope[], mode: SecretsMode): Place[] {
     } else if (to === 'github') {
       places.push(...githubPlaces(spec, has, mode))
     } else if (to === 'github-repo') {
-      if (has('test'))
+      if (has('test') && mode !== 'none')
         places.push({ kind: 'github', env: null, secret: spec.secret, label: `GitHub repository (${kind})` })
     } else if (has('local')) {
       places.push({ kind: 'file', path: to, label: to })

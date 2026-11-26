@@ -60,6 +60,8 @@ When it worked: `whoami` prints your email and account. Then the agent runs `nod
 
 ## 2. The deploy token for GitHub · about 4 minutes
 
+Only on `ci = "actions"` (`docs/stack.md`). On `ci = "local"` the session deploys with your `wrangler login`, so skip this step: `pnpm connect` doesn't ask for it there.
+
 1. Open https://dash.cloudflare.com/profile/api-tokens and click **Create Token**. `[V]`
 2. Next to **Edit Cloudflare Workers**, click **Use template**. `[V]` template name, `[U]` button name.
 3. Add these permissions (click **+ Add more** for each row). `[V]` names:

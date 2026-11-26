@@ -38,9 +38,10 @@ export function upsertEnv(path: string, name: string, value: string, platform: N
   while (kept.length && kept.at(-1) === '') kept.pop()
   kept.push(line, '')
   mkdirSync(dirname(path), { recursive: true })
+  // Only the owner may read it, from before the value is in it: `mode` applies only to a new
+  // file. Windows has no such mode bits.
+  if (platform !== 'win32' && existsSync(path)) chmodSync(path, 0o600)
   writeFileSync(path, kept.join('\n'), { mode: 0o600 })
-  // Only the owner may read it. Windows has no such mode bits.
-  if (platform !== 'win32') chmodSync(path, 0o600)
   return true
 }
 
