@@ -52,7 +52,7 @@ You decide *what* gets built and whether it's *right*. Agents plan the details, 
 
 ## 9. Your speed depends on where you work.
 
-At a startup with no real users yet, you can let agents merge after automated review. At a bank, you can't. Pick your **risk dial** (move fast, careful or strict) and gate merges to match. Whatever the dial, a short list always waits for a person: production, secrets, real data and money. And size the checks to the change: a CSS tweak doesn't need a security review, but anything touching auth, personal data or money does.
+At a startup with no real users yet, you can let agents merge after automated review. At a bank, you can't. Pick your **risk dial** (move fast, careful or strict) and gate merges to match. On Full automation, a careful dial adds agent reviews, never a person. Whatever the dial, a short list always waits for a person: production, secrets, real data and money. And size the checks to the change: a CSS tweak doesn't need a security review, but anything touching auth, personal data or money does.
 
 ## 10. Decisions live in files.
 

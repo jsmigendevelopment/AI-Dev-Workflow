@@ -17,7 +17,7 @@ That includes "Anything you'd change?", "What would you change?" and "Want me to
 
 ## The only exceptions
 
-Each one is parked, not waited on. Record it under "Waiting on you" in `docs/state.md`, put it in the FYI, and keep doing everything else.
+Each one is parked, not waited on. Record it under "Waiting on you" in `docs/state.md`, and keep doing everything else. A sign-in goes in the FYI. Each always-stop item (paying, real data, production, going public) is one 🛑 that pings once, with or without a decision row that names it (`ask`'s level table): never only an FYI, and never repeated asks.
 
 - **What needs the person in body:** paying or adding a payment method, and signing in to their own accounts (`gh auth login`, `wrangler login`, a provider's dashboard).
 - **Real data after launch:** deleting or migrating it.

@@ -58,14 +58,14 @@ For each need: open source first, then a free-tier SaaS, then build it.
 How carefully changes are gated. Pick one.
 
 - [ ] **Move fast:** startup or side project, no real users yet. Agents merge after automated review, and the person reviews by using the app.
-- [ ] **Careful:** real users or real money. The person reads every schema and migration change and skims every API change before merge.
-- [ ] **Strict:** bank, health, or anything regulated. The person approves every merge, and there's a second human reviewer for security.
+- [ ] **Careful:** real users or real money. Below Full, the person reads every schema and migration change and skims every API change before merge. On Full, those changes get an extra agent review instead (#103).
+- [ ] **Strict:** bank, health, or anything regulated. Below Full, the person approves every merge, and there's a second human reviewer for security. On Full, a fresh `pr-review` and `pr-security` stand in, never a person (#103).
 
 Whatever the dial, the **always-stop list** in `AGENTS.md` still applies: production, secrets, real data and money always wait for the person.
 
 ## Automation level
 
-How much agents do without the person (the `automation` skill). The risk dial above is how careful each merge is. When they disagree, the more careful one wins. Change it any time with `/automation`.
+How much agents do without the person (the `automation` skill). The risk dial above is how careful each merge is. Below Full, when they disagree, the more careful one wins. On Full, a careful dial adds reviews, never a person (#103). Change it any time with `/automation`.
 
 - **Level:** recommended  <!-- recommended | full | hands-on | custom -->
 - **Loop:** on  <!-- on | off -->

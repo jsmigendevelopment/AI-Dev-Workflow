@@ -60,6 +60,6 @@ Git pushes and pulls work, and don't count against GitHub's limit. So builders b
    - **Status updates** (`Status:` lines, comments, verdicts) go on branch `loop-status`: commit them there and `git push origin loop-status`. Never on main.
    - Each sweep, send the new queue lines to the person as one ⏳ decision through `ask`: the pull requests to open and the reviewed commits to merge, with their shas. Once the person has merged one, pull main and run step 8's `qa` smoke run on it, against the test site or a local dev server.
 
-The always-stop list and the human gates apply in every case. A gate the person owns waits on a `needs-human` line in the issue and "Waiting on you" in `docs/state.md`.
+The always-stop list applies in every case. Below Full, the human gates apply too. On Full, the only person gate is an always-stop item (`coordinate` step 6.5). A gate the person owns waits on a `needs-human` line in the issue and "Waiting on you" in `docs/state.md`.
 
 **Done when** each sweep has run from the files or the cache, and the queue is empty, waiting for its limit to end, or sent to the person.

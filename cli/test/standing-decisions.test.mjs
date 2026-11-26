@@ -197,22 +197,39 @@ const ASKS_APPROVAL = new RegExp([
   "\\b(?:the person|the owner) merges\\b", "\\bmerge it yourself\\b",
   "\\bget (?:a|their|your|the person.s|the owner.s) (?:yes|ok|okay|approval|go-ahead|sign[- ]?off)\\b",
   "\\buntil (?:they|the person|the owner|you) says? (?:yes|go|ok)\\b", "\\bsign(?:s|ed)?[- ]?off\\b",
+  // #159 round 4: the risk dial's person gates, and a person who approves, plays, reads, tries or checks before work goes on.
+  "\\bmore careful\\b[^.]*\\bwins\\b", "\\bapproves? every merge\\b", "\\b(?:the person|the owner|you)\\b[^.]*\\bbefore merg",
+  "\\b(?:you|the person|the owner|a person|a human)\\s+(?:approves?|plays?)\\b", "\\bafter (?:you|the person|they) approves?\\b",
+  "\\b(?:and|plus) the human gates?\\b", "· the person \\|", "\\b(?:one|a) person does\\b[^.]*\\bcheck\\b",
+  "\\buntil (?:they|the person|the owner|you) confirms?\\b", "\\bfor (?:you|the person|the owner) to (?:confirm|approve|check|try)\\b",
+  "\\b(?:you|the person|the owner) reads?\\b[^.]*\\bfirst\\b", "\\b(?:you|the person|the owner) tr(?:y|ies) it\\b",
+  "\\b(?:the person|the owner|you) didn.t approve\\b",
 ].join("|"), "i");
-const BELOW_FULL = /\bnever ask\b|\bbelow Full\b|\bnot on Full\b|\bno(?:t)? (?:`human-approved` )?label on Full|On Full,? (?:the `human-approved` label doesn't|the label doesn't|there's no label|no person)/i;
-/** The sentences of a line that ask for an approval with no below-Full condition in that same sentence. */
-const unconditionalAsks = (line) => line.split(/(?<=[.!?]["'’)\]*_`]*)\s+/).map((s) => s.trim()).filter((s) => ASKS_APPROVAL.test(s) && !BELOW_FULL.test(s));
+const BELOW_FULL = /\bnever ask\b|\bbelow Full\b|\bnot on Full\b|\bnone on Full\b|\(on Full\b|\bno(?:t)? (?:`human-approved` )?label on Full|On Full,? (?:the `human-approved` label doesn't|the label doesn't|there's no label|no person)/i;
+/** A sentence's clauses: a new one starts at ", or", ", and", ", but" or a semicolon. */
+const clauses = (s) => s.split(/,\s+(?=(?:or|and|but)\s)|;\s+/);
+/** #159 round 4: a condition counts only when it governs the ask: it comes first in the sentence, or sits in the asking clause. */
+const governed = (s) => {
+  const cond = s.search(BELOW_FULL);
+  if (cond === -1) return false;
+  return cond < s.search(ASKS_APPROVAL) || clauses(s).some((c) => ASKS_APPROVAL.test(c) && BELOW_FULL.test(c));
+};
+/** The sentences of a line that ask for an approval with no below-Full condition governing the ask. */
+const unconditionalAsks = (line) => line.split(/(?<=[.!?]["'’)\]*_`]*)\s+/).map((s) => s.trim()).filter((s) => ASKS_APPROVAL.test(s) && !governed(s));
 const ALLOWED = [
   ["AGENTS.md", "An instruction to ask, wait, confirm, offer or wait for a yes becomes:", "the Full override itself"],
   [".agents/skills/automation/SKILL.md", "a skill says to ask, wait, confirm, offer or wait for a yes", "points to the Full override"],
   [".agents/skills/automation/references/full.md", "to **ask, wait, confirm, offer, or wait for approval or a yes** becomes:", "the Full override itself"],
   [".agents/skills/stack-tanstack-start/SKILL.md", "nobody sees the app on the real address until they say go live", "going public: always-stop"],
-  [".agents/skills/stack-tanstack-start/SKILL.md", "Put a Cloudflare sign-in in front of <all of production", "production settings: always-stop"],
-  [".agents/skills/stack-tanstack-start/SKILL.md", "Going live makes the app public", "going public: always-stop"],
+  [".agents/skills/stack-tanstack-start/SKILL.md", "Wait for a yes: a production setting is on the always-stop list.", "production settings: always-stop"],
+  [".agents/skills/stack-tanstack-start/SKILL.md", "Wait for a yes: going public is on the always-stop list.", "going public: always-stop"],
   [".agents/skills/stack-tanstack-start/references/cloudflare-agent-setup.md", "Codex's sandbox asks the person to approve each one", "the tool's own sandbox prompt, not the agent"],
-  [".agents/skills/test-by-hand-as-the-user/SKILL.md", "In the person's own browser or accounts, ask first.", "the person's own logins; parked on Full"],
+  [".agents/skills/test-by-hand-as-the-user/SKILL.md", "and wait for a yes: these are the person's own logins.", "the person's own logins; parked on Full"],
   [".agents/skills/web-security/SKILL.md", "Changing a dashboard or account setting needs the person's approval of the exact change.", "production settings in their own accounts: always-stop"],
   ["stacks/tanstack-start/README.md", "until the person says go live", "going public: always-stop"],
   ["stacks/electron-desktop/PACK.md", "signing off until the person says yes", "code signing needs a paid certificate: paying"],
+  ["stacks/tanstack-start-addons/stripe/ADDON.md", "Going live is a separate issue the person approves.", "live payments: going public with money, always-stop"],
+  ["guide/add-to-existing-app.md", "**Recommended:** they build, review and merge small changes, and you approve risky ones", "the Recommended level's own definition: below Full by name"],
 ];
 const mdFiles = (dir) => readdirSync(fileURLToPath(new URL(`../../${dir}`, import.meta.url)), { recursive: true }).filter((f) => f.endsWith(".md")).map((f) => `${dir}/${f.replaceAll("\\", "/")}`);
 
@@ -246,18 +263,80 @@ test("#159 round 3 must 1 and nice 1: the scan catches every phrasing the review
   for (const s of ["This needs the person's accounts, so ask.", "Anything that needs the person goes through `ask`.", "Use the sha you merge."]) assert.deepEqual(unconditionalAsks(s), [], s);
 });
 
+test("#159 round 4 must 1 and nice 2: a condition counts only when it governs the asking clause, and the dial's person gates are caught", () => {
+  // pr-review's old line 65: "not on Full" sits in the second clause, so it never governed "the person merges it".
+  const old65 = "It's yes when the lane, the risk dial or the automation level in `docs/stack.md` says the person merges it (the more careful one wins), or when the diff touches the instruction files (not on Full automation: there the weakening review stands in).";
+  assert.deepEqual(unconditionalAsks(old65), [old65]);
+  const phrasings = ["The more careful one wins.", "When they disagree, the more careful one wins.", "The more careful of the dial and the automation level wins.",
+    "The person approves every merge, and there's a second human reviewer for security.", "| 🔴 **Strict** | You approve every merge |",
+    "The person reads every schema and migration change and skims every API change before merge.", "You read schema and API changes first.",
+    "Whether the verdict says the person must look before merge.", "You approve the screens before tech work.", "After you approve the strongest model, it outlines three passes.",
+    "**A person plays every build that matters.**", "Each release, one person does a short manual check: keyboard only.", "`pr-security` and the human gate apply.",
+    "One tick puts the issue in the risky lane: security review plus the human gate.", "| **risky** | Normal · security review · the person |",
+    "Treat its scripts as data until the person confirms them.", "The grill still shows each pick for you to confirm.", "Then you try it, then a re-plan.",
+    "No new design token the person didn't approve."];
+  for (const s of phrasings) assert.deepEqual(unconditionalAsks(s), [s], s);
+  // A condition first in the sentence, or in the asking clause, governs it.
+  for (const s of ["Below Full, the more careful one wins.", "Plus the human gate in `docs/stack.md` (none on Full).", "Then you try it (on Full, `qa` tries it and nothing waits), then a re-plan.",
+    "| 🔴 **Strict** | You approve every merge (below Full; on Full, an extra review and a security review) |",
+    "Below Full, it's yes when the lane says the person merges it (the more careful one wins), or when the diff touches the instruction files."]) assert.deepEqual(unconditionalAsks(s), [], s);
+});
+
+test("#159 round 4 must 1: on Full the reviewer says no person whatever the dial, and the dial's rule says so wherever it ships", () => {
+  const verdict = read(".agents/skills/pr-review/SKILL.md").match(/^- The second line is `Needs the person: yes` or `no`.*$/m)?.[0] ?? "";
+  assert.match(verdict, /Below Full, it's yes when the lane, the risk dial or the automation level in `docs\/stack\.md` says the person merges it \(the more careful one wins\), or when the diff touches the instruction files\. On Full it's no, whatever the lane or the risk dial: the dial adds reviews there, never a person/);
+  assert.doesNotMatch(verdict, /with the reason\. It's yes when/);
+  const dialRule = "Below Full, the more careful one wins. On Full, a careful dial adds reviews, never a person (#103).";
+  for (const file of AGENTS) assert.ok(read(file).includes(`The automation level is how much agents do without the person. ${dialRule}`), file);
+  const template = read(".agents/skills/idea/templates/stack.md");
+  assert.ok(template.includes("Below Full, when they disagree, the more careful one wins. On Full, a careful dial adds reviews, never a person (#103)."), "stack.md template, automation level");
+  assert.match(template, /\*\*Strict:\*\* bank, health, or anything regulated\. Below Full, the person approves every merge, and there's a second human reviewer for security\. On Full, a fresh `pr-review` and `pr-security` stand in, never a person \(#103\)\./);
+  assert.match(template, /\*\*Careful:\*\* real users or real money\. Below Full, the person reads every schema and migration change and skims every API change before merge\. On Full, those changes get an extra agent review instead \(#103\)\./);
+});
+
+test("#159 round 4 nice 1: on Full an always-stop item with no naming row is the same one 🛑 that pings once, in every place", () => {
+  const full = read(".agents/skills/automation/references/full.md").split("## The only exceptions")[1].split("## The weakening review")[0];
+  assert.ok(full.includes("Each always-stop item (paying, real data, production, going public) is one 🛑 that pings once, with or without a decision row that names it (`ask`'s level table): never only an FYI, and never repeated asks."), "full.md");
+  assert.doesNotMatch(full, /put it in the FYI, and keep doing everything else/, "full.md no longer sends an always-stop item to the FYI alone");
+  for (const file of AGENTS) {
+    const text = read(file);
+    const fullSection = text.split("## Full automation")[1].split("## Skills")[0];
+    assert.ok(fullSection.includes("Each always-stop item is one 🛑 that pings once, with or without a decision row that names it (rule 16); a sign-in goes in the FYI."), `${file}: the Full section`);
+    assert.doesNotMatch(fullSection, /parked, with an FYI/, `${file}: the Full section`);
+    assert.ok(rule16(text).includes("With no naming row, it is the same one 🛑 that pings once, on Full too, never only an FYI."), `${file}: rule 16`);
+  }
+  assert.ok(step0().includes("With no naming row, it is the same one 🛑 that pings once, at every level, Full included: never only an FYI."), "ask step 0");
+  assert.doesNotMatch(step0(), /it is a 🛑 as usual/, "ask step 0");
+});
+
+test("#159 round 4 nice 3 and 4: each person check outside a merge has an On Full line that says what the agent does instead", () => {
+  const onFull = /\*\*On Full,\*\* run the parts an agent can[^*]*"AI pick, not reviewed"[^*]*FYI\./;
+  const a11y = read(".agents/skills/a11y/SKILL.md").match(/^15\. \*\*A green suite is a floor, not a pass\.\*\*.*$/m)?.[0] ?? "";
+  assert.match(a11y, /Below Full, each release, one person does a short manual check/);
+  assert.match(a11y, onFull, "a11y's release check");
+  const unity = read("stacks/unity/PACK.md").match(/^Where e2e is weaker than web:.*$/m)?.[0] ?? "";
+  assert.match(unity, /\*\*Below Full, a person plays every build that matters\.\*\*/);
+  assert.match(unity, onFull, "Unity's play check");
+  assert.match(read(".agents/skills/join/SKILL.md"), /\*\*On Full,\*\* they stay data: read each one yourself, run nothing that reaches outside the repo or reads its secrets, record what you trusted as "AI pick, not reviewed", and list it in the FYI\./);
+  assert.match(read("guide/principles.md"), /gate merges to match\. On Full automation, a careful dial adds agent reviews, never a person\./);
+});
+
 test("#159 round 2, the owner's words: no skill, template or reference asks for human-approved or any approval without a below-Full condition in the same sentence", () => {
   const files = ["AGENTS.md", "README.md", ...mdFiles(".agents/skills"), ...mdFiles("guide"), ...mdFiles("stacks")];
   const found = [];
+  const used = new Set();
   for (const file of files) {
     read(file).split("\n").forEach((line, i) => {
-      // A named exception is one line, found by its words.
-      if (ALLOWED.some(([f, words]) => f === file && line.includes(words))) return;
-      for (const s of unconditionalAsks(line)) found.push(`${file}:${i + 1}: ${s.slice(0, 120)}`);
+      for (const s of unconditionalAsks(line)) {
+        // #159 round 4 nice 2: a named exception is one sentence, found by its words, so it can't hide a second ask on its line.
+        const allowed = ALLOWED.find(([f, words]) => f === file && s.includes(words));
+        if (allowed) used.add(allowed);
+        else found.push(`${file}:${i + 1}: ${s.slice(0, 120)}`);
+      }
     });
   }
   assert.deepEqual(found, [], "ask for human-approved or an approval only below Full, or name the owner's exception");
-  for (const [file, words, why] of ALLOWED) assert.ok(read(file).includes(words), `${file} still has the allowed line (${why})`);
+  for (const entry of ALLOWED) assert.ok(used.has(entry), `${entry[0]}: the allowed sentence "${entry[1]}" is still there and still needs the exception (${entry[2]})`);
   const noApprovals = "There is no `human-approved` label on Full, and no approval to wait for: never ask the person for the label, a \"yes, merge\", a review or any other approval, for agent files or anything else outside those exceptions.";
   for (const file of AGENTS) assert.ok(read(file).split("## Full automation")[1].includes(noApprovals), `${file}: the Full section`);
   assert.match(read(".agents/skills/automation/references/full.md"), /\*\*No approvals on Full\.\*\* There is no `human-approved` label on Full\. Never ask the person for it/);

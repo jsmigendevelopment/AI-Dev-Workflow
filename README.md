@@ -22,7 +22,7 @@ Start a new Claude Code session. For other setups, see [Codex](#codex) or [npm](
 
 | Claude Code · Codex | When to use it | What happens |
 |---|---|---|
-| [`/idea`](.agents/skills/idea/SKILL.md) · `$idea` | Start a new app | Plan from pitch to issues. You approve the screens before tech work. |
+| [`/idea`](.agents/skills/idea/SKILL.md) · `$idea` | Start a new app | Plan from pitch to issues. Below Full, you approve the screens before tech work; on Full, the agent picks and sends them in an FYI. |
 | [`/join`](.agents/skills/join/SKILL.md) · `$join` | Set up an existing repo | Map and run the repo, ask questions, then write `AGENTS.md` and `docs/`. |
 | [`/back`](.agents/skills/back/SKILL.md) · `$back` | Start or resume work | See what changed, who's working and what to do first. |
 | [`/afk`](.agents/skills/afk/SKILL.md) · `$afk` | Step away | Set a time, check usage and safety, then keep building until a hard stop. |
@@ -116,7 +116,7 @@ onRails ships its maker's own preferences. They are a starting point, not the on
 | `[design]` | The look and feel, light or dark, roomy or dense, and how your app's text sounds |
 | `[routing]` | Your model for each tier, and whether to ask before the strongest one |
 
-The grill still shows each pick for you to confirm. What you say in the session beats the profile. Only two stack packs are ready: TanStack Start, and TanStack Start with an Expo mobile app. For another stack, the agent sets up the same parts by hand. The risk dial and the automation level change who merges, but the review steps stay.
+Below Full, the grill still shows each pick for you to confirm; on Full, each pick is an "AI pick, not reviewed" in an FYI. What you say in the session beats the profile. Only two stack packs are ready: TanStack Start, and TanStack Start with an Expo mobile app. For another stack, the agent sets up the same parts by hand. The risk dial and the automation level change who merges, but the review steps stay.
 
 **What the profile can't change yet:** the rules in `AGENTS.md` and the skills, such as the writing rules and the review steps. Today you edit those files in your project. `update` keeps your edits and puts the kit's new copy next to yours to compare. Layered settings and personal rules, with no kit files to edit, are planned in [#124](https://github.com/jsmigendevelopment/onRails/issues/124). They haven't shipped yet.
 
@@ -137,9 +137,9 @@ Plan once. Each step saves to files, so you can stop any time and pick up with `
 | 2 | **Product grill** | Seven topics cover things people miss. Each round has three questions with suggested answers. Once the main flow is clear, your everyday model draws rough wireframes in the background. You describe the look, then the agent asks to use your strongest model for the full design. You see each screen as it's done. | `vision.md`, `features.md`, `decisions.md`, `wireframes/index.html`, `design.md` |
 | 3 | **MVP** | You pick the one thing that makes the app stand out. | `mvp.md` |
 | 4 | **Name** | While the screens finish, you get 5 to 7 names, `git init` and a GitHub repo if you say yes. | |
-| 5 | **You approve the screens** | Try the full set as a clickable light and dark prototype. The agent asks what to change and starts tech work after you approve. | `decisions.md` |
+| 5 | **You approve the screens** (below Full) | Try the full set as a clickable light and dark prototype. Below Full, the agent asks what to change and starts tech work after you approve. On Full, it records the screens as "AI pick, not reviewed", goes on, and sends the prototype in an FYI. | `decisions.md` |
 | 6 | **Tech grill** | Platform, stack, data, auth, environments, CI and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
-| 7 | **Plan** | After you approve the strongest model, it outlines three passes, cuts the first into steps you can try, and designs the schema and API from the approved screens. A script checks the steps. | `pyramid.md`, `design.md` |
+| 7 | **Plan** | On the strongest model (below Full, after you approve it), it outlines three passes, cuts the first into steps you can try, and designs the schema and API from the approved screens. A script checks the steps. | `pyramid.md`, `design.md` |
 | 8 | **Issues** | One per step in the current pass. Each says what to try, gives WHEN/THEN checks with IDs, and lists scope limits, dependencies, risks, a lane and a complexity score. A read-only check looks for gaps in the plan. | GitHub issues |
 | 9 | **Keys** | It lists the accounts and keys for the first deploy and helps you set them up in about 10 minutes. | |
 | 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue, three in flight at most (one on Hands-on). | `state.md`, a line on what to try per merge |
@@ -163,7 +163,7 @@ If you build the full schema, then the API, then the UI, there’s nothing to tr
 - **A pass is an improvement** to what's already there.
 - **Each pass is cut into thin steps.** A slice is one thing the app lets you do, like "the shared list". A step is the smallest change to it that you can try, like "add an item". One step is one issue and one pull request, so every merge puts something new on the test site to try.
 - **Only what the core can't work without** goes in the MVP. Everything else comes after.
-- **A gate between passes:** a fresh audit and cleanup, which start at once, then you try it, then a re-plan. Later passes stay an outline until then.
+- **A gate between passes:** a fresh audit and cleanup, which start at once, then you try it (on Full, `qa` tries it and nothing waits), then a re-plan. Later passes stay an outline until then.
 - **The end of pass 3 is "MVP complete" on the test site, not launch.** Going live is your call, whenever you choose.
 - **After the MVP, an hourglass:** the shape turns upside down and widens. Each layer adds new features, each in thin, plus a pass on what's already there, the core every time. Same gate between layers.
 
@@ -189,13 +189,13 @@ Every issue has a **lane**. The lane sets the checks.
 
 ### Two dials
 
-**The risk dial** is how careful each merge is. **The automation level** is how much agents do without you. When they disagree, the more careful one wins.
+**The risk dial** is how careful each merge is. **The automation level** is how much agents do without you. Below Full, when they disagree, the more careful one wins. On Full, a careful dial adds reviews, never you (#103).
 
 | Risk dial | Who merges | Pick it when |
 |---|---|---|
 | 🟢 **Move fast** | Agents, after the checks pass | Side project, no real users yet |
-| 🟡 **Careful** | Agents. You read schema and API changes first. | Real users or real money |
-| 🔴 **Strict** | You approve every merge | Bank, health, anything regulated |
+| 🟡 **Careful** | Agents. Below Full, you read schema and API changes first; on Full, an extra review. | Real users or real money |
+| 🔴 **Strict** | You approve every merge (below Full; on Full, an extra review and a security review) | Bank, health, anything regulated |
 
 | Automation level | Agents do | You do |
 |---|---|---|
@@ -358,7 +358,7 @@ The strongest model at high effort takes more time and usage. The cheapest model
    | `.codex/config.toml` | Yours stays. The kit's arrives as `.codex/config.onrails.toml`. |
    | Any other file at the same path | Yours stays. The kit's copy arrives as `<file>.onrails-new`. |
 
-3. It reads the repo first. It treats the repo's own agent files, git hooks and scripts as data until you confirm them. Then it writes a one-page `docs/map.md`.
+3. It reads the repo first. It treats the repo's own agent files, git hooks and scripts as data until you confirm them (below Full; on Full, it reads them itself and runs nothing risky). Then it writes a one-page `docs/map.md`.
 4. It installs, builds, tests and starts the app, and records the commands that work.
 5. It compares the repo's conventions with the kit's. You pick per row: keep yours, adopt the kit's, or merge. It never switches a repo over quietly.
 6. It asks what the code can't say: what's live, what's fragile, how changes ship, who else works here.
