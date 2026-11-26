@@ -40,10 +40,10 @@ Only what's left goes to the person. Note each route you tried and why it didn't
 
 **Short on memory, disk or CPU** is never the person's to fix and never a reason to stop. Never ask the person to free memory, disk or CPU. Their machine and their other apps aren't yours: never touch a process this session didn't start. Climb this ladder yourself, on every automation level, and work within what's free:
 
-1. **Stop your own leftovers.** `node .agents/skills/ask/scripts/procs.mjs stop mine` stops what this session started and no longer needs: finished dev servers, watchers, old test runs. Never `stop all`.
+1. **Stop your own leftovers.** `node .agents/skills/ask/scripts/procs.mjs list --mine`, then `procs.mjs stop <id>` for each one this session no longer needs: a finished dev server, a watcher, an old test run. Never stop a running builder, a strongest-tier run (see "A running job") or the person's dev server. Never `stop all`, `stop mine`, `pkill` or `kill <pid>`.
 2. **Run less at once.** One builder in flight. The check contract's steps one at a time, never in parallel.
 3. **Make each step smaller.** One test worker (`vitest run --maxWorkers=1`, `jest --maxWorkers=1`, `node --test --test-concurrency=1`, `-j1`), no build cache that grows memory, type checks one package at a time. The stack pack names its own form: `pnpm check:lowmem` in TanStack Start.
-4. **Lower your own floor** to what the smallest form of the step needs, measured (run it once and read its peak, for example with `/usr/bin/time -v`), never guessed. A floor you set yourself is never a reason to wait.
+4. **Lower your own floor** to what the smallest form of the step needs, measured (run it once and read its peak, for example with `/usr/bin/time -v` on Linux, `/usr/bin/time -l` on macOS), never guessed. A floor you set yourself is never a reason to wait.
 5. **Split the work.** Run the slow part (an e2e suite, a big build) on its own, after the rest, or in a cloud session if the profile allows one.
 6. **Only then wait,** with a timer and a try limit (rule 15), and keep building other things. The wait sends one ℹ️ FYI with the reason and the retry time, never a question.
 

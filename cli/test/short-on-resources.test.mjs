@@ -20,9 +20,16 @@ test("AC-171-1: ask's \"Try before you block\" lists the resource ladder and nev
   const at = RUNGS.map((rung, i) => ladder.indexOf(`${i + 1}. **${rung}`));
   assert.ok(at.every((n, i) => n > 0 && (i === 0 || n > at[i - 1])), `the six rungs, in order: ${at}`);
   assert.match(ladder, /never touch a process this session didn't start/);
-  assert.match(ladder, /`node \.agents\/skills\/ask\/scripts\/procs\.mjs stop mine`.*Never `stop all`\./);
+  // Rung 1 stops leftovers one by one, never everything the session started: `stop mine` would also stop a
+  // running builder, a strongest-tier run or the person's dev server (the review on #175).
+  const rung1 = ladder.slice(at[0], at[1]);
+  assert.match(rung1, /`node \.agents\/skills\/ask\/scripts\/procs\.mjs list --mine`, then `procs\.mjs stop <id>` for each one this session no longer needs/);
+  assert.match(rung1, /Never stop a running builder, a strongest-tier run \(see "A running job"\) or the person's dev server\./);
+  assert.match(rung1, /Never `stop all`, `stop mine`, `pkill` or `kill <pid>`\./);
+  assert.doesNotMatch(ladder.replace("Never `stop all`, `stop mine`", ""), /stop mine/, "the ladder never tells the agent to run stop mine");
   assert.match(ladder, /--maxWorkers=1/);
   assert.match(ladder, /measured .*never guessed\. A floor you set yourself is never a reason to wait\./);
+  assert.match(ladder, /`\/usr\/bin\/time -v` on Linux, `\/usr\/bin\/time -l` on macOS/, "a peak-memory measure for both");
   assert.match(ladder, /The wait sends one ℹ️ FYI with the reason and the retry time, never a question\./);
   assert.match(ladder, /on every automation level/);
   assert.match(ladder, /On Full, nothing on this ladder asks\. Below Full, say what you did in one ℹ️ FYI\. Paying is the only reason to ask/);
@@ -36,6 +43,9 @@ test("AC-171-2: coordinate lowers the number in flight and the check concurrency
   assert.match(bullet, /Lower the check concurrency too: one check at a time, its steps one at a time, one test worker/);
   assert.match(bullet, /The loop never stops for this, and never asks the person to free anything: send at most one ℹ️ FYI for the shortfall/);
   assert.match(bullet, /Never touch a process this session didn't start\./);
+  assert.match(bullet, /Raise the numbers again when free memory is back above the floor you measured\./);
+  assert.match(bullet, /Stop your own leftovers one by one with `procs\.mjs stop <id>`, never a running builder, a strongest-tier run or the person's dev server/);
+  assert.doesNotMatch(bullet, /stop mine|on a sweep with room/);
   assert.ok(coordinate.indexOf(bullet) > coordinate.indexOf("5. **Act when something reports back"), "in step 5");
   assert.match(coordinate, /or 3 if it's not set, and 1 while the machine is short on memory, disk or CPU \(step 5\)\./, "step 2's limit");
   assert.match(coordinate, /then `test:e2e` if the project has it\. Short on memory\? Run the low-memory form \(step 5\)\./, "step 6.1.3");
@@ -60,7 +70,9 @@ test("AC-171-3: the TanStack Start pack's check:lowmem runs check's steps one at
   assert.match(read(dir, "README.md"), /^\| `pnpm check:lowmem` +\| the same steps on a machine short of memory: one test worker \(`vitest --maxWorkers=1`\) +\|$/m);
   assert.match(kit(".agents/skills/stack-tanstack-start/SKILL.md"), /`pnpm check:lowmem` runs the same steps, one at a time, with one Vitest worker \(`--maxWorkers=1`\)/);
   // Another pack with a check script names its own flags.
-  assert.match(kit(".agents/skills/stack-monorepo-expo/SKILL.md"), /`pnpm check --concurrency=1` runs Turborepo's tasks one at a time\..*exec jest --maxWorkers=1`/);
+  const monorepo = kit(".agents/skills/stack-monorepo-expo/SKILL.md");
+  assert.match(monorepo, /`pnpm check --concurrency=1` runs Turborepo's tasks one at a time\..*exec jest --maxWorkers=1`, and `pnpm -C apps\/web exec vitest run --maxWorkers=1` for the web app\./);
+  assert.doesNotMatch(monorepo, /apps\/web check:lowmem/, "the web app's tests only, not its whole check again");
 });
 
 test("#171: the owner's words are a decision row with originator person", () => {

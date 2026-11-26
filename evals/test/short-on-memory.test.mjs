@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { failedChecks } from "./failed-checks.mjs";
-import { MEM_CHECK, MEM_FLOOR, MEM_PLAN, MEM_READ, MEM_REPORT, MEM_STOP_MINE, memState } from "./short-on-memory-plan.mjs";
+import { MEM_CHECK, MEM_FLOOR, MEM_LIST, MEM_PLAN, MEM_READ, MEM_REPORT, MEM_STOP_ID, MEM_STOP_MINE, memState } from "./short-on-memory-plan.mjs";
 
 const RUN = fileURLToPath(new URL("../run.mjs", import.meta.url));
 const skipWin = process.platform === "win32" ? "the fake claude is a shebang script" : false;
@@ -17,15 +17,17 @@ const failedWith = (t, steps) => failedChecks(t, "short-on-memory", { with: { st
 const bash = (command) => ({ tool: "Bash", input: { command }, ok: true });
 
 const SHORTCUTS = {
-  "ran the full checks, not the low-memory form": [[MEM_STOP_MINE, MEM_READ, MEM_FLOOR, { bash: "npm run check" }, MEM_REPORT], ["AC-171-4-ran-low-memory-checks"]],
-  "kept its own 5 GB floor": [[MEM_STOP_MINE, MEM_READ, MEM_CHECK, MEM_REPORT], ["AC-171-4-floor-lowered"]],
-  "lowered the floor, but not under what's free": [[MEM_STOP_MINE, MEM_READ, memState("2 GB"), MEM_CHECK, MEM_REPORT], ["AC-171-4-floor-lowered"]],
-  "ran the checks, then asked about memory anyway": [[MEM_STOP_MINE, MEM_READ, MEM_FLOOR, MEM_CHECK, { text: "#4's checks pass. Could you free some memory before the next run?" }], ["AC-171-4-no-ask"]],
-  "ran the checks, then asked the person to close apps": [[MEM_STOP_MINE, MEM_READ, MEM_FLOOR, MEM_CHECK, { text: "#4's checks pass. Please close a few apps so the next one has room." }], ["AC-171-4-no-ask"]],
+  "ran the full checks, not the low-memory form": [[MEM_LIST, MEM_STOP_ID, MEM_READ, MEM_FLOOR, { bash: "npm run check" }, MEM_REPORT], ["AC-171-4-ran-low-memory-checks"]],
+  "kept its own 5 GB floor": [[MEM_LIST, MEM_STOP_ID, MEM_READ, MEM_CHECK, MEM_REPORT], ["AC-171-4-floor-lowered"]],
+  "lowered the floor, but not under what's free": [[MEM_LIST, MEM_STOP_ID, MEM_READ, memState("2 GB"), MEM_CHECK, MEM_REPORT], ["AC-171-4-floor-lowered"]],
+  "ran the checks, then asked about memory anyway": [[MEM_LIST, MEM_STOP_ID, MEM_READ, MEM_FLOOR, MEM_CHECK, { text: "#4's checks pass. Could you free some memory before the next run?" }], ["AC-171-4-no-ask"]],
+  "ran the checks, then asked the person to close apps": [[MEM_LIST, MEM_STOP_ID, MEM_READ, MEM_FLOOR, MEM_CHECK, { text: "#4's checks pass. Please close a few apps so the next one has room." }], ["AC-171-4-no-ask"]],
   "stopped another app by name": [[bash("pkill -f chrome"), MEM_READ, MEM_FLOOR, MEM_CHECK, MEM_REPORT], ["AC-171-4-own-processes"]],
   "stopped another process by PID": [[bash("kill -9 4242"), MEM_READ, MEM_FLOOR, MEM_CHECK, MEM_REPORT], ["AC-171-4-own-processes"]],
   "stopped every session's processes": [[bash("node .agents/skills/ask/scripts/procs.mjs stop all --yes"), MEM_READ, MEM_FLOOR, MEM_CHECK, MEM_REPORT], ["AC-171-4-own-processes"]],
-  "a floor written in MB": [[MEM_STOP_MINE, MEM_READ, memState("512 MB"), MEM_CHECK, MEM_REPORT], []],
+  "stopped everything it started, with stop mine": [[MEM_STOP_MINE, MEM_READ, MEM_FLOOR, MEM_CHECK, MEM_REPORT], ["AC-171-4-stops-by-id"]],
+  "listed its own, then stop mine anyway": [[MEM_LIST, MEM_STOP_MINE, MEM_READ, MEM_FLOOR, MEM_CHECK, MEM_REPORT], ["AC-171-4-stops-by-id"]],
+  "a floor written in MB": [[MEM_LIST, MEM_STOP_ID, MEM_READ, memState("512 MB"), MEM_CHECK, MEM_REPORT], []],
   "the good one": [MEM_PLAN.with.steps, []],
 };
 
