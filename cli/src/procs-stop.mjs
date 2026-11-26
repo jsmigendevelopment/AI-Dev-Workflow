@@ -98,6 +98,7 @@ function kill(sys, left, { guard, platform }) {
  * where the agent is for r, which is then refused with NO_AGENT.
  */
 export async function stopRecords(sys, recs, { grace = GRACE_S, also = [], blind = () => false } = {}) {
+  sys.fresh?.(); // never a process list read before a prompt: its PIDs may belong to other processes now (#248)
   const guard = guarded(sys, also);
   const live = sys.info([...recs.map((r) => r.pid).filter(Number.isInteger), ...guard]);
   const rows = recs.some((r) => byTree(r, sys.platform)) ? sys.table() : [];

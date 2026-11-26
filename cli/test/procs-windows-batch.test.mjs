@@ -19,10 +19,10 @@ const MAKE_FOLDERS = 4; // what every signed-in user has on C:\ itself: make a f
 const record = (pid) => ({ id: `p${pid}`, kind: "process", pid, start: START, group: false, command: "pnpm dev", why: "w", until: "u",
   session: "s-1", agent: { pid: AGENT, start: START }, startedAt: START });
 
-function registryAt(root, pid) {
+function registryAt(root, rec) {
   const file = join(root, ".onrails", "procs.json");
   mkdirSync(join(root, ".onrails", "logs"), { recursive: true, mode: 0o700 });
-  writeFileSync(file, JSON.stringify({ version: 1, procs: [record(pid)] }), { mode: 0o600 });
+  writeFileSync(file, JSON.stringify({ version: 1, procs: [rec] }), { mode: 0o600 });
   stamp(file);
   return file;
 }
@@ -30,12 +30,14 @@ function registryAt(root, pid) {
 /**
  * A fake Windows machine with three repos, each under a folder of its own, all in the index. acl(path) gives the
  * rule lines after the owner (null: Get-Acl fails); owner(path) the owner. cut(text) can cut the output short.
+ * rec(pid) is each repo's one record, procs() more live processes or other start times, as { pid: start }, read
+ * again on every PowerShell start, and more(repos, files) more paths for the index.
  */
-function windows({ acl = () => [], owner = () => ME, cut = (t) => t } = {}) {
+function windows({ acl = () => [], owner = () => ME, cut = (t) => t, rec = record, procs = () => ({}), more = () => [] } = {}) {
   const home = tmp("procs-home-"), repos = [4000, 4001, 4002].map(() => join(tmp("procs-above-"), "repo"));
   mkdirSync(join(home, ".onrails"), { mode: 0o700 });
-  const files = repos.map((root, i) => registryAt(root, 4000 + i));
-  writeFileSync(join(home, ".onrails", "procs-index.json"), JSON.stringify({ registries: files }), { mode: 0o600 });
+  const files = repos.map((root, i) => registryAt(root, rec(4000 + i)));
+  writeFileSync(join(home, ".onrails", "procs-index.json"), JSON.stringify({ registries: [...files, ...more(repos, files)] }), { mode: 0o600 });
   const starts = [], spawned = [], killed = [];
   const fakeRun = (cmd, args, opts) => {
     if (cmd === "git") {
@@ -48,8 +50,8 @@ function windows({ acl = () => [], owner = () => ME, cut = (t) => t } = {}) {
     const script = args.at(-1), paths = opts.env?.ONRAILS_ACL_PATH?.split("\n") ?? [];
     starts.push({ script, args, paths });
     if (script.includes("Win32_Process")) {
-      const row = (pid, parent, line) => `${pid}|${parent}|${START}|2097152|1|${line}`;
-      return { status: 0, stdout: [row(AGENT, 1, "claude.exe"), ...[4000, 4001, 4002].map((p) => row(p, 1, "node dev"))].join("\r\n") };
+      const live = { [AGENT]: START, 4000: START, 4001: START, 4002: START, ...procs() };
+      return { status: 0, stdout: Object.entries(live).map(([pid, start]) => `${pid}|1|${start}|2097152|1|${Number(pid) === AGENT ? "claude.exe" : "node dev"}`).join("\r\n") };
     }
     const block = (p, i) => {
       const rules = acl(p);
@@ -119,4 +121,48 @@ test("AC-248-4: WHEN the ACLs come in one batch THEN the folders above a Windows
     assert.ok(w.acls()[0].paths.includes(bad), `${name}: the folder above is asked`);
     assert.deepEqual(w.reaped(), want.map((i) => w.files[i]), `${name}: ${r.out}`);
   }
+});
+
+test("#248 round 1: WHEN a win32 stop waits on the person and the PID goes to another process meanwhile THEN it reads the process list again and runs no taskkill", async () => {
+  const LATER = "2026-11-26T09:30:00.0000000Z";
+  // Another live session's record (its agent is 600), and PID 4100, which onRails didn't start.
+  const other = (pid) => ({ ...record(pid), session: "s-2", agent: { pid: 600, start: START } });
+  for (const target of ["4100", "p4000"]) {
+    const moved = { 600: START, 4100: START };
+    const w = windows({ rec: other, procs: () => moved });
+    const ask = async () => { moved[target === "4100" ? 4100 : 4000] = LATER; return "y"; };
+    const r = await run(w.sys, ["stop", target], { ask });
+    assert.match(r.out, /belongs to another process now/, `${target}: ${r.out}`);
+    assert.deepEqual(w.killed, [], `${target}: no taskkill`);
+  }
+});
+
+test("#248 round 1: WHEN an index fails its checks THEN no path it lists that isn't a plain local registry path reaches the ACL reader, and nothing it lists is reaped", async () => {
+  // Each one is there on this disk, so only the filter keeps it out: a path that starts with two separators (as a
+  // UNC path does on Windows) and one that climbs with "..".
+  const odd = (repos, files) => [`/${files[1]}`, `${repos[2]}/../repo/.onrails/procs.json`];
+  let index = null;
+  const w = windows({ more: odd, acl: (p) => (p === index ? [`Allow S-1-5-11 ${MODIFY}`] : []) });
+  index = join(w.home, ".onrails", "procs-index.json");
+  const r = await run(w.sys, ["session-end"]);
+  const asked = w.acls().flatMap((s) => s.paths);
+  assert.ok(asked.includes(index), "the index's own ACL is read");
+  assert.deepEqual(asked.filter((a) => a.startsWith("//") || a.includes("/../")), [], "no path from the odd entries, or a folder of one");
+  assert.deepEqual(w.reaped(), [], r.out);
+  assert.deepEqual(w.killed, []);
+});
+
+test("#248 round 1: WHEN the ACL paths would overflow one Windows environment variable THEN they go in chunks under the limit, one start each, and every path is answered", () => {
+  const starts = [];
+  const fake = (cmd, args, opts) => {
+    const paths = opts.env.ONRAILS_ACL_PATH.split("\n");
+    starts.push(opts.env.ONRAILS_ACL_PATH.length);
+    return { status: 0, stdout: [`user ${ME}`, ...paths.flatMap((p, i) => [`path ${i}`, `owner ${ME}`, `end ${i}`])].join("\r\n") };
+  };
+  const paths = Array.from({ length: 600 }, (_, i) => `C:\\${"x".repeat(100)}\\${i}\\.onrails\\procs.json`);
+  const got = realSys({ platform: "win32", run: fake }).winAcls([...paths, `C:\\${"y".repeat(40000)}`]);
+  assert.ok(starts.length >= 3, `${starts.length} starts`);
+  assert.ok(starts.every((n) => n + "ONRAILS_ACL_PATH=".length < 32767), `sizes ${starts}`);
+  assert.ok(paths.every((p) => got.get(p)?.owned === true), "every path is answered");
+  assert.equal(got.get(`C:\\${"y".repeat(40000)}`), null, "a path longer than a chunk can't be told");
 });

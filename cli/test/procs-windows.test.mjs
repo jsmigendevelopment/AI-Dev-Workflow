@@ -5,7 +5,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { realSys, winAccess } from "../src/procs-sys.mjs";
+import { realSys } from "../src/procs-sys.mjs";
+import { winAccess } from "../src/procs-winacl.mjs";
 import { AGENT, fakeSys, inRepo, run, seed, signals, stamp, startDev } from "./procs-fake.mjs";
 
 const OWN = { owned: true, writers: [] };
