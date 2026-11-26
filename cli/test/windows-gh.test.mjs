@@ -135,7 +135,8 @@ test("#238: WHEN the only npx outside the repo is in a node_modules/.bin, by its
   const dir = repo();
   const outside = tmp("onrails-bin-");
   put(outside, "node_modules/.bin/npx.cmd", "a package's own\n");
-  symlinkSync(join(outside, "node_modules", ".bin"), join(outside, "tools"));
+  // A junction needs no symlink rights on a real Windows machine; elsewhere the type is ignored.
+  symlinkSync(join(outside, "node_modules", ".bin"), join(outside, "tools"), "junction");
   for (const entry of [join(outside, "node_modules", ".bin"), join(outside, "tools")]) {
     const r = onWindows(PUSH, dir, [entry], ["--wrangler", "--env", "test"]);
     assert.deepEqual(r.starts, [], entry);
@@ -173,5 +174,35 @@ test("#238: WHEN ComSpec isn't a full path THEN push-secrets and launch start cm
     assert.deepEqual(r.starts.map((s) => [s.file, ...s.args.slice(0, 2)]), [[cmdExe, "/d", "/v:off"]], JSON.stringify(env));
     const l = launch([shim, "install", "-g", "corepack"], { platform: "win32", env: { ...env, PATHEXT } });
     assert.deepEqual([l.file, l.args], [cmdExe, ["/d", "/v:off", "/s", "/c", `""${shim}" install -g corepack"`]]);
+  }
+});
+
+test("#238: WHEN HOME is a folder inside a git repo that isn't an onRails project and the run is from a subfolder THEN the repo still counts, so its npx doesn't start", () => {
+  const top = tmp("onrails-holds-home-");
+  mkdirSync(join(top, ".git"));
+  put(top, "tools/npx.cmd", "the repo's own\n");
+  mkdirSync(join(top, "home"));
+  const app = join(top, "app");
+  put(app, "docs/stack.md", 'ci = "local"\n');
+  envFiles(app);
+  const r = onWindows(PUSH, app, [join(top, "tools")], ["--wrangler", "--env", "test"], { HOME: join(top, "home") });
+  assert.deepEqual(r.starts, []);
+  assert.match(r.stdout, /npx found only inside this repo, not run/);
+});
+
+test("#238: WHEN ComSpec or SystemRoot has no drive letter and isn't a UNC path THEN push-secrets and launch don't use it", () => {
+  const dir = repo();
+  const npm = tmp("onrails-npm-");
+  put(npm, "npx.cmd", "shim\n");
+  const shim = "C:\\Program Files\\nodejs\\npm.cmd";
+  for (const [env, cmdExe] of [
+    [{ ComSpec: "\\cmd.exe", SystemRoot: "D:\\Win" }, "D:\\Win\\System32\\cmd.exe"],
+    [{ ComSpec: "\\Windows\\System32\\cmd.exe", SystemRoot: "\\Win" }, "C:\\Windows\\System32\\cmd.exe"],
+    [{ ComSpec: "\\\\server\\share\\cmd.exe", SystemRoot: "\\Win" }, "\\\\server\\share\\cmd.exe"],
+    [{ ComSpec: "E:/Tools/cmd.exe", SystemRoot: "\\Win" }, "E:/Tools/cmd.exe"],
+  ]) {
+    const r = onWindows(PUSH, dir, [npm], ["--wrangler", "--env", "test"], env);
+    assert.deepEqual(r.starts.map((s) => s.file), [cmdExe], JSON.stringify(env));
+    assert.equal(launch([shim, "install"], { platform: "win32", env: { ...env, PATHEXT } }).file, cmdExe, JSON.stringify(env));
   }
 });

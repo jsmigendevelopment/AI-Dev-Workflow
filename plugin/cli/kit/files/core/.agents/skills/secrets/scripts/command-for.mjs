@@ -28,16 +28,17 @@ function within(dir, root) {
 }
 
 // The folders whose tools never run, by real path: the repo's top folder and the current folder. A filesystem root
-// never counts. As in toolPath, a repo that holds the home folder counts only when it is an onRails project, so a git
-// repo at ~ doesn't make ~/.local/bin the repo's for a folder that isn't a git repo yet. The current folder always
-// counts, even at ~ (stricter than toolPath): a run from the folder that holds HOME never starts its tools.
+// never counts. A repo whose top folder is the home folder counts only when it is an onRails project, so a git repo
+// at ~ doesn't make ~/.local/bin the repo's for a folder that isn't a git repo yet. A repo that holds a HOME set
+// inside it (a sandbox) still counts (stricter than toolPath). The current folder always counts, even at ~: a run
+// from the home folder never starts its tools.
 function roots() {
   const home = realDir(homedir()) ?? homedir();
   const project = (dir) => [".onrails.json", ".ai-dev-workflow.json"].some((name) => existsSync(join(dir, name)));
   const top = realDir(repoRoot(process.cwd()) ?? process.cwd());
   const cwd = realDir(process.cwd());
   return [
-    { dir: top && (top === cwd || !within(home, top) || project(top)) ? top : null, label: "this repo" },
+    { dir: top && (top === cwd || top !== home || project(top)) ? top : null, label: "this repo" },
     { dir: cwd, label: "the current folder" },
   ].filter(({ dir }) => dir && dirname(dir) !== dir);
 }
@@ -54,8 +55,9 @@ function skipped(entry, inside) {
   return root ? `inside ${root.label}` : null;
 }
 
-// ComSpec or SystemRoot only as a full path: a bare or relative one is looked up from the current folder.
-const full = (path) => (path && win32.isAbsolute(path) ? path : null);
+// ComSpec or SystemRoot only as a full path with a drive letter or a UNC prefix: a bare or relative one is looked up
+// from the current folder, and a drive-less \cmd.exe from the current drive.
+const full = (path) => (path && /^([A-Za-z]:[\\/]|\\\\)/.test(path) ? path : null);
 
 /**
  * How a command starts, with no shell: { file, args, env, verbatim } or { why }. The full path on PATH (PATHEXT on
