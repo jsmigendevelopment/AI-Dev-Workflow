@@ -44,10 +44,10 @@ Git pushes and pulls work, and don't count against GitHub's limit. So builders b
 
    ```text
    2026-11-24T13:12Z · pr-open · feat/14-share-link · title="#14 Share link" · body-file=/tmp/pr-14.md
-   2026-11-24T13:38Z · status · sha=3f2a9c1 · state=success · description="check and test:e2e passed"
+   2026-11-24T13:38Z · status · sha=3f2a9c1e5b7d4f6a8c0e2b4d6f8a1c3e5b7d9f0a · state=success · description="check and test:e2e passed"
    2026-11-24T13:38Z · comment · #14 · body-file=/tmp/checks-14.md
    2026-11-24T13:40Z · comment · #14 · body-file=/tmp/review-14.md
-   2026-11-24T13:41Z · merge · feat/14-share-link · sha=3f2a9c1
+   2026-11-24T13:41Z · merge · feat/14-share-link · sha=3f2a9c1e5b7d4f6a8c0e2b4d6f8a1c3e5b7d9f0a
    ```
 
    In a cloud session the folder vanishes with the container. Copy the queue under "Queued for GitHub" in `docs/state.md` too.

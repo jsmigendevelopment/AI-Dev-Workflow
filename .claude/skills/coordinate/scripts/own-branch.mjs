@@ -2,27 +2,41 @@
 // The local gate only runs the loop's own branches (#131). Before `coordinate` step 6.1 checks out a pull
 // request, run this from your checkout of main:
 //   node own-branch.mjs <n> --repo owner/name
-// It passes when the pull request's branch is in this repo, not a fork, is feat/<issue>-... or fix/<issue>-...,
-// and that issue has a claim comment that names it: "Claimed by <session> at <time> · branch <name>".
+// It passes when the pull request's branch is in this repo, not a fork; its author has write access or higher;
+// the branch is feat/<issue>-<name> or fix/<issue>-<name>; and that issue has a claim from a login with write
+// access or higher, as a whole line in the claim's exact form: "Claimed by <session> at <time> · branch <name>".
 // On a pass it prints the head's full sha. It reads the API only, and runs nothing from the pull request.
 // Exit 0: the loop's own branch. 1: not, so never check it out or run it. 2: a usage or API error.
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gh, pages, prArgs } from "./agent-files.mjs";
+import { gh, pages, prArgs, writers } from "./agent-files.mjs";
 
-const BRANCH = /^(?:feat|fix)\/(\d+)-/;
+// Plain characters only after the dash, so the name is safe to write into a command or a claim line.
+const BRANCH = /^(?:feat|fix)\/(\d+)-[A-Za-z0-9._-]+$/;
 const ONLY = "The local gate only runs the loop's own branches.";
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Pass for the loop's own branch: in `repo`, and named by its issue's claim. `commentsOf(issue)` lists that issue's comments. */
-export function ownBranch(repo, pull, commentsOf) {
+/**
+ * Pass for the loop's own branch: in `repo`, opened by a writer, and named by a writer's claim on its issue.
+ * `commentsOf(issue)` lists that issue's comments; `canWrite(logins)` returns the set of them with write access.
+ */
+export function ownBranch(repo, pull, commentsOf, canWrite) {
   const { ref = "", sha, repo: from } = pull.head ?? {};
   const where = from?.full_name;
   if (where?.toLowerCase() !== repo.toLowerCase()) return { pass: false, why: `The branch is in ${where ?? "a repository that's gone"}, not ${repo}. ${ONLY}` };
   const issue = ref.match(BRANCH)?.[1];
-  if (!issue) return { pass: false, why: `${ref} isn't a feat/<n>- or fix/<n>- branch. ${ONLY}` };
-  const claim = new RegExp(`^Claimed by .*\\bbranch \`?${escape(ref)}\`?(?:\\s|$)`, "m");
-  if (!commentsOf(issue).some((c) => claim.test(c.body ?? ""))) return { pass: false, why: `No claim comment on #${issue} names ${ref}. ${ONLY}` };
+  if (!issue) return { pass: false, why: `${ref} isn't a feat/<n>- or fix/<n>- branch with only letters, digits, dots, dashes and underscores after the dash. ${ONLY}` };
+  const author = pull.user?.login;
+  if (!author || !canWrite([author]).has(author)) return { pass: false, why: `#${pull.number} was opened by ${author ?? "a deleted account"} without write access. ${ONLY}` };
+  // The whole line, in the claim's form. Backticks around the branch come as a pair or not at all.
+  const claim = new RegExp(`^Claimed by \\S.* at \\S.* · branch (?:${escape(ref)}|\`${escape(ref)}\`)$`);
+  const claimers = commentsOf(issue)
+    .filter((c) => (c.body ?? "").split(/\r?\n/).some((line) => claim.test(line)))
+    .map((c) => c.user?.login)
+    .filter(Boolean);
+  if (!claimers.length || !canWrite([...new Set(claimers)]).size) {
+    return { pass: false, why: `No claim comment on #${issue} names ${ref} as a whole claim line from a login with write access. ${ONLY}` };
+  }
   return { pass: true, why: `${sha}: ${ref} is this loop's branch for #${issue}` };
 }
 
@@ -34,7 +48,8 @@ export function main(argv) {
   }
   let r;
   try {
-    r = ownBranch(repo, JSON.parse(gh(`repos/${repo}/pulls/${pr}`)), (issue) => pages(`repos/${repo}/issues/${issue}/comments`));
+    const pull = JSON.parse(gh(`repos/${repo}/pulls/${pr}`));
+    r = ownBranch(repo, pull, (issue) => pages(`repos/${repo}/issues/${issue}/comments`), (logins) => writers(repo, logins));
   } catch (error) {
     console.error(`Couldn't read #${pr} from the API, so check nothing out: ${String(error.stderr || error.message).trim()}`);
     return 2;

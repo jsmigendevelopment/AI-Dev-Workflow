@@ -123,7 +123,7 @@ export const gh = (...args) => execFileSync("gh", ["api", ...args], { encoding: 
 export const pages = (path) => JSON.parse(gh("--paginate", "--slurp", path)).flat();
 
 /** Logins with write, maintain or admin access. A login whose check fails counts as no access. */
-function writers(repo, logins) {
+export function writers(repo, logins) {
   const out = new Set();
   for (const login of logins) {
     try {
