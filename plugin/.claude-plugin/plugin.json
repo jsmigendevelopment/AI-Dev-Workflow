@@ -1,7 +1,7 @@
 {
   "name": "or",
   "version": "0.7.0",
-  "description": "onRails: type /idea or /join in any folder. Installs the kit's rules, skills and guardrails into the project, then hands off to the project's own copy.",
+  "description": "onRails (beta): type /idea or /join in any folder. Installs the kit's rules, skills and guardrails into the project, then hands off to the project's own copy.",
   "author": {
     "name": "onRails",
     "url": "https://github.com/jsmigendevelopment/onRails"

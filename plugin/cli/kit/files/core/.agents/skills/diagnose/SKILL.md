@@ -27,6 +27,8 @@ An easy question with a clear answer? Just answer it. This skill is for bugs you
 
    Make it **tight**: seconds, not minutes; the same result every run; it asserts the symptom, not "didn't crash"; it runs without the person. For a flaky bug, raise the hit rate (repeat it, run it in parallel, add load) until it fails often enough to work with.
 
+   Looking at it in a browser by hand, before the red check or after the fix? Load `test-by-hand-as-the-user`, and turn what you saw into the red check.
+
    **Done when** you can show the command and its red output. Can't get one? Stop. Say what you tried, and ask for access to where it happens, a redacted capture (a log, a HAR file, a screen recording), or a yes for temporary logging on test. No red check, no step 2.
 
 2. **Confirm, then shrink.** Check it's the person's bug, not a different one nearby. Then cut inputs, steps, data and config one at a time, and rerun after each cut. **Done when** removing anything else turns it green.

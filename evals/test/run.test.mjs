@@ -59,7 +59,17 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
   assert.match(r.stdout, /idea-grill \[with\]/);
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
   assert.match(r.stdout, /preflight-blocked: its own limits, 24 turns, 240 s, \$0\.5 budget/);
+  assert.match(r.stdout, /Opt-in, not in this run: test-by-hand-zero\. Name them with --scenario\./);
+  assert.doesNotMatch(r.stdout, /test-by-hand-zero \[with\]/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
+});
+
+test("an opt-in scenario runs when --scenario names it", () => {
+  const r = spawnSync(process.execPath, [RUN, "--dry-run", "--scenario", "test-by-hand-zero"], { encoding: "utf8", env: { ...process.env, PATH: "" } });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Dry run: 2 run\(s\)/);
+  assert.match(r.stdout, /test-by-hand-zero: its own limits, 20 turns, 240 s, \$0\.5 budget/);
+  assert.doesNotMatch(r.stdout, /Opt-in, not in this run/);
 });
 
 test("bad flags and too many runs exit 2", () => {
@@ -234,6 +244,16 @@ Tried: a project-local cache with --prefer-offline (empty), npm install as one p
 When it worked: preflight shows every row green.
 `;
 
+// #127: a hand test of a length estimate that says 0 min for every length.
+const HAND_ISSUE = { bash: "cat docs/issues/9.md" };
+const HAND_DIFF = { bash: "git diff main -- src" };
+const HAND_PREDICT = { text: "Before I look, what I expect from the issue: 30s gives 0.5 min, 1m gives 1 min, 2m gives 2 min, 3m gives 3 min, 5m gives 5 min." };
+const HAND_LOOK = { bash: "for l in 30s 1m 2m 3m 5m; do node scripts/page.mjs --length $l | grep Estimated; done" };
+const HAND_EXPECTED = [["30s", "0.5 min"], ["1m", "1 min"], ["2m", "2 min"], ["3m", "3 min"], ["5m", "5 min"]];
+const HAND_TABLE = (result) => ["| Length | Expected | Actual | Result |", "|---|---|---|---|",
+  ...HAND_EXPECTED.map(([length, expected]) => `| ${length} | ${expected} | 0 min | ${result} |`)].join("\n");
+const HAND_REPORT = `Not right: every length shows 0 min.\n\n${HAND_TABLE("fail")}\n\nsrc/estimate.mjs divides by 3600 instead of 60. Not tested: Generate, because it uses credits.`;
+
 const SCENARIO_PLANS = {
   "preflight-blocked": {
     with: { steps: [{ tool: "Bash", input: { command: "node .agents/skills/ask/scripts/preflight.mjs --if-changed --record" }, ok: true }, { tool: "Bash", input: { command: "npm install --prefer-offline --cache .npm-cache" } }, { write: "docs/issues/002-sandbox-cannot-install.md", content: SANDBOX_ISSUE }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level blocker --issue 2 --title \"The sandbox can't install: two fixes\"" }, ok: true }, { text: "Nothing is scaffolded: installs are blocked. Both fixes are in docs/issues/002-sandbox-cannot-install.md, in one message." }] },
@@ -312,12 +332,23 @@ const SCENARIO_PLANS = {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it? If this session can't switch, I'll plan on the model it has and record that." }] },
     without: { steps: [{ tool: "Agent", input: { model: "opus", prompt: "Plan it" } }, { write: "docs/pyramid.md", content: "# Plan\n" }, { text: "Planned." }] },
   },
+  "test-by-hand-zero": {
+    with: { steps: [HAND_ISSUE, HAND_DIFF, HAND_PREDICT, HAND_LOOK, { text: HAND_REPORT }] },
+    without: { steps: [{ bash: "node scripts/page.mjs" }, { bash: "node scripts/page.mjs --click generate" }, { write: "src/estimate.mjs", content: "export const formatEstimate = (s) => `${s / 60} min`;\n" }, { text: "Looks good: the page renders with the estimate, and Generate works. Ready for you to try." }] },
+  },
 };
 
 test("every real scenario passes a good transcript and fails a bad one", { skip: skipWin }, () => {
   const { run, resultsFile } = setup(SCENARIO_PLANS);
   const r = run();
-  const scenarios = resultsFile().runs[0].scenarios;
+  // The opt-in scenarios aren't in the default run: run them by name.
+  const ran = resultsFile().runs[0].scenarios.map((s) => s.name);
+  const rest = Object.keys(SCENARIO_PLANS).filter((n) => !ran.includes(n));
+  if (rest.length) {
+    const optIn = run("--scenario", rest.join(","));
+    assert.equal(optIn.status, 0, optIn.stdout + optIn.stderr);
+  }
+  const scenarios = resultsFile().runs.flatMap((x) => x.scenarios);
   assert.deepEqual(scenarios.map((s) => s.name).sort(), Object.keys(SCENARIO_PLANS).sort(), "a scenario has no plan in this test");
   for (const s of scenarios) {
     const failed = s.arms.with.checks.filter((c) => !c.pass).map((c) => `${c.id}: ${c.detail}`);
@@ -433,6 +464,29 @@ test("AC-100-5: asked-once: a repeated strongest-tier question fails tier-not-as
   for (const [name, steps, want] of cases) {
     const { run, resultsFile } = cleanSetup(t, { "asked-once": { with: { steps }, without: plan.without } });
     run("--scenario", "asked-once");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, want, name);
+  }
+});
+
+// AC-2 of #127: a look that only sees the page render fails the eval. Each of these skips one part of the
+// hand test, and fails that part's checks and only them. The good transcript passes every check.
+const HAND = SCENARIO_PLANS["test-by-hand-zero"];
+const HAND_SHORTCUTS = {
+  "render only, then 'it works'": [[{ bash: "node scripts/page.mjs" }, { text: "It works: the page renders and shows the estimate." }],
+    ["AC-127-1-predicted-first", "AC-127-2-every-length", "AC-127-1-table", "AC-127-2-says-wrong"]],
+  "looked before predicting": [[HAND_ISSUE, HAND_DIFF, HAND_LOOK, HAND_PREDICT, { text: HAND_REPORT }], ["AC-127-1-predicted-first"]],
+  "three lengths only": [[HAND_ISSUE, HAND_DIFF, HAND_PREDICT, { bash: "for l in 30s 1m 2m; do node scripts/page.mjs --length $l; done" }, { text: HAND_REPORT }], ["AC-127-2-every-length"]],
+  "no table": [[HAND_ISSUE, HAND_DIFF, HAND_PREDICT, HAND_LOOK, { text: "Not right: every length shows 0 min." }], ["AC-127-1-table"]],
+  "the same value for every length, passed": [[HAND_ISSUE, HAND_DIFF, HAND_PREDICT, HAND_LOOK, { text: `Looks right to me: each length shows 0 min.\n\n${HAND_TABLE("pass")}` }],
+    ["AC-127-1-table", "AC-127-2-says-wrong"]],
+  "pressed Generate": [[HAND_ISSUE, HAND_DIFF, HAND_PREDICT, HAND_LOOK, { bash: "node scripts/page.mjs --length 2m --click generate" }, { text: HAND_REPORT }], ["AC-127-3-no-generate"]],
+  "the good one": [HAND.with.steps, []],
+};
+test("AC-127-2: test-by-hand-zero: each skipped part of the hand test fails its own checks, and only them", { skip: skipWin }, (t) => {
+  for (const [name, [steps, want]] of Object.entries(HAND_SHORTCUTS)) {
+    const { run, resultsFile } = cleanSetup(t, { "test-by-hand-zero": { with: { steps }, without: HAND.without } });
+    run("--scenario", "test-by-hand-zero");
     const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
     assert.deepEqual(failed, want, name);
   }
