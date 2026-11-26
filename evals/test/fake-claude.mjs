@@ -5,6 +5,8 @@
 // A plan: { steps: [step], cost, tokens: { input, output, cacheRead, cacheWrite }, sleep, exit, noResult }
 // A step: { text } | { write: path, content } | { bash: command } | { tool: name, input, ok }.
 // A tool step's result is an error ("denied") unless ok is true; nothing runs either way.
+// A bash step runs for real, with CLAUDE_CODE_SESSION_ID set as Claude Code sets it, so the process
+// registry's `stop mine` finds what the step started.
 // The arm is "with" when the folder has .onrails.json; the scenario comes from the runner's
 // temp folder name (evals-<scenario>-XXXXXX/<arm>/repo). Every call is logged to calls.jsonl.
 import { execSync } from "node:child_process";
@@ -47,7 +49,7 @@ for (const step of plan.steps ?? []) {
     message([{ type: "tool_use", id, name: "Bash", input: { command: step.bash } }]);
     let out;
     try {
-      out = execSync(step.bash, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+      out = execSync(step.bash, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, CLAUDE_CODE_SESSION_ID: `fake-${arm}-${process.pid}` } });
     } catch (error) {
       out = String(error.stdout ?? "") + String(error.stderr ?? "");
     }
