@@ -12,15 +12,16 @@
 // It changes nothing else: a temp file, a temp branch (or a temp git config key), a temp folder
 // outside the repo and a local port are made and removed.
 // Exit 0: nothing to fix. 1: something to fix or blocked. 2: a bad flag. No dependencies.
-// The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs, preflight-layout.mjs and preflight-ci.mjs;
-// sync-skills.mjs copies all four into the ask skill and the CLI. Before the read, never start it through npx (#182): npx changes PATH
+// The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs, preflight-owner.mjs, preflight-layout.mjs and
+// preflight-ci.mjs; sync-skills.mjs copies all five into the ask skill and the CLI. Before the read, never start it through npx (#182): npx changes PATH
 // and which onrails runs, in ways the repo can steer.
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ciWarnings } from "./preflight-ci.mjs";
-import { pathOutside, repoLayout, tempFolders } from "./preflight-layout.mjs";
+import { pathOutside, repoLayout, tempBases, tempFolders } from "./preflight-layout.mjs";
+import { aclPaths, loadWinAcls } from "./preflight-owner.mjs";
 import { isRead, markRead, markRefusal, realSys } from "./preflight-sys.mjs";
 
 /** The checks, in the order the table prints them. */
@@ -450,6 +451,8 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
   if (given.tool && !Object.hasOwn(TOOLS, given.tool)) return log(`--tool is one of: ${Object.keys(TOOLS).join(", ")}`), 2;
   if (flags.has("--help") || flags.has("-h")) return log(`Usage: ${USAGE}`), 0;
   dir = resolve(dir);
+  // Windows: every ACL the checks ask about, read in one PowerShell start (#246).
+  if (sys.platform === "win32") loadWinAcls(aclPaths(dir, sys.env, tempBases("win32")));
   if (flags.has("--mark-read")) {
     // Only the .git next to dir: a folder under a bigger repo (a home-folder repo, say) never marks that repo.
     const marked = markRead(dir);

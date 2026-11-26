@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { main, probe, render, satisfies } from "../src/preflight.mjs";
 import { logger, safeEnv } from "./helpers.mjs";
-import { BLOCKED, fakeSys, HEALTHY, project, readProject, status } from "./preflight-fakes.mjs";
+import { BLOCKED, fakeSys, HEALTHY, project, readProject, status, trustWin } from "./preflight-fakes.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
@@ -58,7 +58,9 @@ test("AC-144-3: WHEN the registry is blocked THEN rung 1 gives each package mana
   // A bare VAR=value prefix is POSIX only, so Windows also gets the PowerShell and cmd.exe forms.
   const win = fakeSys({ answers: BLOCKED });
   win.platform = "win32";
-  const first = row(await probe(project({ "package.json": "{}", "yarn.lock": "" }), win), "registry").ladder[0].text;
+  const dir = project({ "package.json": "{}", "yarn.lock": "" });
+  trustWin(dir);
+  const first = row(await probe(dir, win), "registry").ladder[0].text;
   assert.ok(first.includes("`$env:YARN_GLOBAL_FOLDER='.yarn-global'; $env:YARN_ENABLE_GLOBAL_CACHE='false'; $env:YARN_CACHE_FOLDER='.yarn-cache'; yarn install`"), first);
   assert.ok(first.includes('`set "YARN_GLOBAL_FOLDER=.yarn-global" && set "YARN_ENABLE_GLOBAL_CACHE=false" && set "YARN_CACHE_FOLDER=.yarn-cache" && yarn install`'), first);
 });
