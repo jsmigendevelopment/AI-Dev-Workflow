@@ -4,7 +4,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import fs, { existsSync, readFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { delimiter, join } from "node:path";
 import { hasAcl, realSys, soleMember } from "../src/procs-sys.mjs";
 import { checkPath, fake, put, safeEnv, tmp, unixOnly } from "./helpers.mjs";
@@ -29,6 +30,21 @@ test("AC-156-4: an ACL is found from getfacl's output, or GNU ls's +, and anythi
   assert.equal(hasAcl({}), null, "no tool at all");
 });
 
+// #233: the path goes after --, so a path that starts with - is never read as a flag. The machine only says which
+// tools are there (existsSync, the edge procs-sys.mjs looks them up with), so both getfacl and ls are asked here.
+test("AC-233-2: WHEN the ACL reader runs getfacl or ls THEN -- comes before the path", () => {
+  const exists = fs.existsSync;
+  for (const getfacl of [true, false]) {
+    const ran = [];
+    const run = (cmd, args) => (ran.push([cmd, ...args]), { status: 0, stdout: "" });
+    fs.existsSync = (p) => p === "/usr/bin/ls" || (getfacl && p === "/usr/bin/getfacl");
+    syncBuiltinESMExports();
+    try { realSys({ platform: "linux", run }).acl("-rf"); } finally { fs.existsSync = exists; syncBuiltinESMExports(); }
+    const want = getfacl ? [["/usr/bin/getfacl", "--skip-base", "--absolute-names", "--", "-rf"]] : [["/usr/bin/ls", "-ld", "--", "-rf"], ["/usr/bin/ls", "--version"]];
+    assert.deepEqual(ran, want, getfacl ? "getfacl" : "ls");
+  }
+});
+
 test("AC-156-4: off Linux, the real machine can't tell whether a group is private or a folder has an ACL", () => {
   const dir = tmp("procs-sys-");
   const gid = process.getgid?.() ?? 0;
@@ -44,6 +60,21 @@ test("AC-156-4: on Linux with GNU ls, the real machine says a fresh folder has n
   const version = spawnSync("ls", ["--version"], { encoding: "utf8", env: safeEnv() }).stdout ?? "";
   if (!version.startsWith("ls (GNU coreutils)")) return t.skip("no GNU ls here");
   assert.equal(realSys().acl(tmp("procs-sys-")), false);
+});
+
+// #233: hasAcl's getfacl answer, checked against the real tool. A folder with only a default ACL (what new files in
+// it inherit) has an ACL; a fresh folder has none. Skipped where getfacl or setfacl is missing, or the file system
+// takes no ACL.
+test("AC-233-3: WHEN getfacl is on the machine THEN a real run on a folder with only a default ACL gives the answer the parser expects", (t) => {
+  if (process.platform !== "linux") return t.skip("Linux only");
+  const find = (name) => [`/usr/bin/${name}`, `/bin/${name}`].find((p) => existsSync(p));
+  const getfacl = find("getfacl"), setfacl = find("setfacl");
+  if (!getfacl || !setfacl) return t.skip("no getfacl or setfacl here");
+  const plain = tmp("procs-acl-"), shared = tmp("procs-acl-");
+  const set = spawnSync(setfacl, ["-d", "-m", "u::rwx,g::rwx,o::---", "--", shared], { encoding: "utf8", env: safeEnv() });
+  if (set.status !== 0) return t.skip(`this file system takes no ACL: ${set.stderr.trim()}`);
+  assert.equal(realSys().acl(shared), true, "a default ACL is an ACL");
+  assert.equal(realSys().acl(plain), false, "the control: a fresh folder has none");
 });
 
 test("AC-156-4: a group isn't the user's own when getent passwd lists another user in it, and can't tell when getent can't list", () => {

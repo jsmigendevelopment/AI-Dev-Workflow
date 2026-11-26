@@ -1,7 +1,8 @@
 // Tests that the process registry checks again at the moments that matter (#156, review round 2): each watcher
 // pass asks git afresh, update and folder check the folder after the last change, start stops what it can't
 // record, and a registry skipped for its mode is named, never hidden. Round 3: each command asks git afresh, and an
-// index main wrote at 0664 is named and its entries kept. They run on the fake machine in procs-fake.mjs.
+// index main wrote at 0664 is named and its entries kept, and rewritten at 0600 even when it already lists the
+// repo (#233). They run on the fake machine in procs-fake.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, chownSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
@@ -136,4 +137,17 @@ test("AC-156-4: WHEN the index others can write, or another user's THEN the next
     assert.equal((await startDev(sys)).code, 0, name);
     assert.deepEqual(indexed(index), [join(sys.cwd, ".onrails", "procs.json")], name);
   }
+});
+
+// #233: the 0664 test above passes only because this repo's entry is new. When the index already lists it,
+// remember() must still rewrite a 0664 index, not return early because the entry is there.
+test("AC-233-1: WHEN the index is 0664, as main wrote it before #156, and already lists this repo's registry THEN the next write rewrites it at 0600", posix, async () => {
+  const sys = fakeSys({ git: inRepo("") });
+  const { index, old } = oldIndex(sys, 0o664);
+  const mine = join(sys.cwd, ".onrails", "procs.json");
+  writeFileSync(index, JSON.stringify({ registries: [...old, mine] }));
+  assert.equal(lstatSync(index).mode & 0o777, 0o664, "the setup: main's old mode, with this repo already listed");
+  assert.equal((await startDev(sys)).code, 0);
+  assert.equal(lstatSync(index).mode & 0o777, 0o600);
+  assert.deepEqual(indexed(index), [...old, mine], "its entries are kept");
 });

@@ -118,7 +118,10 @@ export async function sessionEnd(sys, log, { dir, me }) {
   try { hook = JSON.parse((await sys.stdin()) || "{}"); } catch { hook = {}; } // run by hand: no hook input
   const owner = { ...me, session: hook.session_id || me.session };
   // Only ids the registry itself makes go to the reaper, after --, so a record's id can never be read as an option.
-  const due = (survey(sys, dir, owner, { prune: true }) ?? []).filter((r) => (r.mine || r.owner === "gone") && isId(r.id));
+  // The others are named and counted, never skipped in silence (#233).
+  const ours = (survey(sys, dir, owner, { prune: true }) ?? []).filter((r) => r.mine || r.owner === "gone");
+  const due = ours.filter((r) => isId(r.id));
+  const odd = ours.filter((r) => !isId(r.id)).map((r) => (JSON.stringify(r.id) ?? "no id").slice(0, 40));
   const guard = due.length ? guardFlag(sys, me) : [];
   for (const path of new Set(due.map((r) => r.path))) {
     const here = due.filter((r) => r.path === path);
@@ -126,6 +129,8 @@ export async function sessionEnd(sys, log, { dir, me }) {
     if (!reaper) { await stopRecords(sys, here, { grace: 2 }); forget(sys, here); }
   }
   if (due.length) log(`Stopping ${due.length} background process(es) this session or an ended one started.`);
+  if (odd.length) log(`Not stopping ${odd.length} background process(es) whose record id the registry didn't make (${odd.join(", ")}), `
+    + "so the id never reaches the reaper's options. They stay recorded, and the next session lists them as stale.");
   return 0;
 }
 

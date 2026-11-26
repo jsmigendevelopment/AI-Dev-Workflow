@@ -105,6 +105,19 @@ test("AC-174-3: WHEN records with flag-like ids sit beside a record for the agen
   }
 });
 
+// #233, from the round 3 review of #236: a record the hook skips for its id is named and counted, never dropped in silence.
+test("#233: WHEN session-end skips records whose id the registry didn't make THEN one line names and counts them, apart from the ones it stops", async () => {
+  const sys = machine(false);
+  for (const id of ["--guard", "99999@x"]) seed(sys, { ...vite, id });
+  seed(sys, { ...vite, id: "pcafe" });
+  const { out } = await run(sys, ["session-end"]);
+  assert.match(out, /^Stopping 1 background process\(es\)/m);
+  const skipped = 'Not stopping 2 background process(es) whose record id the registry didn\'t make ("--guard", "99999@x"), '
+    + "so the id never reaches the reaper's options. They stay recorded, and the next session lists them as stale.";
+  assert.ok(out.split("\n").includes(skipped), out);
+  assert.deepEqual(ids(sys), ["--guard", "99999@x", "pcafe"], "nothing is dropped before the reaper runs");
+});
+
 test("AC-174-3: WHEN the reaper is given ids after -- THEN each is only an id, and a flag-like one changes no option", async () => {
   for (const group of [false, true]) {
     const fresh = detached(machine(group));
@@ -161,6 +174,13 @@ test("AC-174-3: every id newId makes passes isId", () => {
     const id = newId(sys, path);
     assert.ok(isId(id), id);
   }
+});
+
+// #233, from the re-review of #236: random ids almost never hit the ends of the range, so a drift there (say, isId
+// refusing p0000) would almost never fail above. The lowest and highest ids newId can make, and ids just past them.
+test("#233: isId takes the lowest and highest ids newId can make, and refuses ids just past them", () => {
+  for (const id of ["p0000", "pffff"]) assert.ok(isId(id), id);
+  for (const id of ["p000", "pfffff", "pg000", "P0000", "pFFFF", "p0000\n"]) assert.equal(isId(id), false, JSON.stringify(id));
 });
 
 // Nice to have 1 of round 2: a --guard that can't be read tells nothing, so a record of an ended session is blind.
