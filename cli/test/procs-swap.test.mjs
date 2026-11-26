@@ -8,7 +8,7 @@ import { chmodSync, chownSync, lstatSync, mkdirSync, readFileSync, renameSync, s
 import { join } from "node:path";
 import { safeEnv, tmp } from "./helpers.mjs";
 import { homeRegistry, update } from "../src/procs-store.mjs";
-import { NOW, fakeSys, run, signals } from "./procs-fake.mjs";
+import { NOW, fakeSys, run, signals, stamp } from "./procs-fake.mjs";
 
 const posix = { skip: process.platform === "win32" ? "symlinks and FIFOs need Linux or macOS" : false };
 const registry = (procs) => JSON.stringify({ version: 1, procs }) + "\n";
@@ -36,11 +36,13 @@ function trading(make, from = 0) {
 const linkTo = (text) => (spare) => {
   const target = join(tmp("procs-other-"), "procs.json");
   writeFileSync(target, text, { mode: 0o600 });
+  stamp(target); // marked with its own inode, so only the swap checks may refuse it
   symlinkSync(target, spare);
 };
 // A plain file others can write, or, when the tests run as root, one another user owns.
 const fileOf = (text, mode, owner) => (spare) => {
   writeFileSync(spare, text);
+  stamp(spare);
   chmodSync(spare, mode);
   if (owner) chownSync(spare, owner, owner);
 };

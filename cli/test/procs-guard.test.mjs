@@ -170,3 +170,24 @@ test("AC-156-1: WHEN the agent joins a record's group after the TERM THEN no KIL
     assert.ok(sys.live.has(4001) && sys.live.has(AGENT), `leader ${leader}`);
   }
 });
+
+test("AC-174-3: WHEN a non-group record's PID is the agent's parent THEN no signal is sent, and a group record's neither", async () => {
+  const me = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
+  // The agent's parent in another group than the agent (a shell with job control), or in the agent's; or it leads its own.
+  for (const [group, parentGroup, agentGroup] of [[false, 3000, AGENT], [false, 3000, 3000], [true, 450, AGENT]]) {
+    for (const argv of [["stop", "pmine"], ["stop", "stale"], ["stop", "all", "--yes"], ["session-end"], ["ps", "--stop", "450", "--yes"]]) {
+      const procs = { 450: { args: "bash", group: parentGroup }, [AGENT]: { args: "/opt/claude-code/bin/claude", parent: 450, group: agentGroup } };
+      const sys = fakeSys({ procs, stdin: '{"session_id":"s-1"}' });
+      if (argv[0] !== "ps") {
+        seed(sys, { id: "pmine", pid: 450, start: "start-450", group, command: "bash", ...me });
+        seed(sys, { id: "pstale", pid: 450, start: "start-450", group, command: "bash" });
+      }
+      const r = await run(sys, argv);
+      const reaper = sys.calls.find((c) => / reap --registry /.test(c));
+      if (reaper) await run(sys, reaper.split(" ").slice(3));
+      const at = `group ${group}, ${argv.join(" ")}`;
+      assert.deepEqual(signals(sys), [], `${at}\n${r.out}`);
+      assert.ok(sys.live.has(450) && sys.live.has(AGENT), at);
+    }
+  }
+});
