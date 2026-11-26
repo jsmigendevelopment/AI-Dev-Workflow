@@ -36,7 +36,7 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY   the same Clerk key as the web app (see clerk
 
 ## Make each key
 
-For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page, pick what the row says, and stop on the screen that shows a value. `[V]` = checked against Expo's, Clerk's and Cloudflare's docs on 2026-11-26. All four are public values: nothing to make.
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Expo's, Clerk's and Cloudflare's docs on 2026-11-26. All four are public values: nothing to make.
 
 | Variable | Open | Pick |
 |---|---|---|

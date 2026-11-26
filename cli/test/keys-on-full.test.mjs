@@ -34,14 +34,72 @@ test("AC-168-2: the secrets skill's Full branch lists the five steps, never touc
   assert.match(full, /Once the value is on screen, stop on that screen: no screenshot, page read, text search or copy/);
   assert.match(full, /"Copy the key from the tab and paste it into the prompt\."/);
   assert.match(full, /`pnpm connect --dry-run` shows ✓ by name only/);
-  // The browser tools a session may have, in order, and none.
-  assert.match(full, /Claude in Chrome[^.]*, then computer use, then the built-in browser/);
+  // The browser tools a session may have, in order, and none. Computer use left the order in round 1 (its own test below).
+  assert.match(full, /Claude in Chrome[^.]*, then the built-in browser \(Claude Code\)\./);
   // A production key stays an always-stop item, Full or not.
   assert.match(full, /A production key is on the always-stop list/);
   // The Full line at the top of Steps sends the agent here; the old "skip steps 2 to 5" is gone.
   const steps = section(secrets(), "## Steps", "## Keys on Full");
   assert.match(steps, /\*\*On Full automation,\*\* do step 1, skip step 2's question, and run "Keys on Full" below for every missing key\./);
   assert.doesNotMatch(secrets(), /skip steps 2 to 5/);
+});
+
+test("AC-168-2 (round 1): the person presses the button that makes or shows the key, after the agent fills the form and opens the paste spot", () => {
+  const full = keysOnFull();
+  assert.match(full, /\*\*The click that shows a key is the person's\.\*\* The browser tools send back a screenshot or the page's text after each click/);
+  assert.match(full, /then hand over that one click and every step after it: a two-factor code, closing the dialog\./);
+  const make = section(full, "3. **Make the key.**", "4. **Open where it goes");
+  assert.match(make, /Fill in every field the table's row names: the name, the scopes, the permissions, the resources and the expiry\./);
+  assert.match(make, /Stop before the button that makes or shows the value \(\*\*Create\*\*, \*\*Reveal\*\*\): that click is the person's/);
+  assert.match(make, /like Stripe's two-factor code after \*\*Create key\*\*/);
+  assert.doesNotMatch(make, /Click through|the click that creates it/, "the agent no longer clicks the button that makes the key");
+  const open = section(full, "4. **Open where it goes", "5. **Check by name.**");
+  assert.match(open, /^4\. \*\*Open where it goes\.\*\* Do it before the person presses that button\./);
+  // The hand-over comes after every destination is open: press, then the terminal's questions, then the paste.
+  const lastDestination = open.indexOf("- A pack without the script:");
+  const press = open.indexOf('"In the <provider> tab, press **<the button>** and do any step it asks for next (a code, closing the dialog)."');
+  const yn = open.indexOf('"In the terminal, `pnpm connect` asks y/N before it opens a page: answer n, the tab is open already. Answer y to each place it saves the key."');
+  const paste = open.indexOf('"Copy the key from the tab and paste it into the prompt."');
+  assert.ok(lastDestination > 0 && press > lastDestination && yn > press && paste > yn, `open, then press, y/N, paste: ${[lastDestination, press, yn, paste]}`);
+  // Every provider file hands the same click to the person, and Stripe's rows name its two-factor code and Reveal.
+  for (const file of readdirSync(fileURLToPath(new URL(`../../${PROVIDERS}`, import.meta.url))).filter((f) => f.endsWith(".md"))) {
+    const text = read(`${PROVIDERS}/${file}`);
+    assert.match(text, /Open the page and fill in what the row says\. The button that makes or shows a secret value, and any code after it, are the person's\./, file);
+    assert.doesNotMatch(text, /stop on the screen that shows a value/, file);
+  }
+  const stripe = keyRows(read(`${PROVIDERS}/stripe.md`), "stripe.md");
+  assert.match(stripe.get("STRIPE_SECRET_KEY").pick, /the person presses \*\*Create key\*\* and enters the two-factor code Stripe sends them in the dialog/);
+  assert.match(stripe.get("STRIPE_WEBHOOK_SECRET").pick, /\*\*Reveal secret\*\* shows the `whsec_` value: that click is the person's\./);
+});
+
+test("AC-168-2 (round 1): computer use is never used for keys, and the paste spot opens in a new terminal window on the person's machine", () => {
+  const full = keysOnFull();
+  assert.match(full, /Never use computer use for keys: it can't click or type in a browser or type in a terminal, and its screenshots show the whole screen, key included\./);
+  // Computer use is named once, in that line: never as a browser to drive or a way to type a command.
+  assert.equal(full.match(/computer use/gi).length, 1, "computer use is named only to rule it out");
+  const open = section(full, "4. **Open where it goes", "5. **Check by name.**");
+  assert.match(open, /Your shell runs on the person's machine: open a new terminal window in the app folder, already running `pnpm connect <provider>`\./);
+  assert.match(open, /macOS: `osascript -e 'tell app "Terminal" to do script "cd <app folder> && pnpm connect <provider>"'`/);
+  assert.match(open, /Linux: `x-terminal-emulator -e sh -c 'cd <app folder> && pnpm connect <provider>'`, or the desktop's own terminal/);
+  assert.match(open, /Windows: `start "" cmd \/k "cd \/d <app folder> && pnpm connect <provider>"`/);
+  assert.match(open, /Otherwise, give one command for their own terminal: `pnpm connect <provider>`\. It refuses to run without a terminal, so never run it in your shell\./);
+});
+
+test("AC-168-2 (round 1): the built-in browser checks its pane, a pack without the script checks by name, and a key waiting on a 🛑 counts as done", () => {
+  const full = keysOnFull();
+  const signIn = section(full, "2. **Ask for the sign-in only.**", "3. **Make the key.**");
+  assert.match(signIn, /In the built-in browser, call `tabs_context` first: it says whether the pane is showing/);
+  const check = section(full, "5. **Check by name.**", "**Done when**");
+  assert.match(check, /A pack without the script checks by name another way: `node \.agents\/skills\/secrets\/scripts\/push-secrets\.mjs --dry-run` names each empty value, `npx wrangler secret list --env <env>` lists the Worker's names, and on `ci = "actions"` so does `gh secret list --env <env>`\. Never check a value\./);
+  assert.match(full, /\*\*Done when\*\* every key the app needs shows ✓ in step 5's check, or its sign-in line is under "Waiting on you" in `docs\/state\.md`, or its 🛑 is sent \(a production key, a paid plan or a card\)\./);
+});
+
+test("#168 round 1: stripe.md's header says what was checked on 2026-11-26", () => {
+  const stripe = read(`${PROVIDERS}/stripe.md`);
+  assert.match(stripe, /^Last checked: 2026-11-26\./m);
+  assert.match(stripe, /https:\/\/docs\.stripe\.com\/keys\/restricted-api-keys/);
+  assert.match(stripe, /How: the docs above were read on 2026-11-26\. dashboard\.stripe\.com was not opened/);
+  assert.doesNotMatch(stripe, /were blocked here|Every dashboard step below is `\[U\]`/);
 });
 
 test("AC-168-2: below Full the agent asks once before it uses the browser in the person's accounts", () => {

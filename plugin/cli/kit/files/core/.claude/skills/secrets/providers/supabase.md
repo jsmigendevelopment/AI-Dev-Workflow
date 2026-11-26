@@ -20,7 +20,7 @@ Test and production are two Supabase projects and two Hyperdrive configs.
 
 ## Make each key
 
-For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page, pick what the row says, and stop on the screen that shows a value. `[V]` = checked against Supabase's docs on 2026-11-26.
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Supabase's docs on 2026-11-26.
 
 | Variable | Open | Pick |
 |---|---|---|

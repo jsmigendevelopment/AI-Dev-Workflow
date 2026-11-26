@@ -41,7 +41,7 @@ A DSN only lets someone send events, not read them, so it isn't a secret. `[V]` 
 
 ## Make each key
 
-For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page, pick what the row says, and stop on the screen that shows a value. `[V]` = checked against Sentry's docs on 2026-11-26. In each link, Sentry fills in `:orgslug`; put the project's slug in place of `:projectId`.
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Sentry's docs on 2026-11-26. In each link, Sentry fills in `:orgslug`; put the project's slug in place of `:projectId`.
 
 | Variable | Open | Pick |
 |---|---|---|

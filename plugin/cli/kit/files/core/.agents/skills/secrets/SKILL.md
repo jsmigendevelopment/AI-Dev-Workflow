@@ -77,28 +77,34 @@ When a step adds a service, it adds its variables here in this format.
 
 ## Keys on Full: the person only signs in and pastes
 
-On Full, and below Full after a yes to the browser in step 2. For each missing key, do every step you can. The person does two things: sign in, and paste.
+On Full, and below Full after a yes to the browser in step 2. For each missing key, do every step you can. The person does two things: sign in, and paste. The paste starts with their own click on the button that shows the key.
 
 - **Never read, copy, print or screenshot a key's value** (rule 9 in `AGENTS.md`): not in chat, a command's arguments, a log, a screenshot or a page read.
+- **The click that shows a key is the person's.** The browser tools send back a screenshot or the page's text after each click, so the click on **Create** or **Reveal** would show you the value. Fill in every field, then hand over that one click and every step after it: a two-factor code, closing the dialog.
 - **Signing in and paying are the person's.** Never type a password, a code or a passkey, and never sign in for them. A page that asks for a paid plan or a card: stop on it and send one 🛑 (paying is on the always-stop list).
 - **A production key is on the always-stop list.** Make test and local keys this way. For production, send one 🛑 and make it only after the person's own go-ahead.
-- **Which browser:** the first the session has: Claude in Chrome (the person's own browser, often signed in already), then computer use, then the built-in browser (Claude Code). How to drive Claude in Chrome and the built-in browser: `test-by-hand-as-the-user`'s `references/browsers.md`. None? Go to "No browser" below.
+- **Which browser:** the first the session has: Claude in Chrome (the person's own browser, often signed in already), then the built-in browser (Claude Code). How to drive them: `test-by-hand-as-the-user`'s `references/browsers.md`. Never use computer use for keys: it can't click or type in a browser or type in a terminal, and its screenshots show the whole screen, key included. None? Go to "No browser" below.
 
 Group the keys by provider, in the connect block's `order`. For each provider:
 
 1. **Open the page.** Open the URL from the provider file's "Make each key" table: the page that makes the key, not the home page.
-2. **Ask for the sign-in only.** One line: "Sign in to <provider> in the tab I opened, then tell me." It goes in chat when the person is here, and in the ℹ️ FYI when they're away. Wait only for this, and only for this provider: the rest of the loop goes on. Already signed in? Skip the line.
-3. **Make the key.** Click through as the table's row says: the name, the scopes, the permissions, the resources and the expiry. Take your last look before the click that creates it. Once the value is on screen, stop on that screen: no screenshot, page read, text search or copy until the person has pasted it. Leave the tab open for them.
-4. **Open where it goes.** The connect block's `to` says where. Open it ready for the paste:
-   - With computer use on the person's machine: open a terminal in the app folder and type `pnpm connect <provider>`, the command only, so it waits at the hidden prompt.
+2. **Ask for the sign-in only.** One line: "Sign in to <provider> in the tab I opened, then tell me." In the built-in browser, call `tabs_context` first: it says whether the pane is showing, so you can tell the person where the tab is. The line goes in chat when the person is here, and in the ℹ️ FYI when they're away. Wait only for this, and only for this provider: the rest of the loop goes on. Already signed in? Skip the line.
+3. **Make the key.** Fill in every field the table's row names: the name, the scopes, the permissions, the resources and the expiry. Stop before the button that makes or shows the value (**Create**, **Reveal**): that click is the person's, and so is any step after it, like Stripe's two-factor code after **Create key**. Take your last look now. Once the value is on screen, stop on that screen: no screenshot, page read, text search or copy in that tab until the person has pasted it.
+4. **Open where it goes.** Do it before the person presses that button. The connect block's `to` says where:
+   - Your shell runs on the person's machine: open a new terminal window in the app folder, already running `pnpm connect <provider>`. macOS: `osascript -e 'tell app "Terminal" to do script "cd <app folder> && pnpm connect <provider>"'`. Linux: `x-terminal-emulator -e sh -c 'cd <app folder> && pnpm connect <provider>'`, or the desktop's own terminal (`gnome-terminal --`, `konsole -e`). Windows: `start "" cmd /k "cd /d <app folder> && pnpm connect <provider>"`. The command holds no value, and the window is theirs.
    - Otherwise, give one command for their own terminal: `pnpm connect <provider>`. It refuses to run without a terminal, so never run it in your shell.
    - A destination with its own page (a GitHub secret on `ci = "actions"`, the provider's own settings): open that page in a new tab, at the empty field.
    - A pack without the script: `npx wrangler secret put NAME --env <env>` or `gh secret set NAME --env <env>`, the same way. Both read the value hidden.
 
-   Then one line: "Copy the key from the tab and paste it into the prompt."
-5. **Check by name.** `pnpm connect --dry-run` shows ✓ by name only. Close the tab that showed the value, then start the next key.
+   Then hand over, in one message:
+   - "In the <provider> tab, press **<the button>** and do any step it asks for next (a code, closing the dialog)."
+   - "In the terminal, `pnpm connect` asks y/N before it opens a page: answer n, the tab is open already. Answer y to each place it saves the key."
+   - "Copy the key from the tab and paste it into the prompt."
 
-**Done when** every key the app needs shows ✓ in `pnpm connect --dry-run`, or its sign-in line is under "Waiting on you" in `docs/state.md`.
+   One `pnpm connect <provider>` asks for each of that provider's keys in turn. For the next key, fill in its form in a new tab and hand over again.
+5. **Check by name.** `pnpm connect --dry-run` shows ✓ by name only. A pack without the script checks by name another way: `node .agents/skills/secrets/scripts/push-secrets.mjs --dry-run` names each empty value, `npx wrangler secret list --env <env>` lists the Worker's names, and on `ci = "actions"` so does `gh secret list --env <env>`. Never check a value. Close the tab that showed the value with a call that returns no page or picture (or leave it for the person), then start the next key.
+
+**Done when** every key the app needs shows ✓ in step 5's check, or its sign-in line is under "Waiting on you" in `docs/state.md`, or its 🛑 is sent (a production key, a paid plan or a card).
 
 ### No browser (a cloud session)
 

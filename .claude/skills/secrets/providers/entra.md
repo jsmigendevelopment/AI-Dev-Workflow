@@ -36,7 +36,7 @@ You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare p
 
 ## Make each key
 
-For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page, pick what the row says, and stop on the screen that shows a value. `[V]` = checked against Microsoft's and Cloudflare's docs on 2026-11-26. The person needs at least the **Application Developer** role, and an admin for the consent.
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Microsoft's and Cloudflare's docs on 2026-11-26. The person needs at least the **Application Developer** role, and an admin for the consent.
 
 | Variable | Open | Pick |
 |---|---|---|
