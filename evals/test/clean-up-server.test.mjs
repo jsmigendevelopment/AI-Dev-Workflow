@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { checks } from "../scenarios/clean-up-server/checks.mjs";
 import { CLEAN_PLAN, CLEAN_READ, CLEAN_REPORT, CLEAN_START, CLEAN_STOP } from "./clean-up-server-plan.mjs";
@@ -57,17 +57,21 @@ test("AC-151-4: clean-up-server: the good transcript passes every check, the bad
   assert.ok(stat === "" || stat.startsWith("Z"), `PID ${pid} is gone once the eval has run: ${stat}`);
 });
 
-test("AC-151-1: clean-up-server: in a runner whose TZ isn't UTC, the server the bad transcript leaves is gone", { skip: skipWin }, (t) => {
+test("AC-151-1: clean-up-server: in a runner whose TZ isn't UTC, the server the bad transcript leaves is gone (#196)", { skip: skipWin }, (t) => {
   const seen = tempDir(t, "seen-pids-");
   const [start, read, report] = CLEAN_PLAN.without.steps;
-  // The arm's folder goes once the run ends, so a step copies its server.pids out first.
-  const keep = { bash: 'cp ../server.pids "$TMPDIR/seen.pids"' };
-  scenarioResult(t, "clean-up-server", { with: QUIET, without: { steps: [start, read, keep, report] } }, { TZ: "Asia/Tokyo", TMPDIR: seen });
+  // The arm's folder goes once the run ends, so a step copies its server.pids out first. By its full path, not
+  // as the runner's TMPDIR: that would put npm's compile cache in this folder too (#196).
+  const keep = { bash: `cp ../server.pids ${JSON.stringify(join(seen, "seen.pids"))}` };
+  scenarioResult(t, "clean-up-server", { with: QUIET, without: { steps: [start, read, keep, report] } }, { TZ: "Asia/Tokyo" });
   const pids = readFileSync(join(seen, "seen.pids"), "utf8").split("\n").map((l) => /^\d+/.exec(l)?.[0]).filter(Boolean);
   assert.ok(pids.length, "the bad transcript started a server");
   const running = pids.filter(serverRuns);
   for (const pid of running) process.kill(Number(pid), "SIGKILL"); // a failing run leaks nothing either
   assert.deepEqual(running, [], "no server left once the eval has run");
+  // #196: npm writes its compile cache under its TMPDIR as it exits, after the check has killed the server.
+  // In this folder, that raced its removal (ENOTEMPTY), so nothing but the step's copy may land here.
+  assert.deepEqual(readdirSync(seen), ["seen.pids"], "only the step's copy is in the test's folder");
 });
 
 test("AC-151-1: clean-up-server: the check never counts or kills a process that isn't the server, or PID 1", { skip: skipWin }, async (t) => {
