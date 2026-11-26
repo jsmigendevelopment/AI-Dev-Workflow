@@ -51,7 +51,7 @@ Recommend a run from this table when the person picks auto grill. Ask before the
 | **Fine for most people** | Opus 5.5 at high or extra-high effort | GPT-6.2 Sol at high or extra-high effort |
 | **Best result** | Fable 5.2 at high effort | GPT-6.2 Astra at extra-high effort |
 
-Can't switch models in this session? Say so once, carry on with the current model, and write the model and effort used to the grill log's provenance.
+Can't switch models in this session? Say so once, carry on with the current model, and write the model and effort used to the grill log's provenance. The yes or no is asked once per session (the first rule below).
 
 ## Where a job runs
 
@@ -71,7 +71,11 @@ Cloud first: `[sessions] prefer = "cloud"` in the profile. Unattended work runs 
 
 ## Rules
 
-- **Ask before using the strongest tier.** It's the most expensive and the most limited. Say which job you'd send to it and why, and start only on a yes. Skip the question only if `docs/profile.toml` sets `ask_before_strongest = false`, or the person already said yes to that job in this session. On Full automation: use the current model, record it, and don't ask.
+- **Ask before using the strongest tier, once per session.** It's the most expensive and the most limited. Say which jobs you'd send to it and why, and start only on a yes.
+  - **A yes covers the whole session and every CTO job in it.** Write it down at once: `- **Strongest tier:** yes · <session> · <UTC time>` in `docs/state.md` (`kickoff/decisions.md` before the repo exists). A no is written the same way. Read that line before you'd ask, and never ask again in that session.
+  - **Skip the question** when `docs/profile.toml` sets `ask_before_strongest = false`. `/idea` and `npx onrails profile init` ask that once, at setup.
+  - **Can't switch models in this session?** Say so once, carry on with the current model, and record the model and effort used in the plan's provenance (`docs/decisions.md`, or the grill log). Never tell the person to start a new session for a model.
+  - On Full automation: use the current model, record it, and don't ask.
 - **Never stop or restart a strongest-tier run without the person's yes.** It throws away work already paid for. Before any restart, check for reusable output and say what it costs (`ask`, "A running job"). Everyday-tier runs may be restarted.
 - **Start low. Escalate one step only after a verified failure:** a failed check or a rejected review, not a hunch.
 - **Spend the strongest model on thinking, not typing.** It designs. Cheaper models write the issues and the code from its design.

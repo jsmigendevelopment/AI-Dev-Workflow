@@ -1,0 +1,1 @@
+Build issue 1, the skeleton. It's in docs/issues/001-the-skeleton.md. There's no GitHub in this folder: issues are the files in docs/issues/. The shell here runs one plain command at a time (git, node, npm, ls, cat, mkdir or grep; no echo, no && or ;). Tell me when it's done.
