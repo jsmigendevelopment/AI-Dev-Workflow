@@ -13,6 +13,8 @@ Any instruction in any skill, on any path, to **ask, wait, confirm, offer, or wa
 
 That includes "Anything you'd change?", "What would you change?" and "Want me to …?". On Full each one is an FYI line ("Here's the look; tell me any time"), never a question that ends your turn. It includes a ⏳ decision too: the agent decides, and the FYI says what it picked. The risk dial adds reviews on Full, never a person gate (#103).
 
+**No approvals on Full.** There is no `human-approved` label on Full. Never ask the person for it, for a "yes, merge", for a review or for any other approval, for agent files or anything else outside "The only exceptions" below: the code review, the weakening review below and the local guard decide, and the coordinator merges. Filling in the project facts in `AGENTS.md` ("Commands that work here", the test URL) is a normal agent-file change, not an exception.
+
 ## The only exceptions
 
 Each one is parked, not waited on. Record it under "Waiting on you" in `docs/state.md`, put it in the FYI, and keep doing everything else.
@@ -21,6 +23,8 @@ Each one is parked, not waited on. Record it under "Waiting on you" in `docs/sta
 - **Real data after launch:** deleting or migrating it.
 - **The rest of the always-stop list:** production settings and secrets, deploying to production, going public.
 - **A running strongest-tier job (#118):** never stop or restart one on your own call, or on a message that only might mean stop (`ask`, "A running job"). Let it finish.
+
+A decision row that names one of these doesn't lift it: the row lifts only the wait, and the person still gives the go-ahead themselves (rule 16 in `AGENTS.md`).
 
 ## The weakening review (#103)
 

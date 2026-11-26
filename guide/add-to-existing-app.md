@@ -60,7 +60,7 @@ It doesn't run your code, push, or touch GitHub.
   - `docs/stack.md` (the risk dial and the automation level).
 - Compare each `.onrails-new` and `config.onrails.toml` copy with your file. Keep what you want, then delete the copy.
 - Set up before the rename to onRails? The same copies have older names: `.kit-new`, `config.kit.toml` and `AGENTS.kit.md`. `update` and `/join` still read them, and `update` renames `AGENTS.kit.md` and `config.kit.toml` if you never changed them.
-- Once the repo has the kit's CI, a change to the agents' own files fails until you add the `human-approved` label. That's on purpose: you sign off on new agent rules.
+- Below Full automation, a change to the agents' own files can't merge until you add the `human-approved` label. That's on purpose: you sign off on new agent rules. On Full there's no label: a fresh weakening review decides.
 - Merge it yourself.
 
 > [!NOTE]
