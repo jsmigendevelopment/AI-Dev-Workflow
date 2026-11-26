@@ -14,7 +14,7 @@
 // skill and the CLI (npx onrails preflight).
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { connect, createServer } from "node:net";
 import { hostname } from "node:os";
 import { join, resolve } from "node:path";
@@ -172,14 +172,29 @@ function checkBrowser(dir, tool, sys, pkg, pm) {
     ladder: selfFix(`\`${pm} exec playwright install chromium\` (Playwright's bundled browser), then run preflight again. Still failing? Treat it as blocked: the download needs the network.`) };
 }
 
-function checkVersions(dir, tool, sys, pkg) {
+// package.json comes from the repo, so its packageManager is never a command by itself.
+const MANAGERS = ["npm", "pnpm", "yarn", "bun"];
+
+/** packageManager as { name, version }: null when unset, { name: null } unless it's a known manager with a plain version. */
+function readManager(pkg) {
+  const field = pkg?.packageManager;
+  if (field === undefined || field === null || field === "") return null;
+  const [name, version, ...rest] = String(field).split("+")[0].split("@");
+  const plain = version === undefined || /^\d+(\.\d+){0,2}$/.test(version);
+  return MANAGERS.includes(name) && plain && !rest.length ? { name, version } : { name: null };
+}
+
+function checkVersions(dir, tool, sys, pkg, manager) {
   const want = pkg?.engines?.node ?? ">=22";
   const who = pkg?.engines?.node ? "the project" : "the kit";
   if (!satisfies(sys.node, want)) {
     return { status: "blocked", detail: `Node ${sys.node}, ${who} needs ${want}`, ladder: ladder("versions", tool, { want }) };
   }
-  const [pm, pmWant] = String(pkg?.packageManager ?? "").split("+")[0].split("@");
-  if (!pm) return { status: "ok", detail: `Node ${sys.node} (needs ${want})` };
+  if (!manager) return { status: "ok", detail: `Node ${sys.node} (needs ${want})` };
+  if (!manager.name) {
+    return { status: "limited", detail: `Node ${sys.node} (needs ${want}); unrecognised packageManager in package.json, so none ran. Preflight runs only npm, pnpm, yarn or bun, with a plain version` };
+  }
+  const { name: pm, version: pmWant } = manager;
   const have = sys.run(pm, ["--version"], { cwd: dir });
   const version = have?.ok ? firstLine(have.out) : null;
   if (version && (!pmWant || version.split(".")[0] === pmWant.split(".")[0])) return { status: "ok", detail: `Node ${sys.node} (needs ${want}), ${pm} ${version}` };
@@ -207,7 +222,8 @@ function sandboxPrint(dir, tool, sys, pkg) {
 export async function probe(dir, sys = realSys(), given = {}) {
   const tool = given.tool ?? detectTool(sys.env);
   const pkg = readJson(join(dir, "package.json"));
-  const pm = String(pkg?.packageManager ?? "").split("@")[0] || (existsSync(join(dir, "pnpm-lock.yaml")) ? "pnpm" : "npm");
+  const manager = readManager(pkg);
+  const pm = manager?.name ?? (existsSync(join(dir, "pnpm-lock.yaml")) ? "pnpm" : "npm");
   const loop = await sys.loopback();
   const found = {
     repo: checkRepo(dir, tool),
@@ -216,7 +232,7 @@ export async function probe(dir, sys = realSys(), given = {}) {
     github: checkGithub(dir, sys),
     loopback: loop.ok ? { status: "ok", detail: loop.detail } : { status: "blocked", detail: `can't listen on 127.0.0.1: ${loop.detail}`, ladder: ladder("loopback", tool) },
     browser: checkBrowser(dir, tool, sys, pkg, pm),
-    versions: checkVersions(dir, tool, sys, pkg),
+    versions: checkVersions(dir, tool, sys, pkg, manager),
     model: checkModel(sys, given),
   };
   const results = CHECKS.map((id) => ({ id, label: LABELS[id], ladder: [], ...found[id] }));
@@ -272,12 +288,31 @@ function recordLine(report) {
   return `- **Environment:** ${open.length ? `open: ${open.join(", ")}` : "ok"} · checked ${report.checkedAt} · ${report.tool} · fp ${report.fingerprint}${ran}`;
 }
 
+// No shell, ever: on Windows a shell joins the arguments into one unquoted cmd.exe line. So a command
+// is found on PATH, and only a .cmd or .bat shim (npm, pnpm, yarn) goes to cmd.exe, with plain words:
+// the same route as windowsArgv in the CLI's system.mjs.
+/** How run starts a command: { file, args, shell: false, verbatim? }, or null when it isn't on PATH. */
+export function commandFor(cmd, args, { platform = process.platform, env = process.env, execPath = process.execPath } = {}) {
+  if (cmd === "node") return { file: execPath, args, shell: false };
+  if (platform !== "win32") return { file: cmd, args, shell: false };
+  const exts = (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").toLowerCase().split(";").filter((e) => /^\.(com|exe|bat|cmd)$/.test(e));
+  const found = (env.PATH || env.Path || "").split(";").filter(Boolean)
+    .flatMap((dir) => exts.map((ext) => join(dir, cmd + ext))).find((f) => existsSync(f) && statSync(f).isFile());
+  if (!found) return null;
+  if (!/\.(bat|cmd)$/i.test(found)) return { file: found, args, shell: false };
+  if (args.some((a) => !/^[\w.:=/-]+$/.test(a))) throw new Error(`preflight passes only plain words to cmd.exe, not: ${args.join(" ")}`);
+  // cmd.exe /s drops the outer quotes, so a path with spaces stays one word. Node's own shell mode does the same.
+  return { file: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], shell: false, verbatim: true };
+}
+
 /** The real session: commands with a timeout, and a round trip on 127.0.0.1. */
 export function realSys() {
   return {
     env: process.env, node: process.versions.node, hostname: hostname(), platform: process.platform, now: () => Date.now(),
     run(cmd, args = [], { cwd, timeout = 15000 } = {}) {
-      const r = spawnSync(cmd, args, { cwd, encoding: "utf8", timeout, shell: process.platform === "win32" });
+      const how = commandFor(cmd, args);
+      if (!how) return null;
+      const r = spawnSync(how.file, how.args, { cwd, encoding: "utf8", timeout, shell: how.shell, windowsVerbatimArguments: how.verbatim });
       if (r.error?.code === "ENOENT") return null;
       const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
       return { ok: r.status === 0, out: r.error ? `${out}\n${r.error.message}`.trim() : out };

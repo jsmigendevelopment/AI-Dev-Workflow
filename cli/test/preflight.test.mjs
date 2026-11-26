@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CHECKS, detectTool, fingerprint, main, probe, readRecord, render, satisfies, withRecord } from "../src/preflight.mjs";
+import { CHECKS, commandFor, detectTool, fingerprint, main, probe, readRecord, render, satisfies, withRecord } from "../src/preflight.mjs";
 import { logger, put, tmp } from "./helpers.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
@@ -219,6 +219,40 @@ test("Node and the package manager are checked against the project's engines", a
   assert.equal(satisfies("20.1.0", "^22"), false);
   assert.equal(satisfies("24.0.0", "22.x || 24.x"), true);
   assert.equal(satisfies("22.1.0", "something odd"), true, "an unreadable range never blocks");
+});
+
+test("only a known package manager runs, and only a plain version is printed", async () => {
+  const named = fakeSys({ answers: HEALTHY });
+  const report = await probe(project({ "package.json": JSON.stringify({ packageManager: "./x.sh@1" }) }), named);
+  assert.ok(!named.calls.some((c) => c.startsWith("./x.sh")), `ran: ${named.calls.join(" | ")}`);
+  const row = report.results.find((r) => r.id === "versions");
+  assert.equal(row.status, "limited");
+  assert.match(row.detail, /unrecognised packageManager/);
+  assert.doesNotMatch(render(report), /x\.sh/);
+
+  const odd = "10.0.0;x";
+  const versioned = fakeSys({ answers: HEALTHY, missing: ["pnpm"] });
+  const shown = await probe(project({ "package.json": JSON.stringify({ packageManager: `pnpm@${odd}` }) }), versioned);
+  assert.ok(!versioned.calls.some((c) => c.startsWith("pnpm")), `ran: ${versioned.calls.join(" | ")}`);
+  assert.match(shown.results.find((r) => r.id === "versions").detail, /unrecognised packageManager/);
+  assert.ok(!render(shown).includes(odd) && !JSON.stringify(shown).includes(odd), "the odd version is never printed");
+});
+
+test("on Windows, commands start with no shell: node is this Node, and only a .cmd or .bat shim goes through cmd.exe", () => {
+  const bin = tmp("onrails-preflight-bin-");
+  for (const name of ["git.exe", "npm", "npm.cmd", "yarn.bat"]) put(bin, name, "");
+  const comspec = "C:\\Windows\\system32\\cmd.exe";
+  const win = { platform: "win32", env: { PATH: bin, PATHEXT: ".COM;.EXE;.BAT;.CMD", ComSpec: comspec }, execPath: "C:\\Program Files\\nodejs\\node.exe" };
+  const script = "p.chromium.launch({headless:true}).then(b=>b.close())";
+  assert.deepEqual(commandFor("node", ["-e", script], win), { file: win.execPath, args: ["-e", script], shell: false });
+  assert.deepEqual(commandFor("git", ["rev-parse", "--show-toplevel"], win), { file: join(bin, "git.exe"), args: ["rev-parse", "--show-toplevel"], shell: false });
+  // cmd.exe /s drops the outer quotes, so a shim path with spaces stays one word.
+  assert.deepEqual(commandFor("npm", ["config", "get", "registry"], win),
+    { file: comspec, args: ["/d", "/s", "/c", `""${join(bin, "npm.cmd")}" config get registry"`], shell: false, verbatim: true });
+  assert.equal(commandFor("yarn", ["--version"], win).args[3], `""${join(bin, "yarn.bat")}" --version"`);
+  assert.equal(commandFor("gh", ["api", "rate_limit"], win), null, "not on PATH: not installed");
+  assert.throws(() => commandFor("npm", ["view", "a&b"], win), /plain words/);
+  assert.deepEqual(commandFor("git", ["status"], { platform: "linux", execPath: "/usr/bin/node" }), { file: "git", args: ["status"], shell: false });
 });
 
 test("model and effort: what the session can see, or what the agent passes in", async () => {
