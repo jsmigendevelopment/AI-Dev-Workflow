@@ -5,12 +5,14 @@
 // The same rules as the TanStack pack's `pnpm pr:rules`: the description closes an issue (Closes, Fixes or
 // Resolves #<n>), the branch is feat/<n>-name or fix/<n>-name for that issue, unless the pull request has the
 // `no-issue` label or Dependabot opened it; and at most 400 changed lines, unless it has the `large-pr` label.
-// Lockfiles don't count, nor files this checkout's .gitattributes marks `linguist-generated`.
-// Exit 0: every rule holds. 1: a rule is broken, or the head moved. 2: a usage or API error.
+// Lockfiles don't count, nor files this checkout's .gitattributes marks `linguist-generated`. A rename skips only when
+// its old and new names both do, so a file can't hide its changes by moving into a skipped path.
+// Exit 0: every rule holds. 1: a rule is broken, or the head moved. 2: a usage or API error, or GitHub listed fewer
+// files than the pull request changes (its list stops at 3000), so the size can't be counted. Never a pass.
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gh, pages, prArgs } from "./agent-files.mjs";
+import { MAX_FILES, changedPaths, gh, pages, prArgs } from "./agent-files.mjs";
 
 const MAX_CHANGED_LINES = 400;
 const LOCKFILES = /(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|bun\.lockb?|deno\.lock|Cargo\.lock|poetry\.lock|uv\.lock|Pipfile\.lock|Gemfile\.lock|composer\.lock|go\.sum)$/;
@@ -40,10 +42,11 @@ export function linkProblems({ body, branch, labels, author }) {
   return problems;
 }
 
-/** Lines added plus removed, without lockfiles and generated files. */
+/** Lines added plus removed, without lockfiles and generated files. A rename skips only when both its names do. */
 export function changedLines(files, isGenerated) {
+  const skipped = (path) => LOCKFILES.test(path) || isGenerated.has(path);
   return files
-    .filter((f) => !LOCKFILES.test(f.filename) && !isGenerated.has(f.filename))
+    .filter((f) => !skipped(f.filename) || (f.previous_filename && !skipped(f.previous_filename)))
     .reduce((sum, f) => sum + (f.additions ?? 0) + (f.deletions ?? 0), 0);
 }
 
@@ -66,10 +69,14 @@ export function main(argv) {
     console.error(`The head moved: #${pr} is at ${pull.head?.sha}, not ${head}. Check the new head.`);
     return 1;
   }
+  if (!Number.isInteger(pull.changed_files) || files.length < pull.changed_files) {
+    console.error(`GitHub listed ${files.length} of the ${pull.changed_files ?? "unknown number of"} files #${pr} changes (its list stops at ${MAX_FILES}), so the size can't be counted. That's never a pass: split the pull request.`);
+    return 2;
+  }
   const labels = (pull.labels ?? []).map((l) => l.name);
   const branch = pull.head.ref ?? "";
   const problems = linkProblems({ body: pull.body ?? "", branch, labels, author: pull.user?.login });
-  const lines = changedLines(files, generated(files.map((f) => f.filename)));
+  const lines = changedLines(files, generated(changedPaths(files)));
   if (lines > MAX_CHANGED_LINES && !labels.includes("large-pr")) {
     problems.push(`${lines} changed lines (over ${MAX_CHANGED_LINES}, lockfiles and generated files not counted). Split the pull request, or add the large-pr label and say why in the description.`);
   }

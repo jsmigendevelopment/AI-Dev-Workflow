@@ -3,3 +3,6 @@
 .claude/skills/** linguist-generated
 plugin/** linguist-generated
 cli/README.md linguist-generated
+# People edit these two by hand (versions.mjs bumps them), and no script writes them, so they count.
+plugin/.claude-plugin/plugin.json -linguist-generated
+plugin/.codex-plugin/plugin.json -linguist-generated
