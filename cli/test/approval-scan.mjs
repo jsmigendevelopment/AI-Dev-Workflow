@@ -52,7 +52,12 @@ const clauses = (s) => {
 const governed = (s) => {
   const label = LABEL.test(s);
   const asking = clauses(s).filter((c) => ASKS_APPROVAL.test(c));
-  return (asking.length ? asking : [s]).every((c) => !AGAINST.test(c) && (BELOW_FULL.test(c) || (label && !NAMES_FULL.test(c))));
+  // #173 round 2: an ask that runs across a clause cut keeps main's rule: the condition comes before the ask.
+  if (!asking.length) {
+    const c = s.search(BELOW_FULL);
+    return c !== -1 && c < s.search(ASKS_APPROVAL) && !AGAINST.test(s);
+  }
+  return asking.every((c) => !AGAINST.test(c) && (BELOW_FULL.test(c) || (label && !NAMES_FULL.test(c))));
 };
 /** The sentences of a line that ask for an approval with no below-Full condition governing the ask. */
 export const unconditionalAsks = (line) => line.split(/(?<=[.!?]["'’)\]*_`]*)\s+/).map((s) => s.trim()).filter((s) => ASKS_APPROVAL.test(s) && !governed(s));

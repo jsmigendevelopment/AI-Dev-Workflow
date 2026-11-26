@@ -16,6 +16,13 @@ test("#173 round 1 nice 1: a bold label doesn't cover a clause that names Full, 
   }
 });
 
+test("#173 round 2 must: an ask that no single clause holds needs its condition before it, and no \"(on Full too)\"", () => {
+  for (const s of ["Ask the owner about it, and review it later (below Full).", "Ask the person for the screenshots, and get their review on it, below Full.",
+    "Ask the person to look, and approve it, not on Full."]) assert.deepEqual(unconditionalAsks(s), [s], s);
+  // Main's rule still governs a condition that comes first.
+  assert.deepEqual(unconditionalAsks("Below Full, ask the owner about it, and review it later."), []);
+});
+
 test("#173 round 1 nice 2: the scan catches each phrasing the review listed", () => {
   const phrasings = ["Await the person's yes.", "Check with the owner first.", "Ask the person before you continue.", "Ask the person, then wait.",
     "Ping the person and wait.", "Wait for the person.", "Run it only after a yes.", "Ask the owner before starting (`ask`)."];
