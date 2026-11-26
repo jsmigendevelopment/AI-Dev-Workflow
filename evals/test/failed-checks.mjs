@@ -12,7 +12,8 @@ const FAKE = fileURLToPath(new URL("./fake-claude.mjs", import.meta.url));
 /** A new temp folder, removed when the test `t` ends. The one place the opt-in evals' tests make one (AC-142-2). */
 export function tempDir(t, prefix = "evals-test-") {
   const dir = mkdtempSync(join(tmpdir(), prefix));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  // A child an eval leaves can still be writing as it exits, after the run: retry ENOTEMPTY or EBUSY (#196).
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
   return dir;
 }
 
