@@ -3,7 +3,7 @@
 // entry skills (only when init --global was used), the project's kit (only inside an onRails project),
 // then doctor and a summary of each part before and after. It only consumes a release: no bump, tag or publish.
 import { realpathSync } from "node:fs";
-import { delimiter, isAbsolute, relative, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { doctor } from "./doctor.mjs";
 import { globalSkillChecks, initGlobal } from "./global.mjs";
 import { PROJECT_MANIFEST, loadKit } from "./kit.mjs";
@@ -21,24 +21,44 @@ function realDir(dir) {
   }
 }
 
+// True when dir is root or inside it. Only a ".." path segment leaves root: a folder named "..x" is inside it.
 const within = (dir, root) => {
   const rel = relative(root, dir);
-  return !rel || (!rel.startsWith("..") && !isAbsolute(rel));
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 };
 
-// The tool's full path on PATH, never a copy a project ships. Skipped: relative entries, any entry whose real
-// path is inside the project or the current folder, and every node_modules/.bin, because npx puts the current
-// folder's and each ancestor's first, where a dev dependency or a planted file would win.
+const BIN = /(^|[\\/])node_modules[\\/]\.bin[\\/]*$/i;
+
+// The project and the current folder, by real path. The home folder, a folder that holds it, and a filesystem root
+// are never one: a terminal opens in ~, and ~/.local/bin or an nvm folder there is where claude and codex live.
+function projectRoots(projectDir, home) {
+  const realHome = realDir(home) ?? resolve(home);
+  return [[projectDir, "this project"], [process.cwd(), "the current folder"]]
+    .map(([dir, label]) => ({ dir: realDir(dir), label }))
+    .filter(({ dir }) => dir && dirname(dir) !== dir && !within(realHome, dir));
+}
+
+// Why a PATH entry is skipped, or null to search it. The node_modules/.bin test runs on the real path too,
+// so ".bin/." and "./.bin" are caught: npx puts the current folder's and each ancestor's first.
+function skipped(entry, roots) {
+  if (!isAbsolute(entry)) return "in a relative PATH entry";
+  const dir = realDir(entry);
+  if (!dir) return "missing";
+  if (BIN.test(entry) || BIN.test(dir)) return "in a node_modules/.bin";
+  const root = roots.find((r) => within(dir, r.dir));
+  return root ? `inside ${root.label}` : null;
+}
+
+// The tool's full path on PATH, never a copy a project ships: { path } or, when only a skipped entry has it, { why }.
 function toolPath(name, sys, projectDir) {
-  const roots = [projectDir, process.cwd()].map(realDir).filter(Boolean);
-  const PATH = (sys.env.PATH || sys.env.Path || "").split(delimiter)
-    .filter((d) => d && isAbsolute(d) && !/(^|[\\/])node_modules[\\/]\.bin[\\/]*$/i.test(d))
-    .filter((d) => {
-      const dir = realDir(d);
-      return dir && !roots.some((root) => within(dir, root));
-    })
-    .join(delimiter);
-  return findCommand(name, { env: { PATH, PATHEXT: sys.env.PATHEXT }, platform: sys.platform });
+  const roots = projectRoots(projectDir, sys.home);
+  const look = (PATH) => findCommand(name, { env: { PATH, PATHEXT: sys.env.PATHEXT }, platform: sys.platform });
+  const entries = (sys.env.PATH || sys.env.Path || "").split(delimiter).filter(Boolean)
+    .map((entry) => ({ entry, why: skipped(entry, roots) }));
+  const path = look(entries.filter((e) => !e.why).map((e) => e.entry).join(delimiter));
+  if (path) return { path };
+  const hit = entries.find((e) => e.why && e.why !== "missing" && look(e.entry));
+  return { why: hit ? `${name} found only ${hit.why}, not run` : `${name} isn't on your PATH` };
 }
 
 // Step 1. Each command runs with no shell, by full path, and a failed one ends that tool's steps.
@@ -51,10 +71,10 @@ function plugins(sys, projectDir, dryRun, log) {
       log(`   ${p.label} plugin: not installed, skipped`);
       continue;
     }
-    const path = toolPath(p.tool, sys, projectDir);
+    const { path, why } = toolPath(p.tool, sys, projectDir);
     if (!path) {
-      log(`   ${name} v${p.version}: skipped, ${p.tool} isn't on your PATH`);
-      rows.push({ tool: p.tool, part: name, before: `v${p.version}`, note: `skipped: ${p.tool} isn't on your PATH` });
+      log(`   ${name} v${p.version}: skipped, ${why}`);
+      rows.push({ tool: p.tool, part: name, before: `v${p.version}`, note: `skipped: ${why}` });
       continue;
     }
     log(`   ${name} v${p.version}: ${dryRun ? "would run" : "running"}`);

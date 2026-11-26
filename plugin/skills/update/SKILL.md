@@ -7,12 +7,12 @@ description: Use when the person wants onRails brought to its latest version ("/
 
 One command updates every part this machine and folder have. It only installs the latest release. Never bump a version, tag or publish.
 
-Always run the CLI from a new temp folder outside the project, and pass the project root: the folder with `.onrails.json`, or the current folder outside a project. Run from inside the project, npx can start an `onrails` or `claude` the project ships. No `mktemp` (PowerShell)? Make a new folder under `$env:TEMP` and run from there.
+Always run the CLI from a new temp folder outside the project, and pass the project root: the folder with `.onrails.json`, or the current folder outside a project. Run from inside the project, npx can start an `onrails` or `claude` the project ships. The commands below name the folder under `/tmp`, because a bare `mktemp -d` follows `TMPDIR`, which can point into the project. No `mktemp` (PowerShell)? Make a new folder under `$env:TEMP`, or under your home folder when `$env:TEMP` is inside the project, and run from there. The folder's real path is inside the project? Make another under your home folder.
 
 ## Steps
 
 1. **Read the automation level** from "Automation level" in `docs/stack.md`. No section, or no project here? The default is `[defaults] automation` in the profile (`docs/profile.toml`, else `~/.onrails/profile.toml`), else Recommended.
-2. **Show the plan.** Run `(cd "$(mktemp -d)" && npx --yes onrails@latest update "<project root>" --all --dry-run)`. It runs nothing and writes nothing. It lists the four parts:
+2. **Show the plan.** Run `(cd "$(mktemp -d /tmp/onrails-update.XXXXXX)" && npx --yes onrails@latest update "<project root>" --all --dry-run)`. It runs nothing and writes nothing. It lists the four parts:
    1. the plugin commands it would run, for each tool whose plugin is installed;
    2. the global entry skills, when `init --global` was used;
    3. the project kit, when this folder is an onRails project;
@@ -22,7 +22,7 @@ Always run the CLI from a new temp folder outside the project, and pass the proj
      2. the `installPath` of `core@onrails` in `~/.claude/plugins/installed_plugins.json` (Claude Code; under `$CLAUDE_CONFIG_DIR/plugins` when that's set);
      3. the newest version folder in `~/.codex/plugins/cache/onrails/or/` (Codex; under `$CODEX_HOME` when that's set).
 
-     Never use a folder inside the project, whatever these say, and never the folder this `SKILL.md` is in: a project's copy sits in the project. Then run `(cd "$(mktemp -d)" && node "<plugin folder>/cli/bin/cli.mjs" update "<project root>" --all --dry-run)`. Say that it brings only the kit this plugin carries, not the newest release.
+     Never use a folder inside the project, whatever these say, and never the folder this `SKILL.md` is in: a project's copy sits in the project. Then run `(cd "$(mktemp -d /tmp/onrails-update.XXXXXX)" && node "<plugin folder>/cli/bin/cli.mjs" update "<project root>" --all --dry-run)`. Say that it brings only the kit this plugin carries, not the newest release.
    - No plugin installed? There's no fallback: it's a 🛑 blocker, with this one command for the person to run where npx works: `npx --yes onrails@latest update "<project root>" --all`.
 3. **Go ahead.** **On Full,** ask nothing: go to step 4 and put the plan in your report. **Below Full,** show the plan and ask once: "Run it?" A no ends it here.
 4. **Run it:** the same command without `--dry-run` (or the same fallback). Show the person what it printed: the summary of each part, before and after, and every "Left for you" line.

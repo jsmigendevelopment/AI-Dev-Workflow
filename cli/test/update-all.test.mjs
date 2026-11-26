@@ -152,6 +152,7 @@ test("AC-178-5: WHEN the README and cli/CLI.md are read THEN they name /update a
   assert.match(byHand, /`\/update`/);
   assert.match(byHand, /npx onrails@latest update --all/);
   assert.match(cli, /\| `npx onrails@latest update \[dir\] --all \[--dry-run\] \[--yes\]` \|/);
+  assert.match(cli, /`NoDefaultCurrentDirectoryInExePath=1`[^|]*`init --start`/, "the Windows switch the agent session inherits is written down");
 });
 
 // A claude a project could ship: it only records that it ran.
@@ -163,12 +164,13 @@ test("#178: update --all never runs a claude from the project, the current folde
   const m = machine({ tools: ["claude"], plugins: ["claude"], global: false });
   const root = tmp(), dir = join(root, "app"), cwd = join(root, "here", "sub");
   // npx puts <cwd>/node_modules/.bin and each ancestor's first; the rest are a folder inside the project,
-  // a folder inside the current one, a link into the project, and a relative entry that points outside both.
-  const planted = [join(dir, "node_modules", ".bin"), join(root, "node_modules", ".bin"), join(dir, "tools"), join(cwd, "bin"), join(root, "here", "rel")];
+  // a folder inside the current one, one inside the project whose name starts with "..", a link into the project,
+  // and a relative entry that points outside both.
+  const planted = [join(dir, "node_modules", ".bin"), join(root, "node_modules", ".bin"), join(dir, "tools"), join(cwd, "bin"), join(dir, "..x"), join(root, "here", "rel")];
   for (const d of planted) put(d, "claude", PLANTED), chmodSync(join(d, "claude"), 0o755);
   symlinkSync(join(dir, "tools"), join(root, "link"));
   mkdirSync(cwd, { recursive: true });
-  const PATH = [...planted.slice(0, 4), join(root, "link"), join("..", "rel"), m.env.PATH].join(delimiter);
+  const PATH = [...planted.slice(0, 5), join(root, "link"), join("..", "rel"), m.env.PATH].join(delimiter);
   const plan = m.run(["update", dir, "--all", "--dry-run"], { PATH }, cwd);
   assert.match(plan.stdout, new RegExp(`would run\\n\\s+${esc(join(m.bin, "claude"))} plugin marketplace update onrails`));
   const r = m.run(["update", dir, "--all"], { PATH }, cwd);
@@ -178,19 +180,80 @@ test("#178: update --all never runs a claude from the project, the current folde
   assert.deepEqual(plugin, ["claude plugin marketplace update onrails", "claude plugin update core@onrails"]);
 });
 
+// A machine whose only claude is in ~/.local/bin, where Claude Code's native installer puts it.
+function homeInstall() {
+  const m = machine({ tools: [], plugins: ["claude"], global: false });
+  const local = join(m.home, ".local", "bin");
+  put(local, "claude", CLAUDE), chmodSync(join(local, "claude"), 0o755);
+  return { ...m, PATH: [local, dirname(process.execPath)].join(delimiter) };
+}
+const pluginCalls = (m) => m.calls().split("\n").filter((l) => / plugin /.test(l));
+const BOTH = ["claude plugin marketplace update onrails", "claude plugin update core@onrails"];
+
+test("#178: run from the home folder, or given it as the project, update --all still runs the claude in ~/.local/bin", unixOnly, () => {
+  let m = homeInstall();
+  let r = m.run(["update", "--all"], { PATH: m.PATH }, m.home);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(pluginCalls(m), BOTH, r.stdout);
+  // The /update skill passes the current folder as the project root when it isn't a project: here, the home folder.
+  m = homeInstall();
+  r = m.run(["update", m.home, "--all"], { PATH: m.PATH }, tmp());
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(pluginCalls(m), BOTH, r.stdout);
+  // A folder that holds the home folder, and the filesystem root, are never the project either.
+  m = homeInstall();
+  r = m.run(["update", dirname(m.home), "--all"], { PATH: m.PATH }, "/");
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(pluginCalls(m), BOTH, r.stdout);
+});
+
+test("#178: a claude found only inside the project is named as that, not as missing from PATH, and doesn't run", unixOnly, () => {
+  const m = homeInstall(), dir = join(m.home, "work", "app");
+  put(join(dir, "tools"), "claude", PLANTED), chmodSync(join(dir, "tools", "claude"), 0o755);
+  const r = m.run(["update", dir, "--all"], { PATH: [join(dir, "tools"), dirname(process.execPath)].join(delimiter) }, tmp());
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Claude Code plugin core@onrails v0\.6\.0: skipped, claude found only inside this project, not run/);
+  assert.doesNotMatch(r.stdout, /isn't on your PATH/);
+  assert.deepEqual(pluginCalls(m), []);
+});
+
+test("#178: a node_modules/.bin entry written as .bin/. or ./.bin is still skipped", unixOnly, () => {
+  const m = machine({ tools: ["claude"], plugins: ["claude"], global: false });
+  const root = tmp(), dir = join(root, "app"), up = join(root, "node_modules");
+  put(join(up, ".bin"), "claude", PLANTED), chmodSync(join(up, ".bin", "claude"), 0o755);
+  mkdirSync(dir, { recursive: true });
+  for (const entry of [`${up}/.bin/.`, `${up}/./.bin`]) {
+    const r = m.run(["update", dir, "--all"], { PATH: [entry, m.env.PATH].join(delimiter) }, dir);
+    assert.equal(r.status, 0, r.stderr);
+  }
+  // Only plugin commands: doctor's own `claude --version` probe still uses the bare name (#185).
+  assert.deepEqual(pluginCalls(m), [...BOTH, ...BOTH], "the ancestor's node_modules/.bin never ran a plugin command");
+});
+
 test("#178: on Windows a .cmd shim runs through cmd.exe by its full path, from ComSpec or SystemRoot, never a bare cmd.exe", () => {
   const shim = "C:\\Users\\me\\AppData\\Roaming\\npm\\claude.cmd";
   const argv = [shim, "plugin", "update", "core@onrails"];
   let l = launch(argv, { platform: "win32", env: { ComSpec: "C:\\Windows\\System32\\cmd.exe" } });
   assert.equal(l.file, "C:\\Windows\\System32\\cmd.exe");
-  assert.deepEqual(l.args, ["/d", "/s", "/c", shim, "plugin", "update", "core@onrails"]);
+  assert.deepEqual(l.args, ["/d", "/s", "/c", `""${shim}" plugin update core@onrails"`]);
+  assert.equal(l.verbatim, true);
   assert.equal(l.env.NoDefaultCurrentDirectoryInExePath, "1", "the shim's bare `node` is never looked up in the current folder");
   assert.equal(launch(argv, { platform: "win32", env: { SystemRoot: "D:\\Win" } }).file, "D:\\Win\\System32\\cmd.exe");
   assert.equal(launch(argv, { platform: "win32", env: {} }).file, "C:\\Windows\\System32\\cmd.exe");
   l = launch(["C:\\tools\\codex.exe", "plugin"], { platform: "win32", env: {} });
-  assert.deepEqual([l.file, l.args], ["C:\\tools\\codex.exe", ["plugin"]], "an .exe starts as it is");
+  assert.deepEqual([l.file, l.args, l.verbatim], ["C:\\tools\\codex.exe", ["plugin"], undefined], "an .exe starts as it is");
   l = launch(["/bin/claude", "plugin"], { platform: "linux", env: { A: "1" } });
   assert.deepEqual(l, { file: "/bin/claude", args: ["plugin"], env: { A: "1" } });
+});
+
+test("#178: on Windows a .cmd path with a space reaches cmd.exe as one quoted word, verbatim, as preflight's commandFor does", () => {
+  const shim = "C:\\Users\\John Smith\\AppData\\Roaming\\npm\\claude.cmd";
+  const env = { ComSpec: "C:\\Windows\\System32\\cmd.exe" };
+  const l = launch([shim, "plugin", "marketplace", "update", "onrails"], { platform: "win32", env });
+  // cmd.exe /s drops the first and last quote on the line, which leaves "<path>" quoted.
+  assert.deepEqual([l.file, l.args, l.verbatim], [env.ComSpec, ["/d", "/s", "/c", `""${shim}" plugin marketplace update onrails"`], true]);
+  assert.throws(() => launch([shim, "a&b"], { platform: "win32", env }), /plain words/, "cmd.exe never reads a & or a quote from an argument");
+  assert.doesNotMatch(repo("scripts/preflight-sys.mjs"), /windowsArgv/, "preflight's comment no longer names the old route");
 });
 
 test("#178: a part that throws is a FAILED row; the other parts, doctor and the summary still run, and the exit is 1", unixOnly, () => {
@@ -216,8 +279,12 @@ test("#178: a part that throws is a FAILED row; the other parts, doctor and the 
 
 test("#178: the /update skill runs the CLI from a temp folder, its fallback is the plugin's install record and never the project, and it works without the kit", () => {
   const skill = repo(".agents/skills/update/SKILL.md");
-  assert.match(skill, /\(cd "\$\(mktemp -d\)" && npx --yes onrails@latest update "<project root>" --all --dry-run\)/);
-  assert.match(skill, /\(cd "\$\(mktemp -d\)" && node "<plugin folder>\/cli\/bin\/cli\.mjs" update "<project root>" --all --dry-run\)/);
+  // mktemp -d alone follows TMPDIR, which a session can point into the project, so the folder is named under /tmp.
+  assert.match(skill, /\(cd "\$\(mktemp -d \/tmp\/onrails-update\.XXXXXX\)" && npx --yes onrails@latest update "<project root>" --all --dry-run\)/);
+  assert.match(skill, /\(cd "\$\(mktemp -d \/tmp\/onrails-update\.XXXXXX\)" && node "<plugin folder>\/cli\/bin\/cli\.mjs" update "<project root>" --all --dry-run\)/);
+  assert.doesNotMatch(skill, /mktemp -d\)/, "no bare mktemp -d");
+  assert.match(skill, /PowerShell\)\? Make a new folder under `\$env:TEMP`, or under your home folder when `\$env:TEMP` is inside the project/);
+  assert.match(skill, /real path is inside the project\? Make another/);
   assert.match(skill, /`\$\{CLAUDE_PLUGIN_ROOT\}`/);
   assert.match(skill, /the `installPath` of `core@onrails` in `~\/\.claude\/plugins\/installed_plugins\.json`/);
   assert.match(skill, /`~\/\.codex\/plugins\/cache\/onrails\/or\/`/);

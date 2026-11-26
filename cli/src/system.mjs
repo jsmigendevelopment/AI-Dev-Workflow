@@ -21,19 +21,22 @@ export function findCommand(name, { env = process.env, platform = process.platfo
   return null;
 }
 
-// How exec and spawnInteractive start argv, with no shell: { file, args, env }.
+// How exec and spawnInteractive start argv, with no shell: { file, args, env, verbatim? }.
 // Windows .cmd/.bat shims (npm, pnpm, corepack, an npm-installed claude) only start through cmd.exe. Fix commands
-// are fixed strings from this CLI, never user input, so passing them to cmd.exe is safe. A full path (update --all
-// finds each tool itself) is used as it is. As in preflight (decision 63), cmd.exe goes by its full path, since a
-// bare name is looked up in the current folder first, and NoDefaultCurrentDirectoryInExePath stops the same lookup
-// for the bare `node` a shim starts.
+// are fixed strings from this CLI, never user input, and only plain words reach cmd.exe. A full path (update --all
+// finds each tool itself) is used as it is. As in preflight's commandFor (decision 63), cmd.exe goes by its full
+// path, since a bare name is looked up in the current folder first, and gets one verbatim line with the path quoted:
+// /s drops the line's outer quotes, so a path with a space stays one word. NoDefaultCurrentDirectoryInExePath stops
+// the current-folder lookup for the bare `node` a shim starts, and for everything the started program runs.
 export function launch(argv, { platform = process.platform, env = process.env } = {}) {
   if (platform !== "win32") return { file: argv[0], args: argv.slice(1), env };
   const found = win32.isAbsolute(argv[0]) ? argv[0] : findCommand(argv[0], { env, platform });
   const winEnv = { ...env, NoDefaultCurrentDirectoryInExePath: "1" };
   if (!found || !/\.(cmd|bat)$/i.test(found)) return { file: found ?? argv[0], args: argv.slice(1), env: winEnv };
+  const args = argv.slice(1);
+  if (args.some((a) => !/^[\w.:=/@$+,-]+$/.test(a))) throw new Error(`only plain words go to cmd.exe, not: ${args.join(" ")}`);
   const cmdExe = env.ComSpec || win32.join(env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
-  return { file: cmdExe, args: ["/d", "/s", "/c", found, ...argv.slice(1)], env: winEnv };
+  return { file: cmdExe, args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], env: winEnv, verbatim: true };
 }
 
 export function realSystem() {
@@ -53,15 +56,16 @@ export function realSystem() {
     },
     // Hand the terminal to an interactive program (an agent session) and wait for it to end.
     spawnInteractive(argv, { cwd } = {}) {
-      const { file, args, env } = launch(argv);
-      const r = spawnSync(file, args, { cwd, env, stdio: "inherit" });
+      const { file, args, env, verbatim } = launch(argv);
+      const r = spawnSync(file, args, { cwd, env, stdio: "inherit", windowsVerbatimArguments: verbatim });
       if (r.error) throw new Error(`Could not start ${argv[0]}: ${r.error.message}`);
       return r.status ?? 1;
     },
     exec(argv, { cwd } = {}) {
-      const { file, args, env } = launch(argv);
       try {
-        execFileSync(file, args, { cwd, env, stdio: "inherit" });
+        // Inside the try: a command launch refuses to hand to cmd.exe is a failed fix, shown as one.
+        const { file, args, env, verbatim } = launch(argv);
+        execFileSync(file, args, { cwd, env, stdio: "inherit", windowsVerbatimArguments: verbatim });
         return true;
       } catch {
         return false;
