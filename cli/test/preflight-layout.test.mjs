@@ -72,11 +72,11 @@ test("AC-182-2: WHEN the repo's layout can't be read THEN every row that needs a
 });
 
 for (const [name, odd] of [
-  ["a symlink before a ..", (git) => { mkdirSync(join(git, "c")); mkdirSync(join(git, "a")); symlinkSync("../c", join(git, "a", "lnk")); return "a/lnk/.."; }],
+  ["way 1", (git) => { mkdirSync(join(git, "c")); mkdirSync(join(git, "a")); symlinkSync("../c", join(git, "a", "lnk")); return "a/lnk/.."; }],
   // A folder named without the space is there too, so dropping the space reads another folder, not a missing one.
-  ["a trailing space", (git) => { mkdirSync(join(git, "c")); symlinkSync(".", join(git, "c ")); return "c "; }],
+  ["way 2", (git) => { mkdirSync(join(git, "c")); symlinkSync(".", join(git, "c ")); return "c "; }],
 ]) {
-  test(`AC-182-2: WHEN the main .git folder's commondir names it through ${name} THEN a PATH folder in a linked worktree still runs nothing before the read`, posixOnly, () => {
+  test(`AC-182-2: WHEN the main .git folder's commondir reads one way as text and another to the system (${name}) THEN a PATH folder in a linked worktree still runs nothing before the read`, posixOnly, () => {
     const mark = temp("onrails-layout-mark-");
     const { main, trees: [tree] } = checkouts(mark);
     writeFileSync(join(main, ".git", "commondir"), `${odd(join(main, ".git"))}\n`);
