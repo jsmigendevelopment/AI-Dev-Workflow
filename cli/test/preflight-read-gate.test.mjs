@@ -68,7 +68,7 @@ test("AC-169-5: a .git file counts only when the folder it names points back at 
   assert.equal(loadsNothing(copy), true);
 });
 
-test("AC-169-3: WHEN PATH has entries that aren't full paths THEN preflight starts every command by a full path it found", posixOnly, () => {
+test("AC-169-3, AC-182-4: WHEN PATH has entries that aren't full paths THEN preflight, run from the repo, starts every command by a full path it found", posixOnly, () => {
   const mark = join(temp("onrails-read-mark-"), "ran");
   const fake = `#!/bin/sh\necho x > '${mark}'\nexit 1\n`;
   const dir = gitRepo("", { git: fake, "tools/git": fake, gh: fake, npm: fake });

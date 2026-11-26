@@ -124,7 +124,7 @@ export function realSys({ platform = process.platform, env = process.env, start 
 // The read marker (#169). docs/state.md can ship with a repo, so it can't say the person's session has read it.
 // The marker lives in the repo's .git folder, which git clone never copies. It names that folder's path and
 // its device and inode numbers, so a .git folder unpacked from an archive with a marker in it still reads as not read.
-// A linked worktree is marked by itself (#182), in its own admin folder, and its marker names its checkout folder too.
+// A linked worktree is marked by itself (#182), in its own admin folder, naming its checkout folder and .git file too.
 const MARKER = "onrails-read";
 
 /** A small regular file's text, or "". */
@@ -187,18 +187,26 @@ export function gitDir(dir) {
   return (top && ownGitDir(top)?.git) ?? null;
 }
 
-// A deleted worktree's admin folder stays until `git worktree prune`, still naming the old path. A new folder at
-// that path is another folder, with its own inode number, so the old mark doesn't fit it (#182).
+// A deleted worktree's admin folder stays until `git worktree prune`, still naming the old path. A folder made at
+// that path right after the delete can get the old inode number back (ext4 hands it out again at once), so a
+// worktree's mark also names what a new folder can't share (#182): its .git file's inode and change time, which
+// no unpacker or copy can set, and the checkout folder's birth time where the platform reports one.
 /** The marker file for the checkout in the real folder top, and the text it must hold: { file, text }, or null. */
 function marker(top) {
   const own = ownGitDir(top);
   if (!own) return null;
   const at = own.admin ?? own.git;
-  const ids = (own.admin ? [at, top] : [at]).map((path) => {
-    const { dev, ino } = statSync(path, { bigint: true });
-    return `${path}\n${dev}:${ino}`;
-  });
+  const stat = (path) => statSync(path, { bigint: true });
+  const id = (path, ...more) => { const { dev, ino } = stat(path); return [`${path}\n${dev}:${ino}`, ...more].join(":"); };
+  const dot = join(top, ".git");
+  const ids = own.admin ? [id(at), id(top, born(top)), id(dot, stat(dot).ctimeNs)] : [id(at)];
   return { file: join(at, MARKER), text: `onrails read ${createHash("sha256").update(ids.join("\n")).digest("hex").slice(0, 24)}\n` };
+}
+
+/** A folder's birth time in nanoseconds, or 0 where the platform reports none (Node then gives 0, or the change time). */
+function born(path) {
+  const { birthtimeNs, ctimeNs } = statSync(path, { bigint: true });
+  return birthtimeNs === ctimeNs ? 0n : birthtimeNs;
 }
 
 /** True when the person's own session marked this checkout read on this machine. */
@@ -217,33 +225,50 @@ export function markRead(dir) {
   return top;
 }
 
-/** True when path's real path is top or inside it. */
+// Node's realpathSync folds ".." as text before it follows symlinks; the OS follows a symlink first. So every check
+// that a path is outside the repo resolves it the OS's way, with realpathSync.native (#182).
+/** True when path's real path is top or inside it, or one of its folders is top itself (a bind mount of the repo). */
 function within(path, top) {
-  const rel = relative(top, realpathSync(path));
-  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+  const real = realpathSync.native(path);
+  const rel = relative(top, real);
+  if (rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))) return true;
+  const { dev, ino } = statSync(top, { bigint: true });
+  // A file system with no inode numbers reports 0 for every folder: then only the path counts.
+  if (ino === 0n) return false;
+  for (let at = real; ; at = dirname(at)) {
+    const folder = statSync(at, { bigint: true });
+    if (folder.dev === dev && folder.ino === ino) return true;
+    if (dirname(at) === at) return false;
+  }
 }
 
-/** The folder that counts as the repo for dir: its top folder, or dir itself before `git init`. */
-const topOf = (dir) => repoTop(dir) ?? (existsSync(dir) ? realpathSync(dir) : resolve(dir));
+/** The folder that counts as the repo for dir, as the OS resolves it: its top folder, or dir itself before `git init`. */
+function topOf(dir) {
+  const top = repoTop(dir) ?? dir;
+  return existsSync(top) ? realpathSync.native(top) : resolve(top);
+}
 
 // A PATH can name folders inside the repo, and the way preflight was started can add some (#182).
 /**
- * The PATH for every probe before the read, as { [its key in env]: value }: only full paths of folders that exist
- * with a real path outside the repo's top folder. The commands get it too, so nothing they start comes from the repo.
+ * The PATH for every probe before the read, as { [its key in env]: value }: the OS's real path of each full-path entry
+ * that exists outside the repo's top folder. The commands get it too, so nothing they start comes from the repo, and
+ * they get the resolved paths, never the raw entries, so nothing can read an entry another way.
  */
 export function pathOutside(dir, platform, env) {
   const top = topOf(dir);
   const split = platform === "win32" ? ";" : ":";
   const outside = (entry) => {
     try {
-      return isAbsolute(entry) && existsSync(entry) && !within(entry, top);
+      if (!isAbsolute(entry) || !existsSync(entry)) return [];
+      const real = realpathSync.native(entry);
+      return within(real, top) ? [] : [real];
     } catch {
       // A folder whose real path can't be read can't be shown to be outside the repo: left out.
-      return false;
+      return [];
     }
   };
   const keys = Object.keys(env).filter((key) => key.toUpperCase() === "PATH");
-  return Object.fromEntries(keys.map((key) => [key, String(env[key]).split(split).filter(outside).join(split)]));
+  return Object.fromEntries(keys.map((key) => [key, String(env[key]).split(split).flatMap(outside).join(split)]));
 }
 
 // The session's TMPDIR can point into the repo, and git or npm run from a folder inside it read the repo's settings.
@@ -268,7 +293,7 @@ export function tempFolders(dir, platform = process.platform) {
     if (within(made, top)) rmSync(made, { recursive: true, force: true });
     else outside = made;
   }
-  const away = outside && { cwd: outside, env: { GIT_CEILING_DIRECTORIES: dirname(realpathSync(outside)) } };
+  const away = outside && { cwd: outside, env: { GIT_CEILING_DIRECTORIES: dirname(realpathSync.native(outside)) } };
   const remove = () => { for (const f of new Set([hooks, outside])) if (f) rmSync(f, { recursive: true, force: true }); };
   return { hooks, away, remove };
 }

@@ -3,7 +3,8 @@
 // The real script runs in throwaway repos, from the repo as the current folder, with fakes that leave a file behind when they run.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRead, markRead, realSys } from "../src/preflight-sys.mjs";
@@ -11,6 +12,7 @@ import { put } from "./helpers.mjs";
 import { gitRepo, pathWith, PLAYWRIGHT, project, runScript, sh, status, temp } from "./preflight-fakes.mjs";
 
 const posixOnly = { skip: process.platform === "win32" ? "the fakes are POSIX shell scripts and symlinks" : false };
+const native = (path) => realpathSync.native(path);
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 
 test("AC-182-1: WHEN the docs and skills that run preflight before the read are read THEN none names the npx route for that step", () => {
@@ -68,6 +70,59 @@ test("AC-182-2: WHEN a PATH entry's real path is inside the repo and the repo is
   assert.ok(ran(mark).includes("git"), "the fake git never ran, so the test proves nothing");
 });
 
+test("AC-182-2: WHEN a PATH entry names a folder outside the repo by a route the OS reads as inside it THEN preflight drops it and passes on only resolved paths", posixOnly, () => {
+  const mark = temp("onrails-path-mark-");
+  const dir = gitRepo("", PLAYWRIGHT);
+  fakes(join(dir, "bin2"), ["git", "npm", "node"], mark);
+  // Outside the repo: a symlink into the repo, an empty folder named like the repo's, and a fake gh.
+  const out = join(temp("onrails-path-out-"), "out");
+  mkdirSync(join(out, "bin2"), { recursive: true });
+  mkdirSync(join(out, "x"));
+  symlinkSync(join(dir, "node_modules"), join(out, "lnk"));
+  fakes(join(out, "tools"), ["gh"], mark);
+  const real = pathWith("git", "npm");
+  const entry = `${out}/lnk/../bin2`;
+  const report = runScript(dir, `${entry}:${out}/x/../tools:${real}`, "--json");
+  assert.equal(report.read, false);
+  assert.deepEqual(ran(mark), ["gh"], "a program the repo ships ran");
+  assert.equal(readFileSync(join(mark, "gh"), "utf8").trim(), `${native(join(out, "tools"))}:${native(real)}`, "a command got a raw PATH entry");
+  assert.equal(status(report, "git"), "ok", "the real git did the probe");
+  rmSync(join(mark, "gh"));
+  // The control: once the repo is read, PATH isn't cut, and npm's own `env node` finds the repo's node through that entry.
+  assert.ok(markRead(dir));
+  runScript(dir, `${entry}:${real}`, "--json");
+  assert.ok(ran(mark).includes("node"), "the repo's node never ran, so the entry doesn't reach the repo and the test proves nothing");
+});
+
+// The tools to make a bind mount in a namespace of its own, which ends with the process. Linux only.
+const tool = (cmd) => spawnSync("sh", ["-c", `command -v ${cmd}`], { encoding: "utf8" }).stdout.trim();
+function canMount() {
+  if (process.platform !== "linux" || !tool("unshare") || !tool("mount")) return false;
+  const at = temp("onrails-path-probe-");
+  return spawnSync(tool("unshare"), ["-rm", tool("mount"), "--bind", at, at]).status === 0;
+}
+const mounts = canMount();
+
+test("AC-182-2: WHEN a PATH folder is the repo mounted at another path THEN preflight runs no command from it", { skip: mounts ? false : "needs unshare and a bind mount (Linux)" }, () => {
+  const mark = temp("onrails-path-mark-");
+  const dir = gitRepo("", PLAYWRIGHT);
+  fakes(join(dir, "bin"), ["git", "gh", "npm"], mark);
+  const mnt = temp("onrails-path-mnt-");
+  const real = pathWith("git");
+  const script = fileURLToPath(new URL("../src/preflight.mjs", import.meta.url));
+  // Mounts the repo at mnt, then runs the real script from the repo with only these two PATH entries.
+  const run = () => spawnSync(tool("unshare"), ["-rm", tool("sh"), "-c", '"$1" --bind "$2" "$3" && cd "$2" && PATH="$4" exec "$5" "$6" "$2" --json',
+    "sh", tool("mount"), dir, mnt, `${mnt}/bin:${real}`, process.execPath, script], { encoding: "utf8", env: { HOME: temp("onrails-read-home-") } });
+  const report = JSON.parse(run().stdout);
+  assert.equal(report.read, false);
+  assert.deepEqual(ran(mark), [], "a program the repo ships ran from the mount");
+  assert.equal(status(report, "git"), "ok", "the real git did the probe");
+  // The control: once the repo is read, the same PATH runs the repo's git through the mount.
+  assert.ok(markRead(dir));
+  run();
+  assert.ok(ran(mark).includes("git"), "the fake git never ran, so the mount doesn't reach the repo and the test proves nothing");
+});
+
 /** A repo marked read, and a linked worktree of it at <a temp folder>/wt, marked read itself. */
 function markedTree() {
   const main = gitRepo("", PLAYWRIGHT);
@@ -93,6 +148,44 @@ test("AC-182-3: WHEN a folder sits where a deleted but not pruned worktree used 
   assert.equal(report.read, false);
   assert.equal(status(report, "browser"), "limited");
   assert.equal(existsSync(join(tree, "loaded")), false, "the folder's own Playwright was loaded");
+});
+
+/** Makes a new folder at tree right after the old one is deleted, holding a copy of its .git file and a Playwright that leaves a mark. */
+function remake(tree, how) {
+  const files = { ...PLAYWRIGHT, ".git": readFileSync(join(tree, ".git"), "utf8") };
+  if (how === "tar") {
+    // The archive is packed before the delete, so only the unpack makes a folder afterwards.
+    const stage = project();
+    for (const [path, text] of Object.entries(files)) put(join(stage, "wt"), path, text);
+    const archive = join(temp("onrails-path-tar-"), "wt.tar");
+    assert.equal(spawnSync(tool("tar"), ["cf", archive, "-C", stage, "wt"]).status, 0);
+    rmSync(tree, { recursive: true, force: true });
+    assert.equal(spawnSync(tool("tar"), ["xf", archive, "-C", dirname(tree)]).status, 0);
+    return;
+  }
+  const saved = join(temp("onrails-path-saved-"), "git");
+  copyFileSync(join(tree, ".git"), saved);
+  rmSync(tree, { recursive: true, force: true });
+  mkdirSync(tree);
+  copyFileSync(saved, join(tree, ".git"));
+  for (const [path, text] of Object.entries(PLAYWRIGHT)) put(tree, path, text);
+}
+
+test("AC-182-3: WHEN the worktree folder is deleted and a new one is made at once at the same path THEN it doesn't count as read, even with the old inode number", posixOnly, (t) => {
+  for (const how of ["mkdir", "tar"]) {
+    const { tree, admin } = markedTree();
+    assert.equal(markRead(tree), tree);
+    assert.equal(isRead(tree), true, "the control: the worktree itself was marked");
+    const inode = statSync(tree).ino;
+    remake(tree, how);
+    const back = statSync(tree).ino === inode;
+    t.diagnostic(`${how}: the new folder ${back ? "got the old inode number back" : "has another inode number"}`);
+    assert.equal(existsSync(join(admin, "onrails-read")), true, "the old mark is still there");
+    assert.equal(isRead(tree), false, `${how}: the new folder counts as read`);
+    const report = runScript(tree, pathWith(), "--json");
+    assert.equal(report.read, false);
+    assert.equal(existsSync(join(tree, "loaded")), false, `${how}: the folder's own Playwright was loaded`);
+  }
 });
 
 test("#182: a linked worktree counts as read only once it has been marked itself; marking it marks only it", posixOnly, () => {
