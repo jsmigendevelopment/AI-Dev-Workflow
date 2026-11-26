@@ -39,16 +39,22 @@ test("AC-141-2: WHEN a run writes a workflow file THEN show-it-early fails it, a
   for (const [name, [steps, want]] of Object.entries(SHORTCUTS)) assert.deepEqual(failedWith(t, steps), want, name);
 });
 
-// Only a write of ci = "local" to docs/stack.md counts as the checks set up. A read that names both, such as a grep,
-// isn't one, before or after the app was shown.
+// Only a write of ci = "local" to docs/stack.md counts as the checks set up: a redirect, tee, sed -i or --in-place, or
+// perl -pi. A read that names both, such as a grep, isn't one, before or after the app was shown, and nor is a write
+// to another file whose name starts docs/stack.md.
 const bash = (command) => ({ tool: "Bash", input: { command }, ok: true });
 const READS_AND_WRITES = {
   "a grep of ci = local before the app was shown, then the write": [[bash("grep -n 'ci = \"local\"' docs/stack.md"), SHOW_DEV, SHOW_LINK, SHOW_LOCAL], []],
   "a grep of ci = local after the link, and no write": [[SHOW_DEV, SHOW_LINK, bash("grep -n 'ci = \"local\"' docs/stack.md")], ["AC-5-seen-before-checks"]],
   "ci = local appended by the shell after the link": [[SHOW_DEV, SHOW_LINK, bash("printf 'ci = \"local\"\\n' >> docs/stack.md")], []],
   "ci = 'local' set with sed -i after the link": [[SHOW_DEV, SHOW_LINK, bash("sed -i \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
+  "ci = 'local' set with sed --in-place after the link": [[SHOW_DEV, SHOW_LINK, bash("sed --in-place \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
+  "ci = 'local' set with perl -pi after the link": [[SHOW_DEV, SHOW_LINK, bash("perl -pi -e \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
+  // A backup copy isn't docs/stack.md.
+  "a grep of ci = local saved to docs/stack.md.bak after the link": [[SHOW_DEV, SHOW_LINK, bash("grep -n 'ci = \"local\"' docs/stack.md > docs/stack.md.bak")], ["AC-5-seen-before-checks"]],
+  "ci = 'local' set with sed -i in docs/stack.md.bak after the link": [[SHOW_DEV, SHOW_LINK, bash("sed -i \"s/^ci = .*/ci = 'local'/\" docs/stack.md.bak")], ["AC-5-seen-before-checks"]],
 };
 
-test("AC-141-2: WHEN a command only reads ci = local in docs/stack.md THEN it doesn't count as the checks set up", { skip: skipWin }, (t) => {
+test("AC-141-2: WHEN a command only reads ci = local in docs/stack.md, or writes another file, THEN it doesn't count as the checks set up, and every in-place edit does", { skip: skipWin }, (t) => {
   for (const [name, [steps, want]] of Object.entries(READS_AND_WRITES)) assert.deepEqual(failedWith(t, steps), want, name);
 });

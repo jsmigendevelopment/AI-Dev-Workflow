@@ -229,7 +229,6 @@ const THIN_PLAN = `# Tracer-bullet pyramid
 `;
 const COARSE_PLAN = "# Plan\n\n## Phase 1\n\n1. Set up the database schema\n2. Build the API\n3. Build the UI\n";
 
-
 const BLOCKER_ISSUE = `# #5 Test deploy needs a Cloudflare token
 
 Labels: needs-human, blocker

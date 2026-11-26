@@ -169,7 +169,7 @@ Check Clerk's quickstart for the variable name its renderer entry expects, and r
 ## Checks and release (no GitHub Actions)
 
 - **Pull requests:** the local gate (`coordinate` step 6.1), from the session on Linux: install, `npx install-electron`, `lint`, `typecheck`, `test`, `build`, then `test:e2e` under `xvfb-run`. A Windows-first app runs them on a Windows machine too.
-- **Release:** by hand on each system: `electron-forge publish` on a Mac for macOS, on Windows for Windows, and from the session for Linux. A signed macOS app can't be cross-built from Linux [I].
+- **Release:** the person starts each one, by hand on each system: `electron-forge publish` on a Mac for macOS, on Windows for Windows, and on Linux for Linux. A release reaches users, like a production deploy, so an agent never runs `publish` on its own. A signed macOS app can't be cross-built from Linux [I].
 - **The gate never sees a signing secret.** They stay on the release machines.
 
 Signing costs money, so **stop and ask the person before setting any of it up.** Ship the pack with signing off and a release checklist.
@@ -214,7 +214,7 @@ AZURE_CLIENT_SECRET=
 
 Publishing to GitHub Releases reads `GITHUB_TOKEN` from the release machine's shell: a fine-grained token the person makes with Contents write on this repo only, never a workflow's token [I].
 
-Costs: the checks and releases run on the session's machine and the person's own Mac and Windows machines, not GitHub Actions, so they use no GitHub minutes. A signed macOS build needs a Mac.
+Costs: the checks run on the session's machine and the releases on the person's own machines, not GitHub Actions, so they use no GitHub minutes. A signed macOS build needs a Mac.
 
 ## Build steps for the agent
 
@@ -229,7 +229,7 @@ Costs: the checks and releases run on the session's machine and the person's own
 9. Add the scripts, with both build flavours, `verify-fuses.ts` and `smoke.ts`. Write Vitest tests for the service and one IPC handler, and one Playwright spec that launches the e2e flavour and sees the home screen. Run this on Linux first: Playwright on a packaged Forge 8 app is untested.
 10. Only if the app needs sign-in: add `optional/auth-clerk/`. Wire `@clerk/electron` as its quickstart says for the renderer, add the IPC-backed API client and the `notes` example over `/api/v1/notes`, with a signed-out state.
 11. Add `.env.example` in the `secrets` format. Run the `secrets` skill for local and test values.
-12. Add no `.github/workflows/`. Write `ci = "local"` in `docs/stack.md`, and a release checklist in the README: the publish command per system, with signing off until the person says yes.
+12. Add no `.github/workflows/`. Write `ci = "local"` in `docs/stack.md`, and a release checklist in the README: the publish command per system, which the person runs, with signing off until the person says yes.
 13. Fill in "Commands that work here" in `AGENTS.md`.
 14. Slice 0 is done when every check-contract command passes in the local gate.
 15. Offer to contribute the starter back to the kit: `stacks/electron-desktop/` app files with the example module, plus a `stack-electron-desktop` skill. Strip project names, keys and anything private first.

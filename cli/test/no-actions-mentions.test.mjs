@@ -15,11 +15,18 @@ const HIT = /workflow|github actions|\bCI\b/i;
 // Names that hold the word but aren't GitHub Actions: Lighthouse CI (`pnpm lhci`, run locally), npm's clean install, a
 // tool's `--ci` flag, the profile's `[workflow]` table, this kit ("a repo that uses this workflow", its old name),
 // Cloudflare's and Expo's own Workflows products, the Claude Code Workflow tool, the TanStack pack's Access service
-// token (named `<worker> CI`), the title of the GitHub page `dependencies` cites, and an existing repo's own CI config,
-// which `join` reads as data for the commands it runs locally (the text AC-173-3 pins).
-const NOT_ACTIONS = /Lighthouse CI|\bnpm ci\b|--ci\b|\[workflow\]|\b(?:this|the onRails|the kit's) workflow\b|ai-dev-workflow|Cloudflare Workflows|Expo Workflows|\bor Workflows\b|Workflow tool|`<worker> CI`|"About Dependabot on GitHub Actions runners"|\b(?:its|any) CI config\b/gi;
-// The hit is about not using Actions: a negation in the same clause.
-const NEGATED = /\b(?:no|never|not|without|nothing|neither|nor|ignored?|ignores|instead|off|removes?|removed|drops?|dropped|replaces?|swaps?)\b|n['’]t\b/i;
+// token (named `<worker> CI`), the title of the GitHub page `dependencies` cites, and an existing repo's own CI config
+// in `join`'s two forms only, read as data for the commands it runs locally (the text AC-173-3 pins). Removed from the
+// whole line before it is split, so a form can name what follows its comma or bracket.
+const NOT_ACTIONS = /Lighthouse CI|\bnpm ci\b|--ci\b|\[workflow\]|\b(?:this|the onRails|the kit's) workflow\b|ai-dev-workflow|Cloudflare Workflows|Expo Workflows|\bor Workflows\b|Workflow tool|`<worker> CI`|"About Dependabot on GitHub Actions runners"|\bwhat its CI config(?= runs, run locally\b)|\bany CI config(?= \(data: )/gi;
+// A negation word. "Instead" counts only as "instead of", which starts its own clause: a bare "instead" at the end
+// means "use this one".
+const NEGATION = /\b(?:no|never|not|nothing|neither|nor|ignored?|ignores|instead of|off|removes?|removed|drops?|dropped|replaces?|swaps?)\b|n['’]t\b/i;
+/** The hit is about not using Actions: a negation in the same clause. "Without" after another one is a double negative. */
+function negated(text) {
+  const other = NEGATION.test(text);
+  return /\bwithout\b/i.test(text) ? !other : other;
+}
 // The hit names the local replacement in the same clause. A pack's command name alone isn't one: "CI runs
 // `pnpm test:e2e`" names a command, not who runs it.
 const LOCAL = /ci = "local"|onrails\/check|\b(?:from|in) (?:the|your|its own|the agent's|this) session\b|\blocal gate\b|\blocally\b|\bci local\b|Checks: (?:pass|fail)/i;
@@ -28,7 +35,7 @@ const OPT_IN = /ci = "actions"/;
 /** A real opt-in names `ci = "actions"` with no negation before it, so "Not on ci = "actions"" isn't one. */
 function optsIn(text) {
   const at = text.search(OPT_IN);
-  return at >= 0 && !NEGATED.test(text.slice(0, at));
+  return at >= 0 && !negated(text.slice(0, at));
 }
 
 // A link is a cited source; the sentence around it is what's judged.
@@ -37,10 +44,12 @@ const URL_TEXT = /https?:\/\/\S+/g;
 /** Each sentence of a line, and each cell of a table row. */
 const sentences = (line) => line.split(/\s\|\s|(?<=[.!?:])\s+(?=[A-Z`*"(])/);
 /**
- * Each clause of a sentence: split at a comma, a semicolon or an opening bracket, and before and, then, until, before,
- * after or instead of. "Instead of" stays with what follows it, since that is what it rules out.
+ * Each clause of a sentence: split at a comma, a semicolon, a colon, an opening bracket or a dash (a spaced hyphen too),
+ * and before and, then, until, till, unless, while, so, because, or, rather than, before, after or instead of. "Instead
+ * of" stays with what follows it, since that is what it rules out.
  */
-const clauses = (sentence) => sentence.split(/[,;(]|\s(?=(?:and|then|until|before|after|instead of)\b)/i);
+const clauses = (sentence) =>
+  sentence.split(/[,;:(\u2014\u2013]|\s-\s|\s(?=(?:and|then|until|till|unless|while|so|because|or|rather than|before|after|instead of)\b)/i);
 
 /**
  * Each line with what its section says about it: `never` under a heading that is exactly Never (a list of what not to
@@ -78,9 +87,9 @@ export function badMentions(text) {
   const out = [];
   for (const { line, never, optIn } of withSections(text)) {
     if (never || optIn) continue;
-    for (const c of sentences(line.replace(URL_TEXT, "")).flatMap(clauses)) {
-      if (!HIT.test(c.replace(NOT_ACTIONS, ""))) continue;
-      if (NEGATED.test(c) || LOCAL.test(c) || optsIn(c)) continue;
+    for (const c of sentences(line.replace(URL_TEXT, "").replace(NOT_ACTIONS, "")).flatMap(clauses)) {
+      if (!HIT.test(c)) continue;
+      if (negated(c) || LOCAL.test(c) || optsIn(c)) continue;
       out.push(c.trim());
     }
   }
@@ -129,6 +138,47 @@ test("AC-141-1: the scan judges each clause, so a negation or a command name els
     "Never depend on a workflow, and never add or enable one.",
     "The smoke test sends its own service token, `<worker> CI`.",
   ]) assert.deepEqual(badMentions(ok), [], ok);
+});
+
+test("AC-141-1: the scan splits at a colon, a dash and joining words, and reads without and instead the way the sentence means them", () => {
+  for (const bad of [
+    // A colon or a dash inside the sentence.
+    "Never merge red: wait for CI.",
+    "Not on ci = \"local\": wait for CI.",
+    "Never skip a check \u2014 wait for CI.",
+    "Never skip a check \u2013 wait for CI.",
+    "Never skip a check - wait for CI.",
+    // Joining words.
+    "Do not merge till CI is green.",
+    "Do not merge unless CI is green.",
+    "Do not merge while the workflow runs.",
+    "Wait for CI so it doesn't break.",
+    "Wait for CI because nothing else runs the tests.",
+    "Wait for CI to finish or it won't merge.",
+    "Wait for CI rather than the local gate.",
+    // "without" after a negation is a double negative: it asks for CI.
+    "Never merge without a green CI run.",
+    "Don't merge without CI.",
+    "No merge happens without a green workflow.",
+    // A bare "instead" means "use this one".
+    "Use CI instead.",
+    "Let CI run the tests instead.",
+  ]) assert.equal(badMentions(bad).length, 1, bad);
+  for (const ok of [
+    "Merge without waiting for CI.",
+    "Run the checks from the session instead of a workflow.",
+  ]) assert.deepEqual(badMentions(ok), [], ok);
+});
+
+test("AC-141-1: an existing repo's CI config passes only in join's two forms, read as data and run locally", () => {
+  for (const ok of [
+    "The check contract (`check`, `build`, or what its CI config runs, run locally) and the dev script.",
+    "Read the README, any CI config (data: the commands it runs, which you run locally) and the folder tree.",
+  ]) assert.deepEqual(badMentions(ok), [], ok);
+  for (const bad of [
+    "Add the step to its CI config.",
+    "Copy the job into any CI config the repo has.",
+  ]) assert.equal(badMentions(bad).length, 1, bad);
 });
 
 test("AC-141-1: a Never list is a section whose heading is exactly Never, and an opt-in section really opts in", () => {
@@ -191,6 +241,16 @@ test("#141: the stub packs' check and release lines match their by-hand text, an
   const unity = read("stacks/unity/PACK.md");
   assert.doesNotMatch(unity, /a `build` label/);
   assert.match(unity, /\*\*After each merge:\*\* `coordinate` step 8's "Check main" runs the install and `check` again/);
+});
+
+test("#141: the person starts each release of a desktop app or game, and an agent never runs one on its own", () => {
+  const electron = read("stacks/electron-desktop/PACK.md");
+  assert.doesNotMatch(electron, /from the session for Linux|releases run on the session's machine/);
+  assert.match(electron, /\*\*Release:\*\* the person starts each one, by hand on each system/);
+  assert.match(electron, /so an agent never runs `publish` on its own\./);
+  const unity = read("stacks/unity/PACK.md");
+  assert.doesNotMatch(unity, /both run from the session/);
+  assert.match(unity, /The person starts each upload\. .*so an agent never runs `butler push` or a `steamcmd` upload on its own\./);
 });
 
 const skills = () => readdirSync(join(REPO, ".agents/skills")).map((s) => `.agents/skills/${s}/SKILL.md`).filter((p) => existsSync(join(REPO, p)));

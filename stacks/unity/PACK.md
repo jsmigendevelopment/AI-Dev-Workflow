@@ -147,7 +147,7 @@ How the checks run (from the session: `coordinate`'s local gate):
 **Deploy:**
 
 - **WebGL to Cloudflare:** each static asset is capped at **25 MiB** [V]. Unity's `.data` file is often bigger: keep the build small or serve big files from R2. Deploy from the session after `wrangler login`, as the web pack does.
-- **itch.io** with `butler`, **Steam** with `steamcmd`, both run from the session [I]. Take their secret names from each tool's docs.
+- **itch.io** with `butler`, **Steam** with `steamcmd`. The person starts each upload. A release reaches players, like a production deploy, so an agent never runs `butler push` or a `steamcmd` upload on its own. Take their secret names from each tool's docs.
 - **Mobile stores** through fastlane; Apple $99 a year, Google Play $25 once. Store accounts cost money: **ask first.**
 
 ## Build steps for the agent
