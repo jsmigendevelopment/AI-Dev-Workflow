@@ -40,7 +40,7 @@ test("AC-225-1: WHEN the project has check:merge and pr:rules THEN step 6.1 runs
 /** Lines that give a command a token: a clause that names a token and isn't only about unsetting it. */
 function tokenGrants(text) {
   const names = /\btokens?\b|[A-Z_]TOKEN\b/i;
-  const grants = /\bwith (?:the |a |your )?(?:`[A-Z_]*TOKEN`|[\w ]*\btokens?\b)(?!\s+unset)|`[A-Z_]*TOKEN` set\b|\b(?:keeps?|gets?|reach(?:es)?|except)\b|\bunset only\b/i;
+  const grants = /\bwith (?:the |a |your )?(?:`[A-Z_]*TOKEN`|[\w ]*\btokens?\b)(?!\s+unset)|`[A-Z_]*TOKEN` set\b|\b(?:keeps?|gets?|reach(?:es)?|except)\b|\bunset only\b|\b(?:stays?|remains?|left) set\b|\bin place\b|\bleave\b/i;
   const unsetOnly = (clause) => /\bunset\b|`env -u /i.test(clause) && !grants.test(clause);
   return text.split("\n").filter((line) => line.split(/(?<=[.;:])\s+/).some((clause) => names.test(clause) && !unsetOnly(clause)));
 }
@@ -50,7 +50,7 @@ const headGrants = (text) => tokenGrants(text).filter((line) => !/from your own 
 test("AC-225-1: every command in the head's clone runs with tokens unset, and only main's copy of the rules gets the token", () => {
   const run = subStep(3);
   assert.match(run, /\*\*In the head's clone, every command runs with tokens unset and an empty home, with no exception\.\*\*/);
-  assert.match(run, /`env -u GH_TOKEN -u GITHUB_TOKEN -u CLOUDFLARE_API_TOKEN HOME=<home> /);
+  assert.match(run, /`env -i PATH="\$PATH" HOME=<home> /);
   // Any line that gives a command a token must be about your checkout of main, never the head's clone.
   assert.ok(tokenGrants(run).length, "one line names the command that gets the token");
   assert.deepEqual(headGrants(run), []);
@@ -61,6 +61,9 @@ test("AC-225-1: every command in the head's clone runs with tokens unset, and on
     "\n         - In it, run `node scripts/audit.mjs` with the GitHub token.",
     "\n         - In it, `pnpm pr:rules <n>` keeps the GitHub token.",
     "\n         - In it, run `pnpm deploy:preview <n>` with `CLOUDFLARE_API_TOKEN` set and the rest unset.",
+    // Round 3 review, nice item 6: a clause that says "unset" and keeps a token in other words.
+    "\n         - In it, the GitHub token stays set for `pnpm audit`, every other token unset.",
+    "\n         - In it, leave `GH_TOKEN` in place for `pnpm check:merge` and unset the rest.",
   ]) assert.notDeepEqual(headGrants(run + added), [], added);
   assert.notDeepEqual(headGrants(run.replace(rule, `${rule} In it, run \`node scripts/audit.mjs\` with the GitHub token.`)), [], "added to the unset rule");
   assert.match(run, /from your own checkout of main, run `node \.agents\/skills\/coordinate\/scripts\/pr-rules\.mjs <n> --repo <owner>\/<repo> --head <sha>`: the issue link, the branch name and the size\. It is the one command here that gets the GitHub token/);

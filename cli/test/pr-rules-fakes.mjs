@@ -28,10 +28,15 @@ export function checkout(attributes = "") {
 }
 
 // A fake git that logs its config variables, the names of the token variables it got and its arguments, then runs
-// the real one. A shell script, so it starts nothing but git.
+// the real one. A shell script, so it starts nothing but git. With FAKE_GIT_IGNORECASE set, a `git init` also sets
+// core.ignorecase=true in the new repo, as git does on a case-insensitive disk (the macOS default).
 const FAKE_GIT = `#!/bin/sh
 tokens=$(env | sed -n 's/^\\([A-Za-z0-9_]*[Tt][Oo][Kk][Ee][Nn][A-Za-z0-9_]*\\)=.*/\\1/p' | tr '\\n' ' ')
-printf '%s\\t%s\\t%s\\t%s\\n' "\${GIT_CONFIG_GLOBAL-}" "\${GIT_CONFIG_NOSYSTEM-}" "$tokens" "$*" >> "$FAKE_GIT_LOG"
+printf '%s\\t%s\\t%s\\t%s\\t%s\\n' "\${GIT_CONFIG_GLOBAL-}" "\${GIT_CONFIG_NOSYSTEM-}" "\${GIT_ATTR_NOSYSTEM-}" "$tokens" "$*" >> "$FAKE_GIT_LOG"
+if [ -n "\${FAKE_GIT_IGNORECASE-}" ]; then
+  for last; do :; done
+  case " $* " in *" init "*) "$REAL_GIT" "$@" || exit $?; exec "$REAL_GIT" -C "$last" config core.ignorecase true;; esac
+fi
 exec "$REAL_GIT" "$@"
 `;
 
@@ -41,8 +46,9 @@ const total = (files, i) => files.reduce((sum, f) => sum + f[i], 0);
 /** Runs main's pr-rules.mjs on pull request 9: from `branch`, with `body`, `labels` and the files changed ([name,
  * additions, deletions, old name of a rename]). `changed`, `additions` and `deletions` are GitHub's totals, from the
  * list by default. `again` changes the answers from the second read on ({ pull, files }). `env` adds variables, and
- * `logGit` puts the fake git first on PATH; `gitCalls()` reads its log. */
-export function rules({ body = "Adds sharing.\n\nCloses #5", branch = "feat/5-share", labels = [], author = "builder", files = [["src/a.ts", 10, 5]], changed, additions, deletions, sha = HEAD, attributes = "", args = ["9", "--repo", "acme/app", "--head", HEAD], again, dir = checkout(attributes), cwd = dir, env = {}, logGit = false } = {}) {
+ * `logGit` puts the fake git first on PATH; `gitCalls()` reads its log. `ignorecase` puts it there too, and makes its
+ * `init` set core.ignorecase=true. */
+export function rules({ body = "Adds sharing.\n\nCloses #5", branch = "feat/5-share", labels = [], author = "builder", files = [["src/a.ts", 10, 5]], changed, additions, deletions, sha = HEAD, attributes = "", args = ["9", "--repo", "acme/app", "--head", HEAD], again, dir = checkout(attributes), cwd = dir, env = {}, logGit = false, ignorecase = false } = {}) {
   const pull = {
     number: 9, body, user: { login: author }, labels: labels.map((name) => ({ name })), head: { ref: branch, sha },
     changed_files: changed === undefined ? files.length : changed,
@@ -51,18 +57,19 @@ export function rules({ body = "Adds sharing.\n\nCloses #5", branch = "feat/5-sh
   };
   const fakes = tmp("onrails-gh-");
   const gitLog = join(fakes, "git.log");
+  const fakeGit = logGit || ignorecase;
   const fake = fakeGh(fakes, {
     "repos/acme/app/pulls/9": again?.pull ? { sequence: [pull, { ...pull, ...again.pull }] } : pull,
     "repos/acme/app/pulls/9/files": again?.files ? { sequence: [listed(files), listed(again.files)] } : listed(files),
-  }, { ...env, ...(logGit ? { FAKE_GIT_LOG: gitLog, REAL_GIT: join(git(fakes, "--exec-path").trim(), "git") } : {}) });
-  if (logGit) {
+  }, { ...env, ...(fakeGit ? { FAKE_GIT_LOG: gitLog, REAL_GIT: join(git(fakes, "--exec-path").trim(), "git") } : {}), ...(ignorecase ? { FAKE_GIT_IGNORECASE: "1" } : {}) });
+  if (fakeGit) {
     writeFileSync(join(fakes, "bin", "git"), FAKE_GIT);
     chmodSync(join(fakes, "bin", "git"), 0o755);
   }
   const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-rules.mjs"), ...args], { cwd, encoding: "utf8", env: fake.env });
   const gitCalls = () => (existsSync(gitLog) ? readFileSync(gitLog, "utf8").split("\n").filter(Boolean) : []).map((line) => {
-    const [global, nosystem, tokens, args] = line.split("\t");
-    return { global, nosystem, tokens: tokens.trim().split(" ").filter(Boolean), argv: args.split(" ") };
+    const [global, nosystem, attrNosystem, tokens, args] = line.split("\t");
+    return { global, nosystem, attrNosystem, tokens: tokens.trim().split(" ").filter(Boolean), argv: args.split(" ") };
   });
   return { ...r, calls: fake.calls(), gitCalls, dir };
 }

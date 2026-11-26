@@ -25,16 +25,18 @@ const BRANCH = /^(?:feat|fix)\/(\d+)-[a-z0-9][a-z0-9-]*$/;
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // git never gets a token, and starts nothing the checkout's config names: a command a pull request ran may have
-// written that config. Its own variables go too, so none points it at another repo or config file.
+// written that config. Its own variables go too, so none points it at another repo or config file. Paths match by
+// case, as GitHub's do, even where `git init` sets core.ignorecase on a case-insensitive disk.
 const UNSAFE_ENV = /TOKEN|SECRET|PASSWORD|API_KEY|^GIT_|^GH_|^GITHUB_/i;
-const SAFE_GIT = ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "core.attributesFile=/dev/null"];
+const SAFE_GIT = ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "core.attributesFile=/dev/null", "-c", "core.ignorecase=false"];
 
-/** git with SAFE_GIT, no token, and no global or system config. Its output as text; throws when it fails. */
+/** git with SAFE_GIT, no token, and no global or system config or attributes. Its output as text; throws when it fails. */
 function git(args, { cwd, input } = {}) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !UNSAFE_ENV.test(name)));
   const r = spawnSync("git", [...SAFE_GIT, ...args], {
     cwd, input, encoding: "utf8", maxBuffer: 256 * 1024 * 1024,
-    env: { ...env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" },
+    // GIT_CONFIG_NOSYSTEM doesn't cover $(prefix)/etc/gitattributes, which the user owns under Homebrew.
+    env: { ...env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_ATTR_NOSYSTEM: "1" },
   });
   if (r.status !== 0) throw new Error(`git ${args[0]}: ${String(r.stderr || r.error?.message || `exit ${r.status}`).trim()}`);
   return r.stdout;
@@ -54,7 +56,7 @@ function mainAttributes() {
 }
 
 /** The paths main's committed .gitattributes mark `linguist-generated`. They're copied into an empty repo and checked
- * there, so no info/attributes, global attributes file, working folder or head can add to them. */
+ * there, so no info/attributes, global or system attributes file, working folder or head can add to them. */
 function generated(paths) {
   if (!paths.length) return new Set();
   const scratch = mkdtempSync(join(tmpdir(), "onrails-attributes-"));
