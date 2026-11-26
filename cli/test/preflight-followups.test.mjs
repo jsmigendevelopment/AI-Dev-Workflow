@@ -44,7 +44,7 @@ test("AC-144-3: WHEN the registry is blocked THEN rung 1 gives each package mana
   const want = {
     npm: "`npm install --prefer-offline --cache .npm-cache`",
     pnpm: "`pnpm install --prefer-offline --store-dir .pnpm-store`",
-    yarn: "`YARN_CACHE_FOLDER=.yarn-cache yarn install`",
+    yarn: "`YARN_ENABLE_GLOBAL_CACHE=false YARN_CACHE_FOLDER=.yarn-cache yarn install`",
     bun: "`bun install --cache-dir .bun-cache`",
   };
   const locks = { npm: {}, pnpm: { "pnpm-lock.yaml": "" }, yarn: { "yarn.lock": "" }, bun: { "bun.lock": "" } };
@@ -55,6 +55,12 @@ test("AC-144-3: WHEN the registry is blocked THEN rung 1 gives each package mana
     if (pm !== "npm") assert.doesNotMatch(first, /--cache \.npm-cache/, `${pm} never gets npm's --cache`);
     if (pm === "yarn" || pm === "bun") assert.doesNotMatch(first, /--prefer-offline/, `${pm} has no --prefer-offline on every release`);
   }
+  // A bare VAR=value prefix is POSIX only, so Windows also gets the PowerShell and cmd.exe forms.
+  const win = fakeSys({ answers: BLOCKED });
+  win.platform = "win32";
+  const first = row(await probe(project({ "package.json": "{}", "yarn.lock": "" }), win), "registry").ladder[0].text;
+  assert.ok(first.includes("`$env:YARN_ENABLE_GLOBAL_CACHE='false'; $env:YARN_CACHE_FOLDER='.yarn-cache'; yarn install`"), first);
+  assert.ok(first.includes('`set "YARN_ENABLE_GLOBAL_CACHE=false" && set "YARN_CACHE_FOLDER=.yarn-cache" && yarn install`'), first);
 });
 
 test("AC-144-4: WHEN engines.node has a part preflight can't read THEN that range never blocks, and a space after the operator is read", () => {
@@ -62,6 +68,11 @@ test("AC-144-4: WHEN engines.node has a part preflight can't read THEN that rang
   assert.equal(satisfies("20.1.0", "22.x || >= 24"), false, "with the space read, an old Node still blocks");
   assert.equal(satisfies("20.1.0", "22.x || 24.x-odd"), true, "one unreadable part: never blocks");
   assert.equal(satisfies("20.1.0", "22.x || 24.x"), false, "every part read: it still blocks");
+  // A part that isn't a version at all is dropped like junk characters, so it can't let an old Node pass.
+  for (const range of [">=24 || junk", ">=24 || latest", "^24 || node", ">=24 || $(x)"]) {
+    assert.equal(satisfies("18.0.0", range), false, range);
+  }
+  for (const range of ["24 - 26", ">=24.0.0-rc.1", ">=24 || *"]) assert.equal(satisfies("18.0.0", range), true, `${range} never blocks`);
 });
 
 test("AC-144-5: WHEN .git is there but git can't read it THEN the row says so with a known cause, not 'no git repo yet'", async () => {

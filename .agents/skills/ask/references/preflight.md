@@ -13,7 +13,7 @@ node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <you
 - **When:** the first step of `/idea`, `/join`, `/back` and `build`.
 - **Once `docs/state.md` exists,** add `--if-changed --record`. It writes the result to the `Environment:` line there. When that line says ok and the sandbox hasn't changed (same machine, tool, Node and install settings), it skips every probe.
 - `–` rows are fine. GitHub at `–` means the loop runs in local mode (`../../coordinate/references/local-mode.md`).
-- **Before `/join` has read a repo** (no `docs/state.md` yet), a `yarnPath` in its yarn config would make `yarn --version` run the repo's own yarn. Preflight runs no yarn then: it reads that release's version from its file name.
+- **Before `/join` has read a repo** (no `docs/state.md` yet), a `yarnPath` in a yarn config would make `yarn --version` run the repo's own yarn. So preflight runs no yarn while a `.yarnrc.yml` or `.yarnrc` is in the folder, a parent folder or the home folder. It reads the version from a plain `yarnPath` file name, or shows a `–` row.
 
 **Done when** the table is printed and every `✗` row has been through the steps below.
 

@@ -205,7 +205,7 @@ test("a known package manager with a prerelease version keeps its name: its prob
   assert.equal(row.status, "ok", "a prerelease pin isn't compared");
   assert.match(row.detail, /yarn 3\.8\.7 \(pins 4\.0\.0-rc\.42, a prerelease: not compared\)/);
   const text = render(report);
-  assert.match(text, /`YARN_CACHE_FOLDER=\.yarn-cache yarn install`/);
+  assert.match(text, /`YARN_ENABLE_GLOBAL_CACHE=false YARN_CACHE_FOLDER=\.yarn-cache yarn install`/);
   assert.doesNotMatch(text, /\bnpm install\b/, "a yarn project is never told to run npm");
   const missing = await probe(project({ "package.json": pkg }), fakeSys({ answers: HEALTHY, missing: ["yarn"] }));
   assert.match(missing.results.find((r) => r.id === "versions").ladder[0].text, /corepack prepare yarn@4\.0\.0-rc\.42 --activate/);
@@ -214,7 +214,7 @@ test("a known package manager with a prerelease version keeps its name: its prob
   const locked = fakeSys({ answers: BLOCKED });
   const odd = await probe(project({ "package.json": JSON.stringify({ packageManager: "yarn@4;x" }), "yarn.lock": "" }), locked);
   assert.ok(!locked.calls.some((c) => c.startsWith("yarn")), `ran: ${locked.calls.join(" | ")}`);
-  assert.match(render(odd), /`YARN_CACHE_FOLDER=\.yarn-cache yarn install`/);
+  assert.match(render(odd), /`YARN_ENABLE_GLOBAL_CACHE=false YARN_CACHE_FOLDER=\.yarn-cache yarn install`/);
   assert.doesNotMatch(render(odd), /\bnpm install\b/);
 });
 

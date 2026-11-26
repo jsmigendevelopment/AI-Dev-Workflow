@@ -16,8 +16,8 @@ import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { connect, createServer } from "node:net";
-import { hostname } from "node:os";
-import { join, resolve } from "node:path";
+import { homedir, hostname } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** The checks, in the order the table prints them. */
@@ -66,10 +66,13 @@ export function satisfies(version, range) {
     if (op === "~") return v[0] === want[0] && (b === undefined || v[1] === b) && cmp(want) >= 0;
     return v[0] === want[0] && (b === undefined || v[1] === b) && (c === undefined || v[2] === c);
   };
-  const parts = String(range).split("||").map((part) => part.trim().replace(/(>=|<=|>|<|=|\^|~)\s+/g, "$1"))
-    .filter((part) => /^[\w.*^~<>=+ -]+$/.test(part)).map((part) => part.split(" ").filter(Boolean).map(one));
-  // A part with characters no range uses was dropped above. Range syntax this small reader can't follow
-  // (a hyphen range, a prerelease) may still fit Node, so it never blocks. Nor does a range with nothing left.
+  // A token that starts like a version (a digit, x or * after an optional operator), or a hyphen range's "-".
+  const versionish = (token) => token === "-" || /^(>=|>|<=|<|\^|~|=)?v?(\d|[xX*](\.|$))/.test(token);
+  const parts = String(range).split("||").map((part) => part.trim().replace(/(>=|<=|>|<|=|\^|~)\s+/g, "$1").split(" ").filter(Boolean))
+    .filter((tokens) => tokens.length && tokens.every(versionish)).map((tokens) => tokens.map(one));
+  // A part that isn't a version range at all (junk characters, or words such as "latest") was dropped above, so
+  // the other parts decide. Version syntax this small reader can't follow (a hyphen range, a prerelease) may
+  // still fit Node, so it never blocks. Nor does a range with nothing left.
   if (!parts.length || parts.some((results) => results.includes(null))) return true;
   return parts.some((results) => results.every(Boolean));
 }
@@ -91,20 +94,28 @@ const ENV_TOOLS = {
 const CODEX_TRUST = "Trust this project so `.codex/config.toml` loads (it sets `network_access = true`), then restart Codex.";
 
 // Rung 1's project-local cache, in each manager's own words. yarn 2+ has no --prefer-offline, and yarn and bun have no --cache.
+// yarn 1 reads YARN_CACHE_FOLDER and ignores the other variable. yarn 4 keeps its global cache on by default and
+// then ignores YARN_CACHE_FOLDER, so the global cache is turned off too.
 const CACHE = { npm: "`npm install --prefer-offline --cache .npm-cache`", pnpm: "`pnpm install --prefer-offline --store-dir .pnpm-store`",
-  yarn: "`YARN_CACHE_FOLDER=.yarn-cache yarn install` (yarn 1 and 2+ both read it)", bun: "`bun install --cache-dir .bun-cache`" };
+  yarn: "`YARN_ENABLE_GLOBAL_CACHE=false YARN_CACHE_FOLDER=.yarn-cache yarn install` (yarn 1 reads the folder; yarn 2+ needs its global cache off to use it)",
+  bun: "`bun install --cache-dir .bun-cache`" };
+// A bare VAR=value prefix works only in a POSIX shell (Git Bash too), so Windows also gets the PowerShell and cmd.exe forms.
+const YARN_CACHE_WINDOWS = " In PowerShell: `$env:YARN_ENABLE_GLOBAL_CACHE='false'; $env:YARN_CACHE_FOLDER='.yarn-cache'; yarn install`."
+  + ' In cmd.exe: `set "YARN_ENABLE_GLOBAL_CACHE=false" && set "YARN_CACHE_FOLDER=.yarn-cache" && yarn install`.';
 
 /** The four rungs for a blocked check: 1 workarounds, 2 one command outside the sandbox, 3 environment tools, 4 the person. */
-function ladder(id, tool, { host = "the registry", pm = "npm", want = "" } = {}) {
+function ladder(id, tool, { host = "the registry", pm = "npm", want = "", platform } = {}) {
   const install = `${pm} install`;
+  const cache = CACHE[pm] + (pm === "yarn" && platform === "win32" ? YARN_CACHE_WINDOWS : "");
   const by = {
     repo: ["Work in a folder you can write: a temp folder, or a fresh clone under your home folder.", "touch a file here",
       { any: "Make this folder writable for the agent, or open the session in a folder that is." }],
     git: ["`git init` in a writable place and commit there (`git init --separate-git-dir <a writable folder>`), or keep working and commit at the end.",
       "git commit", { any: "Run the git command in your own terminal in this folder, or let the agent's git run outside the sandbox when it asks." }],
-    registry: [`A project-local cache: ${CACHE[pm]}. Check \`.npmrc\` names the registry you mean.`,
-      install, { codex: CODEX_TRUST, claude: `Allow network access to ${host} for this project, or run \`${install}\` in your own terminal in this folder.`,
-        "claude-cloud": `Allow ${host} in the cloud environment's network settings.`, other: `Give the agent's sandbox network access to ${host}, or run \`${install}\` in your own terminal in this folder.` }],
+    registry: [`A project-local cache: ${cache}. Check \`.npmrc\` names the registry you mean.`, install, {
+      codex: CODEX_TRUST, claude: `Allow network access to ${host} for this project, or run \`${install}\` in your own terminal in this folder.`,
+      "claude-cloud": `Allow ${host} in the cloud environment's network settings.`,
+      other: `Give the agent's sandbox network access to ${host}, or run \`${install}\` in your own terminal in this folder.` }],
     loopback: ["Try another port. Run the server and the tests in the same process (no listening port). Next.js: `--webpack` in place of Turbopack.",
       "the dev server and its tests", { codex: CODEX_TRUST, any: "Let the agent's sandbox listen on 127.0.0.1, or run the browser checks in your own terminal." }],
     versions: ["A version manager already on this machine: `nvm use`, `fnm use` or `volta`, if one is installed.", "nvm install",
@@ -165,7 +176,7 @@ function checkRegistry(dir, tool, sys, pm) {
   const meta = sys.run("npm", ["view", "npm", "dist-tags.latest", "--prefer-online", "--fetch-retries=0", "--fetch-timeout=10000"], { cwd: dir, timeout: 30000 });
   if (meta?.ok) return { status: "ok", detail: `${host} answered` };
   const code = cause(meta?.out, "no answer");
-  return { status: "blocked", detail: `${host} didn't answer (${code})`, ladder: ladder("registry", tool, { host, pm }) };
+  return { status: "blocked", detail: `${host} didn't answer (${code})`, ladder: ladder("registry", tool, { host, pm, platform: sys.platform }) };
 }
 
 function checkGithub(dir, sys) {
@@ -205,18 +216,35 @@ function readManager(pkg) {
   return known ? { name, version } : { name: null };
 }
 
-// yarn follows a yarnPath in the repo's config, and so runs the repo's own yarn release. Until the repo has been read
-// (/join writes docs/state.md), preflight runs no yarn there: it reads that release's version from its file name.
-function ownYarn(dir) {
-  const rc = [[".yarnrc.yml", /^yarnPath:[ \t]*["']?([^"'\n#]+)/m], [".yarnrc", /^yarn-path[ \t]+["']?([^"'\n#]+)/m]]
-    .map(([file, re]) => existsSync(join(dir, file)) && re.exec(readFileSync(join(dir, file), "utf8"))?.[1]).find(Boolean);
-  return rc ? { version: shown(/yarn-([^/\\]+?)\.c?js\s*$/.exec(rc)?.[1], "version", null) } : null;
+// yarn reads .yarnrc.yml and .yarnrc in the folder, every parent up to the root and the home folder, and runs the
+// release a yarnPath (yarn-path) there names, in more spellings than a line match can follow. So until the repo has
+// been read (/join writes docs/state.md), preflight runs no yarn wherever one of those files exists. It fails closed.
+function yarnConfigNear(dir, home) {
+  const folders = home ? [home] : [];
+  for (let at = dir; ; at = dirname(at)) {
+    folders.push(at);
+    if (dirname(at) === at) break;
+  }
+  return folders.some((at) => [".yarnrc.yml", ".yarnrc"].some((file) => existsSync(join(at, file))));
 }
 
-/** The manager's version: { version, installed, own }. own marks a yarnPath release read from its file name, not run. */
+// The release's version, from its file name, when the folder's own config names it in the plain form. Shown, never run.
+function ownYarnVersion(dir) {
+  const text = (file) => {
+    const path = join(dir, file);
+    // Only a small regular file is read: a symlink to a device, or a huge file, could stall preflight.
+    return existsSync(path) && statSync(path).isFile() && statSync(path).size < 65536 ? readFileSync(path, "utf8") : "";
+  };
+  const rc = [[".yarnrc.yml", /^yarnPath:[ \t]*["']?([^"'\n#]+)/m], [".yarnrc", /^yarn-path[ \t]+["']?([^"'\n#]+)/m]]
+    .map(([file, re]) => re.exec(text(file))?.[1]).find(Boolean);
+  return rc ? shown(/yarn-([^/\\]+?)\.c?js\s*$/.exec(rc)?.[1], "version", null) : null;
+}
+
+/** The manager's version: { version, installed, own }. own marks a yarn not run because a yarn config is near. */
 function managerVersion(dir, sys, pm) {
-  const own = pm === "yarn" && !existsSync(join(dir, "docs", "state.md")) ? ownYarn(dir) : null;
-  if (own) return sys.has(pm) ? { version: own.version, installed: true, own: true } : { version: null, installed: false };
+  if (pm === "yarn" && !existsSync(join(dir, "docs", "state.md")) && yarnConfigNear(dir, sys.home)) {
+    return sys.has(pm) ? { version: ownYarnVersion(dir), installed: true, own: true } : { version: null, installed: false };
+  }
   const have = sys.run(pm, ["--version"], { cwd: dir });
   return { version: have?.ok ? shown(firstLine(have.out), "version", "(version not shown)") : null, installed: Boolean(have?.ok) };
 }
@@ -229,16 +257,19 @@ function checkVersions(dir, tool, sys, pkg, manager) {
   if (!satisfies(sys.node, range)) return { status: "blocked", detail: `Node ${node}, ${who} needs ${want}`, ladder: ladder("versions", tool, { want }) };
   if (!manager) return { status: "ok", detail: `Node ${node} (needs ${want})` };
   if (!manager.name) {
-    return { status: "limited", detail: `Node ${node} (needs ${want}); unrecognised packageManager in package.json, so none ran. Preflight runs only npm, pnpm, yarn or bun, with a plain or prerelease version` };
+    return { status: "limited", detail: `Node ${node} (needs ${want}); unrecognised packageManager in package.json, so none ran. `
+      + "Preflight runs only npm, pnpm, yarn or bun, with a plain or prerelease version" };
   }
   const { name: pm, version: pin } = manager;
   const { version, installed, own } = managerVersion(dir, sys, pm);
   if (own && installed && !version) {
-    return { status: "limited", detail: `Node ${node} (needs ${want}); the repo's yarnPath runs its own yarn, and preflight runs none before the repo is read` };
+    return { status: "limited", detail: `Node ${node} (needs ${want}); a yarn config here or in a parent folder can name the yarn to run, `
+      + "so preflight runs none before the repo is read" };
   }
   // A prerelease pin (4.0.0-rc.42) keeps the name and its probe. Only a plain pin's major is compared.
   const compared = pin !== undefined && /^\d+(\.\d+){0,2}$/.test(pin);
-  const note = (pin !== undefined && !compared ? ` (pins ${pin}, a prerelease: not compared)` : "") + (own ? " (the repo's own release, not run before the repo is read)" : "");
+  const note = (pin !== undefined && !compared ? ` (pins ${pin}, a prerelease: not compared)` : "")
+    + (own ? " (the repo's own release, not run before the repo is read)" : "");
   if (version && (!compared || version.split(".")[0] === pin.split(".")[0])) return { status: "ok", detail: `Node ${node} (needs ${want}), ${pm} ${version}${note}` };
   return { status: "fix", detail: version ? `${pm} ${version}, the project pins ${pin}` : `${pm} isn't installed`,
     ladder: selfFix(`\`corepack enable && corepack prepare ${pm}@${pin ?? "latest"} --activate\`, then run preflight again.`) };
@@ -357,7 +388,7 @@ export function commandFor(cmd, args, { platform = process.platform, env = proce
 /** The real session: commands with a timeout, a PATH lookup that runs nothing, and a round trip on 127.0.0.1. */
 export function realSys() {
   return {
-    env: process.env, node: process.versions.node, hostname: hostname(), platform: process.platform, now: () => Date.now(),
+    env: process.env, node: process.versions.node, hostname: hostname(), home: homedir(), platform: process.platform, now: () => Date.now(),
     has: (cmd) => Boolean(onPath(cmd, process.platform, process.env)),
     run(cmd, args = [], { cwd, timeout = 15000 } = {}) {
       const how = commandFor(cmd, args);
