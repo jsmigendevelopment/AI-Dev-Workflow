@@ -81,6 +81,7 @@ Names are kebab-case; a module name is plural (`todo-items`). A new page needs i
 | `pnpm test:coming-soon` | the Coming soon checks; against `BASE_URL` when set (production while not launched)     |
 | `pnpm build`            | production build into `dist/`                                                           |
 | `pnpm check`            | lint, typecheck, knip, dupes, check:migrations, test and build, in that order           |
+| `pnpm check:lowmem`     | the same steps on a machine short of memory: one test worker (`vitest --maxWorkers=1`)  |
 | `pnpm check:budgets`    | after a build: initial JS, route JS, CSS and lazy-chunk budgets per page (gzip)         |
 | `pnpm check:merge`      | before merge: budgets, migrations, audit, licences, secret scan, Semgrep, screenshots   |
 | `pnpm pr:rules <n>`     | pull request `<n>` names its issue and is under about 400 changed lines                 |
