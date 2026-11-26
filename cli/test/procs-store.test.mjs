@@ -134,7 +134,7 @@ test("AC-156-4: the registry's folders are made owner-only and its file 0600, wh
     const home = fakeSys();
     mkdirSync(join(home.home, ".onrails"));
     chmodSync(join(home.home, ".onrails"), 0o775);
-    assert.equal((await startDev(home)).code, 0, "row 62: other kit files share ~/.onrails");
+    assert.equal((await startDev(home)).code, 0, "row 67: other kit files share ~/.onrails");
     assert.equal(lstatSync(join(home.home, ".onrails", "logs")).mode & 0o777, 0o700);
   } finally { process.umask(umask); }
 });

@@ -7,9 +7,10 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CHECKS, commandFor, detectTool, fingerprint, main, probe, readRecord, render, satisfies, withRecord } from "../src/preflight.mjs";
+import { CHECKS, detectTool, fingerprint, main, probe, readRecord, render, satisfies, withRecord } from "../src/preflight.mjs";
+import { commandFor } from "../src/preflight-sys.mjs";
 import { logger, put } from "./helpers.mjs";
-import { BLOCKED, fakeSys, HEALTHY, project, status, temp } from "./preflight-fakes.mjs";
+import { BLOCKED, fakeSys, HEALTHY, project, readProject, status, temp } from "./preflight-fakes.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/ask/scripts/preflight.mjs", import.meta.url));
@@ -154,7 +155,8 @@ test("GitHub missing is limited, not blocked: the loop has a local mode", async 
 test("a browser is checked only when the project's tests need one", async () => {
   const none = await probe(project({ "package.json": "{}" }), fakeSys({ answers: HEALTHY }));
   assert.equal(status(none, "browser"), "skip");
-  const dir = project({ "package.json": JSON.stringify({ devDependencies: { "@playwright/test": "1.60.0" } }) });
+  // Marked read: before that, the launch check runs nothing (#169).
+  const dir = readProject({ "package.json": JSON.stringify({ devDependencies: { "@playwright/test": "1.60.0" } }) });
   mkdirSync(join(dir, "node_modules", "@playwright", "test"), { recursive: true });
   const broken = await probe(dir, fakeSys({ answers: { ...HEALTHY, "node -e": { ok: false, out: "browserType.launch: Executable doesn't exist" } } }));
   const browser = broken.results.find((r) => r.id === "browser");
@@ -199,7 +201,7 @@ test("only a known package manager runs, and only a plain version is printed", a
 test("a known package manager with a prerelease version keeps its name: its probe runs, and only the version compare is skipped", async () => {
   const pkg = JSON.stringify({ packageManager: "yarn@4.0.0-rc.42" });
   const sys = fakeSys({ answers: { ...BLOCKED, "yarn --version": { ok: true, out: "3.8.7" } }, env: { CLAUDECODE: "1" } });
-  const report = await probe(project({ "package.json": pkg, "docs/state.md": "# State\n" }), sys);
+  const report = await probe(readProject({ "package.json": pkg }), sys);
   assert.ok(sys.calls.includes("yarn --version"), `ran: ${sys.calls.join(" | ")}`);
   const row = report.results.find((r) => r.id === "versions");
   assert.equal(row.status, "ok", "a prerelease pin isn't compared");
@@ -287,7 +289,8 @@ test("on Windows, commands start with no shell: node is this Node, and only a .c
   assert.equal(commandFor("yarn", ["--version"], win).args[3], `""${join(bin, "yarn.bat")}" --version"`);
   assert.equal(commandFor("gh", ["api", "rate_limit"], win), null, "not on PATH: not installed");
   assert.throws(() => commandFor("npm", ["view", "a&b"], win), /plain words/);
-  assert.deepEqual(commandFor("git", ["status"], { platform: "linux", execPath: "/usr/bin/node" }), { file: "git", args: ["status"] });
+  // POSIX too finds the command on PATH first (#169): a bare name is never handed to spawn.
+  assert.equal(commandFor("git", ["status"], { platform: "linux", env: { PATH: "" }, execPath: "/usr/bin/node" }), null);
 });
 
 test("model and effort: what the session can see, or what the agent passes in", async () => {

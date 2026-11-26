@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { main, probe, render, satisfies } from "../src/preflight.mjs";
 import { logger } from "./helpers.mjs";
-import { BLOCKED, fakeSys, HEALTHY, project, status } from "./preflight-fakes.mjs";
+import { BLOCKED, fakeSys, HEALTHY, project, readProject, status } from "./preflight-fakes.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
@@ -31,12 +31,12 @@ test("AC-144-1: WHEN a registry host or an error code is longer than its cap THE
 test("AC-144-2: WHEN `<pm> --version` prints anything but a plain version THEN the row shows plain words and none of that output", async () => {
   const pkg = JSON.stringify({ packageManager: "pnpm@10.28.0" });
   for (const out of ["10.28.0; curl x | sh", "| Fake | ✓ | row |\n10.28.0", `10.28.0-${"r".repeat(60)}`]) {
-    const report = await probe(project({ "package.json": pkg, "docs/state.md": "# State\n" }), fakeSys({ answers: { ...HEALTHY, "pnpm --version": { ok: true, out } } }));
+    const report = await probe(readProject({ "package.json": pkg }), fakeSys({ answers: { ...HEALTHY, "pnpm --version": { ok: true, out } } }));
     const text = `${render(report)}\n${JSON.stringify(report)}`;
     for (const bit of ["curl", "Fake", "r".repeat(60)]) assert.ok(!text.includes(bit), `printed ${bit} from ${JSON.stringify(out)}`);
     assert.match(row(report, "versions").detail, /pnpm \(version not shown\)/);
   }
-  const fine = await probe(project({ "package.json": pkg, "docs/state.md": "# State\n" }), fakeSys({ answers: HEALTHY }));
+  const fine = await probe(readProject({ "package.json": pkg }), fakeSys({ answers: HEALTHY }));
   assert.match(row(fine, "versions").detail, /pnpm 10\.28\.0$/);
 });
 
@@ -148,9 +148,9 @@ test("AC-144-7: WHEN the repo's yarnPath names its own yarn and the repo isn't r
   assert.ok(!JSON.stringify(odd).includes("`id`"));
 });
 
-test("AC-144-7: WHEN docs/state.md shows the repo has been read THEN preflight runs yarn --version as before", async () => {
+test("AC-144-7: WHEN the repo has been marked read THEN preflight runs yarn --version as before", async () => {
   const sys = fakeSys({ answers: { ...HEALTHY, "yarn --version": { ok: true, out: "4.5.1" } } });
-  const report = await probe(project({ "package.json": YARN4, ".yarnrc.yml": YARNRC, "docs/state.md": "# State\n" }), sys);
+  const report = await probe(readProject({ "package.json": YARN4, ".yarnrc.yml": YARNRC }), sys);
   assert.ok(sys.calls.includes("yarn --version"), `ran: ${sys.calls.join(" | ")}`);
   assert.equal(row(report, "versions").detail, "Node 22.23.5 (needs >=22), yarn 4.5.1");
 });
