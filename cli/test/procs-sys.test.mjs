@@ -88,3 +88,15 @@ test("#215 round 1: on a fake Windows, the default realSys never makes the targe
   assert.equal(realSys({ platform: "win32", run }).git(target, ["rev-parse", "--git-common-dir"]), ".git");
   assert.deepEqual(ran, [["git", "-C", target, "rev-parse", "--git-common-dir"]]);
 });
+
+// #174, from the round 2 review of #223: fullPath means the run found the full path itself. Without a run, the
+// default spawnSync would start a bare git in the target folder, which Windows searches first.
+test("#174: WHEN realSys gets fullPath without a run THEN it throws, so no bare git runs in the target folder", () => {
+  assert.throws(() => realSys({ fullPath: true }), /fullPath needs the run that found the full path/);
+  assert.throws(() => realSys({ platform: "win32", fullPath: true }), /fullPath needs the run/);
+  const ran = [];
+  const sys = realSys({ fullPath: true, run: (cmd, args, opts) => (ran.push([cmd, args, opts.cwd]), { status: 0, stdout: ".git\n" }) });
+  assert.equal(sys.git("/repo", ["rev-parse", "--git-common-dir"]), ".git");
+  assert.deepEqual(ran, [["git", ["rev-parse", "--git-common-dir"], "/repo"]], "with its run, as doctor calls it");
+  assert.equal(typeof realSys().git, "function", "the default still needs no run");
+});

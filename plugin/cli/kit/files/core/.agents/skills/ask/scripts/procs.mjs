@@ -23,9 +23,9 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureWatcher, reap, sessionEnd, sessionStart, watch } from "./procs-hooks.mjs";
+import { ensureWatcher, readGuard, reap, sessionEnd, sessionStart, watch } from "./procs-hooks.mjs";
 import { MINUTE, SCRIPT, age, iso, newId, newRecord, survey, whoAmI } from "./procs-records.mjs";
-import { askGitAgain, fixable, homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
+import { askAgain, fixable, homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
 import { GRACE_S, NO_LIST, floor, forget, guarded, stopRecords } from "./procs-stop.mjs";
 import { realSys } from "./procs-sys.mjs";
 
@@ -185,9 +185,11 @@ function resume(sys, log, { dir, me }) {
   return 0;
 }
 
-const VALUE = new Set(["--why", "--until", "--for", "--owner", "--grace", "--registry", "--stop"]);
+const VALUE = new Set(["--why", "--until", "--for", "--owner", "--grace", "--registry", "--stop", "--guard"]);
 const BOOL = new Set(["--mine", "--json", "--yes"]);
 
+// A value flag given twice is refused, never overwritten: a later copy must not replace --guard, --registry or --grace.
+// Everything after -- is a command (start) or ids (reap), never an option.
 function parse(argv) {
   const flags = {}, rest = [];
   for (let i = 0; i < argv.length; i++) {
@@ -195,6 +197,7 @@ function parse(argv) {
     if (a === "--") return { flags, rest, command: argv.slice(i + 1) };
     if (VALUE.has(a)) {
       if (argv[i + 1] === undefined) return { error: `${a} needs a value` };
+      if (Object.hasOwn(flags, a.slice(2))) return { error: `${a} is given twice` };
       flags[a.slice(2)] = argv[++i];
     } else if (BOOL.has(a)) flags[a.slice(2)] = true;
     else if (a.startsWith("-")) return { error: `Unknown option: ${a}` };
@@ -209,7 +212,7 @@ const USAGE = "Usage: procs.mjs start --why \"...\" --until \"...\" [--for <min>
 export async function main(argv, { sys = realSys(), log = console.log, ask } = {}) {
   const { error, flags, rest, command } = parse(argv);
   if (error) return fail(log, `${error}\n${USAGE}`);
-  askGitAgain(sys); // git's answers last one command
+  askAgain(sys); // git's and the ACL reader's answers last one command
   let [cmd, ...args] = rest;
   const cli = cmd === "ps";
   if (cli) [cmd, args] = [flags.stop ? "stop" : "list", [flags.stop]];
@@ -230,8 +233,8 @@ export async function main(argv, { sys = realSys(), log = console.log, ask } = {
     case "resume": return resume(sys, log, ctx);
     case "session-start": return sessionStart(sys, log, ctx);
     case "session-end": return sessionEnd(sys, log, ctx);
-    case "watch": return watch(sys, path);
-    case "reap": return reap(sys, path, args, flags.grace ? Number(flags.grace) : GRACE_S);
+    case "watch": return watch(sys, path, readGuard(flags.guard));
+    case "reap": return reap(sys, path, [...args, ...command], flags.grace ? Number(flags.grace) : GRACE_S, readGuard(flags.guard));
     default: return fail(log, USAGE);
   }
 }

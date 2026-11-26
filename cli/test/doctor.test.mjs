@@ -7,6 +7,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync } from "no
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fake, logger, put, safeEnv, tmp, unixOnly } from "./helpers.mjs";
+import { stamp } from "./procs-fake.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const V = version.replaceAll(".", "\\.");
@@ -167,6 +168,7 @@ function homeRecord(home) {
   put(home, ".onrails/procs.json", JSON.stringify({ version: 1, procs: [{ id: "pold1", kind: "process", pid: 4000, group: true,
     start: "start-4000", command: "pnpm dev", why: "w", until: "u", deadline: null, state: "running", pausedUntil: null, label: "other",
     startedAt: "2026-01-01T00:00:00Z", session: "s-old", agent: { pid: 600, start: "start-600" } }] }));
+  stamp(join(home, ".onrails", "procs.json")); // a session wrote it (#174)
   chmodSync(join(home, ".onrails"), 0o700);
   chmodSync(join(home, ".onrails", "procs.json"), 0o600);
 }
