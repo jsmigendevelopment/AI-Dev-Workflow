@@ -22,7 +22,7 @@ A handoff is work one session passes to another: a builder brief, a prompt for a
 
      ```text
      Automation level: <the "Automation level" section's Level line from docs/stack.md, and each switch that differs from the level's default>
-     Standing decisions: <every row in docs/decisions.md that lifts a gate or says not to wait, copied whole with its number>
+     Standing decisions: <every row the person made (originator "person", rule 16) that lifts a gate or says not to wait, copied whole with its number>
      ```
 
      None? Write `Standing decisions: none`. A summary like "on Full, don't wait" doesn't count: the receiver can't check it against the files.
