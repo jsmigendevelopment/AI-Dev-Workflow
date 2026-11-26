@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { doctor } from "../src/doctor.mjs";
 import { init } from "../src/init.mjs";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fake, logger, put, safeEnv, tmp, unixOnly } from "./helpers.mjs";
@@ -155,10 +155,11 @@ test("#185: a fix command runs only by the full path the PATH search found, neve
 
 // #185 round 1: the process check's git and ps (procs-sys.mjs) go through the same PATH search. The pair outside the
 // project answers: git says "not a repo", so the home registry is read, and its one record makes the check ask ps
-// about PIDs 4000 and 600.
+// about PIDs 4000 and 600. git logs the folder it ran in: since #215 it gets the project as its cwd, not -C.
 const OUTSIDE = (name) => `#!/usr/bin/env node
 const args = process.argv.slice(2);
-require("fs").appendFileSync(process.env.FAKE_LOG, "outside-${name} " + args.join(" ") + "\\n");
+const at = ${name === "git" ? '" @ " + process.cwd()' : '""'};
+require("fs").appendFileSync(process.env.FAKE_LOG, "outside-${name} " + args.join(" ") + at + "\\n");
 if (args[0] === "--version") console.log("${name} version 9.9.9");
 process.exitCode = ${name === "git" ? 'args[0] === "--version" ? 0 : 1' : "0"};
 `;
@@ -178,7 +179,7 @@ test("AC-185-1: WHEN a planted git and ps sit in <project>/node_modules/.bin fir
   }
   const r = doctorChild(dir, { bins: [projectBin, outside], fill: homeRecord });
   assert.doesNotMatch(r.calls, /^planted/m, r.calls);
-  assert.ok(r.calls.split("\n").includes(`outside-git -C ${dir} rev-parse --git-common-dir`), r.calls);
+  assert.ok(r.calls.split("\n").includes(`outside-git rev-parse --git-common-dir @ ${realpathSync(dir)}`), r.calls);
   assert.match(r.calls, /^outside-ps .* -p 4000,600$/m, r.calls);
 });
 
