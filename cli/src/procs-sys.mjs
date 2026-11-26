@@ -7,6 +7,8 @@
 //   acl(path) true when the path has a POSIX ACL, false when it has none, null when it can't tell
 //   winAcl(path) on Windows { owned, writers }: whether this user (or the admins) owns it, and every other account
 //   that can write it; null when it can't tell, and off Windows
+//   fsType(path) on Linux the file system a real folder is on, from /proc/self/mountinfo (null when it can't tell);
+//   undefined elsewhere
 // Linux and macOS read ps; Windows reads Win32_Process through PowerShell. No dependencies.
 // The master copy is scripts/procs-sys.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { spawn, spawnSync } from "node:child_process";
@@ -49,6 +51,8 @@ export function realSys({ platform = process.platform, run, fullPath = false } =
         { encoding: "utf8", timeout: 15000, windowsHide: true, env: { ...process.env, ONRAILS_ACL_PATH: path } });
       return r.error || r.status !== 0 ? null : winAccess(r.stdout);
     },
+    // Read each time: a small file, and a mount can change while the watcher runs.
+    fsType: (path) => (platform !== "linux" ? undefined : mountType(readOrNull("/proc/self/mountinfo"), path)),
     now: () => Date.now(),
     // Its output, "" when it found nothing, or null when git failed in any way: a failure is never "nothing found".
     // A bare git is looked up from the spawn's working folder (a relative PATH entry; on Windows that folder first),
@@ -123,6 +127,24 @@ export function hasAcl({ getfacl, ls, lsVersion }) {
   if (typeof ls !== "string" || !lsVersion?.startsWith("ls (GNU coreutils)")) return null;
   const mode = /^[-dlbcps][-rwxsStT]{9}([+.]?)\s/.exec(ls);
   return mode ? mode[1] === "+" : null;
+}
+
+/**
+ * The file system type of the mount that holds path (a real path, with no symlink in it), from the text of
+ * /proc/self/mountinfo: the longest mount point that is path or a folder above it, the last one listed when one is
+ * mounted over another. null for no text, or no line that holds it. Mount points escape a space as \040 (#231).
+ */
+export function mountType(text, path) {
+  let type = null, longest = -1;
+  for (const line of (text ?? "").split("\n")) {
+    const [left, right] = line.split(" - ");
+    const point = left.split(" ")[4]?.replace(/\\([0-7]{3})/g, (_, n) => String.fromCharCode(parseInt(n, 8)));
+    const fs = right?.split(" ")[0];
+    if (!point || !fs) continue;
+    const holds = path === point || path.startsWith(point.endsWith("/") ? point : `${point}/`);
+    if (holds && point.length >= longest) [type, longest] = [fs, point.length];
+  }
+  return type;
 }
 
 // The ACL of $env:ONRAILS_ACL_PATH: this user's SID, the owner's, "nodacl" for a null DACL (everyone has full
