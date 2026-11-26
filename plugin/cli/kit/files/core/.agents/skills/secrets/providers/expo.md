@@ -34,6 +34,16 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY   the same Clerk key as the web app (see clerk
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Expo's, Clerk's and Cloudflare's docs on 2026-11-26. All four are public values: nothing to make.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `EXPO_PUBLIC_API_URL`, `E2E_API_URL` | https://dash.cloudflare.com/?to=/:account/workers-and-pages | The test Worker's address (its `workers.dev` URL, or its custom domain under **Settings** → **Domains & Routes**), with `https://`. `[V]` |
+| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `E2E_CLERK_PUBLISHABLE_KEY` | https://dashboard.clerk.com/~/api-keys | The **Development** instance's publishable key (`pk_test_`), the same as the web app's. `[V]` |
+| `EXPO_TOKEN` | https://expo.dev/settings/access-tokens | Only if CI runs `eas` later. **Create token**, a name (`<app> CI`), turn on **Limit access**. Stop there: the person presses **Create** in the dialog. Shown once. `[V]` page and **Limit access**, `[U]` button names. |
+
 ## Walkthrough · about 10 minutes
 
 1. Make an Expo account: https://expo.dev/signup (`[U]` link). Then, in `apps/mobile`, in your own terminal:

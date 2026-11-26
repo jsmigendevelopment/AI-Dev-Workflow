@@ -25,6 +25,15 @@ How: the docs site was blocked here, so the pages were read from GitHub's public
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Cloudflare's Workers docs on 2026-11-26. These are addresses, not keys: nothing to make.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `SITE_URL` | https://dash.cloudflare.com/?to=/:account/workers-and-pages | The production Worker, then **Settings** → **Domains & Routes**: its custom domain as `https://<domain>`, no trailing slash. Not secret. `[V]` |
+| `APP_URL` | https://dash.cloudflare.com/?to=/:account/workers-and-pages | Only when the test URL isn't workers.dev. The test Worker, then **Settings** → **Domains & Routes**: its custom domain as `https://<domain>`. Not secret. `[V]` |
+
 ## What the workflows read
 
 **The packs ship no workflows now** (`ci = "local"`): their deploys run from the session and read nothing from GitHub, so nothing below is read unless the person turned on `ci = "actions"` themselves. The session deploys read their values from the shell or `.env.cloudflare.local` (git-ignored, mode 600): setup-cloudflare saves the Access service token there as `TEST_CF_ACCESS_CLIENT_ID` and `TEST_CF_ACCESS_CLIENT_SECRET` (`PRODUCTION_` ones for production) and a new password as `TEST_SITE_PASSWORD`, never printed. The names are in the `stack-tanstack-start` skill, Environments and deploys.
