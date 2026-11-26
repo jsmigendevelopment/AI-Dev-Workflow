@@ -41,22 +41,44 @@ const LABEL = /^(?:[-*] |\d+\. )?\*\*(?:below Full|not on Full)[:.]?\*\*/i;
 const NAMES_FULL = /\bon Full\b/i;
 /** #173 round 1 nice 1: "(on Full too)" or "(on Full as well)" keeps the person on Full, whatever else the clause says. */
 const AGAINST = /\((?:also |even )?on Full(?: too| as well)?\)|\([^)]*\bon Full (?:too|as well)\b[^)]*\)/i;
-/** A sentence's clauses: a new one starts at ", or", ", and", ", but" or a semicolon, outside parentheses. */
+/**
+ * A sentence's clauses, as [start, end] spans: a new one starts at ", or", ", and", ", but" or a semicolon, outside
+ * parentheses. A parenthesis belongs to its clause, so a condition inside it counts there.
+ */
 const clauses = (s) => {
   // Mask what's inside parentheses (same length), so "(on Full, `qa` does, and nothing waits)" stays in one clause.
   const masked = s.replace(/\([^()]*\)/g, (m) => m.replace(/[,;]/g, "\0"));
   const cuts = [...masked.matchAll(/,\s+(?=(?:or|and|but)\s)|;\s+/g)];
-  return [...cuts, { index: s.length, 0: "" }].map((m, i) => s.slice(i ? cuts[i - 1].index + cuts[i - 1][0].length : 0, m.index));
+  return [...cuts, { index: s.length }].map((m, i) => [i ? cuts[i - 1].index + cuts[i - 1][0].length : 0, m.index]);
 };
-/** #173: a condition counts only in the asking clause, and every asking clause needs its own. */
+const NEXT_ASK = new RegExp(ASKS_APPROVAL.source, "ig");
+const ASK_HERE = new RegExp(ASKS_APPROVAL.source, "iy");
+/** Where each ask starts, overlapping ones included, so a long match can't hide a second ask inside it. */
+const askStarts = (s) => {
+  const starts = [];
+  for (let m; (m = NEXT_ASK.exec(s)); NEXT_ASK.lastIndex = m.index + 1) starts.push(m.index);
+  NEXT_ASK.lastIndex = 0;
+  return starts;
+};
+/** True when an ask that starts at i fits in the clause [a, b]. The \u0001 keeps a sentence-end `$` from matching at a cut. */
+const heldBy = (s, i, [a, b]) => {
+  if (i < a || i >= b) return false;
+  ASK_HERE.lastIndex = i;
+  return ASK_HERE.test(b < s.length ? `${s.slice(0, b)}\u0001` : s);
+};
+/**
+ * #173: a condition counts only in the asking clause, and every asking clause needs its own. Round 3: every ask is
+ * checked. One that no single clause holds (its words run across a cut) keeps main's rule at that ask: a condition
+ * earlier in the sentence, and no "(on Full too)" in it.
+ */
 const governed = (s) => {
-  const label = LABEL.test(s);
-  const asking = clauses(s).filter((c) => ASKS_APPROVAL.test(c));
-  // #173 round 2: an ask that runs across a clause cut keeps main's rule: the condition comes before the ask.
-  if (!asking.length) {
-    const c = s.search(BELOW_FULL);
-    return c !== -1 && c < s.search(ASKS_APPROVAL) && !AGAINST.test(s);
+  const spans = clauses(s);
+  const cond = s.search(BELOW_FULL);
+  for (const i of askStarts(s)) {
+    if (!spans.some((span) => heldBy(s, i, span)) && (cond === -1 || cond > i || AGAINST.test(s))) return false;
   }
+  const label = LABEL.test(s);
+  const asking = spans.map(([a, b]) => s.slice(a, b)).filter((c) => ASKS_APPROVAL.test(c));
   return asking.every((c) => !AGAINST.test(c) && (BELOW_FULL.test(c) || (label && !NAMES_FULL.test(c))));
 };
 /** The sentences of a line that ask for an approval with no below-Full condition governing the ask. */
