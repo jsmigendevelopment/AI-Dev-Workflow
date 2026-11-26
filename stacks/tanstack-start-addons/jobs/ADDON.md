@@ -81,7 +81,7 @@ With no keys this needs nothing: queues and crons run in local dev too.
    export const jobQueue = (): JobQueue => cloudflareJobQueue(env.JOBS)
    ```
 4. `pnpm db:generate --name jobs`, read the SQL (one `job_runs` table and one index), then `pnpm db:migrate:local`.
-5. Before the first deploy, create the four deployed queues: `node scripts/setup-cloudflare.mjs --dry-run`, show the person, then run it without `--dry-run` (it creates the queues the environments declare, and skips the ones that exist). Queues has a free daily allowance; check the current limits on Cloudflare's pricing page. The deploy workflows apply the `job_runs` migration. Add **Account → Queues → Edit** to the CI deploy token: `wrangler deploy` configures the consumer.
+5. Before the first deploy, create the four deployed queues: `node scripts/setup-cloudflare.mjs --dry-run`, show the person, then run it without `--dry-run` (it creates the queues the environments declare, and skips the ones that exist). Queues has a free daily allowance; check the current limits on Cloudflare's pricing page. `pnpm deploy:test` and `pnpm deploy:production` apply the `job_runs` migration. Signed in with a deploy token instead of `wrangler login`? Add **Account → Queues → Edit** to it: `wrangler deploy` configures the consumer.
 6. `knip.jsonc`: `memoryJobQueue` is for the tests of code that enqueues, so keep it until one uses it. Add to `ignoreIssues`:
    ```jsonc
    "src/lib/jobs.ts": ["exports"],

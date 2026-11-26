@@ -1,5 +1,5 @@
-// Pull request rules (app-conventions rules 3 and code-style rule 13), as pure functions so the
-// CI workflow (.github/workflows/pr-rules.yml) runs exactly what the tests check.
+// Pull request rules (app-conventions rules 3 and code-style rule 13), as pure functions so
+// `pnpm pr:rules <n>` (scripts/pr/check.ts) runs exactly what the tests check.
 
 export const MAX_CHANGED_LINES = 400
 

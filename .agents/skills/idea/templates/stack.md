@@ -77,6 +77,12 @@ How much agents do without the person (the `automation` skill). The risk dial ab
 - **Overnight loop:** off  <!-- on | off; /afk offers it when off -->
 - **Ping level:** decisions  <!-- decisions | blockers | critical; read by notify.mjs -->
 
+## Checks and deploys
+
+ci = "local"
+
+`local` (the default, and the only recommendation): every check, preview and deploy runs from the agent's session, never from GitHub Actions. Before each merge, an agent other than the builder runs the checks on the exact head commit and posts the `onrails/check` commit status. `actions` only if the person turns it on themselves.
+
 ## Logs
 
 - Where they go: 
@@ -88,4 +94,5 @@ The rules: `guide/environments.md` in the kit. Local, test, preview and producti
 
 - Test URL: 
 - Preview per pull request: yes / no
-- Production: deployed by the person only. Production keys live only in the GitHub `production` environment, which waits for the person's approval (set up by `setup-github.mjs`). On GitHub Free with a private repo there are no environments: keys are `PRODUCTION_` repository secrets, with no required reviewer, and the gate is the manual run plus typing "deploy production".
+- Production URL (`SITE_URL`): 
+- Production: deployed only after the person's yes, from the session (the web pack: `pnpm deploy:production --confirm "deploy production"`). Production keys live on the production host (`wrangler secret put --env production`), never in the repo.

@@ -1,4 +1,5 @@
-import { expect, gateHeaders, test } from './gate'
+import { expect, test } from './gate'
+import { gateHeaders } from './gate-headers'
 import { API_LOOKALIKES } from './helpers'
 
 // The /api/v1 HTTP API, from outside: it fails closed without a valid bearer token, and the
