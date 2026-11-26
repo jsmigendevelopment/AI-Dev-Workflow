@@ -25,10 +25,19 @@ const LABELS = { repo: "Write the repo", git: "Write .git", registry: "Package r
   browser: "A browser", versions: "Node and package manager", model: "Model and effort" };
 const MARK = { ok: "✓", fix: "✗", blocked: "✗", limited: "–", skip: "–", info: "–" };
 const TOOLS = { claude: "Claude Code", "claude-cloud": "Claude Code (cloud session)", codex: "Codex", other: "an unknown tool" };
-const SCRIPT_PATH = ".agents/skills/ask/scripts/preflight.mjs";
 // Launches the project's own Playwright Chromium and closes it. Run with node -e in the project.
 const LAUNCH = "const r=require('module').createRequire(process.cwd()+'/package.json');let p;try{p=r('playwright')}catch{p=r('@playwright/test')}"
   + "p.chromium.launch({headless:true}).then(b=>b.close()).then(()=>console.log('ok')).catch(e=>{console.error(String(e.message).split('\\n')[0]);process.exit(1)})";
+
+// The table, the ladder and the drafted message are read by the agent, and the message is posted. So a value
+// from the repo or the environment is printed only when it matches a safe pattern, and plain words stand in for it otherwise.
+const SAFE = { range: /^[\d.xX*^~<>= |]{1,40}$/, host: /^[a-z0-9.-]+(:\d+)?$/i, version: /^\d+(\.\d+){0,2}(-[0-9A-Za-z.-]{1,40})?$/,
+  code: /^E[A-Z0-9_]{2,30}$/, model: /^[\w.:@\/[\]-]{1,80}$/, effort: /^[a-z]{1,12}$/i, flag: /^--?[a-z][\w-]{0,30}$/i };
+const shown = (value, kind, instead) => (value != null && SAFE[kind].test(String(value)) ? String(value) : instead);
+// Command output can carry text from the repo too, so only a cause from this list, or an error code, is taken from it.
+const CAUSES = ["Read-only file system", "Permission denied", "Operation not permitted", "No space left on device", "Executable doesn't exist", "Host system is missing dependencies"];
+const cause = (out = "", instead = "an error preflight doesn't print") =>
+  CAUSES.find((c) => out.toLowerCase().includes(c.toLowerCase())) ?? /\b(E[A-Z_]{4,}|E\d{3})\b/.exec(out)?.[1] ?? instead;
 
 /** Which tool this session runs in, from what it sets in the environment. --tool overrides a wrong guess. */
 export function detectTool(env = {}) {
@@ -119,7 +128,7 @@ function checkRepo(dir, tool) {
     rmSync(file);
     return { status: "ok", detail: "wrote and removed a temp file" };
   } catch (error) {
-    return { status: "blocked", detail: `can't write here: ${error.code ?? error.message}`, ladder: ladder("repo", tool) };
+    return { status: "blocked", detail: `can't write here: ${shown(error.code, "code", "an error")}`, ladder: ladder("repo", tool) };
   }
 }
 
@@ -131,7 +140,7 @@ function checkGit(dir, tool, sys) {
   // A temp branch proves refs can be written. A repo with no commit yet has nothing to branch from, so a temp config key stands in.
   const hasCommit = sys.run("git", ["rev-parse", "--verify", "HEAD"], { cwd: dir })?.ok;
   const made = hasCommit ? sys.run("git", ["branch", name], { cwd: dir }) : sys.run("git", ["config", "--local", "onrails.preflight", name], { cwd: dir });
-  if (!made?.ok) return { status: "blocked", detail: `can't write .git: ${firstLine(made?.out)}`, ladder: ladder("git", tool) };
+  if (!made?.ok) return { status: "blocked", detail: `can't write .git: ${cause(made?.out, "git refused")}`, ladder: ladder("git", tool) };
   if (hasCommit) sys.run("git", ["branch", "-D", name], { cwd: dir });
   else sys.run("git", ["config", "--local", "--unset", "onrails.preflight"], { cwd: dir });
   return { status: "ok", detail: hasCommit ? "made and deleted a temp branch" : "wrote and removed a temp config key (no commit yet)" };
@@ -140,12 +149,12 @@ function checkGit(dir, tool, sys) {
 function checkRegistry(dir, tool, sys, install) {
   const url = sys.run("npm", ["config", "get", "registry"], { cwd: dir });
   if (!url) return { status: "blocked", detail: "npm isn't installed", ladder: ladder("versions", tool) };
-  let host = "the registry";
-  try { host = new URL(url.out.trim()).host; } catch { /* an odd value: keep the plain word */ }
+  let host = "the registry in .npmrc";
+  try { host = shown(new URL(url.out.trim()).host, "host", host); } catch { /* not a URL: keep the plain words */ }
   // The metadata of one package, fresh from the registry the project's .npmrc names. npm honours the session's proxy.
   const meta = sys.run("npm", ["view", "npm", "dist-tags.latest", "--prefer-online", "--fetch-retries=0", "--fetch-timeout=10000"], { cwd: dir, timeout: 30000 });
   if (meta?.ok) return { status: "ok", detail: `${host} answered` };
-  const code = /\b(E[A-Z_]{4,}|E\d{3})\b/.exec(meta?.out ?? "")?.[1] ?? "no answer";
+  const code = cause(meta?.out, "no answer");
   return { status: "blocked", detail: `${host} didn't answer (${code})`, ladder: ladder("registry", tool, { host, install }) };
 }
 
@@ -168,43 +177,49 @@ function checkBrowser(dir, tool, sys, pkg, pm) {
   if (!existsSync(join(dir, "node_modules", ...name.split("/")))) return { status: "skip", detail: "Playwright isn't installed yet: run preflight again after the install" };
   const launch = sys.run("node", ["-e", LAUNCH], { cwd: dir, timeout: 40000 });
   if (launch?.ok) return { status: "ok", detail: "headless Chromium started and closed" };
-  return { status: "fix", detail: `Chromium didn't start: ${firstLine(launch?.out)}`,
+  return { status: "fix", detail: `Chromium didn't start: ${cause(launch?.out)}`,
     ladder: selfFix(`\`${pm} exec playwright install chromium\` (Playwright's bundled browser), then run preflight again. Still failing? Treat it as blocked: the download needs the network.`) };
 }
 
 // package.json comes from the repo, so its packageManager is never a command by itself.
 const MANAGERS = ["npm", "pnpm", "yarn", "bun"];
+// With no usable packageManager, the lockfile names the manager, so a yarn project is never told to run npm.
+const LOCKS = { "pnpm-lock.yaml": "pnpm", "yarn.lock": "yarn", "bun.lock": "bun", "bun.lockb": "bun" };
 
-/** packageManager as { name, version }: null when unset, { name: null } unless it's a known manager with a plain version. */
+/** packageManager as { name, version }: null when unset, { name: null } unless it's a known manager with a plain or prerelease version. */
 function readManager(pkg) {
   const field = pkg?.packageManager;
   if (field === undefined || field === null || field === "") return null;
   const [name, version, ...rest] = String(field).split("+")[0].split("@");
-  const plain = version === undefined || /^\d+(\.\d+){0,2}$/.test(version);
-  return MANAGERS.includes(name) && plain && !rest.length ? { name, version } : { name: null };
+  const known = MANAGERS.includes(name) && (version === undefined || SAFE.version.test(version)) && !rest.length;
+  return known ? { name, version } : { name: null };
 }
 
 function checkVersions(dir, tool, sys, pkg, manager) {
-  const want = pkg?.engines?.node ?? ">=22";
+  const range = pkg?.engines?.node ?? ">=22";
+  const want = shown(range, "range", "the range in package.json's engines.node");
   const who = pkg?.engines?.node ? "the project" : "the kit";
-  if (!satisfies(sys.node, want)) {
-    return { status: "blocked", detail: `Node ${sys.node}, ${who} needs ${want}`, ladder: ladder("versions", tool, { want }) };
-  }
-  if (!manager) return { status: "ok", detail: `Node ${sys.node} (needs ${want})` };
+  const node = shown(sys.node, "version", "(version not shown)");
+  if (!satisfies(sys.node, range)) return { status: "blocked", detail: `Node ${node}, ${who} needs ${want}`, ladder: ladder("versions", tool, { want }) };
+  if (!manager) return { status: "ok", detail: `Node ${node} (needs ${want})` };
   if (!manager.name) {
-    return { status: "limited", detail: `Node ${sys.node} (needs ${want}); unrecognised packageManager in package.json, so none ran. Preflight runs only npm, pnpm, yarn or bun, with a plain version` };
+    return { status: "limited", detail: `Node ${node} (needs ${want}); unrecognised packageManager in package.json, so none ran. Preflight runs only npm, pnpm, yarn or bun, with a plain or prerelease version` };
   }
-  const { name: pm, version: pmWant } = manager;
+  const { name: pm, version: pin } = manager;
   const have = sys.run(pm, ["--version"], { cwd: dir });
-  const version = have?.ok ? firstLine(have.out) : null;
-  if (version && (!pmWant || version.split(".")[0] === pmWant.split(".")[0])) return { status: "ok", detail: `Node ${sys.node} (needs ${want}), ${pm} ${version}` };
-  return { status: "fix", detail: version ? `${pm} ${version}, the project pins ${pmWant}` : `${pm} isn't installed`,
-    ladder: selfFix(`\`corepack enable && corepack prepare ${pm}@${pmWant || "latest"} --activate\`, then run preflight again.`) };
+  const version = have?.ok ? shown(firstLine(have.out), "version", "(version not shown)") : null;
+  // A prerelease pin (4.0.0-rc.42) keeps the name and its probe. Only a plain pin's major is compared.
+  const compared = pin !== undefined && /^\d+(\.\d+){0,2}$/.test(pin);
+  const note = pin !== undefined && !compared ? ` (pins ${pin}, a prerelease: not compared)` : "";
+  if (version && (!compared || version.split(".")[0] === pin.split(".")[0])) return { status: "ok", detail: `Node ${node} (needs ${want}), ${pm} ${version}${note}` };
+  return { status: "fix", detail: version ? `${pm} ${version}, the project pins ${pin}` : `${pm} isn't installed`,
+    ladder: selfFix(`\`corepack enable && corepack prepare ${pm}@${pin ?? "latest"} --activate\`, then run preflight again.`) };
 }
 
 function checkModel(sys, given) {
-  const model = given.model ?? sys.env.ANTHROPIC_MODEL;
-  const effort = given.effort ?? sys.env.CLAUDE_EFFORT;
+  const seen = (value, kind) => (value ? shown(value, kind, "unknown") : undefined);
+  const model = seen(given.model ?? sys.env.ANTHROPIC_MODEL, "model");
+  const effort = seen(given.effort ?? sys.env.CLAUDE_EFFORT, "effort");
   if (!model && !effort) return { status: "info", detail: "not visible to scripts: pass --model and --effort from your own session" };
   return { status: "info", detail: `model ${model ?? "not visible"}, effort ${effort ?? "not visible"}`, model, effort };
 }
@@ -223,7 +238,7 @@ export async function probe(dir, sys = realSys(), given = {}) {
   const tool = given.tool ?? detectTool(sys.env);
   const pkg = readJson(join(dir, "package.json"));
   const manager = readManager(pkg);
-  const pm = manager?.name ?? (existsSync(join(dir, "pnpm-lock.yaml")) ? "pnpm" : "npm");
+  const pm = manager?.name ?? Object.entries(LOCKS).find(([file]) => existsSync(join(dir, file)))?.[1] ?? "npm";
   const loop = await sys.loopback();
   const found = {
     repo: checkRepo(dir, tool),
@@ -243,7 +258,7 @@ export async function probe(dir, sys = realSys(), given = {}) {
 /** The one table, each failure's ladder, and a draft of the ONE message for whatever the ladder doesn't clear. */
 export function render(report) {
   const out = [`Preflight · ${TOOLS[report.tool]} · ${report.checkedAt}`, "", "| Check | Result | Detail |", "|---|---|---|"];
-  for (const r of report.results) out.push(`| ${r.label} | ${MARK[r.status]} | ${r.detail.replaceAll("|", "\\|")} |`);
+  for (const r of report.results) out.push(`| ${r.label} | ${MARK[r.status]} | ${r.detail.replace(/\s+/g, " ").replaceAll("|", "\\|")} |`);
   const open = report.results.filter((r) => r.status === "fix" || r.status === "blocked");
   const blocked = open.filter((r) => r.status === "blocked");
   if (!open.length) return [...out, "", "Environment: ok."].join("\n");
@@ -291,18 +306,18 @@ function recordLine(report) {
 // No shell, ever: on Windows a shell joins the arguments into one unquoted cmd.exe line. So a command
 // is found on PATH, and only a .cmd or .bat shim (npm, pnpm, yarn) goes to cmd.exe, with plain words:
 // the same route as windowsArgv in the CLI's system.mjs.
-/** How run starts a command: { file, args, shell: false, verbatim? }, or null when it isn't on PATH. */
+/** How run starts a command, always with no shell: { file, args, verbatim? }, or null when it isn't on PATH. */
 export function commandFor(cmd, args, { platform = process.platform, env = process.env, execPath = process.execPath } = {}) {
-  if (cmd === "node") return { file: execPath, args, shell: false };
-  if (platform !== "win32") return { file: cmd, args, shell: false };
+  if (cmd === "node") return { file: execPath, args };
+  if (platform !== "win32") return { file: cmd, args };
   const exts = (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").toLowerCase().split(";").filter((e) => /^\.(com|exe|bat|cmd)$/.test(e));
   const found = (env.PATH || env.Path || "").split(";").filter(Boolean)
     .flatMap((dir) => exts.map((ext) => join(dir, cmd + ext))).find((f) => existsSync(f) && statSync(f).isFile());
   if (!found) return null;
-  if (!/\.(bat|cmd)$/i.test(found)) return { file: found, args, shell: false };
+  if (!/\.(bat|cmd)$/i.test(found)) return { file: found, args };
   if (args.some((a) => !/^[\w.:=/-]+$/.test(a))) throw new Error(`preflight passes only plain words to cmd.exe, not: ${args.join(" ")}`);
   // cmd.exe /s drops the outer quotes, so a path with spaces stays one word. Node's own shell mode does the same.
-  return { file: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], shell: false, verbatim: true };
+  return { file: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], verbatim: true };
 }
 
 /** The real session: commands with a timeout, and a round trip on 127.0.0.1. */
@@ -312,7 +327,7 @@ export function realSys() {
     run(cmd, args = [], { cwd, timeout = 15000 } = {}) {
       const how = commandFor(cmd, args);
       if (!how) return null;
-      const r = spawnSync(how.file, how.args, { cwd, encoding: "utf8", timeout, shell: how.shell, windowsVerbatimArguments: how.verbatim });
+      const r = spawnSync(how.file, how.args, { cwd, encoding: "utf8", timeout, shell: false, windowsVerbatimArguments: how.verbatim });
       if (r.error?.code === "ENOENT") return null;
       const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
       return { ok: r.status === 0, out: r.error ? `${out}\n${r.error.message}`.trim() : out };
@@ -321,11 +336,11 @@ export function realSys() {
       const server = createServer((socket) => socket.end());
       const finish = (ok, detail) => { clearTimeout(timer); server.close(); done({ ok, detail }); };
       const timer = setTimeout(() => finish(false, "no answer in 3 seconds"), 3000);
-      server.on("error", (error) => finish(false, error.code ?? error.message));
+      server.on("error", (error) => finish(false, shown(error.code, "code", "an error")));
       server.listen(0, "127.0.0.1", () => {
         const { port } = server.address();
         const client = connect(port, "127.0.0.1", () => { client.end(); finish(true, `127.0.0.1:${port}`); });
-        client.on("error", (error) => finish(false, error.code ?? error.message));
+        client.on("error", (error) => finish(false, shown(error.code, "code", "an error")));
       });
     }),
   };
@@ -341,10 +356,10 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
     const a = argv[i];
     if (["--model", "--effort", "--tool"].includes(a) && argv[i + 1]) given[a.slice(2)] = argv[++i];
     else if (["--record", "--if-changed", "--json", "--help", "-h"].includes(a)) flags.add(a);
-    else if (a.startsWith("-")) return log(`Unknown option: ${a}\nUsage: ${USAGE}`), 2;
+    else if (a.startsWith("-")) return log(`Unknown option: ${shown(a, "flag", "(not printed)")}\nUsage: ${USAGE}`), 2;
     else dir = a;
   }
-  if (given.tool && !TOOLS[given.tool]) return log(`--tool is one of: ${Object.keys(TOOLS).join(", ")}`), 2;
+  if (given.tool && !Object.hasOwn(TOOLS, given.tool)) return log(`--tool is one of: ${Object.keys(TOOLS).join(", ")}`), 2;
   if (flags.has("--help") || flags.has("-h")) return log(`Usage: ${USAGE}`), 0;
   dir = resolve(dir);
   const statePath = join(dir, "docs", "state.md");

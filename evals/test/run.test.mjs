@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,7 +36,14 @@ function setup(plan) {
     return JSON.parse(readFileSync(join(results, file), "utf8"));
   };
   const calls = () => readFileSync(join(bin, "calls.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
-  return { run, results, resultsFile, calls };
+  return { root, run, results, resultsFile, calls };
+}
+
+// setup, with its temp folder removed when the test ends. The #100 tests use it.
+function cleanSetup(t, plan) {
+  const s = setup(plan);
+  t.after(() => rmSync(s.root, { recursive: true, force: true }));
+  return s;
 }
 
 const GOOD = { steps: [{ text: "1. Who is it for?\nRecommended: flatmates." }], cost: 0.02 };
@@ -400,14 +407,32 @@ const PREFLIGHT_DRIP = {
     { write: "docs/issues/002-open-the-registry.md", content: `${REGISTRY_ISSUE}\n## Comments\n\n${NODE_STEP}` }, blockerPing(2, "One more: install a newer Node"),
   ],
 };
-test("AC-100-5: preflight-blocked: fixes sent one at a time fail one-message and one-ping, and only those; one batched message passes", { skip: skipWin }, () => {
+test("AC-100-5: preflight-blocked: fixes sent one at a time fail one-message and one-ping, and only those; one batched message passes", { skip: skipWin }, (t) => {
   const plan = SCENARIO_PLANS["preflight-blocked"];
   const [preflight, install] = plan.with.steps;
   const done = { text: "Nothing is scaffolded: installs are blocked. The fixes are in docs/issues/." };
   const cases = [...Object.entries(PREFLIGHT_DRIP).map(([name, drip]) => [name, [preflight, install, ...drip, done], ["AC-5-one-message", "AC-5-one-ping"]]), ["batched", plan.with.steps, []]];
   for (const [name, steps, want] of cases) {
-    const { run, resultsFile } = setup({ "preflight-blocked": { with: { steps }, without: plan.without } });
+    const { run, resultsFile } = cleanSetup(t, { "preflight-blocked": { with: { steps }, without: plan.without } });
     run("--scenario", "preflight-blocked");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, want, name);
+  }
+});
+
+// AC-5 of #100, its second half: the tier asked a second time fails tier-not-asked-again, and nothing else.
+// The good transcript, which asks nothing, passes every check.
+const TIER_AGAIN = {
+  "the strongest tier": "May I keep using the strongest tier for the next CTO job?",
+  "a model by name": "Which model should plan the next pass, Fable or Opus?",
+};
+test("AC-100-5: asked-once: a repeated strongest-tier question fails tier-not-asked-again, and only it; asking nothing passes", { skip: skipWin }, (t) => {
+  const plan = SCENARIO_PLANS["asked-once"];
+  const [write, done] = plan.with.steps;
+  const cases = [...Object.entries(TIER_AGAIN).map(([name, question]) => [name, [write, { text: `${done.text}\n${question}` }], ["AC-5-tier-not-asked-again"]]), ["asked nothing", plan.with.steps, []]];
+  for (const [name, steps, want] of cases) {
+    const { run, resultsFile } = cleanSetup(t, { "asked-once": { with: { steps }, without: plan.without } });
+    run("--scenario", "asked-once");
     const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
     assert.deepEqual(failed, want, name);
   }
