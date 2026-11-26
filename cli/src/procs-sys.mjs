@@ -1,13 +1,12 @@
 // The machine the process registry (procs.mjs) talks to, in one object so tests can pass a fake:
 //   info(pids)  pid -> { parent, group, start, cpu, mem (KB) } for the live ones, or null when it can't tell
-//   table()     every process as { pid, ppid, args }, or null
-//   signal, taskkill, spawn (detached, in its own group), sleep, stdin, git, now
+//   table()     every process as { pid, ppid, pgid, args }, or null
+//   signal, taskkill, spawn (detached, in its own group), killSpawned, sleep, stdin, git, now
 // Linux and macOS read ps; Windows reads Win32_Process through PowerShell. No dependencies.
 // The master copy is scripts/procs-sys.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { spawn, spawnSync } from "node:child_process";
-import { closeSync, mkdirSync, openSync } from "node:fs";
+import { closeSync, constants, openSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname } from "node:path";
 
 /** The real machine. */
 export function realSys() {
@@ -18,6 +17,7 @@ export function realSys() {
     return r.error || (r.status !== 0 && r.stderr?.trim()) ? null : r.stdout ?? "";
   };
   const pwsh = (script) => out("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script]);
+  const children = new Map();
   return {
     platform, env: process.env, home: homedir(), cwd: process.cwd(), parentPid: process.ppid, selfPid: process.pid,
     now: () => Date.now(),
@@ -26,23 +26,32 @@ export function realSys() {
     table: () => (platform === "win32" ? windowsTable(pwsh) : posixTable(out)),
     signal(pid, sig) { try { process.kill(pid, sig); return true; } catch { return false; } },
     taskkill: (pid, force) => out("taskkill", ["/PID", String(pid), "/T", ...(force ? ["/F"] : [])]) !== null,
-    spawn: (argv, opts) => spawnDetached(platform, argv, opts),
+    spawn(argv, opts) {
+      const child = spawnDetached(platform, argv, opts);
+      if (child?.pid) children.set(child.pid, child);
+      return child?.pid ?? null;
+    },
+    // Through the child's own handle: once it has exited, Node sends nothing, so a reused PID is never hit.
+    killSpawned: (pid) => children.get(pid)?.kill("SIGKILL") ?? false,
     sleep: (ms) => new Promise((done) => setTimeout(done, ms)),
     stdin: readStdin,
   };
 }
 
+// Append, create, and never through a symlink (Windows has no O_NOFOLLOW; the store checks the folder there).
+const LOG_FLAGS = constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND | (constants.O_NOFOLLOW ?? 0);
+
 // Its own process group (a session leader on Linux and macOS), output to the log, and it outlives this script.
+// The log's folder is made by procs-store.mjs, which refuses a symlink there.
 function spawnDetached(platform, argv, { cwd, log }) {
-  mkdirSync(dirname(log), { recursive: true });
-  const fd = openSync(log, "a");
+  const fd = openSync(log, LOG_FLAGS, 0o600);
   try {
     const opts = { cwd, detached: true, stdio: ["ignore", fd, fd], windowsHide: true };
     // A Windows .cmd shim (pnpm, npm) starts only through the shell, so it gets one quoted line.
     const child = platform === "win32" ? spawn(argv.map(winQuote).join(" "), { ...opts, shell: true }) : spawn(argv[0], argv.slice(1), opts);
     child.on("error", () => {}); // a missing program leaves child.pid unset, which the caller reports
     child.unref();
-    return child.pid ?? null;
+    return child;
   } finally { closeSync(fd); }
 }
 
@@ -75,9 +84,10 @@ function posixInfo(out, pids) {
 }
 
 function posixTable(out) {
-  const text = out("ps", ["-A", "-o", "pid=", "-o", "ppid=", "-o", "args="]);
+  const text = out("ps", ["-A", "-o", "pid=", "-o", "ppid=", "-o", "pgid=", "-o", "args="]);
   if (text === null) return null;
-  return text.split("\n").map((l) => /^\s*(\d+)\s+(\d+)\s*(.*)$/.exec(l)).filter(Boolean).map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), args: m[3] }));
+  return text.split("\n").map((l) => /^\s*(\d+)\s+(\d+)\s+(\d+)\s*(.*)$/.exec(l)).filter(Boolean)
+    .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), pgid: Number(m[3]), args: m[4] }));
 }
 
 // Single quotes only: the script goes through Windows' command-line quoting as one argument.
@@ -97,5 +107,5 @@ function windowsInfo(pwsh, pids) {
 function windowsTable(pwsh) {
   const text = pwsh("Get-CimInstance Win32_Process | ForEach-Object { '{0}|{1}|{2}' -f $_.ProcessId, $_.ParentProcessId, $(if ($_.CommandLine) { $_.CommandLine } else { $_.Name }) }");
   if (text === null) return null;
-  return text.split(/\r?\n/).map((l) => /^(\d+)\|(\d+)\|(.*)$/.exec(l.trim())).filter(Boolean).map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), args: m[3] }));
+  return text.split(/\r?\n/).map((l) => /^(\d+)\|(\d+)\|(.*)$/.exec(l.trim())).filter(Boolean).map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), pgid: null, args: m[3] }));
 }

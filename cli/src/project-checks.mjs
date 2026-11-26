@@ -8,7 +8,8 @@ import { OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
 import { projectManifestName, readProjectManifest } from "./sync.mjs";
 import { MARKS } from "./marks.mjs";
 import { personalValues } from "./research-library.mjs";
-import { realSys, staleSummary } from "./procs.mjs";
+import { staleSummary } from "./procs.mjs";
+import { realSys } from "./procs-sys.mjs";
 
 function sameTree(a, b) {
   const fa = walk(a), fb = walk(b);

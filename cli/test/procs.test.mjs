@@ -5,11 +5,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expire, isAgent, main } from "../src/procs.mjs";
+import { main } from "../src/procs.mjs";
+import { expire } from "../src/procs-hooks.mjs";
+import { isAgent } from "../src/procs-records.mjs";
 import { load, registryPath } from "../src/procs-store.mjs";
+import { refusal } from "../src/procs-stop.mjs";
 import { processChecks } from "../src/project-checks.mjs";
 import { logger, put, tmp } from "./helpers.mjs";
 
@@ -20,7 +23,8 @@ const SCRIPT = fileURLToPath(new URL("../../.agents/skills/ask/scripts/procs.mjs
 const repoFile = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 
 // A fake machine. procs: { pid: { args, parent, group, start, onTerm: "exit" | "stay" } }. Every signal is recorded.
-function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "" } = {}) {
+// hidden: what it spawns exits at once, so ps never sees it.
+function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "", hidden = false } = {}) {
   let clock = NOW, next = 7000;
   const live = new Map();
   const put1 = (pid, p) => live.set(pid, { parent: 1, group: pid, start: `start-${pid}`, args: "node x", cpu: "0.0% CPU", mem: 2048, onTerm: "exit", ...p });
@@ -33,7 +37,7 @@ function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CL
     now: () => clock, advance: (ms) => { clock += ms; },
     git: (dir, args) => git(dir, args),
     info: (pids) => new Map(pids.filter((p) => live.has(p)).map((p) => [p, live.get(p)])),
-    table: () => [...live].map(([pid, p]) => ({ pid, ppid: p.parent, args: p.args })),
+    table: () => [...live].map(([pid, p]) => ({ pid, ppid: p.parent, pgid: p.group, args: p.args })),
     signal(pid, sig) {
       calls.push(`kill ${pid} ${sig}`);
       const hit = pid < 0 ? [...live].filter(([, p]) => p.group === -pid).map(([p]) => p) : live.has(pid) ? [pid] : [];
@@ -44,9 +48,10 @@ function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CL
     spawn(argv) {
       const pid = next++;
       calls.push(`spawn ${argv.join(" ")}`);
-      put1(pid, { args: argv.join(" ") });
+      if (!hidden) put1(pid, { args: argv.join(" ") });
       return pid;
     },
+    killSpawned(pid) { calls.push(`killSpawned ${pid}`); live.delete(pid); return true; },
     sleep: async (ms) => { clock += ms; },
     stdin: async () => stdin,
   };
@@ -59,6 +64,8 @@ const run = async (sys, argv, extra = {}) => {
 };
 const startDev = (sys, more = []) => run(sys, ["start", "--why", "show the person #12", "--until", "the person leaves", ...more, "--", "pnpm", "dev"]);
 const records = (sys) => load(registryPath(sys, sys.cwd));
+// Every signal the fake machine was asked to send: kill and taskkill, not spawn.
+const signals = (sys) => sys.calls.filter((c) => /^(kill|taskkill) /.test(c));
 // A record made by another session: its agent process is `agent`, alive or not.
 function seed(sys, rec) {
   put(sys.home, ".onrails/procs.json", JSON.stringify({ version: 1, procs: [...records(sys), {
@@ -215,6 +222,184 @@ test("a recorded PID that now belongs to another process is never signalled", as
   assert.equal(sys.calls.length, 0);
   assert.ok(sys.live.has(4000));
   assert.deepEqual(records(sys), [], "the record is dropped instead");
+});
+
+// Fix round 1 on #154: the registry is a file, so nothing in it is trusted before a signal.
+test("a record with no start time is never alive and never signalled, by stop, the watcher or the session-end hook", async () => {
+  const sys = fakeSys({ procs: { 4000: {}, 4001: {} }, stdin: '{"session_id":"s-1"}' });
+  const me = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
+  seed(sys, { id: "pnull", pid: 4000, start: null, command: "pnpm dev", ...me });
+  seed(sys, { id: "pnone", pid: 4001, start: undefined, command: "vite", deadline: "2026-11-26T09:00:00Z" });
+  assert.equal((await run(sys, ["list"])).out, "Nothing registered is running.", "neither is alive");
+  await expire(sys, registryPath(sys, sys.cwd));
+  for (const argv of [["stop", "mine"], ["stop", "stale"], ["stop", "all", "--yes"], ["session-end"]]) await run(sys, argv);
+  assert.deepEqual(signals(sys), [], "whatever runs with those PIDs now is left alone");
+  assert.ok(sys.live.has(4000) && sys.live.has(4001));
+});
+
+test("start doesn't record a process whose start time can't be read: it stops it through its own handle and says so", async () => {
+  const sys = fakeSys({ hidden: true });
+  const r = await startDev(sys);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /pnpm exited at once, or its start time can't be read, so it isn't recorded and was stopped/);
+  assert.deepEqual(records(sys), []);
+  assert.ok(sys.calls.includes("killSpawned 7000"));
+  assert.deepEqual(signals(sys), [], "no signal by PID");
+});
+
+test("refusal: PID 1, 0, negatives, non-integers, ours, a missing or changed start time and a group it doesn't lead are all refused", () => {
+  const ctx = { guard: new Set([999, 900, AGENT]), platform: "linux" };
+  const p = { start: "s", group: 4000 };
+  const ok = { pid: 4000, start: "s", group: true };
+  assert.equal(refusal(ok, p, ctx), null, "a good record passes");
+  const refused = {
+    "PID 1": [{ ...ok, pid: 1 }, { start: "s", group: 1 }],
+    "PID 0": [{ ...ok, pid: 0 }, { start: "s", group: 0 }],
+    "a negative PID": [{ ...ok, pid: -1 }, p],
+    "a PID that isn't an integer": [{ ...ok, pid: "4000" }, p],
+    "this process": [{ ...ok, pid: 999 }, { start: "s", group: 999 }],
+    "its parent": [{ ...ok, pid: 900 }, { start: "s", group: 900 }],
+    "the agent": [{ ...ok, pid: AGENT }, { start: "s", group: AGENT }],
+    "the record's own agent": [{ ...ok, agent: { pid: 4000 } }, p],
+    "a null start": [{ ...ok, start: null }, p],
+    "no start": [{ pid: 4000, group: true }, p],
+    "an empty start": [{ ...ok, start: "" }, { ...p, start: "" }],
+    "a changed start": [ok, { ...p, start: "later" }],
+    "a dead process": [ok, undefined],
+    "a group it doesn't lead": [ok, { ...p, group: 3000 }],
+  };
+  for (const [name, [r, live]] of Object.entries(refused)) assert.ok(refusal(r, live, ctx), `${name} must be refused`);
+});
+
+test("a registry record {pid: 1, group: true, start: null} with a dead agent gets no signal from session-end, stop stale or ps", async () => {
+  const sys = fakeSys({ procs: { 1: { args: "init", group: 1 }, 4000: { group: 3000 } }, stdin: '{"session_id":"s-1"}' });
+  const procs = [
+    { id: "pone", pid: 1, start: null }, { id: "pzero", pid: 0, start: "start-0" }, { id: "pneg", pid: -1, start: "start-1" },
+    { id: "pinit", pid: 1, start: "start-1" }, { id: "pagent", pid: AGENT, start: `start-${AGENT}` },
+    { id: "pgrp", pid: 4000, start: "start-4000" },
+  ];
+  for (const rec of procs) seed(sys, { group: true, command: "x", ...rec });
+  const end = await run(sys, ["session-end"]);
+  const reaper = sys.calls.find((c) => / reap --registry /.test(c));
+  if (reaper) await run(sys, reaper.split(" ").slice(3));
+  await run(sys, ["stop", "stale"]);
+  await run(sys, ["ps", "--stop", "all", "--yes"]);
+  assert.deepEqual(signals(sys), [], end.out);
+  assert.ok(sys.live.has(1) && sys.live.has(AGENT) && sys.live.has(4000));
+});
+
+test("stop <pid> after a yes still never signals PID 1, this script, its parent or the agent", async () => {
+  const sys = fakeSys({ procs: { 1: { args: "init" }, 900: { args: "bash" } } });
+  for (const pid of [1, 900, AGENT]) {
+    const r = await run(sys, ["ps", "--stop", String(pid), "--yes"]);
+    assert.equal(r.code, 1);
+    assert.match(r.out, new RegExp(`Left PID ${pid} alone`));
+  }
+  assert.deepEqual(signals(sys), []);
+});
+
+test("AC-5: off the CLI, stop all or stop <id> of another live session is refused without --yes", async () => {
+  const fresh = () => {
+    const sys = fakeSys({ procs: { 601: { args: "claude" }, 4100: {} } });
+    seed(sys, { id: "pother", pid: 4100, start: "start-4100", command: "astro dev", session: "s-2", agent: { pid: 601, start: "start-601" } });
+    return sys;
+  };
+  for (const argv of [["stop", "all"], ["stop", "pother"], ["stop", "4100"]]) {
+    const sys = fresh();
+    const r = await run(sys, argv);
+    assert.equal(r.code, 1, argv.join(" "));
+    assert.match(r.out, /another live session started pother \(other\)\. Ask the person first\. After a yes: node \.agents\/skills\/ask\/scripts\/procs\.mjs stop \S+ --yes/);
+    assert.deepEqual(signals(sys), [], argv.join(" "));
+  }
+  const yes = fresh();
+  assert.equal((await run(yes, ["stop", "pother", "--yes"])).code, 0);
+  assert.ok(!yes.live.has(4100));
+  const no = fresh();
+  assert.equal((await run(no, ["ps", "--stop", "all"], { ask: async () => "n" })).code, 1, "the person at the CLI is asked");
+  assert.deepEqual(signals(no), []);
+  const asked = fresh();
+  assert.equal((await run(asked, ["ps", "--stop", "all"], { ask: async () => "y" })).code, 0);
+  assert.ok(!asked.live.has(4100));
+});
+
+test("a registry git tracks came with a branch: it is never read, signalled from or written", async () => {
+  const tracked = (dir, args) => (args.includes("--git-common-dir") ? ".git" : args[0] === "ls-files" ? "procs.json" : null);
+  const sys = fakeSys({ procs: { 4000: {} }, git: tracked });
+  put(sys.cwd, ".onrails/procs.json", JSON.stringify({ version: 1, procs: [{ id: "pbad", pid: 4000, start: "start-4000", group: true, command: "x",
+    session: "s-old", agent: { pid: 600, start: "start-600" }, startedAt: new Date(NOW).toISOString() }] }));
+  assert.equal((await run(sys, ["list"])).out, "Nothing registered is running.");
+  await run(sys, ["stop", "stale"]);
+  assert.equal((await run(sys, ["reap", "--registry", join(sys.cwd, ".onrails", "procs.json"), "pbad"])).code, 1);
+  assert.deepEqual(signals(sys), []);
+  const start = await startDev(sys);
+  assert.equal(start.code, 1);
+  assert.match(start.out, /Nothing started: the registry can't be used \(git tracks files/);
+  assert.ok(!sys.calls.some((c) => c.startsWith("spawn")));
+});
+
+test("symlinks: a linked registry folder, file or logs folder is refused, and a linked .gitignore is replaced, never followed", async (t) => {
+  if (process.platform === "win32") return t.skip("symlinks need admin rights on Windows");
+  const repo = (dir, args) => (args.includes("--git-common-dir") ? ".git" : null);
+  for (const plant of ["folder", "file", "logs"]) {
+    const sys = fakeSys({ git: repo });
+    const elsewhere = tmp("procs-elsewhere-");
+    if (plant === "folder") symlinkSync(elsewhere, join(sys.cwd, ".onrails"));
+    else {
+      mkdirSync(join(sys.cwd, ".onrails"));
+      if (plant === "file") writeFileSync(join(elsewhere, "procs.json"), '{"procs":[]}');
+      symlinkSync(plant === "file" ? join(elsewhere, "procs.json") : elsewhere, join(sys.cwd, ".onrails", plant === "file" ? "procs.json" : "logs"));
+    }
+    const r = await startDev(sys);
+    assert.equal(r.code, 1, plant);
+    assert.match(r.out, /is a symlink/, plant);
+  }
+  const sys = fakeSys({ git: repo });
+  const target = join(tmp("procs-target-"), "keep.txt");
+  writeFileSync(target, "keep\n");
+  mkdirSync(join(sys.cwd, ".onrails"));
+  symlinkSync(target, join(sys.cwd, ".onrails", ".gitignore"));
+  assert.equal((await startDev(sys)).code, 0);
+  assert.equal(readFileSync(target, "utf8"), "keep\n", "the link's target is untouched");
+  assert.equal(readFileSync(join(sys.cwd, ".onrails", ".gitignore"), "utf8"), "*\n");
+});
+
+test("a group whose leader exits on TERM still gets KILL while a member is left", async () => {
+  const sys = fakeSys({ procs: { 4000: {}, 4001: { parent: 4000, group: 4000, onTerm: "stay" } } });
+  seed(sys, { id: "pgroup", pid: 4000, start: "start-4000", command: "pnpm dev", session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } });
+  const r = await run(sys, ["stop", "pgroup"]);
+  assert.deepEqual(signals(sys), ["kill -4000 SIGTERM", "kill -4000 SIGKILL"], r.out);
+  assert.ok(!sys.live.has(4001), "the member that ignored TERM is gone");
+});
+
+test("list, ps and doctor write nothing; stop drops the records of processes that have exited", async () => {
+  const sys = fakeSys({ procs: { 4000: {} } });
+  seed(sys, { id: "pdead", pid: 4100, start: "start-4100", command: "vite" });
+  seed(sys, { id: "pold1", pid: 4000, start: "start-4000", command: "pnpm dev", session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } });
+  const path = registryPath(sys, sys.cwd);
+  const before = [readFileSync(path, "utf8"), statSync(path).mtimeMs];
+  await run(sys, ["list"]);
+  await run(sys, ["ps"]);
+  processChecks(sys.cwd, { sys });
+  assert.deepEqual([readFileSync(path, "utf8"), statSync(path).mtimeMs], before);
+  await run(sys, ["stop", "pold1"]);
+  assert.deepEqual(records(sys), [], "the exited one is dropped on stop");
+});
+
+test("the session-end hook stops the watcher too, the registry's only timer", async () => {
+  const sys = fakeSys({ stdin: '{"session_id":"s-1"}' });
+  await startDev(sys, ["--for", "15"]);
+  const watcher = records(sys).find((r) => r.kind === "watcher");
+  await run(sys, ["session-end"]);
+  const reaper = sys.calls.find((c) => / reap --registry /.test(c));
+  assert.ok(reaper.split(" ").includes(watcher.id));
+});
+
+test("AC-2 and AC-2b: ask's Pause and stop names the resume note, timer.mjs status and the list; qa starts its server through the registry", () => {
+  const ask = repoFile(".agents/skills/ask/SKILL.md").split("## Pause and stop")[1].split("\n## ")[0];
+  for (const words of ["resume note", "timer.mjs status", "P list --mine", "P stop mine", "P pause"]) assert.ok(ask.includes(words), words);
+  const qa = repoFile(".agents/skills/qa/SKILL.md");
+  assert.match(qa, /procs\.mjs start --why .* --until .* -- /);
+  assert.match(qa, /procs\.mjs stop <id>/);
 });
 
 test("a process that doesn't lead its own group: TERM goes to it and each of its children", async () => {

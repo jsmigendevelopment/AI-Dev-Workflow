@@ -22,7 +22,7 @@ const TEMPLATE = join("templates", "research-library");
 // Preflight ships inside the ask skill, so an agent can run it with plain node, and in the CLI (npx onrails preflight).
 const PREFLIGHT = join("scripts", "preflight.mjs");
 // The process registry ships the same way: the ask skill for agents and the hooks, the CLI for npx onrails ps.
-const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-store.mjs"];
+const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-store.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
 const COPIES = [
   ...["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
   [CHECKER, join(SRC, "research", "scripts", "check-research.mjs")],

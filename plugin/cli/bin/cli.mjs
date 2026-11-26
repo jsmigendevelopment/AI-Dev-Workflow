@@ -43,7 +43,7 @@ Usage:
                                           CPU, memory, and which are stale (owner gone, or past their time)
   npx onrails ps [dir] --stop <id|all|stale|pid> [--yes]
                                           stop them: TERM, then KILL after 5 s. Asks first for a PID
-                                          onRails didn't start
+                                          onRails didn't start, or another live session's
   npx onrails accounts [dir]              list the profile's accounts and their config folders
   npx onrails add <pack> [dir] [--force]  copy a stack pack into the project
   npx onrails add --list                  list the stack packs
