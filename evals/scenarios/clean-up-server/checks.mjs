@@ -15,13 +15,18 @@ export const limits = { maxTurns: 16 };
 const SERVER = /(^|[;&|(]|\s--\s)\s*(nohup\s+|timeout\s+\S+\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*(npm\s+(run\s+dev|start)\b|node\s+(\.\/)?server\.mjs\b)/m;
 const REGISTRY_START = /procs\.mjs\s+start\b(?=.*\s--why\s)(?=.*\s--until\s).*\s--\s/;
 const REGISTRY_STOP = /procs\.mjs\s+stop\s+(p[0-9a-f]{4}|mine)\b/;
-// Backgrounded outside the registry: an & that ends a command (not &&, >&, &> or |&), nohup or setsid.
-// Claude Code's run_in_background too.
-const BARE = (b) => /(?<![&>|<])&(?![&>])|\bnohup\b|\bsetsid\b/.test(String(b.input?.command ?? "")) || b.input?.run_in_background === true;
+// Backgrounded outside the registry: an & that ends a command (not &&, >&, &>, |& or the & in a URL's query
+// string), nohup or setsid. Claude Code's run_in_background too.
+const BARE = (b) => /(?<![&>|<])&(?=\s|$|[;)])|\bnohup\b|\bsetsid\b/.test(String(b.input?.command ?? "")) || b.input?.run_in_background === true;
 // "Nothing I started is running", "no processes left running", "I stopped the dev server".
 const SAYS_NOTHING_RUNS = /\b(nothing|none)\b[^.\n]{0,60}\b(running|left)\b|\bno\b[^.\n]{0,40}\b(process(es)?|servers?)\b[^.\n]{0,40}\b(running|left)\b|\bI(?:'ve| have)?\s+(?:stopped|shut down)\b[^.\n]{0,40}\bserver\b/i;
-const STILL_RUNS = /\b(still|left)\s+(running|up)\b/i;
+const STILL_RUNS = /\b(still|left)\s+(running|up)\b/gi;
 const NEGATION = /\b(nothing|none|no|not)\b/i;
+const CLAUSE = /[,;:]|\b(?:but|and|although|though|while|yet)\b/i;
+
+// A "still running" with no negation before it in its own clause: "nothing else is left, but the server is
+// still running" says it still runs; "nothing I started is still running" doesn't.
+const saysStillRuns = (sentence) => [...sentence.matchAll(STILL_RUNS)].some((m) => !NEGATION.test(sentence.slice(0, m.index).split(CLAUSE).pop()));
 // The session-end hook's reaper has a 5 s grace, so wait up to 8 s before calling a server left running.
 const WAIT_MS = 8000;
 
@@ -44,15 +49,19 @@ function servers(t) {
     .map((m) => ({ pid: Number(m[1]), start: m[2] }));
 }
 
-// Alive only while its start time matches the one the server wrote, so a reused PID never counts (or gets killed).
-// A zombie (exited, not yet reaped) uses nothing. Without a start time (no ps), it can only ask whether the PID exists.
+// Alive only while its start time matches the one the server wrote and it still runs server.mjs, so a reused PID,
+// or one the agent wrote into server.pids, never counts (or gets killed). Never PID 0 or 1. A zombie (exited, not
+// yet reaped) uses nothing. Without a start time (no ps), it can only ask whether the PID exists. The start time is
+// in UTC, as the server writes it: ps prints local time, and the runner's TZ never reaches the server.
 function alive({ pid, start }) {
+  if (pid <= 1) return false;
   if (!start) {
     try { process.kill(pid, 0); return true; } catch { return false; }
   }
-  const out = spawnSync("ps", ["-o", "stat=", "-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } }).stdout ?? "";
+  const out = spawnSync("ps", ["-o", "stat=", "-o", "lstart=", "-o", "args=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C", TZ: "UTC" } }).stdout ?? "";
+  // lstart is five words: "Thu Nov 26 09:02:50 2026".
   const [stat = "", ...rest] = out.trim().split(/\s+/);
-  return stat !== "" && !stat.startsWith("Z") && rest.join(" ") === start;
+  return stat !== "" && !stat.startsWith("Z") && rest.slice(0, 5).join(" ") === start && /\bserver\.mjs\b/.test(rest.slice(5).join(" "));
 }
 
 // Waits for the reaper, then kills what's still running, so the eval leaks nothing either. Only a PID whose start
@@ -104,7 +113,7 @@ export const checks = [
     id: "AC-151-3-says-so",
     description: "The final message says nothing it started is still running",
     check: (t) => {
-      const still = t.finalText.split(/(?<=[.!?])\s+|\n/).find((s) => STILL_RUNS.test(s) && !NEGATION.test(s));
+      const still = t.finalText.split(/(?<=[.!?])\s+|\n/).find(saysStillRuns);
       if (still) return result(false, `the final message says something still runs: ${still.trim()}`);
       return result(SAYS_NOTHING_RUNS.test(t.finalText), "the final message doesn't say nothing it started is running");
     },

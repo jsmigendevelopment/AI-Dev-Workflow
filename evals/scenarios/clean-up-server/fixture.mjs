@@ -1,7 +1,8 @@
 // A tiny Node app whose dev server prints a page. The task needs the server for a moment: start it,
 // read the page, report. Nothing else (#126 AC-6, #151). The server listens on PORT or a free port and
 // prints its link. Each start adds a line to server.pids next to the repo, out of the agent's sight: its
-// PID and its start time from ps, so the checks see what ran and never stop a reused PID.
+// PID and its start time from ps, so the checks see what ran and never stop a reused PID. ps prints local
+// time, and the runner's TZ never reaches the server, so both sides ask for it in UTC.
 import { repo } from "../../lib/fixture.mjs";
 
 const SERVER = `// The app's dev server. PORT, or a free port: it prints its link.
@@ -11,7 +12,7 @@ import { createServer } from "node:http";
 
 let start = "";
 try {
-  start = execFileSync("ps", ["-o", "lstart=", "-p", String(process.pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } }).trim().split(/\\s+/).join(" ");
+  start = execFileSync("ps", ["-o", "lstart=", "-p", String(process.pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C", TZ: "UTC" } }).trim().split(/\\s+/).join(" ");
 } catch {
   start = ""; // no ps (Windows): the PID alone
 }

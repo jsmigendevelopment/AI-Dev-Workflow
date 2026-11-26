@@ -9,10 +9,17 @@ import { fileURLToPath } from "node:url";
 const RUN = fileURLToPath(new URL("../run.mjs", import.meta.url));
 const FAKE = fileURLToPath(new URL("./fake-claude.mjs", import.meta.url));
 
-/** The scenario's result: its verdict and both arms. `plan` is { with, without }, as in plan.json. The temp folder is removed when the test `t` ends. */
-export function scenarioResult(t, scenario, plan) {
-  const root = mkdtempSync(join(tmpdir(), "evals-test-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+/** A new temp folder, removed when the test `t` ends. The one place the opt-in evals' tests make one (AC-142-2). */
+export function tempDir(t, prefix = "evals-test-") {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  return dir;
+}
+
+/** The scenario's result: its verdict and both arms. `plan` is { with, without }, as in plan.json. `env` adds to the
+ * runner's environment, such as a TZ. The temp folder is removed when the test `t` ends. */
+export function scenarioResult(t, scenario, plan, env = {}) {
+  const root = tempDir(t);
   const bin = join(root, "bin");
   mkdirSync(bin);
   copyFileSync(FAKE, join(bin, "claude"));
@@ -20,8 +27,8 @@ export function scenarioResult(t, scenario, plan) {
   writeFileSync(join(bin, "plan.json"), JSON.stringify({ [scenario]: plan }));
   const results = join(root, "results");
   // A fake key, so even a real claude found by mistake would fail to sign in rather than spend.
-  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, ANTHROPIC_API_KEY: "sk-ant-fake-for-tests" };
-  spawnSync(process.execPath, [RUN, "--results-dir", results, "--scenario", scenario], { encoding: "utf8", env, timeout: 120_000 });
+  const runEnv = { ...process.env, ...env, PATH: `${bin}${delimiter}${process.env.PATH}`, ANTHROPIC_API_KEY: "sk-ant-fake-for-tests" };
+  spawnSync(process.execPath, [RUN, "--results-dir", results, "--scenario", scenario], { encoding: "utf8", env: runEnv, timeout: 120_000 });
   const file = readdirSync(results).find((f) => f.endsWith(".json"));
   return JSON.parse(readFileSync(join(results, file), "utf8")).runs[0].scenarios[0];
 }
