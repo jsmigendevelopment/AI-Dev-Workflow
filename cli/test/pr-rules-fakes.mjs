@@ -27,14 +27,12 @@ export function checkout(attributes = "") {
   return dir;
 }
 
-// A fake git that logs its arguments, the token variables it got and its config variables, then runs the real one.
-const FAKE_GIT = `#!/usr/bin/env node
-const fs = require("fs");
-const { spawnSync } = require("child_process");
-const argv = process.argv.slice(2);
-const tokens = Object.keys(process.env).filter((name) => /TOKEN/i.test(name));
-fs.appendFileSync(process.env.FAKE_GIT_LOG, JSON.stringify({ argv, tokens, global: process.env.GIT_CONFIG_GLOBAL ?? null, nosystem: process.env.GIT_CONFIG_NOSYSTEM ?? null }) + "\\n");
-process.exit(spawnSync(process.env.REAL_GIT, argv, { stdio: "inherit" }).status ?? 1);
+// A fake git that logs its config variables, the names of the token variables it got and its arguments, then runs
+// the real one. A shell script, so it starts nothing but git.
+const FAKE_GIT = `#!/bin/sh
+tokens=$(env | sed -n 's/^\\([A-Za-z0-9_]*[Tt][Oo][Kk][Ee][Nn][A-Za-z0-9_]*\\)=.*/\\1/p' | tr '\\n' ' ')
+printf '%s\\t%s\\t%s\\t%s\\n' "\${GIT_CONFIG_GLOBAL-}" "\${GIT_CONFIG_NOSYSTEM-}" "$tokens" "$*" >> "$FAKE_GIT_LOG"
+exec "$REAL_GIT" "$@"
 `;
 
 const listed = (files) => files.map(([filename, additions, deletions, previous_filename]) => ({ filename, additions, deletions, ...(previous_filename ? { status: "renamed", previous_filename } : {}) }));
@@ -62,6 +60,9 @@ export function rules({ body = "Adds sharing.\n\nCloses #5", branch = "feat/5-sh
     chmodSync(join(fakes, "bin", "git"), 0o755);
   }
   const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-rules.mjs"), ...args], { cwd, encoding: "utf8", env: fake.env });
-  const gitCalls = () => (existsSync(gitLog) ? readFileSync(gitLog, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []);
+  const gitCalls = () => (existsSync(gitLog) ? readFileSync(gitLog, "utf8").split("\n").filter(Boolean) : []).map((line) => {
+    const [global, nosystem, tokens, args] = line.split("\t");
+    return { global, nosystem, tokens: tokens.trim().split(" ").filter(Boolean), argv: args.split(" ") };
+  });
   return { ...r, calls: fake.calls(), gitCalls, dir };
 }
