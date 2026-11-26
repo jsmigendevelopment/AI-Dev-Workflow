@@ -99,6 +99,63 @@ test("AC-206-4: the try line: one state file each prints alive, restart and stop
   assert.equal(state(`# State\n\n${SWEEP_LIVE}\nSupervisor: none\n`).timer(now, "supervise").out, "stopped");
 });
 
+// #221 round 1, must 3: only the script's own forms are its lines. The person's notes are left alone.
+const FOREIGN = "- Supervisor: ask the designer about the logo";
+const NOTES = `# State\n\n## Loop\n\n- Phase: x\n\n## Waiting on you\n\n${FOREIGN}\n`;
+
+test("#221 must 3: a foreign Supervisor: line doesn't steer where the sweep timer line goes, and stays as it was", () => {
+  const s = state(NOTES);
+  assert.equal(s.timer("2026-11-26T10:00:00Z", "armed", "send_later", "sweep-1000+trig_a", "10").code, 0);
+  assert.equal(s.text(), `# State\n\n## Loop\n\n${SWEEP_LIVE}\n\n- Phase: x\n\n## Waiting on you\n\n${FOREIGN}\n`);
+});
+
+test("#221 must 3: supervisor-armed and supervisor-cancelled leave a foreign Supervisor: line alone, and supervise doesn't read it", () => {
+  const s = state(NOTES);
+  assert.deepEqual(s.timer("2026-11-26T10:00:00Z", "supervise"), { code: 1, out: "stopped" });
+  s.timer("2026-11-26T10:00:00Z", "armed", "send_later", "sweep-1000+trig_a", "10");
+  assert.equal(s.timer("2026-11-26T10:00:00Z", "supervisor-armed", "scheduled-task", "sup-1+abc").code, 0);
+  assert.equal(s.text(), `# State\n\n## Loop\n\n${SWEEP_LIVE}\n${SUP_LIVE}\n\n- Phase: x\n\n## Waiting on you\n\n${FOREIGN}\n`);
+  s.timer("2026-11-26T10:05:00Z", "supervisor-cancelled");
+  assert.equal(s.text(), `# State\n\n## Loop\n\n${SWEEP_LIVE}\nSupervisor: none\n\n- Phase: x\n\n## Waiting on you\n\n${FOREIGN}\n`);
+});
+
+test("#221 must 3: the script's own forms are still read in bold and bulleted shapes, and a garbled own line is replaced", () => {
+  const bold = `# State\n\n${SWEEP_LIVE}\n- **Supervisor:** live · scheduled-task · sup-1+abc · every 60 min\n`;
+  assert.equal(state(bold).timer("2026-11-26T11:00:00Z", "supervise").out, "restart");
+  const garbled = state(`# State\n\n${SWEEP_LIVE}\nSupervisor: live\n`);
+  assert.equal(garbled.timer("2026-11-26T10:05:00Z", "supervise").out, "stopped");
+  garbled.timer("2026-11-26T10:05:00Z", "supervisor-armed", "scheduled-task", "sup-1+abc");
+  assert.equal(garbled.text(), `# State\n\n${SWEEP_LIVE}\n${SUP_LIVE}\n`);
+});
+
+test("#221 nice 1: supervisor-armed refuses with exit 1, says why and names the live id, when a live line already exists", () => {
+  const text = `# State\n\n${SWEEP_LIVE}\n${SUP_LIVE}\n`;
+  const s = state(text);
+  const r = s.timer("2026-11-26T10:00:00Z", "supervisor-armed", "scheduled-task", "sup-2+def");
+  assert.equal(r.code, 1);
+  assert.match(r.out, /sup-1\+abc/);
+  assert.match(r.out, /already live/);
+  assert.equal(s.text(), text, "nothing changed");
+});
+
+test("#221 nice 1: with a none line first and a live line second, supervise sees the live one and arming can't add a second", () => {
+  const text = `# State\n\n${SWEEP_LIVE}\nSupervisor: none\n\n## Notes\n\n${SUP_LIVE}\n`;
+  const s = state(text);
+  assert.deepEqual(s.timer("2026-11-26T10:05:00Z", "supervise"), { code: 1, out: "alive" });
+  assert.deepEqual(s.timer("2026-11-26T11:00:00Z", "supervise"), { code: 0, out: "restart" });
+  assert.equal(s.timer("2026-11-26T11:00:00Z", "supervisor-armed", "scheduled-task", "sup-2+def").code, 1);
+  assert.equal(s.text(), text);
+  // Cancelling leaves one own line.
+  s.timer("2026-11-26T11:00:00Z", "supervisor-cancelled");
+  assert.equal(s.text(), `# State\n\n${SWEEP_LIVE}\nSupervisor: none\n\n## Notes\n\n`);
+});
+
+test("#221 nice 1: duplicate none lines collapse to one live line when armed", () => {
+  const s = state(`# State\n\n${SWEEP_LIVE}\nSupervisor: none\n\n- x\nSupervisor: none\n`);
+  assert.equal(s.timer("2026-11-26T10:00:00Z", "supervisor-armed", "scheduled-task", "sup-1+abc").code, 0);
+  assert.equal(s.text(), `# State\n\n${SWEEP_LIVE}\n${SUP_LIVE}\n\n- x\n`);
+});
+
 /** The text of a skill, from `start` up to (not including) `end`. */
 const section = (file, start, end) => {
   const text = read(file);
@@ -109,7 +166,8 @@ const section = (file, start, end) => {
   return text.slice(a, b);
 };
 const sentences = (text) => text.split(/(?<=[.?!])\s+/);
-const MESSAGE = "*\"Supervisor <tag>: run `timer.mjs supervise`. On `restart`, run `/back`, then `coordinate`. Otherwise do nothing.\"*";
+// #221 round 1, must 1: the restart runs coordinate, never /back, which would mark the person present and close /afk.
+const MESSAGE = "*\"Supervisor <tag>: run `timer.mjs supervise`. On `restart`, run `coordinate`. Otherwise do nothing.\"*";
 
 test("AC-206-5: WHEN the test reads coordinate THEN Start step 1 arms the supervisor on Full, hourly, with its message, next to the sweep timer", () => {
   const step = section(".agents/skills/coordinate/SKILL.md", "1. **One sweep timer,**", "\n2. **Pick the mode.**");
@@ -167,6 +225,44 @@ test("AC-206-6: WHEN the test reads afk THEN a usage limit waits for a one-shot 
   const moving = sentences(afk).filter((s) => MOVES.test(s));
   assert.ok(moving.length >= 2, "afk still says where work never goes");
   for (const s of moving) assert.match(s, /\b(?:never|don't|do not|not)\b/i, s);
+});
+
+test("#221 must 1: the supervisor's restart never runs /back, and says why", () => {
+  const step = section(".agents/skills/coordinate/SKILL.md", "1. **One sweep timer,**", "\n2. **Pick the mode.**");
+  const sup = step.slice(step.indexOf("**The supervisor**"), step.indexOf("**To stop:**"));
+  assert.doesNotMatch(sup, /On `restart`, run `\/back`/);
+  assert.match(sup, /never runs `\/back`: that marks the person present, closes the `\/afk` section and drops its hard stop/);
+  assert.match(read("docs/decisions.md"), /On `restart`, run `coordinate`\. Otherwise do nothing\./);
+  assert.doesNotMatch(read("docs/decisions.md"), /On `restart`, run `\/back`/);
+  const changelog = read("CHANGELOG.md").split("\n").find((l) => l.includes("(#206)"));
+  assert.ok(changelog, "the CHANGELOG line for #206");
+  assert.doesNotMatch(changelog, /then it runs `\/back`/);
+});
+
+test("#221 must 2: on Recommended, coordinate loop step 1 cancels the supervisor when presence isn't away", () => {
+  const step = section(".agents/skills/coordinate/SKILL.md", "1. **Check presence and the automation level.**", "\n2. **Pick work.**");
+  const line = step.split("\n").find((l) => l.includes("**The supervisor below Full**"));
+  assert.ok(line, "loop step 1 has the supervisor line");
+  assert.match(line, /On Recommended[^?]*presence isn't `away`/);
+  assert.match(line, /`\/afk` section is closed/);
+  assert.match(line, /Cancel a live supervisor/);
+  assert.match(line, /`T supervisor-cancelled`/);
+  assert.match(line, /On Full it stays\./);
+});
+
+test("#221 nice 2: the coordinator's own account at a usage limit marks the sweep timer none, so the reset one-shot restarts the loop", () => {
+  const rules = section(".agents/skills/coordinate/SKILL.md", "## Rules", "\n## References");
+  const rule = rules.split("\n").find((l) => l.startsWith("- **An account at its usage limit:**"));
+  const own = sentences(rule).filter((s) => /own account/.test(s)).join(" ");
+  assert.match(own, /When this session's own account is at the limit/);
+  assert.match(own, /`T cancelled`/);
+  assert.match(own, /prints `restart` at the reset, not `alive`/);
+});
+
+test("#221 nice 4: coordinate says a repeat tied to the session, like /loop, can't be the supervisor", () => {
+  const step = section(".agents/skills/coordinate/SKILL.md", "1. **One sweep timer,**", "\n2. **Pick the mode.**");
+  const sup = step.slice(step.indexOf("**The supervisor**"), step.indexOf("**To stop:**"));
+  assert.match(sup, /Only a task that outlives this session counts\. A `\/loop`[^.]*dies with it, so it can't be the supervisor\./);
 });
 
 test("AC-206-5, AC-206-6: the synced copies carry the same supervisor lines", () => {
