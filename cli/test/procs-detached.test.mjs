@@ -105,6 +105,58 @@ test("AC-174-3: WHEN records with flag-like ids sit beside a record for the agen
   }
 });
 
+// #233, from the round 3 review of #236: a record the hook skips for its id is named and counted, never dropped in silence.
+test("#233: WHEN session-end skips records whose id the registry didn't make THEN one line names and counts them, apart from the ones it stops", async () => {
+  const sys = machine(false);
+  for (const id of ["--guard", "99999@x"]) seed(sys, { ...vite, id });
+  seed(sys, { ...vite, id: "pcafe" });
+  const { out } = await run(sys, ["session-end"]);
+  assert.match(out, /^Stopping 1 background process\(es\)/m);
+  const skipped = 'Not stopping 2 background process(es) whose record id the registry didn\'t make ("--guard", "99999@x"), '
+    + "so the id never reaches the reaper's options. They stay recorded, and the next session lists them as stale.";
+  assert.ok(out.split("\n").includes(skipped), out);
+  assert.deepEqual(ids(sys), ["--guard", "99999@x", "pcafe"], "nothing is dropped before the reaper runs");
+});
+
+// Round 1 of #244: what session-end prints for one skipped id, from the "Not stopping" line.
+async function skippedAs(id) {
+  const sys = machine(false);
+  seed(sys, { ...vite, id });
+  const line = (await run(sys, ["session-end"])).out.split("\n").find((l) => l.startsWith("Not stopping 1 "));
+  return /make \((.*)\), so the id never/s.exec(line ?? "")?.[1];
+}
+
+test("#233: WHEN a skipped id holds an ANSI escape THEN session-end prints it escaped, with no raw ESC", async () => {
+  assert.equal(await skippedAs("\u001b[31mx"), '"\\u001b[31mx"');
+});
+
+test("#233: WHEN a skipped id holds a C1 control, DEL, a bidi control, a format character or a line separator THEN session-end prints each escaped", async () => {
+  assert.equal(await skippedAs("\u009b31m\u007f\u202eevil\u2066\u2028"), '"\\u009b31m\\u007f\\u202eevil\\u2066\\u2028"');
+  // Round 2 of #244: the bidi marks, the last Bidi_Control characters that printed raw.
+  assert.equal(await skippedAs("x\u200ey\u200fz\u061c"), '"x\\u200ey\\u200fz\\u061c"');
+  // Invisible format characters: a zero-width space, the BOM, the soft hyphen and a tag character (one escape per half).
+  assert.equal(await skippedAs("a\u200bb\ufeffc\u00add\u{e0041}"), '"a\\u200bb\\ufeffc\\u00add\\udb40\\udc41"');
+});
+
+test("#233: WHEN a skipped id is long THEN session-end prints at most 40 characters, never half an escape or a surrogate pair", async () => {
+  assert.equal(await skippedAs("a".repeat(200)), `"${"a".repeat(38)}\u2026`);
+  assert.equal(await skippedAs(`${"b".repeat(34)}\u009bcc`), `"${"b".repeat(34)}\u2026`, "the escape would pass 40: it goes whole");
+  assert.equal(await skippedAs(`${"d".repeat(37)}\u{1f600}`), `"${"d".repeat(37)}\u2026`, "the pair would pass 40: it goes whole");
+  assert.equal(await skippedAs("e".repeat(38)), `"${"e".repeat(38)}"`, "40 characters with the quotes: kept whole");
+  // Round 2 of #244: JSON.stringify's own escape for ESC goes whole too, and a pair well inside 40 prints raw.
+  assert.equal(await skippedAs(`${"a".repeat(36)}\u001b`), `"${"a".repeat(36)}…`, "JSON's escape would pass 40: it goes whole");
+  assert.equal(await skippedAs("f\u{1f600}g"), '"f\u{1f600}g"', "a pair is one character, not two escapes");
+});
+
+test("#233: WHEN session-end skips 12 records THEN it counts all 12 and names the first 5, then and 7 more", async () => {
+  const sys = machine(false);
+  for (let n = 1; n <= 12; n++) seed(sys, { ...vite, id: `x${n}` });
+  const { out } = await run(sys, ["session-end"]);
+  const line = 'Not stopping 12 background process(es) whose record id the registry didn\'t make ("x1", "x2", "x3", "x4", "x5" and 7 more), '
+    + "so the id never reaches the reaper's options. They stay recorded, and the next session lists them as stale.";
+  assert.ok(out.split("\n").includes(line), out);
+});
+
 test("AC-174-3: WHEN the reaper is given ids after -- THEN each is only an id, and a flag-like one changes no option", async () => {
   for (const group of [false, true]) {
     const fresh = detached(machine(group));
@@ -161,6 +213,13 @@ test("AC-174-3: every id newId makes passes isId", () => {
     const id = newId(sys, path);
     assert.ok(isId(id), id);
   }
+});
+
+// #233, from the re-review of #236: random ids almost never hit the ends of the range, so a drift there (say, isId
+// refusing p0000) would almost never fail above. The lowest and highest ids newId can make, and ids just past them.
+test("#233: isId takes the lowest and highest ids newId can make, and refuses ids just past them", () => {
+  for (const id of ["p0000", "pffff"]) assert.ok(isId(id), id);
+  for (const id of ["p000", "pfffff", "pg000", "P0000", "pFFFF", "p0000\n"]) assert.equal(isId(id), false, JSON.stringify(id));
 });
 
 // Nice to have 1 of round 2: a --guard that can't be read tells nothing, so a record of an ended session is blind.
