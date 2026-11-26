@@ -1,6 +1,6 @@
 ---
 name: back
-description: Use when the person starts or returns to work in a repo that uses this workflow ("I'm back", "back", "good morning", "start of day", "new session", "pick up where we left off", "what's going on", "what happened overnight") - in a fresh thread or an old one. Rebuilds the picture from the repo and GitHub, reports what changed since /afk sized to the time away, checks who else is working, resumes a paused kickoff, runs a short retro after a long run, and asks how to triage.
+description: Use when the person starts or returns to work in a repo that uses this workflow ("I'm back", "back", "good morning", "start of day", "new session", "pick up where we left off", "what's going on", "what happened overnight") - in a fresh thread or an old one. Rebuilds the picture from the repo and GitHub, reports what changed since /afk sized to the time away, checks who else is working, resumes a paused kickoff, runs a short retro after a long run, and asks how to triage, or on Full picks it and starts the loop again.
 ---
 
 <!-- Made by scripts/sync-skills.mjs from .agents/skills/back/SKILL.md and scripts/plugin-handoff.md. Edit those, then run it. -->
