@@ -81,3 +81,53 @@ test("#173 round 2 nice 1: AGENTS.md and handoffs.md say the same thing on Full"
 test("#173 round 1 nice 4: pyramid's gh auth login line parks the sign-in on Full and goes on", () => {
   assert.ok(read(".agents/skills/pyramid/SKILL.md").includes("If `gh auth status` fails, ask them to run `gh auth login` and wait. On Full, park it in the FYI and keep doing what doesn't need GitHub."));
 });
+
+// #199: the phrasings the round 2 review of #193 found, the two edge cases main misses too, and a host that isn't GitHub.
+const LOCAL_MODE = ".agents/skills/coordinate/references/local-mode.md";
+const NAMED_199 = [".agents/skills/stack-tanstack-start/SKILL.md", ".agents/skills/test-by-hand-as-the-user/references/browsers.md"];
+
+test("AC-199-1: WHEN the scan reads each phrasing in #199 item 2 without a below-Full condition THEN it flags it, and the named files stay green", () => {
+  const phrasings = ["Install only after the person says yes.", "Creating resources goes through `setup-cloudflare`: dry run, scoped tokens, ask first.",
+    "A test needs it? Warn the person first.", "Stuck on one? Ask them to close it in Chrome.", "Stop, say what you tried, and ask how to go on."];
+  for (const s of phrasings) {
+    const asks = unconditionalAsks(s);
+    assert.equal(asks.length, 1, s);
+    assert.ok(s.endsWith(asks[0]), s);
+  }
+  for (const s of ["Below Full, install only after the person says yes.", "Below Full, ask first.", "Below Full, warn the person first.",
+    "Below Full, ask them to close it in Chrome.", "Below Full, ask how to go on."]) assert.deepEqual(unconditionalAsks(s), [], s);
+  assert.deepEqual(scan(NAMED_199).found, []);
+  const tanstack = read(NAMED_199[0]);
+  assert.match(tanstack, /Below Full, install only after the person says yes\./);
+  assert.match(tanstack, /Creating resources still goes through `setup-cloudflare`: dry run and scoped tokens, and below Full, ask first\. Anything in production waits for a yes at every level: it is on the always-stop list\./);
+  const browsers = read(NAMED_199[1]);
+  assert.match(browsers, /A test needs it\? Below Full, warn the person first\. On Full, don't click it: list it as not tested and put it in the FYI\./);
+  assert.match(browsers, /Stuck on one\? Below Full, ask them to close it in Chrome\. On Full, leave that tab, list what's left in it as not tested and put it in the FYI\./);
+  assert.match(browsers, /Stop and say what you tried\. Below Full, ask how to go on\. On Full, mark that row not tested, put what you tried in the FYI and go on with the rest\./);
+});
+
+test("AC-199-2: WHEN a sentence has \"(on Full, too)\" or a bold Below Full label over an \"at Full\" clause THEN the scan flags it", () => {
+  for (const s of ["Below Full, the person merges it (on Full, too).", "Below Full, the person approves every merge (on Full, as well).",
+    "Below Full, the person merges it (also on Full, too).", "Below Full, the person merges it (and on Full, too, the same).",
+    "- **Below Full:** nothing changes; at Full the person merges it.", "- **Below Full:** nothing changes; in Full automation the person merges it.",
+    "- **Below Full:** nothing changes; at full speed, the person merges it."]) assert.deepEqual(unconditionalAsks(s), [s], s);
+  // The label still covers a clause that names no Full of its own.
+  assert.deepEqual(unconditionalAsks("- **Below Full:** it is `needs-human`, and only the person adds `human-approved`."), []);
+});
+
+test("#199 scope addition: a parenthesis after the ask, with the condition after it in the same clause, passes", () => {
+  assert.deepEqual(unconditionalAsks("Ask the person to review it (only for risky changes, and big ones) below Full."), []);
+  assert.deepEqual(unconditionalAsks("Ask the person to review it (only for risky changes, and big ones)."), ["Ask the person to review it (only for risky changes, and big ones)."]);
+});
+
+// #199 item 1 is tested by its text only: nothing here runs `glab`, `tea` or `bb`.
+test("#199 item 1: on a host that isn't GitHub, the loop merges through that host's own CLI when it is signed in, and otherwise queues", () => {
+  const text = read(LOCAL_MODE);
+  assert.match(text, /\| \*\*Push, no API: another host\*\* \| a remote that isn't GitHub \| files in `docs\/issues\/` \| through that host's own CLI when the session is signed in to it \(step 8\); otherwise queued for the person to merge on that host\. The loop keeps building \|/);
+  const step8 = text.match(/^8\. \*\*Another host:\*\*[\s\S]*?(?=\n\n)/m)?.[0] ?? "";
+  assert.match(step8, /`glab` \(GitLab\) or `tea` \(Gitea\)/);
+  assert.match(step8, /\*\*Signed in to that tool\*\* \(its own sign-in check passes, such as `glab auth status`\)\? Merge through it the way the loop merges on GitHub, under the same gates \(`coordinate` step 6\.5\)/);
+  assert.match(step8, /merge only when it equals the reviewed sha\. Never merge by branch name, and never push main\./);
+  assert.match(step8, /\*\*Not signed in, or no such tool\?\*\* Keep the queue\. Below Full, send the new queue lines to the person each sweep as one ⏳ decision through `ask`[^.]*\. On Full, put them in the next batched ℹ️ FYI and keep building\./);
+  assert.deepEqual(scan([LOCAL_MODE]).found, []);
+});

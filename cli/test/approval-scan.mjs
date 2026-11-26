@@ -31,6 +31,13 @@ const ASKS_APPROVAL = new RegExp([
   `\\b(?:tell|ask|ping) ${WHO}\\b[^.]*\\b(?:and|then) wait\\b`, `\\bask ${WHO} before\\b`, `\\bcheck with ${WHO}\\b`,
   "\\bawait (?:the person.s |the owner.s |their |your |a |an )?(?:yes\\b|approv|go-ahead|ok\\b|okay\\b|sign[- ]?off)",
   "\\bwait (?:for|on) (?:the person|the owner)\\b","\\bonly after (?:a|their|your|the person.s|the owner.s) (?:yes|ok|okay|go-ahead|approval)\\b",
+  // #199 item 2: "only after the person says yes", a bare "ask first." ending its sentence, "warn the person first",
+  // "ask them to close it" (a dialog the person clears for you) and "ask how to go on". Appended last, so the match an
+  // older shape makes from the same word is unchanged. "It doesn't ask first." says no ask happens.
+  "\\b(?:after|once) (?:they|the person|the owner|you) says? (?:yes|go|ok)\\b",
+  "(?<!\\b(?:doesn.t|does not|don.t|do not|never) )\\bask first(?: \\([^)]*\\))?[.!][*_]*$",
+  `\\bwarn ${WHO} (?:first|before)\\b`, `\\bask ${WHO} to (?:close|click|dismiss|press|accept)\\b`,
+  `\\bask (?:${WHO} )?how to (?:go on|proceed|continue)\\b`,
 ].join("|"), "i");
 // #173: "(on Full" alone isn't a condition: "(on Full too)" keeps the person. A parenthetical counts only when it names
 // who stands in for the person on Full, or says nothing waits.
@@ -38,9 +45,13 @@ const ON_FULL_STAND_IN = /\(on Full[,:] [^)]*(?:\bnothing waits\b|\bno person\b|
 const BELOW_FULL = new RegExp(`\\bnever ask\\b|\\bbelow Full\\b|\\bnot on Full\\b|\\bnone on Full\\b|\\bno(?:t)? (?:\`human-approved\` )?label on Full|On Full,? (?:the \`human-approved\` label doesn't|the label doesn't|there's no label|no person)|${ON_FULL_STAND_IN.source}`, "i");
 /** A bullet's bold label, "**Below Full:**", scopes each clause of its sentence that names no Full of its own. */
 const LABEL = /^(?:[-*] |\d+\. )?\*\*(?:below Full|not on Full)[:.]?\*\*/i;
-const NAMES_FULL = /\bon Full\b/i;
-/** #173 round 1 nice 1: "(on Full too)" or "(on Full as well)" keeps the person on Full, whatever else the clause says. */
-const AGAINST = /\((?:also |even )?on Full(?: too| as well)?\)|\([^)]*\bon Full (?:too|as well)\b[^)]*\)/i;
+/** #199 item 3: "at Full", "in Full automation" or any capital Full names its own level, as "on Full" does. */
+const namesFull = (c) => /\bFull\b/.test(c) || /\b(?:on|at) Full\b/i.test(c);
+/**
+ * #173 round 1 nice 1: "(on Full too)" or "(on Full as well)" keeps the person on Full, whatever else the clause says.
+ * #199 item 3: with a comma ("(on Full, too)") or "at Full" too.
+ */
+const AGAINST = /\((?:also |even )?(?:on|at) Full(?:,? too|,? as well)?\)|\([^)]*\b(?:on|at) Full,? (?:too|as well)\b[^)]*\)/i;
 /**
  * A sentence's clauses, as [start, end] spans: a new one starts at ", or", ", and", ", but" or a semicolon, outside
  * parentheses. A parenthesis belongs to its clause, so a condition inside it counts there.
@@ -83,7 +94,7 @@ const governed = (s) => {
   }
   const label = LABEL.test(s);
   const asking = spans.map(([a, b]) => s.slice(a, b)).filter((c) => ASKS_APPROVAL.test(c));
-  return asking.every((c) => !AGAINST.test(c) && (BELOW_FULL.test(c) || (label && !NAMES_FULL.test(c))));
+  return asking.every((c) => !AGAINST.test(c) && (BELOW_FULL.test(c) || (label && !namesFull(c))));
 };
 /** The sentences of a line that ask for an approval with no below-Full condition governing the ask. */
 export const unconditionalAsks = (line) => line.split(/(?<=[.!?]["'’)\]*_`]*)\s+/).map((s) => s.trim()).filter((s) => ASKS_APPROVAL.test(s) && !governed(s));
@@ -114,6 +125,11 @@ export const ALLOWED = [
   ["stacks/tanstack-start/README.md", "`pnpm deploy:production`, only after the person's yes |", "deploying to production: always-stop"],
   ["stacks/tanstack-start/README.md", "`pnpm deploy:production --confirm \"deploy production\"`, only after the person's yes.", "deploying to production: always-stop"],
   ["stacks/electron-desktop/PACK.md", "Signing costs money, so **stop and ask the person before setting any of it up.**", "code signing needs a paid certificate: paying"],
+  // #199: what the new phrasings found that is an owner exception.
+  [".agents/skills/stack-tanstack-start/SKILL.md", "Anything in production waits for a yes at every level: it is on the always-stop list.", "production: always-stop"],
+  [".agents/skills/test-by-hand-as-the-user/SKILL.md", "**In the person's own browser or accounts, ask first.**", "the person's own logins; parked on Full"],
+  ["stacks/python-fastapi/PACK.md", "Paying for Workers Paid or a container host is spending money: **ask first.**", "paying"],
+  ["stacks/unity/PACK.md", "Store accounts cost money: **ask first.**", "store accounts cost money: paying"],
 ];
 /** Every unconditional ask in these files that no ALLOWED entry names, and the entries that were used. */
 export const scan = (files) => {
