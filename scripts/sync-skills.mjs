@@ -26,7 +26,7 @@ const TEMPLATE = join("templates", "research-library");
 // the same folders, so a new home for preflight needs those two as well.
 const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs", "preflight-layout.mjs", "preflight-ci.mjs"];
 // The process registry ships the same way: the ask skill for agents and the hooks, the CLI for npx onrails ps.
-const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-store.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
+const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-store.mjs", "procs-path.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
 const COPIES = [
   ...["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
   [CHECKER, join(SRC, "research", "scripts", "check-research.mjs")],

@@ -80,7 +80,9 @@ test("AC-156-4: WHEN git ls-files fails, or the registry isn't owned by the user
   for (const [name, make] of Object.entries(cases)) {
     const [sys, path, mode] = make();
     const { listed, codes } = await tryAll(sys, path, mode);
-    assert.equal(listed, mode ? skippedFor(path, "600") : "Nothing registered is running.", name);
+    // Another user's home folder is named too, since #231's round 1: its registry is never read, and never hidden.
+    const foreign = `Not read: the home folder ${sys.home} belongs to another user: the home registry and the index stay off, while a repo in folders only you can write still tracks its processes. Until then its processes aren't listed or stopped.\nNothing else registered is running.`;
+    assert.equal(listed, mode ? skippedFor(path, "600") : name === "another user owns it" ? foreign : "Nothing registered is running.", name);
     assert.deepEqual(codes, [1, 1], `${name}: the reaper and the watcher refuse it`);
     assert.deepEqual(signals(sys), [], name);
     assert.ok(sys.live.has(4000), name);
