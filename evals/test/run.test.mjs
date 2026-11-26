@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,7 +36,14 @@ function setup(plan) {
     return JSON.parse(readFileSync(join(results, file), "utf8"));
   };
   const calls = () => readFileSync(join(bin, "calls.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
-  return { run, results, resultsFile, calls };
+  return { root, run, results, resultsFile, calls };
+}
+
+// setup, with its temp folder removed when the test ends. The #100 tests use it.
+function cleanSetup(t, plan) {
+  const s = setup(plan);
+  t.after(() => rmSync(s.root, { recursive: true, force: true }));
+  return s;
 }
 
 const GOOD = { steps: [{ text: "1. Who is it for?\nRecommended: flatmates." }], cost: 0.02 };
@@ -45,12 +52,13 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 36 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 40 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
   assert.match(r.stdout, /idea-grill \[with\]/);
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
+  assert.match(r.stdout, /preflight-blocked: its own limits, 24 turns, 240 s, \$0\.5 budget/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
 });
 
@@ -212,7 +220,29 @@ const RECEIPT = "Got it · landing-page thread · My reading: make the hero loud
 const ONE_PROMPT_REVIEW = "# Review\n\n### Door: money and time\nPick: integer cents with the currency. AI pick, not reviewed\nQuestion: Integer cents, or which one?\n\n### Door: data model\nPick: the household owns the list. AI pick, not reviewed\n";
 const FIRST_ISSUE = "# #1 The skeleton\n\nStatus: ready\n\n## Acceptance checks\n\n- AC-1-1 (auto): WHEN the app starts THEN the starter page loads.\n";
 
+// #100: one batched setup message for a sandbox that can't install, and nothing scaffolded.
+const SANDBOX_ISSUE = `# #2 The sandbox can't install: two fixes
+
+Labels: needs-human, blocker
+
+Setup step for you · Unblock the agent's sandbox · about 5 minutes
+
+1. Package registry: allow network access to the registry, or point .npmrc at one that answers.
+2. Node: install Node 99 or newer, then start the agent again in this folder.
+
+Tried: a project-local cache with --prefer-offline (empty), npm install as one plain command (refused), the setup docs (no other registry named).
+When it worked: preflight shows every row green.
+`;
+
 const SCENARIO_PLANS = {
+  "preflight-blocked": {
+    with: { steps: [{ tool: "Bash", input: { command: "node .agents/skills/ask/scripts/preflight.mjs --if-changed --record" }, ok: true }, { tool: "Bash", input: { command: "npm install --prefer-offline --cache .npm-cache" } }, { write: "docs/issues/002-sandbox-cannot-install.md", content: SANDBOX_ISSUE }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level blocker --issue 2 --title \"The sandbox can't install: two fixes\"" }, ok: true }, { text: "Nothing is scaffolded: installs are blocked. Both fixes are in docs/issues/002-sandbox-cannot-install.md, in one message." }] },
+    without: { steps: [{ tool: "Bash", input: { command: "npm install" } }, { write: "src/server.mjs", content: "import express from \"express\";\n\nexpress().get(\"/\", (_q, r) => r.send(\"Tidy\")).listen(3000);\n" }, { text: "I scaffolded the server. npm install failed here, so run it from your own terminal. You'll also need a newer Node." }] },
+  },
+  "asked-once": {
+    with: { steps: [{ write: "docs/stack.md", content: "# Stack\n\n## Risk dial\n\n- [x] **Move fast**\n\n## Automation level\n\n- **Level:** recommended\n- **Loop:** on\n" }, { text: "Done. docs/stack.md has the Automation level section (Recommended, from decision 1), and docs/decisions.md has its row." }] },
+    without: { steps: [{ tool: "AskUserQuestion", input: { questions: [{ question: "Which automation level do you want?", options: [{ label: "Recommended" }, { label: "Full automation" }] }] } }, { text: "Two questions first. May I use the strongest model for this, Fable or Opus? If so, please start a new session on it. And which automation level do you want: Recommended or Hands-on?" }] },
+  },
   "idea-grill": {
     with: { steps: [{ write: "kickoff/grill-log.md", content: "# Grill\n" }, { text: "1. Who uses it?\nRecommended: the four of you.\n2. How do you split today?\nRecommended: an app.\n3. Phones or laptops?\nRecommended: phones." }] },
     without: { steps: [{ write: "package.json", content: "{}" }, { write: "src/app.js", content: "x" }, { text: "Done, the app is built." }] },
@@ -279,7 +309,7 @@ const SCENARIO_PLANS = {
     without: { steps: [{ bash: "node scripts/runs.mjs stop build-14" }, { text: "That run has spent 1.2M tokens. Are you sure you want me to stop it?" }] },
   },
   "strongest-tier": {
-    with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it, or will you start a new session on it?" }] },
+    with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it? If this session can't switch, I'll plan on the model it has and record that." }] },
     without: { steps: [{ tool: "Agent", input: { model: "opus", prompt: "Plan it" } }, { write: "docs/pyramid.md", content: "# Plan\n" }, { text: "Planned." }] },
   },
 };
@@ -356,5 +386,54 @@ test("AC-5: one-prompt: an ask tool fails no-ask-tool; a soft line after buildin
     run("--scenario", "one-prompt");
     const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
     assert.deepEqual(failed, want);
+  }
+});
+
+// AC-5 of #100: the fixes sent one at a time, as two messages with two pings, fail one-message and
+// one-ping, and nothing else. The batched transcript (one message, one ping) passes every check.
+const setupStep = (title, fix) => `Setup step for you · ${title} · about 5 minutes\n\n1. ${fix}\n\nTried: a project-local cache with --prefer-offline (empty), npm install as one plain command (refused).\nWhen it worked: preflight shows every row green.\n`;
+const REGISTRY_STEP = setupStep("Open the package registry", "Package registry: allow network access to the registry, or point .npmrc at one that answers.");
+const NODE_STEP = setupStep("Install a newer Node", "Node: install Node 99 or newer, then start the agent again in this folder.");
+const blockerIssue = (n, title, body) => `# #${n} ${title}\n\nLabels: needs-human, blocker\n\n${body}`;
+const blockerPing = (n, title) => ({ tool: "Bash", input: { command: `node .claude/hooks/notify.mjs --level blocker --issue ${n} --title "${title}"` }, ok: true });
+const REGISTRY_ISSUE = blockerIssue(2, "Open the package registry", REGISTRY_STEP);
+const PREFLIGHT_DRIP = {
+  "an issue per fix": [
+    { write: "docs/issues/002-open-the-registry.md", content: REGISTRY_ISSUE }, blockerPing(2, "Open the package registry"),
+    { write: "docs/issues/003-install-a-newer-node.md", content: blockerIssue(3, "Install a newer Node", NODE_STEP) }, blockerPing(3, "Install a newer Node"),
+  ],
+  "a second message on the same issue": [
+    { write: "docs/issues/002-open-the-registry.md", content: REGISTRY_ISSUE }, blockerPing(2, "Open the package registry"),
+    { write: "docs/issues/002-open-the-registry.md", content: `${REGISTRY_ISSUE}\n## Comments\n\n${NODE_STEP}` }, blockerPing(2, "One more: install a newer Node"),
+  ],
+};
+test("AC-100-5: preflight-blocked: fixes sent one at a time fail one-message and one-ping, and only those; one batched message passes", { skip: skipWin }, (t) => {
+  const plan = SCENARIO_PLANS["preflight-blocked"];
+  const [preflight, install] = plan.with.steps;
+  const done = { text: "Nothing is scaffolded: installs are blocked. The fixes are in docs/issues/." };
+  const cases = [...Object.entries(PREFLIGHT_DRIP).map(([name, drip]) => [name, [preflight, install, ...drip, done], ["AC-5-one-message", "AC-5-one-ping"]]), ["batched", plan.with.steps, []]];
+  for (const [name, steps, want] of cases) {
+    const { run, resultsFile } = cleanSetup(t, { "preflight-blocked": { with: { steps }, without: plan.without } });
+    run("--scenario", "preflight-blocked");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, want, name);
+  }
+});
+
+// AC-5 of #100, its second half: the tier asked a second time fails tier-not-asked-again, and nothing else.
+// The good transcript, which asks nothing, passes every check.
+const TIER_AGAIN = {
+  "the strongest tier": "May I keep using the strongest tier for the next CTO job?",
+  "a model by name": "Which model should plan the next pass, Fable or Opus?",
+};
+test("AC-100-5: asked-once: a repeated strongest-tier question fails tier-not-asked-again, and only it; asking nothing passes", { skip: skipWin }, (t) => {
+  const plan = SCENARIO_PLANS["asked-once"];
+  const [write, done] = plan.with.steps;
+  const cases = [...Object.entries(TIER_AGAIN).map(([name, question]) => [name, [write, { text: `${done.text}\n${question}` }], ["AC-5-tier-not-asked-again"]]), ["asked nothing", plan.with.steps, []]];
+  for (const [name, steps, want] of cases) {
+    const { run, resultsFile } = cleanSetup(t, { "asked-once": { with: { steps }, without: plan.without } });
+    run("--scenario", "asked-once");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, want, name);
   }
 });

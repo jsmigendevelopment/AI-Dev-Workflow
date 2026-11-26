@@ -36,6 +36,8 @@ A blocker parks one item. It never stops the loop. Before you park anything on t
 
 Only what's left goes to the person. Note each route you tried and why it didn't clear the block. The message lists them.
 
+**Sandbox blockers** (a blocked install, a read-only `.git`, a closed port, a missing browser): find them all at once with preflight, at the start, and send ONE message for whatever its ladder doesn't clear. `references/preflight.md` has the steps.
+
 **Done when** every route is tried, or you can say why it doesn't apply.
 
 ## A running job
@@ -152,3 +154,4 @@ Work passed to another session or account is a handoff. It is written down with 
 | File | Load when |
 |---|---|
 | `references/handoffs.md` | You send work to another session, thread or account, or you receive a brief from one. |
+| `references/preflight.md` | A session starts `/idea`, `/join`, `/back` or `build`, or a sandbox blocker shows up: an install, `.git`, a port or a browser. |
