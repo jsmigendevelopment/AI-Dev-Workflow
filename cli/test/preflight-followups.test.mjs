@@ -44,7 +44,7 @@ test("AC-144-3: WHEN the registry is blocked THEN rung 1 gives each package mana
   const want = {
     npm: "`npm install --prefer-offline --cache .npm-cache`",
     pnpm: "`pnpm install --prefer-offline --store-dir .pnpm-store`",
-    yarn: "`YARN_ENABLE_GLOBAL_CACHE=false YARN_CACHE_FOLDER=.yarn-cache yarn install`",
+    yarn: "`YARN_GLOBAL_FOLDER=.yarn-global YARN_ENABLE_GLOBAL_CACHE=false YARN_CACHE_FOLDER=.yarn-cache yarn install`",
     bun: "`bun install --cache-dir .bun-cache`",
   };
   const locks = { npm: {}, pnpm: { "pnpm-lock.yaml": "" }, yarn: { "yarn.lock": "" }, bun: { "bun.lock": "" } };
@@ -59,8 +59,8 @@ test("AC-144-3: WHEN the registry is blocked THEN rung 1 gives each package mana
   const win = fakeSys({ answers: BLOCKED });
   win.platform = "win32";
   const first = row(await probe(project({ "package.json": "{}", "yarn.lock": "" }), win), "registry").ladder[0].text;
-  assert.ok(first.includes("`$env:YARN_ENABLE_GLOBAL_CACHE='false'; $env:YARN_CACHE_FOLDER='.yarn-cache'; yarn install`"), first);
-  assert.ok(first.includes('`set "YARN_ENABLE_GLOBAL_CACHE=false" && set "YARN_CACHE_FOLDER=.yarn-cache" && yarn install`'), first);
+  assert.ok(first.includes("`$env:YARN_GLOBAL_FOLDER='.yarn-global'; $env:YARN_ENABLE_GLOBAL_CACHE='false'; $env:YARN_CACHE_FOLDER='.yarn-cache'; yarn install`"), first);
+  assert.ok(first.includes('`set "YARN_GLOBAL_FOLDER=.yarn-global" && set "YARN_ENABLE_GLOBAL_CACHE=false" && set "YARN_CACHE_FOLDER=.yarn-cache" && yarn install`'), first);
 });
 
 test("AC-144-4: WHEN engines.node has a part preflight can't read THEN that range never blocks, and a space after the operator is read", () => {
@@ -73,6 +73,16 @@ test("AC-144-4: WHEN engines.node has a part preflight can't read THEN that rang
     assert.equal(satisfies("18.0.0", range), false, range);
   }
   for (const range of ["24 - 26", ">=24.0.0-rc.1", ">=24 || *"]) assert.equal(satisfies("18.0.0", range), true, `${range} never blocks`);
+});
+
+test("AC-144-4: WHEN a part only starts like a version THEN the whole token decides, so it can't let an old Node pass", () => {
+  for (const range of [">=24 || 1abc", ">=24 || -", ">=24 || x.junk", ">=24 || 24 -", ">=24 || - 26"]) {
+    assert.equal(satisfies("18.0.0", range), false, range);
+  }
+  for (const range of ["24 - 26", ">=24.0.0-rc.1", "*", ">=24 || *"]) assert.equal(satisfies("18.0.0", range), true, `${range} never blocks`);
+  // A part it reads in full still decides as before.
+  assert.equal(satisfies("18.0.0", ">=24 || 24.x"), false, "every part read: an old Node blocks");
+  assert.equal(satisfies("24.1.0", ">=24 || 24.x"), true);
 });
 
 test("AC-144-5: WHEN .git is there but git can't read it THEN the row says so with a known cause, not 'no git repo yet'", async () => {

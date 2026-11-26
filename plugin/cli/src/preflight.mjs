@@ -14,7 +14,7 @@
 // skill and the CLI (npx onrails preflight).
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { connect, createServer } from "node:net";
 import { homedir, hostname } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -66,8 +66,10 @@ export function satisfies(version, range) {
     if (op === "~") return v[0] === want[0] && (b === undefined || v[1] === b) && cmp(want) >= 0;
     return v[0] === want[0] && (b === undefined || v[1] === b) && (c === undefined || v[2] === c);
   };
-  // A token that starts like a version (a digit, x or * after an optional operator), or a hyphen range's "-".
-  const versionish = (token) => token === "-" || /^(>=|>|<=|<|\^|~|=)?v?(\d|[xX*](\.|$))/.test(token);
+  // A whole token that is a version: an optional operator, v?, one to three parts of digits, x or *, and an
+  // optional prerelease. A hyphen range's "-" counts only as the middle of three tokens.
+  const versionish = (token, i, tokens) => /^(>=|>|<=|<|\^|~|=)?v?(\d+|[xX*])(\.(\d+|[xX*])){0,2}(-[0-9A-Za-z.-]+)?$/.test(token)
+    || (token === "-" && i === 1 && tokens.length === 3);
   const parts = String(range).split("||").map((part) => part.trim().replace(/(>=|<=|>|<|=|\^|~)\s+/g, "$1").split(" ").filter(Boolean))
     .filter((tokens) => tokens.length && tokens.every(versionish)).map((tokens) => tokens.map(one));
   // A part that isn't a version range at all (junk characters, or words such as "latest") was dropped above, so
@@ -94,14 +96,17 @@ const ENV_TOOLS = {
 const CODEX_TRUST = "Trust this project so `.codex/config.toml` loads (it sets `network_access = true`), then restart Codex.";
 
 // Rung 1's project-local cache, in each manager's own words. yarn 2+ has no --prefer-offline, and yarn and bun have no --cache.
-// yarn 1 reads YARN_CACHE_FOLDER and ignores the other variable. yarn 4 keeps its global cache on by default and
-// then ignores YARN_CACHE_FOLDER, so the global cache is turned off too.
+// yarn 1 reads YARN_CACHE_FOLDER and ignores the other variables. yarn 4 keeps its global cache on by default and then
+// ignores YARN_CACHE_FOLDER, so the global cache is turned off too. Even then yarn 4 writes its mirror, metadata and
+// install index under its global folder in the home folder, so that folder moves into the project as well.
 const CACHE = { npm: "`npm install --prefer-offline --cache .npm-cache`", pnpm: "`pnpm install --prefer-offline --store-dir .pnpm-store`",
-  yarn: "`YARN_ENABLE_GLOBAL_CACHE=false YARN_CACHE_FOLDER=.yarn-cache yarn install` (yarn 1 reads the folder; yarn 2+ needs its global cache off to use it)",
+  yarn: "`YARN_GLOBAL_FOLDER=.yarn-global YARN_ENABLE_GLOBAL_CACHE=false YARN_CACHE_FOLDER=.yarn-cache yarn install`"
+    + " (yarn 1 reads the cache folder; yarn 2+ also needs its global folder in the project and its global cache off)",
   bun: "`bun install --cache-dir .bun-cache`" };
 // A bare VAR=value prefix works only in a POSIX shell (Git Bash too), so Windows also gets the PowerShell and cmd.exe forms.
-const YARN_CACHE_WINDOWS = " In PowerShell: `$env:YARN_ENABLE_GLOBAL_CACHE='false'; $env:YARN_CACHE_FOLDER='.yarn-cache'; yarn install`."
-  + ' In cmd.exe: `set "YARN_ENABLE_GLOBAL_CACHE=false" && set "YARN_CACHE_FOLDER=.yarn-cache" && yarn install`.';
+const YARN_CACHE_WINDOWS = " In PowerShell: `$env:YARN_GLOBAL_FOLDER='.yarn-global'; $env:YARN_ENABLE_GLOBAL_CACHE='false';"
+  + " $env:YARN_CACHE_FOLDER='.yarn-cache'; yarn install`. In cmd.exe: `set \"YARN_GLOBAL_FOLDER=.yarn-global\" &&"
+  + ' set "YARN_ENABLE_GLOBAL_CACHE=false" && set "YARN_CACHE_FOLDER=.yarn-cache" && yarn install`.';
 
 /** The four rungs for a blocked check: 1 workarounds, 2 one command outside the sandbox, 3 environment tools, 4 the person. */
 function ladder(id, tool, { host = "the registry", pm = "npm", want = "", platform } = {}) {
@@ -216,16 +221,22 @@ function readManager(pkg) {
   return known ? { name, version } : { name: null };
 }
 
-// yarn reads .yarnrc.yml and .yarnrc in the folder, every parent up to the root and the home folder, and runs the
-// release a yarnPath (yarn-path) there names, in more spellings than a line match can follow. So until the repo has
-// been read (/join writes docs/state.md), preflight runs no yarn wherever one of those files exists. It fails closed.
-function yarnConfigNear(dir, home) {
-  const folders = home ? [home] : [];
-  for (let at = dir; ; at = dirname(at)) {
-    folders.push(at);
-    if (dirname(at) === at) break;
+// Files that let a repo choose the release `<pm> --version` runs. yarn reads .yarnrc.yml and .yarnrc in the folder,
+// every parent and the home folder, and runs the release a yarnPath (yarn-path) there names, in more spellings than a
+// line match can follow. corepack's shim (yarn, pnpm) reads .corepack.env in the folder or a parent, which can name
+// its registry and turn off its key check. Both start from the real path, so a folder opened through a symlink is
+// checked on both paths. Until the repo has been read (/join writes docs/state.md), preflight runs no manager where
+// one of these files exists: it fails closed. realSys also sets COREPACK_ENV_FILE=0 on every command it runs.
+function repoChoiceNear(dir, home, pm) {
+  const files = [".corepack.env", ...(pm === "yarn" ? [".yarnrc.yml", ".yarnrc"] : [])];
+  const folders = pm === "yarn" && home ? [home] : [];
+  for (const start of new Set([dir, existsSync(dir) ? realpathSync(dir) : dir])) {
+    for (let at = start; ; at = dirname(at)) {
+      folders.push(at);
+      if (dirname(at) === at) break;
+    }
   }
-  return folders.some((at) => [".yarnrc.yml", ".yarnrc"].some((file) => existsSync(join(at, file))));
+  return folders.some((at) => files.some((file) => existsSync(join(at, file))));
 }
 
 // The release's version, from its file name, when the folder's own config names it in the plain form. Shown, never run.
@@ -240,10 +251,11 @@ function ownYarnVersion(dir) {
   return rc ? shown(/yarn-([^/\\]+?)\.c?js\s*$/.exec(rc)?.[1], "version", null) : null;
 }
 
-/** The manager's version: { version, installed, own }. own marks a yarn not run because a yarn config is near. */
+/** The manager's version: { version, installed, own }. own marks a manager not run because a file near can choose its release. */
 function managerVersion(dir, sys, pm) {
-  if (pm === "yarn" && !existsSync(join(dir, "docs", "state.md")) && yarnConfigNear(dir, sys.home)) {
-    return sys.has(pm) ? { version: ownYarnVersion(dir), installed: true, own: true } : { version: null, installed: false };
+  if (!existsSync(join(dir, "docs", "state.md")) && repoChoiceNear(dir, sys.home, pm)) {
+    if (!sys.has(pm)) return { version: null, installed: false };
+    return { version: pm === "yarn" ? ownYarnVersion(dir) : null, installed: true, own: true };
   }
   const have = sys.run(pm, ["--version"], { cwd: dir });
   return { version: have?.ok ? shown(firstLine(have.out), "version", "(version not shown)") : null, installed: Boolean(have?.ok) };
@@ -263,8 +275,8 @@ function checkVersions(dir, tool, sys, pkg, manager) {
   const { name: pm, version: pin } = manager;
   const { version, installed, own } = managerVersion(dir, sys, pm);
   if (own && installed && !version) {
-    return { status: "limited", detail: `Node ${node} (needs ${want}); a yarn config here or in a parent folder can name the yarn to run, `
-      + "so preflight runs none before the repo is read" };
+    return { status: "limited", detail: `Node ${node} (needs ${want}); a file here or in a parent folder (a yarn config or .corepack.env) `
+      + `can choose the ${pm} to run, so preflight runs none before the repo is read` };
   }
   // A prerelease pin (4.0.0-rc.42) keeps the name and its probe. Only a plain pin's major is compared.
   const compared = pin !== undefined && /^\d+(\.\d+){0,2}$/.test(pin);
@@ -393,7 +405,9 @@ export function realSys() {
     run(cmd, args = [], { cwd, timeout = 15000 } = {}) {
       const how = commandFor(cmd, args);
       if (!how) return null;
-      const r = spawnSync(how.file, how.args, { cwd, encoding: "utf8", timeout, shell: false, windowsVerbatimArguments: how.verbatim });
+      // COREPACK_ENV_FILE=0: corepack's shim never reads a repo's .corepack.env (see repoChoiceNear). Other commands ignore it.
+      const env = { ...process.env, COREPACK_ENV_FILE: "0" };
+      const r = spawnSync(how.file, how.args, { cwd, env, encoding: "utf8", timeout, shell: false, windowsVerbatimArguments: how.verbatim });
       if (r.error?.code === "ENOENT") return null;
       const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
       return { ok: r.status === 0, out: r.error ? `${out}\n${r.error.message}`.trim() : out };
