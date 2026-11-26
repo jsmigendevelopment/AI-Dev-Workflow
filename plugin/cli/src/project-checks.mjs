@@ -61,9 +61,10 @@ export function projectChecks(projectDir, { kitDir, sys }) {
 
   checks.push(...researchChecks(projectDir));
   // The registry's git, ps and powershell.exe run only by the full path doctor's own search finds (#185), through
-  // launch like every other command (#215). A system without that search (a test's fake) runs none of them.
+  // launch like every other command (#215), so git may take the project as its working folder (fullPath). A system
+  // without that search (a test's fake) runs none of them.
   const run = (cmd, args, opts) => sys.runTool?.(cmd, args, opts) ?? { error: new Error(`${cmd} not run`) };
-  checks.push(...processChecks(projectDir, { sys: { ...realSys({ run }), home: sys.home } }));
+  checks.push(...processChecks(projectDir, { sys: { ...realSys({ run, fullPath: true }), home: sys.home } }));
   checks.push(...profileChecks(projectDir));
   checks.push(...envChecks(projectDir, MARKS));
   checks.push(...actionsChecks(projectDir, sys));

@@ -13,11 +13,12 @@ import { homedir, userInfo } from "node:os";
 
 /**
  * The real machine. platform is for tests: the checks that only Linux can answer. run(cmd, args, opts) is how a tool
- * (git, ps, powershell.exe, taskkill, or a full path) runs, with spawnSync's answer: doctor passes its own, which
- * starts only the full path its PATH search finds, through cmd.exe for a Windows .cmd shim, and fails like a missing
- * tool for one a project ships (#185, #215). By default the name goes through PATH, as before.
+ * (git, ps, powershell.exe, taskkill, or a full path) runs, with spawnSync's answer. By default it is spawnSync, which
+ * looks a bare name up through PATH from the current folder, as before. fullPath is true only for a run that starts a
+ * full path it found itself: doctor's, which skips any copy a project ships and goes through cmd.exe for a Windows
+ * .cmd shim (#185, #215).
  */
-export function realSys({ platform = process.platform, run = spawnSync } = {}) {
+export function realSys({ platform = process.platform, run = spawnSync, fullPath = false } = {}) {
   // null when the tool can't run or reports an error; "" when it found nothing (ps -p with no match exits 1, silently).
   const out = (cmd, args) => {
     const r = run(cmd, args, { encoding: "utf8", timeout: 15000, windowsHide: true });
@@ -39,9 +40,12 @@ export function realSys({ platform = process.platform, run = spawnSync } = {}) {
     acl: (path) => (platform !== "linux" ? null : hasAcl(aclSources(strict, path))),
     now: () => Date.now(),
     // Its output, "" when it found nothing, or null when git failed in any way: a failure is never "nothing found".
-    // In cwd, not with -C, so only plain words reach cmd.exe when git is a Windows .cmd shim (#215).
-    git(cwd, args) {
-      const r = run("git", args, { cwd, encoding: "utf8", timeout: 15000, windowsHide: true });
+    // A bare git is looked up from the spawn's working folder (a relative PATH entry; on Windows that folder first),
+    // so it gets -C and runs from the current folder: never one a repo in the index commits. A full path run takes
+    // the folder as its working folder instead, so only plain words reach cmd.exe for a Windows .cmd git (#215).
+    git(dir, args) {
+      const where = fullPath ? { cwd: dir } : {};
+      const r = run("git", fullPath ? args : ["-C", dir, ...args], { ...where, encoding: "utf8", timeout: 15000, windowsHide: true });
       return r.error || r.status !== 0 ? null : r.stdout.trim();
     },
     info: (pids) => (platform === "win32" ? windowsInfo(pwsh, pids) : posixInfo(out, pids)),

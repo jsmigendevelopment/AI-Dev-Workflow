@@ -213,3 +213,18 @@ test("#215: spawnInteractive refuses a name the search won't start, and starts n
   assert.throws(() => sys.spawnInteractive(["claude", "/idea"], { cwd: project }), /Could not start claude: claude found only in a node_modules\/\.bin, not run/);
   assert.deepEqual(calls, []);
 });
+
+// #215 review round 1: has asks the same question spawnInteractive does, so a tool launch refuses is never offered.
+test("#215 round 1: on Windows, a claude.cmd in a PATH folder whose name holds % is not offered, and spawnInteractive gives launch's reason", async () => {
+  const installed = tmp("onrails-100%-");
+  put(installed, "claude.cmd", "npm's shim\n");
+  const env = { PATH: installed, PATHEXT: ".com;.exe;.bat;.cmd", ComSpec: "C:\\Windows\\System32\\cmd.exe" };
+  const { calls, run } = recorder();
+  const log = logger();
+  const sys = realSystem({ projectDir: tmp(), platform: "win32", env, run });
+  assert.equal(sys.has("claude"), false);
+  assert.throws(() => sys.spawnInteractive(["claude", "/idea"]), /^Error: Could not start claude: cmd\.exe would expand the % in .*claude\.cmd$/);
+  assert.equal(await offerStart(tmp(), "idea", { sys, start: true, interactive: false, log }), 0);
+  assert.match(log.text(), /Claude Code and Codex were not found on your PATH/);
+  assert.deepEqual(calls, []);
+});
