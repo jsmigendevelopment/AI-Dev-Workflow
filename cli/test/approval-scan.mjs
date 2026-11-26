@@ -60,11 +60,15 @@ const askStarts = (s) => {
   NEXT_ASK.lastIndex = 0;
   return starts;
 };
-/** True when an ask that starts at i fits in the clause [a, b]. The \u0001 keeps a sentence-end `$` from matching at a cut. */
+/**
+ * True when the ask that starts at i fits in the clause [a, b]. Round 4: it judges the match the scan makes on the whole
+ * sentence, so a shorter ask from the same word ("ask the person before") can't hold one that runs across a cut.
+ */
 const heldBy = (s, i, [a, b]) => {
   if (i < a || i >= b) return false;
   ASK_HERE.lastIndex = i;
-  return ASK_HERE.test(b < s.length ? `${s.slice(0, b)}\u0001` : s);
+  const m = ASK_HERE.exec(s);
+  return !!m && i + m[0].length <= b;
 };
 /**
  * #173: a condition counts only in the asking clause, and every asking clause needs its own. Round 3: every ask is

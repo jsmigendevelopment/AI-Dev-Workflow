@@ -1,4 +1,4 @@
-// #173 review rounds 1 to 3: the "no approvals on Full" scan reads each clause for its own condition, checks every ask,
+// #173 review rounds 1 to 4: the "no approvals on Full" scan reads each clause for its own condition, checks every ask,
 // and catches more ways to ask the person, and the lines it now finds say what happens on Full. AC-173-1 to AC-173-5 are in
 // standing-decisions.test.mjs.
 import { test } from "node:test";
@@ -29,6 +29,18 @@ test("#173 round 3 must: every ask is checked, so a later asking clause with its
     "Ask the person for the screenshots, and get their review on it; below Full, ask the person.",
     "Ask the owner about it, and review it later; below Full, tell them and wait."]) assert.deepEqual(unconditionalAsks(s), [s], s);
   assert.deepEqual(unconditionalAsks("Below Full, ask the owner about it, and review it later."), []);
+});
+
+test("#173 round 4 must: an ask is the match the scan makes from its first word, so a shorter ask from that word can't hold it", () => {
+  for (const s of ["Ask the person before you start below Full, and get their review on it.", "Ask the person before you start below Full, and approve it.",
+    "Ask the person to look below Full, then wait, and get their review on it.", "Ask the person to look below Full and wait, and get their review on it."]) {
+    assert.deepEqual(unconditionalAsks(s), [s], s);
+  }
+  // The short ask still counts on its own when the match ends in its clause.
+  for (const s of ["Ask the person before you start below Full, and go on.", "Below Full, ask the person before you start, and get their review on it."]) {
+    assert.deepEqual(unconditionalAsks(s), [], s);
+  }
+  assert.match(read("docs/decisions.md"), /The ask is the match the scan makes from its first word, not a shorter one/);
 });
 
 test("#173 round 3 nice 1: a parenthesis belongs to its clause, so a condition inside it counts there (main flagged this)", () => {
