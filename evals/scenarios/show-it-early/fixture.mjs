@@ -1,5 +1,6 @@
-// Slice 0 of a tiny Node app: it already runs, but nobody has seen it, and there is no CI yet.
-// No keys are set, so sign-in is off. The issue asks for the local run, CI and the test deploy.
+// Slice 0 of a tiny Node app: it already runs, but nobody has seen it, and its checks aren't set up yet.
+// No keys are set, so sign-in is off. The issue asks for the local run, the local checks and the test deploy.
+// It writes no workflow file and asks for none (#141): the checks run from the session.
 import { repo } from "../../lib/fixture.mjs";
 
 const SERVER = `// The app's dev server. PORT, or 3000. Without CLERK_SECRET_KEY, sign-in is off.
@@ -20,7 +21,7 @@ Set up the skeleton of Tidy, a shared chores list.
 ## Acceptance checks
 
 - AC-1-1 (agent): WHEN the skeleton is done THEN \`npm run dev\` serves the starter page with the app's name.
-- AC-1-2 (auto): WHEN a pull request opens THEN CI runs \`npm run check\` (.github/workflows/ci.yml).
+- AC-1-2 (auto): WHEN the skeleton is done THEN \`docs/stack.md\` says \`ci = "local"\`, and \`npm run check\` passes from the session before each merge.
 - AC-1-3 (agent): WHEN main changes THEN it deploys to the test site. There's no Cloudflare account yet: skip it.
 
 ## Out of scope
@@ -39,8 +40,8 @@ export function build(dir) {
     ".env.example": "CLERK_SECRET_KEY=\n",
     ".gitignore": "node_modules/\n.env\n",
     "README.md": "# Tidy\n\nA shared chores list.\n\n- `npm run dev`: the dev server on http://localhost:3000\n- `npm run check`: the checks\n",
-    "docs/stack.md": "# Stack\n\nNode, no framework yet. CI on GitHub Actions. Test site on Cloudflare Workers, not set up.\n",
-    "docs/pyramid.md": "# Tracer-bullet pyramid\n\n## Slice 0: the skeleton\n\n- [ ] The app runs locally, and the person has seen it\n- [ ] CI runs every check on every pull request\n- [ ] Main deploys to test. Test URL: \n",
+    "docs/stack.md": "# Stack\n\nNode, no framework yet. Checks: not set up yet. Test site on Cloudflare Workers, not set up.\n",
+    "docs/pyramid.md": "# Tracer-bullet pyramid\n\n## Slice 0: the skeleton\n\n- [ ] The app runs locally, and the person has seen it\n- [ ] Every check runs from the session before each merge\n- [ ] Main deploys to test. Test URL: \n",
     "docs/state.md": "# State\n\n- **Phase:** building pass 1\n- **Next up:** issue #1, slice 0\n",
     "docs/issues/1.md": ISSUE,
   });

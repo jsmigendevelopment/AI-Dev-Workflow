@@ -20,7 +20,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
 3. **One issue per step:** each row of the steps table in `docs/pyramid.md`. Copy its try line into the issue's "Try it" section, word for word. A step that needs more than one issue is two steps: send it back to `pyramid` to cut. No steps table (a plan from before steps)? One issue per slice, and split anything a reviewer couldn't read in one sitting, about 400 changed lines.
 4. **Fill in every field** of `.github/ISSUE_TEMPLATE/slice.md` (copy it from this skill's `templates/` if it's missing).
 5. **Acceptance checks.** Write each one as `AC-<issue>-<n>: WHEN <situation> THEN <result>`, numbered from 1, one result each. The test that proves it carries the ID in its title. No number until the issue exists? Create it, then add the IDs with `gh issue edit`.
-   - **`auto`:** becomes an automated test that CI runs on every pull request. Most checks should be `auto`.
+   - **`auto`:** becomes an automated test that the local gate runs on every pull request (`coordinate` step 6.1). Most checks should be `auto`.
    - **`agent`:** needs judgement (layout, flow, copy). A fresh `qa` agent checks it on the preview before merge. Write the steps to click and what you should see.
    - **A number, an estimate, a price or a formula changes?** It gets an `auto` check with real expected values for several inputs, not only an `agent` check: `AC-9-2: WHEN the length is 2 minutes THEN the estimate says 2 min`.
    - For anything a signed-in user owns, add one check that **a signed-out visitor and a second user can't read or delete it.**
@@ -34,8 +34,8 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    | 5–7 | A new module end to end (table, service, API, screen), or rules with edge cases: permissions, money, time. |
    | 8–10 | Several modules, a new outside service, a data migration, or something the repo has never done. Split it. |
 7. **Risk flags and lane.** Tick every flag that applies, then set the lane:
-   - **tiny:** copy, styling or config with no logic. Build, CI, review, merge.
-   - **normal:** anything else. Build, CI, review, `qa` on the preview, merge.
+   - **tiny:** copy, styling or config with no logic. Build, local gate, review, merge.
+   - **normal:** anything else. Build, local gate, review, `qa` on the preview, merge.
    - **risky:** any flag ticked. Normal, plus `pr-security`, plus the human gate in `docs/stack.md` (none on Full).
    - **Who merges:** after the lane, write `merged by: agents` or `merged by: the person`. Take it from the "Automation level" switches in `docs/stack.md`, and the risk dial. Below Full, the more careful one wins. On Full it's always `merged by: agents`: the dial adds reviews there, never the person (#103).
 8. **Labels.** Create any that are missing first (`gh label create "<name>" --force`):
@@ -70,7 +70,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
 
 ## Every change has an issue
 
-One issue, one branch (`feat/<n>-short-name` or `fix/<n>-short-name`), one pull request that says `Closes #<n>`. Work someone asks for without an issue gets one first. CI fails a pull request with no link unless it has `no-issue`. Why: `guide/app-conventions.md` in the kit.
+One issue, one branch (`feat/<n>-short-name` or `fix/<n>-short-name`), one pull request that says `Closes #<n>`. Work someone asks for without an issue gets one first. On a stack with `pnpm pr:rules`, the local gate fails a pull request with no link unless it has `no-issue`. Why: `guide/app-conventions.md` in the kit.
 
 ## No GitHub yet?
 

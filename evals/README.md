@@ -11,7 +11,7 @@ npm run evals                        # every scenario, both arms
 npm run evals -- --scenario git-safety,secrets --model claude-sonnet-5-5
 ```
 
-- **Locally, with no `ANTHROPIC_API_KEY`,** it uses your own Claude Code login. The runs count against your plan's limits. Your own `~/.claude/CLAUDE.md` and personal skills may load into both arms, so CI's numbers are the clean ones.
+- **Locally, with no `ANTHROPIC_API_KEY`,** it uses your own Claude Code login. The runs count against your plan's limits. Your own `~/.claude/CLAUDE.md` and personal skills may load into both arms, so a run with a key (below) gives the clean numbers.
 - **With a key,** each run gets a fresh temp `HOME`, so nothing personal loads.
 - Each run's agent may read and write files and run `git`, `node`, `npm`, `ls`, `cat`, `mkdir` and `grep`. Anything else is denied without a prompt. It has no web, no `gh` and no `curl`. The child process gets no GitHub token. Fixtures push only to a local bare repo in the temp folder.
 - `node evals/run.mjs --help` lists every flag.
@@ -30,7 +30,7 @@ npm run evals -- --scenario git-safety,secrets --model claude-sonnet-5-5
 | `plan-thin-steps` | `pyramid`: pass 1 is cut into thin steps the person can try | a steps table, at least two steps per slice, a try line on every step and no layer steps, no step above size 4 without a reason, no code |
 | `coarse-plan-rejected` | `pyramid`: a plan cut by layer is sent back before any issue is written | not accepted, names the layer steps, asks for try lines, no file changed |
 | `auto-grill-door` | `grill`'s auto mode: a bad pick on a one-way door is surfaced for its own confirmation, not buried in the table | reads `kickoff/review.md`: a `### Door: money` block before any table, money in no table row or "Everything else" line, its `Pick:` is integer cents or minor units and not float, its `Question:` is about that door alone; `kickoff/decisions.md` unchanged. `test/auto-grill-reviews.mjs` holds three burying answers that must fail and two door-first ones that must pass |
-| `show-it-early` | `build` and `pyramid`: slice 0 shows the running app before CI | a dev server started, the localhost link given, both before the first CI file |
+| `show-it-early` | `build` and `pyramid`: slice 0 shows the running app before the checks are set up, and adds no workflow | a dev server started, the localhost link given, both before `ci = "local"` is written to `docs/stack.md`; no file written in `.github/workflows/` (AC-141-2) |
 | `blocker-recorded` | `ask`: a setup blocker the agent can't clear is recorded and pinged in the same run, never left as a chat line | a new or changed issue file in `docs/issues/` says `needs-human` and has a "Setup step for you" and a `Tried:` line; `notify.mjs --level blocker` ran |
 | `go-ahead-loop` | `idea`, `build` and `coordinate`: "go ahead" after planning starts the loop, with no remote, and arms the sweep timer | branches or commits that change files outside `docs/` for both #1 and #2; the final message asks no go-ahead for #2 or the next issue; a timer-arming call (a timer tool, or `timer.mjs armed`), or the "no timer, foreground" reason; "the other one" and "the next one" count as asking |
 | `blocked-not-stopped` | `coordinate`: a blocked issue is parked and recorded, an independent one is built in the same run, and with no remote an approved one merges locally | #1's issue file says `needs-human` or `Status: blocked` somewhere; a branch or commit that changes files outside `docs/` for #2; #3's reviewed sha itself is merged into local main (on main's first-parent line, or a merge's parent), not a branch that moved past it |
@@ -54,7 +54,7 @@ Every check reads the transcript events or the final files. No check asks a mode
 
 ## Results
 
-Each run appends one entry to `evals/results/<date>-<model>-<kit version>.json`: per scenario, each arm's status, every check's pass or fail, tokens, Claude Code's cost estimate, turns and duration. Earlier entries are never changed. The same folder gets a markdown summary of the latest run, `<same name>.md`. In CI the summary goes to the job summary and the folder is uploaded as the `eval-results` artifact.
+Each run appends one entry to `evals/results/<date>-<model>-<kit version>.json`: per scenario, each arm's status, every check's pass or fail, tokens, Claude Code's cost estimate, turns and duration. Earlier entries are never changed. The same folder gets a markdown summary of the latest run, `<same name>.md`.
 
 The exit code is 0 when every scenario passed. It's 1 when a check failed with the kit, a run with the kit timed out or crashed, or a scenario showed no difference between the arms (the skill didn't matter), unless that scenario is a guard. It's 2 for a bad flag or a run cap that would be broken.
 
@@ -62,13 +62,12 @@ The exit code is 0 when every scenario passed. It's 1 when a check failed with t
 
 | Control | Default | Where |
 |---|---|---|
-| Model | `claude-haiku-5-5` | `--model`; CI's manual run offers Sonnet, Opus and Fable. Pull requests always use Haiku. |
+| Model | `claude-haiku-5-5` | `--model` |
 | Turns per run | 12 | `--max-turns` (Claude Code's own flag). A scenario can set its own turns, time and budget (`one-prompt`: 60 turns, 600 s, $1.50; `ci-never-starts`: 24 turns, 300 s; a scenario's budget never above $2); a flag still wins |
 | Time per run | 240 s, then the run is killed | `--timeout` |
 | Dollars per run | $0.50, then Claude Code stops | `--max-budget-usd` (Claude Code's own flag). `one-prompt` sets $1.50 for its 60 turns |
 | Runs per invocation | 40, never above 40 | `--max-runs`; the runner refuses to start above it. Twenty scenarios use the default 40 runs (#118 added two, #111 added `one-prompt`, #100 added two). That is the hard cap. A scenario past it is opt-in (`export const optIn = true`): the default run skips it and says so, and `--scenario` runs it (`test-by-hand-zero`, #127; `clean-up-server`, #126; `ci-never-starts`, #131; `decision-lifts-gate`, #143; `short-on-memory`, #171). At about 1 cent a run on Haiku, 38 runs cost about $0.38, plus `one-prompt`'s two longer runs |
-| When CI runs | pull requests that change `.agents/skills/`, `AGENTS.md`, `plugin/` or `scripts/`, and by hand | `.github/workflows/evals.yml`; no schedule |
-| Job time | 40 minutes | `timeout-minutes` |
+| When they run | by hand, from a session, before a pull request that changes `.agents/skills/`, `AGENTS.md`, `plugin/` or `scripts/` | `npm run evals`; never GitHub Actions (decision 27; #134 removes the kit's own `evals.yml`); no schedule |
 
 **Why Haiku by default:** it's the cheapest current model, $0.10 in and $0.50 out per million tokens, against $2 and $10 for Sonnet 5.5 (Anthropic's price table as cached 2026-11-03). The owner asked for a small model by default. A rule that only a strong model follows is worth knowing about too: run Sonnet or Opus by hand to compare.
 
@@ -78,23 +77,22 @@ The exit code is 0 when every scenario passed. It's 1 when a check failed with t
 
 **The estimate made before any real run (kept for the method):** about **$0.20** for the 14 runs there were then. Basis: about 10 model requests per run, each with about 30,000 prompt tokens that are mostly cached after the first request (Claude Code's system prompt and tools, plus `AGENTS.md` and a skill with the kit), and about 5,000 output tokens per run, at Haiku's prices with the usual cache prices (writes 1.25x input, reads 0.1x). Sonnet 5.5 is about 20 times that, around $4; Opus 5.5 about twice Sonnet, and its runs may hit the $0.50 cap. The hard ceiling for one invocation is 40 runs, two of them `one-prompt`'s at $1.50: 38 x $0.50 + 2 x $1.50 = $22. The default is now those 40 runs.
 
-## The one-time setup for CI
+## Running with a key
+
+For the clean numbers, give the run its own API key, in your shell, never in chat or a file in the repo:
 
 ```text
-Setup step for you · Give the evals an API key · about 10 minutes
+Setup step for you · Give the evals an API key · about 5 minutes
 
 1. Open https://platform.claude.com/settings/keys and click "Create Key". Name it "onRails evals".
    Optional: put it in its own workspace with a monthly spend limit, so evals can never cost more than that.
-2. Open https://github.com/jsmigendevelopment/onRails/settings/environments and click "New environment".
-3. Name it exactly: evals
-4. Under "Environment secrets", click "Add environment secret". Name: ANTHROPIC_API_KEY. Value: paste the key there. Never into this chat.
-5. Leave "Required reviewers" off if you want pull requests to run without waiting for you; turn it on to approve each run.
+2. In your own terminal: read -rs ANTHROPIC_API_KEY && export ANTHROPIC_API_KEY, then paste the key. Never into this chat.
+3. In that terminal: npm run evals
 
-When it worked: the next pull request that changes a skill shows an "evals" job with a "Skill evals" table in its summary, instead of "Evals skipped".
-Stuck? A job that says "Evals skipped: no ANTHROPIC_API_KEY" means the secret is on the repository or misnamed. It must be an environment secret in the environment called evals.
+When it worked: the run ends and writes a new file in evals/results/.
 ```
 
-Pull requests from forks never run the job, so they never see the key. The key is never printed: the runner passes it only to `claude`, through its environment.
+The key is never printed: the runner passes it only to `claude`, through its environment.
 
 ## Add a scenario
 
@@ -119,8 +117,8 @@ claude -p --output-format stream-json --verbose --model <id> --max-turns <n> --m
 - `dontAsk` allows only what's pre-approved and denies the rest without a prompt. Deny rules, such as the kit's blocked force pushes, apply in every mode ([permission modes](https://code.claude.com/docs/en/permission-modes)). The checks count what the agent *tried*, so they test the rules, not only the block.
 - `--bare` isn't used: it skips `CLAUDE.md` and hooks, which is the kit, and it can't use a subscription login.
 - `--setting-sources project,local` is meant to keep personal settings out. Whether personal skills in `~/.claude/skills` still load with it isn't verified; locally, assume they might.
-- Not used: Anthropic's GitHub Action (`anthropics/claude-code-action`, v1.0.286 on 2026-11-23). It is built to answer `@claude` in issues and pull requests and runs one prompt per step. The evals need two runs per scenario in temp folders, the raw event stream, and the same harness locally, so the workflow installs `@anthropic-ai/claude-code@2.1.330` from npm and calls the CLI.
+- Not used: Anthropic's GitHub Action (`anthropics/claude-code-action`, v1.0.286 on 2026-11-23). It is built to answer `@claude` in issues and pull requests and runs one prompt per step. The evals need two runs per scenario in temp folders, the raw event stream, and the same harness locally, so the runner calls the CLI (`@anthropic-ai/claude-code@2.1.330` from npm) the same way everywhere.
 
 ## Tests for the harness
 
-`npm run test:evals` runs the harness against a fake `claude` (`test/fake-claude.mjs`) put first on `PATH`. It prints canned stream-json, so no model is called. The tests cover a pass, a failing check, no difference, a timeout, the cost and token sums, append-only results, the run cap, the dry run, opt-in scenarios, and a good and a bad transcript for every real scenario. Normal CI runs them in `check-skills.yml`.
+`npm run test:evals` runs the harness against a fake `claude` (`test/fake-claude.mjs`) put first on `PATH`. It prints canned stream-json, so no model is called. The tests cover a pass, a failing check, no difference, a timeout, the cost and token sums, append-only results, the run cap, the dry run, opt-in scenarios, and a good and a bad transcript for every real scenario. Run them from the session before every pull request that changes the harness or a scenario.

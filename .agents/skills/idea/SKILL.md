@@ -43,7 +43,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 6. **Approve the wireframes.** Below Full, revise the full stage-2 set until the person says yes (`wireframes` stage 2, steps 5 and 6). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row. Auto grill doesn't skip it. **On Full,** skip the wait: record the row as "AI pick, not reviewed" (`wireframes` stage 2, step 6) and go on.
 
-7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. After an auto grill, the one-way doors confirmed at the review are answers, not questions. On Full, take the recommended picks with no question round. Crucial unknowns go to `research` first (on Full, it decides and sends an FYI). It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
+7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, the local checks (no GitHub Actions) and the risk dial, plus the automation level from step 0. It's short. After an auto grill, the one-way doors confirmed at the review are answers, not questions. On Full, take the recommended picks with no question round. Crucial unknowns go to `research` first (on Full, it decides and sends an FYI). It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
 
 8. **Fill in the project facts** at the bottom of `AGENTS.md`.
 
@@ -62,7 +62,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 12. **Hand off.** Write `docs/state.md` from `templates/state.md`, then run preflight again with `--record`, so its `Environment:` line is filled in. Then tell the person, in under 10 lines:
    - what's planned;
    - which issue goes first;
-   - **when they'll first see it:** running locally at the start of slice 0, before CI; on the test site once slice 0 merges, and what still has to happen before then;
+   - **when they'll first see it:** running locally at the start of slice 0, before the checks and deploys are set up; on the test site once slice 0 merges, and what still has to happen before then;
    - that each merged step comes with a line on what to try, and feedback can come any time;
    - that at the end of a pass the loop keeps going on fixes and cleanup, and the next pass is planned only once they've tried it. On Full: once `qa` has tried it and the re-plan is done (`pass-gate.md`).
 

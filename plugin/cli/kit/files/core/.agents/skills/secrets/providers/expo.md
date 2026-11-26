@@ -42,7 +42,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 |---|---|---|
 | `EXPO_PUBLIC_API_URL`, `E2E_API_URL` | https://dash.cloudflare.com/?to=/:account/workers-and-pages | The test Worker's address (its `workers.dev` URL, or its custom domain under **Settings** → **Domains & Routes**), with `https://`. `[V]` |
 | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `E2E_CLERK_PUBLISHABLE_KEY` | https://dashboard.clerk.com/~/api-keys | The **Development** instance's publishable key (`pk_test_`), the same as the web app's. `[V]` |
-| `EXPO_TOKEN` | https://expo.dev/settings/access-tokens | Only if CI runs `eas` later. **Create token**, a name (`<app> CI`), turn on **Limit access**. Stop there: the person presses **Create** in the dialog. Shown once. `[V]` page and **Limit access**, `[U]` button names. |
+| `EXPO_TOKEN` | https://expo.dev/settings/access-tokens | Only if `eas` runs later where nobody is signed in (a server; never GitHub Actions). **Create token**, a name (`<app> builds`), turn on **Limit access**. Stop there: the person presses **Create** in the dialog. Shown once. `[V]` page and **Limit access**, `[U]` button names. |
 
 ## Walkthrough · about 10 minutes
 
@@ -61,13 +61,13 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
    Again with `--environment production` and the production values.
 3. Check: `npx eas-cli@27.11.0 env:list --environment preview`. `[V]`
 4. For local dev, put the same two lines in `apps/mobile/.env` (git-ignored).
-5. For the Maestro tests in GitHub, set repository variables (public, so variables, not secrets):
+5. Only on `ci = "actions"`, for the Maestro tests in GitHub, set repository variables (public, so variables, not secrets):
    ```bash
    gh variable set E2E_API_URL
    gh variable set E2E_CLERK_PUBLISHABLE_KEY
    ```
 
-Only if CI runs `eas` later: make a token at https://expo.dev/settings/access-tokens, turn on **Limit access**, and store it with `gh secret set EXPO_TOKEN --env <env>`. `[V]`
+Only if `eas` runs later where nobody is signed in (a server; never GitHub Actions): make a token at https://expo.dev/settings/access-tokens, turn on **Limit access**, and keep it in that machine's shell. On `ci = "actions"` only, store it with `gh secret set EXPO_TOKEN --env <env>`. `[V]`
 
 When it worked: `eas build --profile preview` finishes, and the installed app shows sign-in and reaches the test API.
 

@@ -72,9 +72,9 @@ A short look back, so the next run goes better. `/afk` runs it at the hard stop 
    - **What was slow?** An issue that took many rounds, a long hunt for a file or a fact, a wait on a limit. In the flow numbers: the longest gap between merges and what caused it, and the slowest pull requests.
    - **What did the person do by hand?** A setup step, a fix, a command, an answer the docs should have had.
 3. **Keep at most 5 findings,** worst first. Each one names where it happened: an issue, a pull request or a commit. Drop any you can't point to. A finding is not a feature request.
-4. **Pick the fix that fails loudly.** A mistake a tool could catch gets a check (a lint rule, a test, a CI step), not a new line in `AGENTS.md`. A missing fact gets a pointer from a file the agent already reads.
+4. **Pick the fix that fails loudly.** A mistake a tool could catch gets a check (a lint rule, a test, a step in `check`), not a new line in `AGENTS.md`. A missing fact gets a pointer from a file the agent already reads.
 5. **Each finding becomes an issue:**
-   - **A problem in this app** (its code, tests, docs, CI or setup): open an issue here with the `issues` skill. Don't add `status:ready`. The person picks it.
+   - **A problem in this app** (its code, tests, docs, checks or setup): open an issue here with the `issues` skill. Don't add `status:ready`. The person picks it.
    - **A flaw in the kit itself** (a skill step that's wrong or missing, a script, a hook, a template): draft an issue for the kit's repo, `jsmigendevelopment/onRails`. Title, what happened, where in the run, and the fix you suggest. Leave out app code, secrets and private names. Put the draft under "Retro" in `docs/state.md` and show it to the person. **Never file it there without their yes.** On a yes: `gh issue create --repo jsmigendevelopment/onRails`.
 6. **Write it down.** Add a "Retro" section to `docs/state.md`: the date, one line per finding with its issue link or "draft for the kit". **Done when** every finding has an issue or a draft, and the section is written.
 

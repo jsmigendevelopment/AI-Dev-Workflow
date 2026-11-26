@@ -55,7 +55,7 @@ Before you install, confirm on the registry that:
 
 Never install a name you guessed. The `dependencies` skill has the full check.
 
-**Why:** AI models invent package names, and attackers register those names with malware in them. A wrong name runs someone else's code on your machine and in CI.
+**Why:** AI models invent package names, and attackers register those names with malware in them. A wrong name runs someone else's code on your machine and on every machine that installs the app.
 
 ### 8. Tests that test something
 

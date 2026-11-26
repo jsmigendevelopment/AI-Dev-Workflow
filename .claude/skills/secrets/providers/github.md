@@ -1,5 +1,7 @@
 # GitHub environments, secrets and variables
 
+Only on `ci = "actions"` (`docs/stack.md`). Every repo is `ci = "local"` unless the person turned Actions on themselves: then skip this file, since nothing reads GitHub's copies (see "What it's for").
+
 Last checked: 2026-11-23. Official docs:
 - https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
 - https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
