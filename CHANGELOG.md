@@ -21,6 +21,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
+- **The deploy keys go where the session deploys read them (#139).** setup-cloudflare saves a new Access service token's id and secret, and a new test site password, in `.env.cloudflare.local` as `TEST_CF_ACCESS_CLIENT_ID`, `TEST_CF_ACCESS_CLIENT_SECRET` and `TEST_SITE_PASSWORD` (`PRODUCTION_` names for `--protect-production`), git-ignored and owner-only (mode 600). It never prints them, the password included, and makes none when the file isn't git-ignored. On `ci = "local"`, setup-cloudflare, `push-secrets`, `pnpm connect` and `setup-github` write nothing to GitHub: no environments, environment secrets, `CLOUDFLARE_ACCOUNT_ID` or `SECRETS_MODE`. They keep all of it for `ci = "actions"` (`docs/decisions.md` row 15). `pnpm deploy:test` after a fresh setup with Access gets past the gate with nothing typed by hand.
 - **New apps pass their own lint (#146).** The TanStack Start pack's ESLint and Prettier, and the monorepo pack's root ESLint config, now ignore the kit's `.agents/`, `.claude/` and `.codex/` folders, and Prettier also ignores the kit's `AGENTS.md`, `CLAUDE.md`, `.github/ISSUE_TEMPLATE/slice.md` and `.onrails.json`: `init` plus `add tanstack-start` went from 468 lint errors to 0, and a new test, `lint-ignores.test.mjs`, checks every kit file against both packs' ignore lists.
 
 ## [0.7.0] - 2026-11-24

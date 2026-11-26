@@ -22,6 +22,9 @@
 // refuses it here, main requires no status, and the output says why. Run this again on a repo that
 // used the old workflows: it swaps their checks for `onrails/check` in the rule it made, or drops
 // them all when statuses can't be posted, so no rule waits on a check nothing can post.
+// Environments, the production reviewer and SECRETS_MODE exist only for GitHub Actions: it makes
+// them only when docs/stack.md says ci = "actions". On ci = "local" (every repo, unless the person
+// turned Actions on) the session deploys read nothing from GitHub, so it skips them and says why.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -89,16 +92,28 @@ try {
 }
 const PUBLIC = visibility === "public";
 
+// --- ci = "actions" only when docs/stack.md says so (#139). ---
+function ciFromStack() {
+  let root = ".";
+  try { root = git(["rev-parse", "--show-toplevel"]); } catch {}
+  const file = join(root, "docs", "stack.md");
+  return existsSync(file) && /^ci\s*=\s*"actions"\s*$/m.test(readFileSync(file, "utf8")) ? "actions" : "local";
+}
+const ACTIONS = ciFromStack() === "actions";
+
 // --- What each step needs. `min` is the lowest plan that allows it on a private repo. ---
 const ANY = { min: "free", label: "any plan" };
 const TEAM = { min: "team", label: "public repo, or Team if private" };
 const ENTERPRISE = { min: "enterprise", label: "public repo, or Enterprise if private" };
+// Steps that only GitHub Actions reads: skipped on ci = "local".
+const forActions = (needs) => ({ ...needs, actions: true });
 // Secret Protection is a paid add-on for Team and Enterprise. The plan alone can't say if it's on.
 const SECRET_PROTECTION = { min: "team", label: "public repo, or the Secret Protection add-on if private" };
 const allowed = (needs) => PUBLIC || PLANS.indexOf(PLAN) >= PLANS.indexOf(needs.min);
 
 const results = [];
 async function step(name, needs, fn, plan = "") {
+  if (needs.actions && !ACTIONS) return results.push(["skipped", name, needs.label, 'ci = "local": the session deploys read nothing from GitHub']);
   if (!allowed(needs)) return results.push(["skipped", name, needs.label, `your plan is ${PLAN} and this repo is ${visibility}`]);
   if (DRY) return results.push(["would do", name, needs.label, plan]);
   try {
@@ -193,14 +208,14 @@ const envFromMain = async (name) => {
     if (!/already exists/i.test(String(e.stderr))) throw e;
   }
 };
-await step("environment: test (deploys from main)", TEAM, () => envFromMain("test"));
-await step("environment: production (deploys from main)", TEAM, () => envFromMain("production"));
+await step("environment: test (deploys from main)", forActions(TEAM), () => envFromMain("test"));
+await step("environment: production (deploys from main)", forActions(TEAM), () => envFromMain("production"));
 
 // 6. Production waits for you: you are its required reviewer. This is an environment protection
 //    rule, so a private repo needs Enterprise; Team and Pro don't include it. A separate step,
 //    so a Team repo still gets the production environment above. Without it, the gate is your
 //    yes before the session runs the production deploy.
-await step("production: waits for your approval", ENTERPRISE, () =>
+await step("production: waits for your approval", forActions(ENTERPRISE), () =>
   api("PUT", `repos/${repo}/environments/production`, {
     ...fromMain,
     reviewers: [{ type: "User", id: me.id }],
@@ -210,7 +225,7 @@ await step("production: waits for your approval", ENTERPRISE, () =>
 
 // 7. GitHub Free, private repo: no environments, so secrets go in prefixed repository secrets.
 //    The variable is the switch connect and push-secrets read.
-const REPOSITORY_SECRETS = { min: "free", label: "GitHub Free, private repo only" };
+const REPOSITORY_SECRETS = forActions({ min: "free", label: "GitHub Free, private repo only" });
 if (!PUBLIC && PLAN === "free") {
   await step("secrets mode: repository (TEST_ and PRODUCTION_ names)", REPOSITORY_SECRETS, () => {
     run(["variable", "set", "SECRETS_MODE", "--body", "repository", "--repo", repo]);
@@ -230,14 +245,18 @@ if (!PUBLIC) {
     free: [
       "No rules on main, environments or secret scanning on a free private repo.",
       "Builders open normal pull requests (no drafts), and the kit's blocked git commands guard main.",
-      "Secrets are repository secrets named TEST_<name> and PRODUCTION_<name> (SECRETS_MODE=repository).",
+      ACTIONS
+        ? "Secrets are repository secrets named TEST_<name> and PRODUCTION_<name> (SECRETS_MODE=repository)."
+        : "Secrets live in Cloudflare and .env.cloudflare.local, never in GitHub (ci = \"local\").",
       "What that loses: production has no required reviewer and no main-only rule. No workflow runs here",
       "(ci = \"local\"): the gate is your yes before the session runs the production deploy with",
       "--confirm \"deploy production\". Give write access only to people you trust with production.",
       "Team adds rules and environments; Enterprise also adds the production approval. A public repo gets all of it free.",
     ],
     team: [
-      "Rules on main, environments and environment secrets are on. Draft pull requests work.",
+      ACTIONS
+        ? "Rules on main, environments and environment secrets are on. Draft pull requests work."
+        : "Rules on main are on. Draft pull requests work. No environments: nothing reads them (ci = \"local\").",
       "Production can't wait for your approval on a private repo without Enterprise. The session",
       "deploys production only after your yes, so that is the gate.",
     ],
@@ -247,7 +266,9 @@ if (!PUBLIC) {
 }
 if (!DRY)
   console.log(
-    !PUBLIC && PLAN === "free"
-      ? "\nNext: put production keys in the PRODUCTION_ repository secrets (pnpm connect or push-secrets), never in the repo."
-      : "\nNext: put production keys in the production environment's secrets, never in the repo.",
+    !ACTIONS
+      ? "\nNext: put production keys in Cloudflare (pnpm connect, or push-secrets --wrangler), never in the repo or GitHub."
+      : !PUBLIC && PLAN === "free"
+        ? "\nNext: put production keys in the PRODUCTION_ repository secrets (pnpm connect or push-secrets), never in the repo."
+        : "\nNext: put production keys in the production environment's secrets, never in the repo.",
   );

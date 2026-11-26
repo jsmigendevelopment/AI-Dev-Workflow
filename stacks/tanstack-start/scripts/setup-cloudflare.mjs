@@ -20,11 +20,15 @@
 // It needs `wrangler login` (the person runs it); for zone settings, a zone token in
 // CLOUDFLARE_ZONE_TOKEN; for Cloudflare Access, an account token in CLOUDFLARE_ACCESS_TOKEN.
 // Either can live in .env.cloudflare.local (git-ignored). It never prints a token.
+// What it makes for the smoke tests (the Access service token, the test site's password) goes in
+// .env.cloudflare.local as TEST_<name> or PRODUCTION_<name>, owner-only (mode 600), never printed.
+// GitHub environments and secrets get them too only when docs/stack.md says ci = "actions".
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 
-import { localValue } from './cloudflare/local-env.ts'
+import { readCi } from './cloudflare/ci-mode.ts'
+import { localFileProblem, localValue, saveLocalValue } from './cloudflare/local-env.ts'
 import { setupCloudflare } from './cloudflare/setup.ts'
 
 const args = process.argv.slice(2)
@@ -80,6 +84,7 @@ if (protect !== undefined && !['access', 'password', 'none'].includes(protect)) 
 const code = await setupCloudflare(
   {
     dryRun: args.includes('--dry-run'),
+    ci: readCi(process.cwd()),
     zone: value('--zone'),
     account: value('--account'),
     botFightMode: args.includes('--bot-fight-mode'),
@@ -102,6 +107,8 @@ const code = await setupCloudflare(
     api,
     randomSecret: () => randomBytes(24).toString('base64url'),
     secret: (name) => (name.startsWith('ACCESS_') ? localValue(name) : undefined),
+    localProblem: () => localFileProblem(),
+    saveLocal: (name, v) => saveLocalValue(name, v),
     readText: (p) => readFileSync(p, 'utf8'),
     writeText: (p, t) => writeFileSync(p, t),
     exists: existsSync,

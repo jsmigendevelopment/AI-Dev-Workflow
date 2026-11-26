@@ -71,7 +71,7 @@ pass 1  ████ ████ ████ ████ ████
    - **Set up GitHub for the person:**
      1. If `gh auth status` fails, ask them to run `gh auth login` and wait.
      2. Run `node .agents/skills/name/scripts/setup-github.mjs --dry-run` and show them the list.
-     3. Say in one line what it does (labels, Dependabot, secret scanning, rules on main, a production environment that waits for them) and ask: *"Set this up now?"*
+     3. Say in one line what it does (labels, Dependabot, secret scanning, rules on main; on `ci = "actions"` only, a production environment that waits for them) and ask: *"Set this up now?"*
      4. On a yes, run it without `--dry-run` and show the results, including anything skipped because of their plan.
      - Main requires at most the `onrails/check` commit status (only where a probe status posts), never an Actions check.
      - **On Full automation, ask nothing.** `gh` signed in? Run it without `--dry-run`, and put the results in an ℹ️ FYI. Not signed in? Run local mode (`../coordinate/references/local-mode.md`) and list `gh auth login` in the FYI.

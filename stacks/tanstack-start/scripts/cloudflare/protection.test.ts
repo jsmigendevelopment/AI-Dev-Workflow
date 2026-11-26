@@ -35,20 +35,21 @@ describe('test and preview protection', () => {
     expect(readResources(LIVE_CONFIG).test.vars.LAUNCHED).toBe('true')
   })
 
-  it('password: makes a random secret, sets it on the test Worker and in GitHub, shows it once', async () => {
+  it('password: makes a random secret, sets it on the test Worker and in GitHub on ci = actions, never prints it', async () => {
     const world = freshWorld()
     const files: Record<string, string> = { 'wrangler.jsonc': PACK_CONFIG }
-    const dry = await run(world, files, { dryRun: true, protect: 'password' })
+    const dry = await run(world, files, { dryRun: true, protect: 'password', ci: 'actions' })
     expect(dry.calls.filter((c) => c.includes('secret put') || c.startsWith('write'))).toEqual([])
-    const first = await run(world, files, { protect: 'password' })
+    const first = await run(world, files, { protect: 'password', ci: 'actions' })
     expect(first.calls).toContain('wrangler secret put SITE_PASSWORD --env test <stdin>')
     expect(first.calls).toContain('gh secret set SITE_PASSWORD --env test')
     expect(first.calls).toContain('gh secret set SITE_PASSWORD --env preview')
     expect(first.calls.some((c) => c.includes('--env production') && c.includes('SITE_PASSWORD'))).toBe(false)
     expect(first.stdin.filter((v) => v === 'Zx81_random-SECRET-value-0123456')).toHaveLength(3)
-    expect(first.output().split('Zx81_random-SECRET-value-0123456')).toHaveLength(2) // printed once
+    expect(first.output()).not.toContain('Zx81_random') // never printed: it is in .env.cloudflare.local
+    expect(first.saved).toEqual({ TEST_SITE_PASSWORD: 'Zx81_random-SECRET-value-0123456' })
     expect(readResources(files['wrangler.jsonc']!).test.vars.SITE_PROTECTION).toBe('password')
-    const again = await run(world, files, { protect: 'password' })
+    const again = await run(world, files, { protect: 'password', ci: 'actions' })
     expect(again.calls.some((c) => c.includes('secret put'))).toBe(false)
     expect(again.output()).not.toContain('Zx81_random')
   })
@@ -74,10 +75,10 @@ describe('test and preview protection', () => {
     expect(readResources(files['wrangler.jsonc']).test.vars.SITE_PROTECTION).toBe('none')
   })
 
-  it('access: one-time PIN, a CI service token in GitHub, one app on the test Worker; idempotent', async () => {
+  it('access: one-time PIN, a CI service token in GitHub on ci = actions, one app on the test Worker; idempotent', async () => {
     const world = { ...freshWorld(), access: zeroTrust() }
     const files: Record<string, string> = { 'wrangler.jsonc': PACK_CONFIG }
-    const opts = { protect: 'access' as const, accessEmail: 'ann@example.com' }
+    const opts = { protect: 'access' as const, accessEmail: 'ann@example.com', ci: 'actions' as const }
     const dry = await run(world, files, { ...opts, dryRun: true }, ACCESS)
     expect(dry.writes).toEqual([])
     expect(dry.output()).not.toContain('ann@example.com')
@@ -245,7 +246,12 @@ describe('test and preview protection', () => {
   it('production all: the whole Worker, a token in the production GitHub environment, ACCESS_PATHS /*', async () => {
     const world = { ...freshWorld(), access: zeroTrust() }
     const files: Record<string, string> = { 'wrangler.jsonc': PACK_CONFIG }
-    const opts = { protectProduction: 'all', allowDomains: ['example.com'], productionOk: true }
+    const opts = {
+      protectProduction: 'all',
+      allowDomains: ['example.com'],
+      productionOk: true,
+      ci: 'actions' as const,
+    }
     const { writes, calls } = await run(world, files, opts, ACCESS)
     expect(writes.at(-1)!.body).toMatchObject({
       name: 'app-production (production)',

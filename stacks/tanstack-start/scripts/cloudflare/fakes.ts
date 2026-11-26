@@ -78,6 +78,8 @@ export interface World {
   failing?: string
   /** `wrangler versions list` fails for another reason than a missing Worker. */
   versionsBroken?: boolean
+  /** .env.cloudflare.local is not git-ignored. */
+  localNotIgnored?: boolean
   /** Cloudflare One on the account; null: Zero Trust not set up. */
   access: {
     workers: { id: string; name: string }[]
@@ -135,6 +137,8 @@ export function fakes(
   const calls: string[] = []
   const writes: { method: string; path: string; body: unknown }[] = []
   const lines: string[] = []
+  /** What was saved in .env.cloudflare.local, by name. */
+  const saved: Record<string, string> = {}
   let ids = 0
   const ok = (stdout = '') => Promise.resolve({ status: 0, stdout, stderr: '' })
   const deps: Deps = {
@@ -222,6 +226,15 @@ export function fakes(
         )
       return { status: 200, body: { success: true } }
     },
+    localProblem: () =>
+      world.localNotIgnored
+        ? ".env.cloudflare.local isn't git-ignored, so nothing was written. Add it to .gitignore first."
+        : null,
+    saveLocal: (name, value) => {
+      calls.push(`save ${name} in .env.cloudflare.local`)
+      saved[name] = value
+      return true
+    },
     readText: (p) => files[p] ?? '',
     writeText: (p, t) => {
       calls.push(`write ${p}`)
@@ -304,7 +317,7 @@ export function fakes(
     }
     return { status: 404, body: null }
   }
-  return { deps, calls, writes, stdin, output: () => lines.join('\n') }
+  return { deps, calls, writes, stdin, saved, output: () => lines.join('\n') }
 }
 
 export const run = (

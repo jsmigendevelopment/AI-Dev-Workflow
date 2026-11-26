@@ -1,9 +1,11 @@
-// Cloudflare Access through the API: the logins, a CI service token and one Access application,
+// Cloudflare Access through the API: the logins, a smoke-test service token and one Access application,
 // for the test Worker (and its previews) or for production (all of it, or some paths).
 // API shapes: cloudflare/api-schemas openapi.json (2026-11-22): access_identity-providers,
 // access_destinations, access_email_rule, access_domain_rule, access_github_organization_rule.
 import { OPEN_PATHS } from '../../src/lib/open-paths.ts'
+import type { Ci } from './ci-mode.ts'
 import type { ApiResult, Deps, Log } from './deps.ts'
+import { LOCAL_FILE } from './local-env.ts'
 import { type LoginName, LOGINS, setupStep, shortLabel } from './logins.ts'
 
 /** Who may sign in. Rules are OR'ed: any one match lets the person in. */
@@ -87,7 +89,7 @@ export function accessAppBody(
     session_duration: '24h',
     ...(idps.length ? { allowed_idps: idps, auto_redirect_to_identity: idps.length === 1 } : {}),
     policies: [
-      // Service Auth: CI sends CF-Access-Client-Id and CF-Access-Client-Secret, no login page.
+      // Service Auth: the smoke tests send CF-Access-Client-Id and CF-Access-Client-Secret, no login page.
       ...(tokenId
         ? [
             {
@@ -119,6 +121,12 @@ export interface AccessContext {
   a: string
   /** `<team>.cloudflareaccess.com` */
   team: string
+  github: GithubWrites
+}
+
+/** `ci = "actions"` only: the GitHub environments get the secrets too, when `gh` is signed in. */
+export interface GithubWrites {
+  actions: boolean
   gh: boolean
 }
 
@@ -179,7 +187,29 @@ export async function ghSecret(deps: Deps, log: Log, name: string, value: string
   }
 }
 
-/** A service token for CI, its secret straight into GitHub. Undefined when it could not be made. */
+/** Whether GitHub gets the values too: only on `ci = "actions"`, with the GitHub CLI signed in. */
+export async function githubWrites(deps: Deps, ci: Ci | undefined): Promise<GithubWrites> {
+  const actions = ci === 'actions'
+  return { actions, gh: actions && (await deps.run('gh', ['auth', 'status'])).status === 0 }
+}
+
+/** The prefix the deploys read a site's values under: TEST_ (test and previews) or PRODUCTION_. */
+export const localPrefix = (envs: string[]) => (envs.includes('production') ? 'PRODUCTION_' : 'TEST_')
+
+/** Saves each value in .env.cloudflare.local as `<prefix><name>`. Names only in the log. */
+export function saveForDeploys(deps: Deps, log: Log, prefix: string, values: Record<string, string>) {
+  const failed = Object.entries(values)
+    .filter(([name, value]) => !deps.saveLocal(prefix + name, value))
+    .map(([name]) => prefix + name)
+  const names = Object.keys(values).map((name) => prefix + name)
+  log(
+    failed.length
+      ? `  could not save ${failed.join(' and ')} in ${LOCAL_FILE}: put the value there by hand`
+      : `  saved ${names.join(' and ')} in ${LOCAL_FILE} (git-ignored, owner-only), where the deploys read it`,
+  )
+}
+
+/** A service token for the smoke tests, saved where the deploys read it. No id: it wasn't made. */
 export async function ensureServiceToken(
   ctx: AccessContext,
   worker: string,
@@ -187,19 +217,29 @@ export async function ensureServiceToken(
 ): Promise<{ id?: string; ok: boolean }> {
   const { deps, log, a } = ctx
   const name = `${worker} CI`
+  const prefix = localPrefix(envs)
+  const names = `${prefix}CF_ACCESS_CLIENT_ID and ${prefix}CF_ACCESS_CLIENT_SECRET`
   const tokens =
     results<{ id: string; name: string }[]>(await deps.api('GET', `${a}/access/service_tokens`)) ?? []
   const found = tokens.find((t) => t.name === name)
   if (found) {
     log(
-      `exists  service token "${name}" (its secret is shown only once; if GitHub lacks it, refresh the token in Zero Trust → Service credentials and set CF_ACCESS_CLIENT_SECRET again)`,
+      `exists  service token "${name}" (Cloudflare shows its secret only once: if ${LOCAL_FILE} lacks ${names}, refresh the token in Zero Trust → Service credentials and put both values there)`,
     )
     return { id: found.id, ok: true }
   }
+  const github = ctx.github.actions
+    ? `, and in the GitHub environment${envs.length > 1 ? 's' : ''} ${envs.join(' and ')}`
+    : ''
   log(
-    `${ctx.dryRun ? 'would create' : 'creating'} service token "${name}" (1 year) and put it in the GitHub environment${envs.length > 1 ? 's' : ''} ${envs.join(' and ')} as CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET`,
+    `${ctx.dryRun ? 'would create' : 'creating'} service token "${name}" (1 year) and save it in ${LOCAL_FILE} as ${names}${github}. Its secret is never printed.`,
   )
   if (ctx.dryRun) return { ok: true }
+  const problem = deps.localProblem()
+  if (problem) {
+    log(`  ${problem} Cloudflare shows a token's secret only once, so no token was made.`)
+    return { ok: false }
+  }
   const token = results<{ id: string; client_id: string; client_secret: string }>(
     await deps.api('POST', `${a}/access/service_tokens`, { name, duration: '8760h' }),
   )
@@ -207,13 +247,12 @@ export async function ensureServiceToken(
     log('  could not create the service token. Check the token permissions above.')
     return { ok: false }
   }
-  if (ctx.gh) {
-    await ghSecret(deps, log, 'CF_ACCESS_CLIENT_ID', token.client_id, envs)
-    await ghSecret(deps, log, 'CF_ACCESS_CLIENT_SECRET', token.client_secret, envs)
-  } else
-    log(
-      '  GitHub CLI not signed in: the service token secret cannot be shown again. Delete the token, sign in to gh, run this again.',
-    )
+  const values = { CF_ACCESS_CLIENT_ID: token.client_id, CF_ACCESS_CLIENT_SECRET: token.client_secret }
+  saveForDeploys(deps, log, prefix, values)
+  if (ctx.github.gh)
+    for (const [key, value] of Object.entries(values)) await ghSecret(deps, log, key, value, envs)
+  else if (ctx.github.actions)
+    log(`  GitHub CLI not signed in: set both in GitHub by hand, from ${LOCAL_FILE}.`)
   return { id: token.id, ok: true }
 }
 

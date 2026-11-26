@@ -78,7 +78,7 @@ describe('setup-cloudflare', () => {
 
   it('a dry run reads but never creates, writes or sets anything', async () => {
     const files = { 'wrangler.jsonc': PACK_CONFIG, '.agents/skills/secrets/scripts/push-secrets.mjs': '' }
-    const { code, calls, output } = await run(freshWorld(), files, { dryRun: true })
+    const { code, calls, output } = await run(freshWorld(), files, { dryRun: true, ci: 'actions' })
     expect(code).toBe(0)
     expect(calls.filter((c) => /create|write |secret set|api -X|remove/.test(c))).toEqual([])
     expect(calls).toContain('node .agents/skills/secrets/scripts/push-secrets.mjs --wrangler --dry-run')
@@ -131,7 +131,7 @@ describe('setup-cloudflare', () => {
   })
 
   it('sets the account id in all three GitHub environments, never the token', async () => {
-    const { calls, output } = await run(freshWorld(), { 'wrangler.jsonc': PACK_CONFIG })
+    const { calls, output } = await run(freshWorld(), { 'wrangler.jsonc': PACK_CONFIG }, { ci: 'actions' })
     for (const env of ['test', 'production', 'preview'])
       expect(calls).toContain(`gh secret set CLOUDFLARE_ACCOUNT_ID --env ${env}`)
     expect(calls).toContain('gh api -X PUT repos/ann/app/environments/preview')

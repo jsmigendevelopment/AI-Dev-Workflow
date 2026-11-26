@@ -7,12 +7,16 @@ import {
   ensureLogins,
   ensureServiceToken,
   ghSecret,
+  type GithubWrites,
+  githubWrites,
   missingLogins,
   results,
+  saveForDeploys,
   type Target,
   type Who,
 } from './access.ts'
 import type { Deps, Log, Options } from './deps.ts'
+import { LOCAL_FILE } from './local-env.ts'
 import { LOGIN_NAMES, type LoginName, parseLogins } from './logins.ts'
 import { type Account, type EnvName, type EnvResources, firstJson, setEnvVar } from './wrangler-config.ts'
 
@@ -23,11 +27,12 @@ export const PROTECTION_CHOICES = [
   '   workers.dev URL and every preview URL, static files included. Logins: Google (recommended),',
   '   GitHub, Facebook, LinkedIn, Yandex, Microsoft Entra or any OpenID Connect provider, and always',
   '   a one-time PIN by email. Who may sign in: a list of emails, an email domain, or a GitHub org.',
-  '   CI gets a service token. Free for small teams (Zero Trust Free plan).',
+  '   The smoke tests get a service token. Free for small teams (Zero Trust Free plan).',
   '   Run: --protect access --logins google --allow-emails <their email>',
   '        (or --allow-domain company.com, or --logins github --allow-github-org <org>)',
-  'b) A password page in the app (test and previews only): one random password, shown once. Covers',
-  '   pages, server functions and /api/v1, not the static files. Run: --protect password',
+  'b) A password page in the app (test and previews only): one random password, saved in',
+  `   ${LOCAL_FILE}, never printed. Covers pages, server functions and /api/v1, not the static`,
+  '   files. Run: --protect password',
   'c) None: anyone with the URL can open the test site (it stays out of search). Run: --protect none',
 ]
 
@@ -40,7 +45,7 @@ export const PRODUCTION_CHOICES = [
 ]
 
 export const ACCESS_TOKEN_HELP = [
-  'Cloudflare Access needs an account token (never give it to CI): My Profile → API Tokens → Create',
+  'Cloudflare Access needs an account token (never give it to a deploy): My Profile → API Tokens → Create',
   'Custom Token with Account → Access: Apps and Policies → Edit, Access: Service Tokens → Edit,',
   'Access: Organizations, Identity Providers, and Groups → Edit, Workers Scripts → Read;',
   'Account Resources: this account only; an expiry. Put it in .env.cloudflare.local (git-ignored)',
@@ -87,20 +92,30 @@ export function readProductionPaths(value: string): { paths?: string[]; problem?
 
 // ---------------------------------------------------------------- the password gate
 
-async function protectWithPassword(deps: Deps, options: Options, log: Log, gh: boolean): Promise<boolean> {
+async function protectWithPassword(
+  deps: Deps,
+  options: Options,
+  log: Log,
+  github: GithubWrites,
+): Promise<boolean> {
   const listed = await deps.wrangler(['secret', 'list', '--env', 'test', '--format', 'json'])
   const names =
     listed.status === 0 ? (firstJson<{ name: string }[]>(listed.stdout) ?? []).map((s) => s.name) : []
   if (names.includes('SITE_PASSWORD') && !options.newPassword) {
-    log('exists  SITE_PASSWORD on the test Worker (pass --new-password to replace it)')
-    return true
-  }
-  if (options.dryRun) {
     log(
-      'would make a random SITE_PASSWORD (never the repo name), set it on the test Worker and in the GitHub environments test and preview, and show it once',
+      `exists  SITE_PASSWORD on the test Worker (the deploys read it as TEST_SITE_PASSWORD in ${LOCAL_FILE}; pass --new-password to replace it)`,
     )
     return true
   }
+  const where = `the test Worker and ${LOCAL_FILE} as TEST_SITE_PASSWORD${github.actions ? ', and in the GitHub environments test and preview' : ''}`
+  if (options.dryRun) {
+    log(
+      `would make a random SITE_PASSWORD (never the repo name) and save it on ${where}. It is never printed.`,
+    )
+    return true
+  }
+  const problem = deps.localProblem()
+  if (problem) return (log(`  ${problem} No password was made.`), false)
   const password = deps.randomSecret()
   const put = await deps.wrangler(['secret', 'put', 'SITE_PASSWORD', '--env', 'test'], password)
   if (put.status !== 0) {
@@ -110,10 +125,13 @@ async function protectWithPassword(deps: Deps, options: Options, log: Log, gh: b
     return false
   }
   log('  set SITE_PASSWORD on the test Worker (previews use it too)')
-  if (gh) await ghSecret(deps, log, 'SITE_PASSWORD', password, ['test', 'preview'])
-  else
-    log('  GitHub CLI not signed in: set SITE_PASSWORD in the GitHub environments test and preview by hand.')
-  log(`  The test site's password, shown once. Give it to the person: ${password}`)
+  saveForDeploys(deps, log, 'TEST_', { SITE_PASSWORD: password })
+  if (github.gh) await ghSecret(deps, log, 'SITE_PASSWORD', password, ['test', 'preview'])
+  else if (github.actions)
+    log(
+      `  GitHub CLI not signed in: set SITE_PASSWORD in the GitHub environments test and preview by hand, from ${LOCAL_FILE}.`,
+    )
+  log(`  The person opens ${LOCAL_FILE} to read the password (TEST_SITE_PASSWORD). It is never printed.`)
   return true
 }
 
@@ -133,7 +151,7 @@ async function accessReady(
   log: Log,
   chosen: Account,
   workerName: string,
-  gh: boolean,
+  github: GithubWrites,
   /** A dry run whose first test deploy would make the Worker: plan against its name. */
   deployPlanned = false,
 ): Promise<Ready | null> {
@@ -171,12 +189,12 @@ async function accessReady(
     )
     return null
   }
-  const ctx: AccessContext = { deps, log, dryRun: options.dryRun, a, team: org.auth_domain, gh }
+  const ctx: AccessContext = { deps, log, dryRun: options.dryRun, a, team: org.auth_domain, github }
   if (missingLogins(ctx, logins).length) return null
   return { ctx, worker, who, logins }
 }
 
-/** Logins, the CI token for `envs`, and the app. Returns the Worker vars to write, or null. */
+/** Logins, the smoke tests' token for `envs`, and the app. Returns the Worker vars to write, or null. */
 async function applyAccess(ready: Ready, target: Target, envs: string[]) {
   const { ctx, who, logins } = ready
   const idps = await ensureLogins(ctx, logins)
@@ -227,14 +245,14 @@ export async function protection(
     for (const line of PROTECTION_CHOICES) log(`  ${line}`)
     return
   }
-  const gh = (await deps.run('gh', ['auth', 'status'])).status === 0
+  const github = await githubWrites(deps, options.ci)
   let vars: Record<string, string> | null = { SITE_PROTECTION: options.protect }
   if (options.protect === 'none')
     log('No protection: the test and preview URLs are open to anyone who has them (noindex).')
   else if (options.protect === 'password') {
-    if (!(await protectWithPassword(deps, options, log, gh))) vars = null
+    if (!(await protectWithPassword(deps, options, log, github))) vars = null
   } else {
-    const ready = await accessReady(deps, options, log, chosen, resources.test.worker, gh, deployPlanned)
+    const ready = await accessReady(deps, options, log, chosen, resources.test.worker, github, deployPlanned)
     vars = ready && (await applyAccess(ready, { kind: 'test', worker: ready.worker }, ['test', 'preview']))
   }
   if (!vars) return log(`  SITE_PROTECTION stays "${current}".`)
@@ -266,8 +284,14 @@ export async function productionProtection(
     )
     return
   }
-  const gh = (await deps.run('gh', ['auth', 'status'])).status === 0
-  const ready = await accessReady(deps, options, log, chosen, prod.worker, gh)
+  const ready = await accessReady(
+    deps,
+    options,
+    log,
+    chosen,
+    prod.worker,
+    await githubWrites(deps, options.ci),
+  )
   if (!ready) return log('  Production stays as it is.')
   let target: Target = { kind: 'production', worker: ready.worker }
   if (paths[0] !== '/*') {
@@ -281,6 +305,6 @@ export async function productionProtection(
   if (!vars) return log('  Production stays as it is.')
   writeVars(deps, options, log, 'production', prod.vars, { ...vars, ACCESS_PATHS: paths.join(',') })
   log(
-    '  The production deploy smoke-tests with the service token (CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET in the GitHub environment production).',
+    `  The production deploy smoke-tests with the service token (PRODUCTION_CF_ACCESS_CLIENT_ID and PRODUCTION_CF_ACCESS_CLIENT_SECRET in ${LOCAL_FILE}).`,
   )
 }

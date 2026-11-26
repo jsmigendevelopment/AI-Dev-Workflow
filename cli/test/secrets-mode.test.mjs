@@ -39,6 +39,9 @@ function repo() {
   writeFileSync(join(dir, ".env.example"), "# scope: test,production\nAPI_TOKEN=\n# scope: production, secret: no\nSITE_URL=\n");
   writeFileSync(join(dir, ".env.test.local"), "API_TOKEN=test-value-1\n");
   writeFileSync(join(dir, ".env.production.local"), "API_TOKEN=live-value-2\nSITE_URL=https://example.com\n");
+  // GitHub secrets and SECRETS_MODE are for GitHub Actions only (#139): ci = "local" is in ci-local-secrets.test.mjs.
+  mkdirSync(join(dir, "docs"));
+  writeFileSync(join(dir, "docs", "stack.md"), 'ci = "actions"\n');
   return dir;
 }
 

@@ -8,7 +8,7 @@ Last checked: 2026-11-23. Official docs:
 
 How: the docs site was blocked here, so the pages were read from GitHub's public docs repo (`github/docs`, commit of 2026-11-20). `[V]` = matches that source. `[U]` = not checked.
 
-**What it's for.** CI deploys with the values stored in three GitHub environments: `test`, `production` and `preview`. Environment secrets are only given to jobs that name that environment, so test jobs never see production keys.
+**What it's for.** Only repos whose `docs/stack.md` says `ci = "actions"`: their workflows deploy with the values stored in three GitHub environments, `test`, `production` and `preview`. Environment secrets are only given to jobs that name that environment, so test jobs never see production keys. On `ci = "local"` (every repo, unless the person turned Actions on) skip this file: nothing reads GitHub's copies, so `setup-github`, setup-cloudflare, `push-secrets` and `pnpm connect` write none of them (`docs/decisions.md` row 15 in the kit).
 
 **For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
 
@@ -27,9 +27,9 @@ How: the docs site was blocked here, so the pages were read from GitHub's public
 
 ## What the workflows read
 
-**The packs ship no workflows now** (`ci = "local"`): their deploys run from the session and read nothing from GitHub, so nothing below is read unless the person turned on `ci = "actions"` themselves. Moving these values to where the session deploys read them is #139. The session deploys' names are in the `stack-tanstack-start` skill, Environments and deploys.
+**The packs ship no workflows now** (`ci = "local"`): their deploys run from the session and read nothing from GitHub, so nothing below is read unless the person turned on `ci = "actions"` themselves. The session deploys read their values from the shell or `.env.cloudflare.local` (git-ignored, mode 600): setup-cloudflare saves the Access service token there as `TEST_CF_ACCESS_CLIENT_ID` and `TEST_CF_ACCESS_CLIENT_SECRET` (`PRODUCTION_` ones for production) and a new password as `TEST_SITE_PASSWORD`, never printed. The names are in the `stack-tanstack-start` skill, Environments and deploys.
 
-TanStack Start pack, as its old workflows read them (`deploy-test.yml`, `deploy-production.yml`, `preview.yml`):
+TanStack Start pack, as its old workflows read them (`deploy-test.yml`, `deploy-production.yml`, `preview.yml`), on `ci = "actions"` only:
 
 | Name | Kind | test | production | preview | Who sets it |
 |---|---|---|---|---|---|
@@ -58,7 +58,7 @@ The monorepo + Expo pack ships no workflow, so it reads no GitHub variables: its
    ```bash
    gh auth login
    ```
-2. Make the environments. `setup-github` makes `test` and `production`, setup-cloudflare makes `preview`. To do it by hand: open `https://github.com/<owner>/<repo>/settings/environments`, click **New environment**, type the name, click **Configure environment**. `[V]`
+2. Make the environments. On `ci = "actions"`, `setup-github` makes `test` and `production`, setup-cloudflare makes `preview`. To do it by hand: open `https://github.com/<owner>/<repo>/settings/environments`, click **New environment**, type the name, click **Configure environment**. `[V]`
 3. Set each secret. The command asks for the value and hides it. Never type the value after the name:
    ```bash
    gh secret set CLOUDFLARE_API_TOKEN --env test

@@ -24,7 +24,7 @@ describe('the first test deploy', () => {
   it('builds, migrates and deploys the test Worker as pnpm deploy:test does, before the secrets, never production', async () => {
     const world = freshWorld()
     const f = files()
-    const { code, calls, output } = await run(world, f)
+    const { code, calls, output } = await run(world, f, { ci: 'actions' })
     expect(code).toBe(0)
     expect(calls.filter(isDeployStep)).toEqual([BUILD, MIGRATE, DEPLOY])
     expect(world.deployed).toEqual(['app-test'])

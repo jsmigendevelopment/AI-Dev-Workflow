@@ -1,20 +1,33 @@
 #!/usr/bin/env node
-// Push environment variables to GitHub environments (and Cloudflare with --wrangler)
-// without ever printing a value. Reads:
+// Push environment variables to Cloudflare (--wrangler), and to GitHub environments only when
+// docs/stack.md says ci = "actions", without ever printing a value. Reads:
 //   .env.example            names and metadata (scope, secret)
 //   .env.test.local         values for the "test" environment
 //   .env.production.local   values for the "production" environment
 // Usage: node push-secrets.mjs [--dry-run] [--wrangler] [--env test|production]
+// On ci = "local" (every repo, unless the person turned Actions on) nothing reads GitHub's copies,
+// so nothing goes to GitHub: secrets go to the Cloudflare Workers with --wrangler, and plain
+// variables belong in wrangler.jsonc vars.
 // GitHub Free has no environments on a private repo. There setup-github sets the repository
 // variable SECRETS_MODE to "repository", and this pushes repository secrets and variables named
 // TEST_<name> and PRODUCTION_<name> instead: the names the pack's workflows read in that mode.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
 const WRANGLER = args.includes("--wrangler");
 const only = args.includes("--env") ? args[args.indexOf("--env") + 1] : null;
+
+// "actions" only for a `ci = "actions"` line in the nearest docs/stack.md, up to the repo root.
+function ci() {
+  for (let dir = process.cwd(); ; dir = dirname(dir)) {
+    const file = join(dir, "docs", "stack.md");
+    if (existsSync(file)) return /^ci\s*=\s*"actions"\s*$/m.test(readFileSync(file, "utf8")) ? "actions" : "local";
+    if (existsSync(join(dir, ".git")) || dirname(dir) === dir) return "local";
+  }
+}
 
 // "repository" only when the repository variable says so. A read that fails keeps environments.
 function secretsMode() {
@@ -70,7 +83,12 @@ if (!Object.keys(meta).length) {
 }
 
 const envs = ["test", "production"].filter((e) => !only || e === only);
-const mode = secretsMode();
+const GITHUB = ci() === "actions";
+if (!GITHUB) {
+  console.log("ci = \"local\" (docs/stack.md): nothing goes to GitHub. Secrets go to Cloudflare with --wrangler; plain variables belong in wrangler.jsonc vars.");
+  if (!WRANGLER) process.exit(0);
+}
+const mode = GITHUB ? secretsMode() : "environment";
 if (mode === "repository") console.log("SECRETS_MODE is \"repository\" (GitHub Free, private repo): GitHub values go to TEST_ and PRODUCTION_ repository names.");
 let failed = 0;
 for (const env of envs) {
@@ -83,8 +101,8 @@ for (const env of envs) {
     if (!value) { console.log(`${env}: ${name} is empty in ${file}, skipped`); continue; }
     const gh = githubTarget(name, env, mode);
     const targets = m.secret
-      ? [["gh", ["secret", "set", gh.name, ...gh.where]], ...(WRANGLER ? [["npx", ["wrangler", "secret", "put", name, "--env", env]]] : [])]
-      : [["gh", ["variable", "set", gh.name, ...gh.where, "--body", value]]];
+      ? [...(GITHUB ? [["gh", ["secret", "set", gh.name, ...gh.where]]] : []), ...(WRANGLER ? [["npx", ["wrangler", "secret", "put", name, "--env", env]]] : [])]
+      : GITHUB ? [["gh", ["variable", "set", gh.name, ...gh.where, "--body", value]]] : [];
     for (const [cmd, cmdArgs] of targets) {
       const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})` : "Cloudflare secret";
       if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); continue; }

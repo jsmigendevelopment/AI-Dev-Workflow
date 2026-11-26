@@ -56,7 +56,7 @@ When a step adds a service, it adds its variables here in this format.
 4. **If they'll do it themselves:** they run `pnpm connect` in **their own terminal**, not yours. Say: *"In a terminal in the app folder, run `pnpm connect`. It walks you through each service one at a time, opens the page, and asks for each key with hidden input. It takes about 10 minutes for Cloudflare and Clerk, longer with add-ons. Tell me when it's done."*
    - `pnpm connect clerk` does one provider. `--force` sets a value again. `--dry-run` shows what's set and what it would ask, by name only.
    - It lists the providers the app needs (from `.env.example` and the workflows' `secrets.*` and `vars.*`), prints each walkthrough's steps short, and asks before it opens a page.
-   - It checks each value's shape where the provider has a rule, and asks before each destination: `.env.local` (mode 600), `wrangler secret put`, `gh secret set` or `gh variable set`. Values go on stdin, never in a command's arguments, and are never printed. Production needs its own yes.
+   - It checks each value's shape where the provider has a rule, and asks before each destination: `.env.local` (mode 600), `wrangler secret put`, and `gh secret set` or `gh variable set` only on `ci = "actions"` (on `ci = "local"` nothing goes to GitHub). Values go on stdin, never in a command's arguments, and are never printed. Production needs its own yes.
    - Every value is read hidden; a public one is shown after Enter unless it looks like a secret key, which is refused. Typing from before a question is dropped, and a y/N question shows only y, n or yes, so a key pasted in the wrong place is never shown. A failing `wrangler` or `gh` prints only its exit code and the command to rerun by hand. It refuses to run without a terminal, so you never run it for them. Afterwards, check by name: `pnpm connect --dry-run` (✓ set, ✗ missing, ? couldn't check).
    - A step the script can't do (for example `wrangler login`, Clerk's CLI, a DNS record) stays in the printed steps for them to do.
    - Pack without the script? Give each variable's link, the `.env.local` line, and `gh secret set NAME --env <env>` or `npx wrangler secret put NAME --env <env>`, which ask for the value without showing it.
@@ -68,9 +68,9 @@ When a step adds a service, it adds its variables here in this format.
       ```bash
       node .agents/skills/secrets/scripts/push-secrets.mjs --dry-run
       ```
-      On a Cloudflare stack, add `--wrangler`.
+      On a Cloudflare stack, add `--wrangler`. On `ci = "local"` (`docs/stack.md`) it writes nothing to GitHub, so without `--wrangler` it pushes nothing.
    4. Show the list and ask *"Push these?"* On a yes, run it again without `--dry-run`.
-   5. Offer to delete `.env.production.local` now that the values are stored in GitHub and Cloudflare.
+   5. Offer to delete `.env.production.local` now that the values are stored in Cloudflare (and GitHub, on `ci = "actions"`).
 
 6. **Check it works.** Start the app. A missing variable fails at startup with its name (the pack's env schema does this). Then report which variables are set where, by name only.
 
@@ -106,7 +106,7 @@ Each file in `providers/` carries one fenced `json connect` block that `pnpm con
 
 ## Rules
 
-- Production values live only in the GitHub `production` environment and the host's production secrets. Never in the repo, never in a test environment.
+- Production values live only in the host's production secrets (and the GitHub `production` environment, on `ci = "actions"` only), or `.env.cloudflare.local` for the deploys' smoke-test values. Never in the repo, never in a test environment.
 - Use test or sandbox keys for local and test (for example Stripe test mode, Clerk development instance).
 - A variable without `secret: yes` is public. It's fine in a GitHub variable or a `VITE_` client value. A secret never gets a `VITE_` prefix.
 - Settings that aren't secret go in committed config per environment (for example `vars` in `wrangler.jsonc`), not in a secret store.
