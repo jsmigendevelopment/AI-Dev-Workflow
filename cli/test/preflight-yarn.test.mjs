@@ -9,7 +9,8 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } f
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { put } from "./helpers.mjs";
-import { project, temp } from "./preflight-fakes.mjs";
+import { markRead } from "../src/preflight-sys.mjs";
+import { project, readProject, temp } from "./preflight-fakes.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../src/preflight.mjs", import.meta.url));
 const YARN1 = JSON.stringify({ packageManager: "yarn@1.22.22" });
@@ -81,11 +82,11 @@ test("AC-144-7: WHEN a yarn config is only in a parent folder or the home folder
 
 test("AC-144-7: WHEN the repo has been read THEN the fake yarn runs, with or without a yarn config, so the checks above can fail", posixOnly, () => {
   const { run } = rig();
-  const plain = run(project({ "package.json": YARN1, "docs/state.md": "# State\n" }));
+  const plain = run(readProject({ "package.json": YARN1 }));
   assert.equal(plain.ran, true, "no yarn config: yarn --version runs");
   assert.equal(plain.versions.detail, "Node " + process.versions.node + " (needs >=22), yarn 1.22.22");
-  const read = run(project({ "package.json": YARN1, ".yarnrc.yml": CONFIGS[0][1], "docs/state.md": "# State\n" }));
-  assert.equal(read.ran, true, "docs/state.md exists: yarn --version runs as before");
+  const read = run(readProject({ "package.json": YARN1, ".yarnrc.yml": CONFIGS[0][1] }));
+  assert.equal(read.ran, true, "marked read: yarn --version runs as before");
 });
 
 test("AC-144-7: WHEN a yarn config names a release in the plain form THEN the version comes from its file name, and a missing yarn is found on PATH", posixOnly, () => {
@@ -102,12 +103,12 @@ test("AC-144-7: WHEN a yarn config names a release in the plain form THEN the ve
 test("AC-144-7: WHEN preflight runs a package manager's version probe THEN the launcher's per-project settings are switched off for it", posixOnly, () => {
   const { run } = rig();
   for (const pkg of [YARN1, PNPM]) {
-    const plain = run(project({ "package.json": pkg, "docs/state.md": "# State\n" }));
+    const plain = run(readProject({ "package.json": pkg }));
     assert.equal(plain.ran, true, `${pkg}: the probe runs`);
     assert.equal(plain.unsafe, false, `${pkg}: the settings switch was missing`);
     assert.match(plain.env, /^COREPACK_ENV_FILE=0$/m);
-    const read = run(project({ "package.json": pkg, ".corepack.env": LAUNCHER, "docs/state.md": "# State\n" }));
-    assert.equal(read.ran, true, `${pkg}: docs/state.md exists, so the probe runs`);
+    const read = run(readProject({ "package.json": pkg, ".corepack.env": LAUNCHER }));
+    assert.equal(read.ran, true, `${pkg}: marked read, so the probe runs`);
     assert.equal(read.unsafe, false, `${pkg}: the settings switch was missing once the repo is read`);
   }
 });
@@ -126,8 +127,10 @@ test("AC-144-7: WHEN launcher settings are in the folder or a parent and the rep
 
 test("AC-144-7: WHEN the folder is opened through a symlink and its real repo root holds a yarn config or launcher settings THEN preflight runs no package manager", posixOnly, () => {
   const { run } = rig();
-  const linked = (files) => {
+  const linked = (files, marked = false) => {
     const real = project(files);
+    if (marked) mkdirSync(join(real, "app", ".git"));
+    if (marked) markRead(join(real, "app"));
     const links = temp("onrails-links-");
     symlinkSync(join(real, "app"), join(links, "app"));
     return run(join(links, "app"));
@@ -138,7 +141,7 @@ test("AC-144-7: WHEN the folder is opened through a symlink and its real repo ro
     assert.equal(r.versions.status, "limited");
   }
   // The control: the same link once the repo has been read runs the probe.
-  assert.equal(linked({ "app/package.json": YARN1, "app/docs/state.md": "# State\n" }).ran, true);
+  assert.equal(linked({ "app/package.json": YARN1 }, true).ran, true);
 });
 
 test("AC-144-7: WHEN the repo isn't read yet and has no config files at all THEN preflight runs no package manager's version probe", posixOnly, () => {
@@ -151,10 +154,10 @@ test("AC-144-7: WHEN the repo isn't read yet and has no config files at all THEN
   }
 });
 
-test("AC-144-7: WHEN docs/state.md exists THEN every package manager's version probe runs, so the check above can fail", posixOnly, () => {
+test("AC-144-7: WHEN the repo is marked read THEN every package manager's version probe runs, so the check above can fail", posixOnly, () => {
   const { run } = rig();
   for (const [pm, [pin, version]] of Object.entries(FAKES)) {
-    const { calls, versions } = run(project({ "package.json": JSON.stringify({ packageManager: pin }), "docs/state.md": "# State\n" }));
+    const { calls, versions } = run(readProject({ "package.json": JSON.stringify({ packageManager: pin }) }));
     assert.ok(calls.includes(`${pm} --version`), `${pm}: ran ${calls.join(" | ")}`);
     assert.equal(versions.status, "ok", pm);
     assert.equal(versions.detail, `Node ${process.versions.node} (needs >=22), ${pm} ${version}`);

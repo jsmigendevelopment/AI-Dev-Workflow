@@ -4,21 +4,21 @@
 // which has other permissions, and can't see these. Each failure comes with its fix ladder:
 // work around it in the sandbox, ask to run one command outside it, use the environment tools,
 // and only then the person, in ONE message. The ask skill's references/preflight.md has the steps.
-//   node preflight.mjs [dir] [--record] [--if-changed] [--json]
+//   node preflight.mjs [dir] [--record] [--if-changed] [--json] [--mark-read]
 //                      [--model <id>] [--effort <level>] [--tool claude|claude-cloud|codex|other]
 // --record writes the result to the Environment line of docs/state.md. --if-changed skips every
-// probe when that line says ok and the sandbox hasn't changed. It changes nothing else: a temp
-// file, a temp branch (or a temp git config key) and a local port are made and removed.
+// probe when that line says ok and the sandbox hasn't changed. --mark-read is for /join and /back:
+// it marks the repo read on this machine (#169), and preflight runs no code the repo chose until then.
+// It changes nothing else: a temp file, a temp branch (or a temp git config key), a temp folder
+// outside the repo and a local port are made and removed.
 // Exit 0: nothing to fix. 1: something to fix or blocked. 2: a bad flag. No dependencies.
-// The master copy is scripts/preflight.mjs in the kit; sync-skills.mjs copies it into the ask
-// skill and the CLI (npx onrails preflight).
-import { spawnSync } from "node:child_process";
+// The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs; sync-skills.mjs copies
+// both into the ask skill and the CLI (npx onrails preflight).
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { connect, createServer } from "node:net";
-import { hostname } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isRead, markRead, realSys, tempFolders } from "./preflight-sys.mjs";
 
 /** The checks, in the order the table prints them. */
 export const CHECKS = ["repo", "git", "registry", "github", "loopback", "browser", "versions", "model"];
@@ -33,7 +33,8 @@ const LAUNCH = "const r=require('module').createRequire(process.cwd()+'/package.
 // The table, the ladder and the drafted message are read by the agent, and the message is posted. So a value
 // from the repo or the environment is printed only when it matches a safe pattern, and plain words stand in for it otherwise.
 const SAFE = { range: /^[\d.xX*^~<>= |]{1,40}$/, host: /^[a-z0-9.-]{1,253}(:\d{1,5})?$/i, version: /^\d+(\.\d+){0,2}(-[0-9A-Za-z.-]{1,40})?$/,
-  code: /^E[A-Z0-9_]{2,30}$/, model: /^[\w.:@\/[\]-]{1,80}$/, effort: /^[a-z]{1,12}$/i, flag: /^--?[a-z][\w-]{0,30}$/i };
+  code: /^E[A-Z0-9_]{2,30}$/, model: /^[\w.:@\/[\]-]{1,80}$/, effort: /^[a-z]{1,12}$/i, flag: /^--?[a-z][\w-]{0,30}$/i,
+  path: /^[\w .:~@+\/\\-]{1,400}$/ };
 const shown = (value, kind, instead) => (value != null && SAFE[kind].test(String(value)) ? String(value) : instead);
 // Command output can carry text from the repo too, so only a cause from this list, or an error code, is taken from it.
 const CAUSES = ["Read-only file system", "Permission denied", "Operation not permitted", "No space left on device", "Executable doesn't exist",
@@ -67,8 +68,8 @@ export function satisfies(version, range) {
     return v[0] === want[0] && (b === undefined || v[1] === b) && (c === undefined || v[2] === c);
   };
   // A whole token that is a version: an optional operator, v?, then one to three parts of digits, x or *, or three
-  // number parts and a prerelease, as semver allows it. A hyphen range's "-" counts only as the middle of three tokens.
-  const versionish = (token, i, tokens) => /^(>=|>|<=|<|\^|~|=)?v?((\d+|[xX*])(\.(\d+|[xX*])){0,2}|\d+\.\d+\.\d+-[0-9A-Za-z.-]+)$/.test(token)
+  // parts and a prerelease, as semver allows it (18.x.x-rc too). A hyphen range's "-" counts only as the middle of three tokens.
+  const versionish = (token, i, tokens) => /^(>=|>|<=|<|\^|~|=)?v?((\d+|[xX*])(\.(\d+|[xX*])){0,2}|(\d+|[xX*])(\.(\d+|[xX*])){2}-[0-9A-Za-z.-]+)$/.test(token)
     || (token === "-" && i === 1 && tokens.length === 3);
   const parts = String(range).split("||").map((part) => part.trim().replace(/(>=|<=|>|<|=|\^|~)\s+/g, "$1").split(" ").filter(Boolean))
     .filter((tokens) => tokens.length && tokens.every(versionish)).map((tokens) => tokens.map(one));
@@ -141,6 +142,8 @@ function readJson(path) {
   try { return JSON.parse(readFileSync(path, "utf8")); } catch { return null; }
 }
 const firstLine = (text = "") => text.split("\n").find((l) => l.trim())?.trim().slice(0, 140) ?? "";
+// Only a small regular file is read: a symlink to a device, or a huge file, could stall preflight.
+const small = (path) => (existsSync(path) && statSync(path).isFile() && statSync(path).size < 65536 ? readFileSync(path, "utf8") : "");
 
 function checkRepo(dir, tool) {
   const file = join(dir, `.onrails-preflight-${randomBytes(4).toString("hex")}`);
@@ -153,8 +156,11 @@ function checkRepo(dir, tool) {
   }
 }
 
-function checkGit(dir, tool, sys) {
-  const top = sys.run("git", ["rev-parse", "--show-toplevel"], { cwd: dir });
+// Until the person's own session has marked the repo read (#169), no probe runs code the repo chose. `safe` holds:
+// read; outside, an empty temp folder outside the repo; and git, the settings that keep the repo's hooks from running.
+async function checkGit(dir, tool, sys, safe) {
+  const git = (args) => sys.run("git", args, { cwd: dir, ...safe.git });
+  const top = await git(["rev-parse", "--show-toplevel"]);
   if (!top) return { status: "blocked", detail: "git isn't installed", ladder: ladder("git", tool) };
   if (!top.ok && existsSync(join(dir, ".git"))) {
     return { status: "fix", detail: `a .git is here, but git can't read it: ${cause(top.out, "git's error isn't printed")}`,
@@ -163,45 +169,66 @@ function checkGit(dir, tool, sys) {
   if (!top.ok) return { status: "fix", detail: "no git repo here yet", ladder: selfFix("`git init`, then run preflight again.") };
   const name = `onrails-preflight-${randomBytes(4).toString("hex")}`;
   // A temp branch proves refs can be written. A repo with no commit yet has nothing to branch from, so a temp config key stands in.
-  const hasCommit = sys.run("git", ["rev-parse", "--verify", "HEAD"], { cwd: dir })?.ok;
-  const made = hasCommit ? sys.run("git", ["branch", name], { cwd: dir }) : sys.run("git", ["config", "--local", "onrails.preflight", name], { cwd: dir });
+  const hasCommit = (await git(["rev-parse", "--verify", "HEAD"]))?.ok;
+  const made = await git(hasCommit ? ["branch", name] : ["config", "--local", "onrails.preflight", name]);
   if (!made?.ok) return { status: "blocked", detail: `can't write .git: ${cause(made?.out, "git refused")}`, ladder: ladder("git", tool) };
-  if (hasCommit) sys.run("git", ["branch", "-D", name], { cwd: dir });
-  else sys.run("git", ["config", "--local", "--unset", "onrails.preflight"], { cwd: dir });
+  await git(hasCommit ? ["branch", "-D", name] : ["config", "--local", "--unset", "onrails.preflight"]);
   return { status: "ok", detail: hasCommit ? "made and deleted a temp branch" : "wrote and removed a temp config key (no commit yet)" };
 }
 
-function checkRegistry(dir, tool, sys, pm) {
-  const url = sys.run("npm", ["config", "get", "registry"], { cwd: dir });
+// Before the read, npm runs from the folder outside the repo, so no packageManager pin or .npmrc of the repo's is in
+// scope. The registry the repo's .npmrc names is passed by hand, only when it is a plain URL.
+const PLAIN_REGISTRY = /^registry[ \t]*=[ \t]*(https?:\/\/[\w.-]+(:\d{1,5})?(\/[\w./-]*)?)[ \t]*$/m;
+
+// Said by the rows that run from outside the repo, when no temp folder outside it could be made.
+const NO_AWAY = "no empty temp folder outside the repo could be made, so it's checked after the repo is read";
+
+async function checkRegistry(dir, tool, sys, pm, safe) {
+  const named = safe.read ? null : PLAIN_REGISTRY.exec(small(join(dir, ".npmrc")))?.[1];
+  const how = safe.read ? { cwd: dir } : safe.away;
+  if (!how) return { status: "limited", detail: NO_AWAY };
+  const pick = named ? [`--registry=${named}`] : [];
+  const url = await sys.run("npm", ["config", "get", "registry", ...pick], how);
   if (!url) return { status: "blocked", detail: "npm isn't installed", ladder: ladder("versions", tool) };
   // Node before 18.17 has no URL.canParse: then plain words, and the versions row says Node is too old.
   const raw = url.out.trim();
   const host = shown(URL.canParse?.(raw) ? new URL(raw).host : null, "host", "the registry in .npmrc");
   // The metadata of one package, fresh from the registry the project's .npmrc names. npm honours the session's proxy.
-  const meta = sys.run("npm", ["view", "npm", "dist-tags.latest", "--prefer-online", "--fetch-retries=0", "--fetch-timeout=10000"], { cwd: dir, timeout: 30000 });
+  const meta = await sys.run("npm", ["view", "npm", "dist-tags.latest", "--prefer-online", "--fetch-retries=0", "--fetch-timeout=10000", ...pick], { ...how, timeout: 30000 });
   if (meta?.ok) return { status: "ok", detail: `${host} answered` };
   const code = cause(meta?.out, "no answer");
   return { status: "blocked", detail: `${host} didn't answer (${code})`, ladder: ladder("registry", tool, { host, pm, platform: sys.platform }) };
 }
 
-function checkGithub(dir, sys) {
-  const remote = sys.run("git", ["remote", "get-url", "origin"], { cwd: dir });
-  const hasRemote = Boolean(remote?.ok && remote.out.trim());
+// Before the read, git ls-remote runs from outside the repo against the remote's URL, so no setting in the repo's
+// .git/config (an upload-pack, an ssh command, a protocol) is read. Only a URL in a plain https or ssh form is used,
+// and an https one with no user or token in it, so no secret is put on a command line.
+const PLAIN_REMOTE = /^(https?:\/\/[^\s@-][^\s@]*|ssh:\/\/([\w.-]+@)?[A-Za-z0-9][\w.-]*(:\d{1,5})?\/\S+|[\w.-]+@[A-Za-z0-9][\w.-]*:[^\s-]\S*)$/;
+
+async function checkGithub(dir, sys, safe) {
+  const remote = await sys.run("git", ["remote", "get-url", "origin"], { cwd: dir, ...safe.git });
+  const url = remote?.ok ? remote.out.trim().split("\n")[0] : "";
+  const away = safe.read ? { cwd: dir } : safe.away;
+  if (!away) return { status: "limited", detail: NO_AWAY };
   // `gh api rate_limit` is free and proves the API answers. `gh auth status` can fail while the API works (a proxied token).
-  const api = sys.run("gh", ["api", "rate_limit"], { cwd: dir });
-  const push = hasRemote ? sys.run("git", ["ls-remote", "--heads", "origin"], { cwd: dir, timeout: 20000 }) : null;
-  if (api?.ok && (!hasRemote || push?.ok)) return { status: "ok", detail: hasRemote ? "the remote and the API answer" : "the API answers; no remote yet" };
-  const why = !api ? "gh isn't installed" : !api.ok ? "gh isn't signed in, or the API is limited" : "the remote didn't answer";
-  const mode = hasRemote && push?.ok ? "pushes work, so the loop queues the API steps (local mode)" : "the loop runs in local mode, with issues as files";
+  const api = await sys.run("gh", ["api", "rate_limit"], away);
+  const plain = safe.read || PLAIN_REMOTE.test(url);
+  const push = url && plain ? await sys.run("git", ["ls-remote", "--heads", safe.read ? "origin" : url], { ...away, timeout: 20000 }) : null;
+  if (api?.ok && (!url || push?.ok)) return { status: "ok", detail: url ? "the remote and the API answer" : "the API answers; no remote yet" };
+  const why = !api ? "gh isn't installed" : !api.ok ? "gh isn't signed in, or the API is limited"
+    : plain ? "the remote didn't answer" : "the remote's URL isn't a plain https or ssh one, so it's checked after the repo is read";
+  const mode = url && push?.ok ? "pushes work, so the loop queues the API steps (local mode)" : "the loop runs in local mode, with issues as files";
   return { status: "limited", detail: `${why}: ${mode}. \`gh auth login\` is the person's step, when they want GitHub` };
 }
 
-function checkBrowser(dir, tool, sys, pkg, pm) {
+async function checkBrowser(dir, tool, sys, pkg, pm, safe) {
   const deps = { ...pkg?.dependencies, ...pkg?.devDependencies };
   const name = ["@playwright/test", "playwright"].find((n) => deps[n]);
   if (!name) return { status: "skip", detail: "not needed yet: no Playwright in package.json" };
   if (!existsSync(join(dir, "node_modules", ...name.split("/")))) return { status: "skip", detail: "Playwright isn't installed yet: run preflight again after the install" };
-  const launch = sys.run("node", ["-e", LAUNCH], { cwd: dir, timeout: 40000 });
+  // The launch loads the project's own Playwright, from files the repo can ship.
+  if (!safe.read) return { status: "limited", detail: "Playwright is installed; its launch check loads the project's own files, so it runs after the repo is read" };
+  const launch = await sys.run("node", ["-e", LAUNCH], { cwd: dir, timeout: 40000 });
   if (launch?.ok) return { status: "ok", detail: "headless Chromium started and closed" };
   return { status: "fix", detail: `Chromium didn't start: ${cause(launch?.out)}`,
     ladder: selfFix(`\`${pm} exec playwright install chromium\` (Playwright's bundled browser), then run preflight again. Still failing? Treat it as blocked: the download needs the network.`) };
@@ -223,30 +250,25 @@ function readManager(pkg) {
 
 // The release's version, from its file name, when the folder's own config names it in the plain form. Shown, never run.
 function ownYarnVersion(dir) {
-  const text = (file) => {
-    const path = join(dir, file);
-    // Only a small regular file is read: a symlink to a device, or a huge file, could stall preflight.
-    return existsSync(path) && statSync(path).isFile() && statSync(path).size < 65536 ? readFileSync(path, "utf8") : "";
-  };
   const rc = [[".yarnrc.yml", /^yarnPath:[ \t]*["']?([^"'\n#]+)/m], [".yarnrc", /^yarn-path[ \t]+["']?([^"'\n#]+)/m]]
-    .map(([file, re]) => re.exec(text(file))?.[1]).find(Boolean);
+    .map(([file, re]) => re.exec(small(join(dir, file)))?.[1]).find(Boolean);
   return rc ? shown(/yarn-([^/\\]+?)\.c?js\s*$/.exec(rc)?.[1], "version", null) : null;
 }
 
-// Until the repo has been read (/join writes docs/state.md), preflight runs no `<pm> --version`: a package manager can
+// Until the repo has been read (/join or /back marks it), preflight runs no `<pm> --version`: a package manager can
 // load files the repo ships, or a release the repo names, on any command, from more places than preflight could list.
 // So it is only looked up on PATH, and a yarn release the folder's own config names gives its version by its file name.
 /** The manager's version: { version, unread }. unread marks a manager found on PATH but not run, as the repo isn't read yet. */
-function managerVersion(dir, sys, pm) {
-  if (!existsSync(join(dir, "docs", "state.md"))) {
+async function managerVersion(dir, sys, pm, safe) {
+  if (!safe.read) {
     if (!sys.has(pm)) return { version: null };
     return { version: pm === "yarn" ? ownYarnVersion(dir) : null, unread: true };
   }
-  const have = sys.run(pm, ["--version"], { cwd: dir });
+  const have = await sys.run(pm, ["--version"], { cwd: dir });
   return { version: have?.ok ? shown(firstLine(have.out), "version", "(version not shown)") : null };
 }
 
-function checkVersions(dir, tool, sys, pkg, manager) {
+async function checkVersions(dir, tool, sys, pkg, manager, safe) {
   const range = pkg?.engines?.node ?? ">=22";
   const want = shown(range, "range", "the range in package.json's engines.node");
   const who = pkg?.engines?.node ? "the project" : "the kit";
@@ -258,7 +280,7 @@ function checkVersions(dir, tool, sys, pkg, manager) {
       + "Preflight runs only npm, pnpm, yarn or bun, with a plain or prerelease version" };
   }
   const { name: pm, version: pin } = manager;
-  const { version, unread } = managerVersion(dir, sys, pm);
+  const { version, unread } = await managerVersion(dir, sys, pm, safe);
   // A prerelease pin (4.0.0-rc.42) keeps the name and its probe. Only a plain pin's major is compared.
   const compared = pin !== undefined && /^\d+(\.\d+){0,2}$/.test(pin);
   const note = pin !== undefined && !compared ? ` (pins ${pin}, a prerelease: not compared)` : "";
@@ -280,41 +302,59 @@ function checkModel(sys, given) {
   return { status: "info", detail: `model ${model ?? "not visible"}, effort ${effort ?? "not visible"}`, model, effort };
 }
 
-/** A short hash of what makes this sandbox this sandbox. It moves when the machine, the tool, Node or the project's install settings change. */
+/** A short hash of what makes this sandbox this sandbox. It moves when the machine, the tool, Node, the project's install settings or its read mark change. */
 export const fingerprint = (parts) => createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 12);
 
-function sandboxPrint(dir, tool, sys, pkg) {
+function sandboxPrint(dir, tool, sys, pkg, read) {
   const npmrc = existsSync(join(dir, ".npmrc")) ? readFileSync(join(dir, ".npmrc"), "utf8") : "";
   const flags = ["HTTPS_PROXY", "https_proxy", "CODEX_SANDBOX", "CODEX_SANDBOX_NETWORK_DISABLED", "PLAYWRIGHT_BROWSERS_PATH"].map((k) => Boolean(sys.env[k]));
-  return fingerprint({ tool, node: sys.node, hostname: sys.hostname, platform: sys.platform, npmrc, engines: [pkg?.engines?.node, pkg?.packageManager], flags });
+  return fingerprint({ tool, node: sys.node, hostname: sys.hostname, platform: sys.platform, npmrc, engines: [pkg?.engines?.node, pkg?.packageManager], flags, read });
 }
 
-/** Runs every probe in dir. Returns { tool, checkedAt, fingerprint, ok, results: [{ id, label, status, detail, ladder }] }. */
+/** Runs every probe in dir. Returns { tool, checkedAt, fingerprint, ok, read, state, results: [{ id, label, status, detail, ladder }] }. */
 export async function probe(dir, sys = realSys(), given = {}) {
   const tool = given.tool ?? detectTool(sys.env);
   const pkg = readJson(join(dir, "package.json"));
   const manager = readManager(pkg);
   const pm = manager?.name ?? Object.entries(LOCKS).find(([file]) => existsSync(join(dir, file)))?.[1] ?? "npm";
-  const loop = await sys.loopback();
-  const found = {
-    repo: checkRepo(dir, tool),
-    git: checkGit(dir, tool, sys),
-    registry: checkRegistry(dir, tool, sys, pm),
-    github: checkGithub(dir, sys),
-    loopback: loop.ok ? { status: "ok", detail: loop.detail } : { status: "blocked", detail: `can't listen on 127.0.0.1: ${loop.detail}`, ladder: ladder("loopback", tool) },
-    browser: checkBrowser(dir, tool, sys, pkg, pm),
-    versions: checkVersions(dir, tool, sys, pkg, manager),
-    model: checkModel(sys, given),
-  };
-  const results = CHECKS.map((id) => ({ id, label: LABELS[id], ladder: [], ...found[id] }));
-  const at = new Date(sys.now()).toISOString().replace(/:\d\d\.\d{3}Z$/, "Z");
-  return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg), ok: results.every((r) => r.status !== "fix" && r.status !== "blocked"), results };
+  const read = isRead(dir);
+  const temps = tempFolders(dir, sys.platform);
+  // An empty hooks folder: no hook the repo ships, or names in its config, runs on the temp branch.
+  const safe = { read, away: temps.away, git: read ? {} : { config: [`core.hooksPath=${temps.hooks}`] } };
+  try {
+    const loop = await sys.loopback();
+    const found = {
+      repo: checkRepo(dir, tool),
+      git: await checkGit(dir, tool, sys, safe),
+      registry: await checkRegistry(dir, tool, sys, pm, safe),
+      github: await checkGithub(dir, sys, safe),
+      loopback: loop.ok ? { status: "ok", detail: loop.detail } : { status: "blocked", detail: `can't listen on 127.0.0.1: ${loop.detail}`, ladder: ladder("loopback", tool) },
+      browser: await checkBrowser(dir, tool, sys, pkg, pm, safe),
+      versions: await checkVersions(dir, tool, sys, pkg, manager, safe),
+      model: checkModel(sys, given),
+    };
+    const results = CHECKS.map((id) => ({ id, label: LABELS[id], ladder: [], ...found[id] }));
+    const at = new Date(sys.now()).toISOString().replace(/:\d\d\.\d{3}Z$/, "Z");
+    const ok = results.every((r) => r.status !== "fix" && r.status !== "blocked");
+    return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg, read), ok, read, state: existsSync(join(dir, "docs", "state.md")), results };
+  } finally {
+    temps.remove();
+  }
+}
+
+// Said once, under the table, while the repo isn't marked read.
+function unreadNote(report) {
+  if (report.read !== false) return [];
+  const why = report.state ? "This repo has a docs/state.md, but no session on this machine has marked it read, so it counts as not read. " : "";
+  return ["", `${why}Probes that could run the repo's own code ran nothing from it (the rows that say "after the repo is read").`
+    + " /join or /back marks it with `--mark-read`; then run preflight again."];
 }
 
 /** The one table, each failure's ladder, and a draft of the ONE message for whatever the ladder doesn't clear. */
 export function render(report) {
   const out = [`Preflight · ${TOOLS[report.tool]} · ${report.checkedAt}`, "", "| Check | Result | Detail |", "|---|---|---|"];
   for (const r of report.results) out.push(`| ${r.label} | ${MARK[r.status]} | ${r.detail.replace(/\s+/g, " ").replaceAll("|", "\\|")} |`);
+  out.push(...unreadNote(report));
   const open = report.results.filter((r) => r.status === "fix" || r.status === "blocked");
   const blocked = open.filter((r) => r.status === "blocked");
   if (!open.length) return [...out, "", "Environment: ok."].join("\n");
@@ -359,60 +399,7 @@ function recordLine(report) {
   return `- **Environment:** ${open.length ? `open: ${open.join(", ")}` : "ok"} · checked ${report.checkedAt} · ${report.tool} · fp ${report.fingerprint}${ran}`;
 }
 
-/** The file a command name starts, found on PATH (with PATHEXT on Windows), or undefined. Nothing is run. */
-function onPath(cmd, platform, env) {
-  const win = platform === "win32";
-  const exts = win ? (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").toLowerCase().split(";").filter((e) => /^\.(com|exe|bat|cmd)$/.test(e)) : [""];
-  return (env.PATH || env.Path || "").split(win ? ";" : ":").filter(Boolean)
-    .flatMap((dir) => exts.map((ext) => join(dir, cmd + ext))).find((f) => existsSync(f) && statSync(f).isFile());
-}
-
-// No shell, ever: on Windows a shell joins the arguments into one unquoted cmd.exe line. So a command
-// is found on PATH, and only a .cmd or .bat shim (npm, pnpm, yarn) goes to cmd.exe, with plain words:
-// the same route as windowsArgv in the CLI's system.mjs.
-/** How run starts a command, always with no shell: { file, args, verbatim? }, or null when it isn't on PATH. */
-export function commandFor(cmd, args, { platform = process.platform, env = process.env, execPath = process.execPath } = {}) {
-  if (cmd === "node") return { file: execPath, args };
-  if (platform !== "win32") return { file: cmd, args };
-  const found = onPath(cmd, platform, env);
-  if (!found) return null;
-  if (!/\.(bat|cmd)$/i.test(found)) return { file: found, args };
-  if (args.some((a) => !/^[\w.:=/-]+$/.test(a))) throw new Error(`preflight passes only plain words to cmd.exe, not: ${args.join(" ")}`);
-  // cmd.exe /s drops the outer quotes, so a path with spaces stays one word. Node's own shell mode does the same.
-  return { file: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], verbatim: true };
-}
-
-/** The real session: commands with a timeout, a PATH lookup that runs nothing, and a round trip on 127.0.0.1. */
-export function realSys() {
-  return {
-    env: process.env, node: process.versions.node, hostname: hostname(), platform: process.platform, now: () => Date.now(),
-    has: (cmd) => Boolean(onPath(cmd, process.platform, process.env)),
-    run(cmd, args = [], { cwd, timeout = 15000 } = {}) {
-      const how = commandFor(cmd, args);
-      if (!how) return null;
-      // COREPACK_ENV_FILE=0: corepack's shim never reads a repo's .corepack.env, which can name its registry and turn off
-      // its key check. Other commands ignore it.
-      const env = { ...process.env, COREPACK_ENV_FILE: "0" };
-      const r = spawnSync(how.file, how.args, { cwd, env, encoding: "utf8", timeout, shell: false, windowsVerbatimArguments: how.verbatim });
-      if (r.error?.code === "ENOENT") return null;
-      const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
-      return { ok: r.status === 0, out: r.error ? `${out}\n${r.error.message}`.trim() : out };
-    },
-    loopback: () => new Promise((done) => {
-      const server = createServer((socket) => socket.end());
-      const finish = (ok, detail) => { clearTimeout(timer); server.close(); done({ ok, detail }); };
-      const timer = setTimeout(() => finish(false, "no answer in 3 seconds"), 3000);
-      server.on("error", (error) => finish(false, shown(error.code, "code", "an error")));
-      server.listen(0, "127.0.0.1", () => {
-        const { port } = server.address();
-        const client = connect(port, "127.0.0.1", () => { client.end(); finish(true, `127.0.0.1:${port}`); });
-        client.on("error", (error) => finish(false, shown(error.code, "code", "an error")));
-      });
-    }),
-  };
-}
-
-const USAGE = `preflight [dir] [--record] [--if-changed] [--json] [--model <id>] [--effort <level>] [--tool claude|claude-cloud|codex|other]`;
+const USAGE = `preflight [dir] [--record] [--if-changed] [--json] [--mark-read] [--model <id>] [--effort <level>] [--tool claude|claude-cloud|codex|other]`;
 
 /** The command line: reads the flags, runs or skips the probes, prints, records. Returns the exit code. */
 export async function main(argv, { sys = realSys(), log = console.log } = {}) {
@@ -422,22 +409,32 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (["--model", "--effort", "--tool"].includes(a) && argv[i + 1]) given[a.slice(2)] = argv[++i];
-    else if (["--record", "--if-changed", "--json", "--help", "-h"].includes(a)) flags.add(a);
+    else if (["--record", "--if-changed", "--json", "--mark-read", "--help", "-h"].includes(a)) flags.add(a);
     else if (a.startsWith("-")) return log(`Unknown option: ${shown(a, "flag", "(not printed)")}\nUsage: ${USAGE}`), 2;
     else dir = a;
   }
   if (given.tool && !Object.hasOwn(TOOLS, given.tool)) return log(`--tool is one of: ${Object.keys(TOOLS).join(", ")}`), 2;
   if (flags.has("--help") || flags.has("-h")) return log(`Usage: ${USAGE}`), 0;
   dir = resolve(dir);
+  if (flags.has("--mark-read")) {
+    // Only the .git next to dir: a folder under a bigger repo (a home-folder repo, say) never marks that repo.
+    const marked = markRead(dir);
+    if (marked) return log(`Marked this repo read on this machine: ${shown(marked, "path", "(path not printed)")}. Run preflight again: every probe runs now.`), 0;
+    return log("No .git folder of its own in this folder (or a .git file preflight doesn't follow): not marked. Run it in the repo's top folder, after `git init` if there's none."), 1;
+  }
   const statePath = join(dir, "docs", "state.md");
   const state = existsSync(statePath) ? readFileSync(statePath, "utf8") : null;
 
   if (flags.has("--if-changed")) {
     const tool = given.tool ?? detectTool(sys.env);
     const record = readRecord(state ?? "");
-    if (record?.ok && record.fingerprint === sandboxPrint(dir, tool, sys, readJson(join(dir, "package.json")))) {
+    const read = isRead(dir);
+    if (record?.ok && record.fingerprint === sandboxPrint(dir, tool, sys, readJson(join(dir, "package.json")), read)) {
       const detail = "Environment: ok on record, and nothing changed. Skipped the probes. Run without --if-changed to check again.";
-      return log(flags.has("--json") ? JSON.stringify({ ok: true, skipped: true, fingerprint: record.fingerprint, detail }, null, 2) : detail), 0;
+      // Still unmarked: the note goes with the skip too, so /back and build learn to mark it.
+      const note = unreadNote({ read, state: state !== null });
+      return log(flags.has("--json") ? JSON.stringify({ ok: true, skipped: true, read, fingerprint: record.fingerprint, detail, note: note[1] }, null, 2)
+        : [detail, ...note].join("\n")), 0;
     }
   }
   const report = await probe(dir, sys, given);

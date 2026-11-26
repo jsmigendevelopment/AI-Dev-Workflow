@@ -29,6 +29,8 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
    - how it builds, tests and deploys;
    - where the risky areas are.
 
+   **Mark it read** once the map is written: `node .agents/skills/ask/scripts/preflight.mjs --mark-read`, then run preflight again, before step 3 installs anything. Until then, preflight runs nothing the repo chose (`../ask/references/preflight.md`). Below Full, mark it only once the person has confirmed what step 1 found. Something in it would run code you don't trust? Don't mark it.
+
 3. **Make it run.** Install, build, test and start it locally. Record the commands that work under "Commands that work here" in `AGENTS.md`, plus the ones that fail and why.
 
 4. **Compare conventions.** Check what the repo actually does against the kit's (`guide/app-conventions.md` and `guide/code-style.md`, also in the `build` skill's `references/`). Cover: folder layout, error handling, state libraries, data fetching, lint and format config, naming, test style, API shape, logging and env handling. Look at the code, not the README (rule 3).
