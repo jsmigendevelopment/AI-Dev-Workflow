@@ -5,12 +5,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GUARD_WORKFLOW, changedPaths, decide, level, submodules, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
 import { LOCAL_CHECK, localChecks, requiredChecks } from "../../.agents/skills/name/scripts/required-checks.mjs";
-import { safeEnv, tmp } from "./helpers.mjs";
+import { fakeGh, safeEnv, tmp, unixOnly } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/coordinate/scripts/agent-files.mjs", import.meta.url));
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
@@ -178,6 +178,28 @@ test("AC-162-6: full.md's weakening review names the guard's new paths", () => {
     "`lighthouserc.*`", "`budgets/`", "`check-*`"]) {
     assert.ok(doc.includes(name), name);
   }
+});
+
+// #162 review, nice 2: the rename test above covers rule files; check files go through the same file list.
+test("#162: --pr: a check file renamed away and a deleted check file both count", unixOnly, () => {
+  const dir = tmp("onrails-agent-files-moved-");
+  const files = [{ filename: "apps/web/lint-notes.js", previous_filename: "apps/web/eslint.config.js", status: "renamed" },
+    { filename: "knip.jsonc", status: "removed" }];
+  const go = (stack, comments) => {
+    mkdirSync(join(dir, "docs"), { recursive: true });
+    writeFileSync(join(dir, "docs", "stack.md"), stack);
+    const p = "repos/acme/app";
+    const fake = fakeGh(dir, { [`${p}/pulls/7`]: { head: { sha: HEAD }, changed_files: 2 }, [`${p}/pulls/7/files`]: files,
+      [`${p}/issues/7/comments`]: comments, [`${p}/issues/7/labels`]: [], [`${p}/collaborators/owner/permission`]: { permission: "admin" } },
+    { REPO: "acme/app", HEAD_SHA: HEAD });
+    return spawnSync(process.execPath, [SCRIPT, "--pr", "7"], { cwd: dir, encoding: "utf8", env: fake.env });
+  };
+  const r = go(RECOMMENDED, []);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stderr, /apps\/web\/eslint\.config\.js/);
+  assert.match(r.stderr, /knip\.jsonc/);
+  assert.doesNotMatch(r.stderr, /lint-notes\.js/);
+  assert.equal(go(FULL, [PASS()]).status, 0);
 });
 
 test("the script: a submodule in --files fails without a label", () => {
