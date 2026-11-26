@@ -21,16 +21,22 @@ export function floor(r, guard) {
 
 /**
  * Why a record must not be signalled, or null. Run right before every signal, on every record read from disk:
- * the floor, then the live process p: running, the same start time, and for a group signal, its own group's leader.
+ * the floor, then the live process p: running, the same start time, and for a group signal, its own group's
+ * leader, in a group that holds none of the guarded processes (groups: their group ids).
  */
-export function refusal(r, p, { guard, platform }) {
+export function refusal(r, p, { guard, platform, groups = new Set() }) {
   const why = floor(r, guard);
   if (why) return why;
   if (!p) return "it isn't running";
   if (!sameStart(r.start, p)) return "its PID belongs to another process now";
   if (r.group && platform !== "win32" && p.group !== r.pid) return "it doesn't lead its own process group";
+  if (r.group && platform !== "win32" && groups.has(r.pid)) return "its process group holds this script, its parent or the agent";
   return null;
 }
+
+// The group ids of the guarded processes, from a process list that includes them. A group signal to one of
+// these would reach this script, its parent or the agent, whoever leads it.
+const groupsOf = (live, guard) => new Set([...guard].map((pid) => live?.get(pid)?.group).filter(Number.isInteger));
 
 function descendants(rows, pid, guard) {
   const out = [];
@@ -60,13 +66,15 @@ function remaining(sys, recs) {
 }
 
 // KILL after the grace, each record checked again first. Returns the records it was sent to.
-function kill(sys, left, ctx) {
-  const live = sys.info(left.map((r) => r.pid)) ?? new Map();
+function kill(sys, left, { guard, platform }) {
+  const live = sys.info([...left.map((r) => r.pid), ...guard]);
+  if (!live) return []; // can't see the guarded processes' groups now, so nothing gets KILL
+  const ctx = { guard, platform, groups: groupsOf(live, guard) };
   const rows = sys.platform === "win32" ? [] : sys.table() ?? [];
   return left.filter((r) => {
     const p = live.get(r.pid);
-    const ok = p ? !refusal(r, p, ctx) : r.group && !floor(r, ctx.guard) && members(rows, r);
-    if (ok) signal(sys, r, r.group ? [] : descendants(rows, r.pid, ctx.guard), "SIGKILL");
+    const ok = p ? !refusal(r, p, ctx) : r.group && !floor(r, guard) && !ctx.groups.has(r.pid) && members(rows, r);
+    if (ok) signal(sys, r, r.group ? [] : descendants(rows, r.pid, guard), "SIGKILL");
     return ok;
   });
 }
@@ -76,8 +84,9 @@ function kill(sys, left, ctx) {
  * Returns { stopped, killed, refused: [{ r, why }] }. A refused record gets no signal at all.
  */
 export async function stopRecords(sys, recs, { grace = GRACE_S } = {}) {
-  const ctx = { guard: guarded(sys), platform: sys.platform };
-  const live = sys.info(recs.map((r) => r.pid).filter(Number.isInteger));
+  const guard = guarded(sys);
+  const live = sys.info([...recs.map((r) => r.pid).filter(Number.isInteger), ...guard]);
+  const ctx = { guard, platform: sys.platform, groups: groupsOf(live, guard) };
   const refused = recs.map((r) => ({ r, why: live ? refusal(r, live.get(r.pid), ctx) : NO_LIST })).filter((x) => x.why);
   const ok = recs.filter((r) => !refused.some((x) => x.r === r));
   const rows = sys.platform === "win32" || ok.every((r) => r.group) ? [] : sys.table() ?? [];
