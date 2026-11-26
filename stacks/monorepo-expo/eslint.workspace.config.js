@@ -28,6 +28,8 @@ export default [
       '**/worker-configuration.d.ts',
     ],
   },
+  // The onRails kit's rules, skills and hooks sit at the root but aren't app code (#146).
+  { ignores: ['.agents', '.claude', '.codex'] },
   {
     files: ['apps/*/src/**/*.{ts,tsx}', 'packages/*/src/**/*.{ts,tsx}'],
     languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true } } },
