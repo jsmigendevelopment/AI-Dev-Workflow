@@ -32,7 +32,7 @@ function onPath(cmd, platform, env) {
 
 // No shell, ever: on Windows a shell joins the arguments into one unquoted cmd.exe line. So a command
 // is found on PATH, and only a .cmd or .bat shim (npm, pnpm, yarn) goes to cmd.exe, with plain words:
-// the same route as windowsArgv in the CLI's system.mjs.
+// the same route as launch in the CLI's system.mjs.
 /** How run starts a command, always with no shell: { file, args, verbatim? }, or null when it isn't on PATH. */
 export function commandFor(cmd, args, { platform = process.platform, env = process.env, execPath = process.execPath } = {}) {
   if (cmd === "node") return { file: execPath, args };

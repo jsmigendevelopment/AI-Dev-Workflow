@@ -18,6 +18,7 @@ import { signature } from "../src/signature.mjs";
 import { entryCommand, offerStart } from "../src/start.mjs";
 import { realSystem } from "../src/system.mjs";
 import { update } from "../src/update.mjs";
+import { updateAll } from "../src/update-all.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
@@ -32,6 +33,10 @@ Usage:
                                           plugin is the recommended way now: see the README
   npx onrails update [dir] [--dry-run] [--yes]
                                           update to the kit in this CLI version
+  npx onrails@latest update [dir] --all [--dry-run] [--yes]
+                                          bring everything to the latest: the Claude Code and
+                                          Codex plugins, the global entry skills, this project's
+                                          kit, then doctor and a before and after summary
   npx onrails doctor [dir]                check your tools and the kit
   npx onrails doctor [dir] --fix [--yes] [--dry-run]
                                           offer a fix for each problem, run it after a yes
@@ -80,7 +85,7 @@ async function main(argv) {
   const flags = new Set(argv.filter((a) => a.startsWith("-")));
   const [command, ...args] = argv.filter((a) => !a.startsWith("-"));
   const known = new Set(["--dry-run", "--force", "--list", "--list-addons", "--fix", "--yes", "-y", "--help", "-h", "--version", "-v",
-    "--start", "--no-start", "--global"]);
+    "--start", "--no-start", "--global", "--all"]);
   const unknown = [...flags].filter((f) => !known.has(f));
   if (unknown.length) return fail(`Unknown option: ${unknown.join(" ")}`);
 
@@ -108,7 +113,9 @@ async function run(command, args, flags, { ask, yes }) {
       if (flags.has("--global")) return initGlobal();
       if (flags.has("--start") && flags.has("--no-start")) return fail("Use --start or --no-start, not both.");
       return initAndStart(args[0], flags.has("--start") ? true : flags.has("--no-start") ? false : undefined, ask);
-    case "update": return update(args[0], { dryRun: flags.has("--dry-run"), ask, yes });
+    case "update":
+      if (flags.has("--all")) return updateAll(args[0], { dryRun: flags.has("--dry-run"), ask, yes });
+      return update(args[0], { dryRun: flags.has("--dry-run"), ask, yes });
     case "doctor":
       if (!flags.has("--fix")) return doctor(args[0]);
       return doctorFix(args[0], { ask, yes, dryRun: flags.has("--dry-run") });
