@@ -24,10 +24,14 @@ test("AC-142-1: WHEN a sample of the CLI suite runs with TMPDIR set to an empty 
   assert.deepEqual(readdirSync(dir).filter((name) => name !== NPM_CACHE), []);
 });
 
+// The files that make temp folders and remove them: helpers.mjs when a test file ends, and safe-path-preload.mjs (the
+// run's copy of node) when its process exits, which AC-197-2 and AC-197-3 check in safe-path.test.mjs.
+const REMOVERS = ["helpers.mjs", "safe-path-preload.mjs"];
+
 test("AC-142-1: every CLI test file makes its temp folders through helpers.mjs, which removes them", () => {
   const own = fileURLToPath(import.meta.url).split(/[\\/]/).at(-1);
   const leaks = readdirSync(HERE)
-    .filter((name) => name.endsWith(".mjs") && name !== "helpers.mjs" && name !== own)
+    .filter((name) => name.endsWith(".mjs") && !REMOVERS.includes(name) && name !== own)
     .filter((name) => /mkdtemp|tmpdir\(/.test(readFileSync(`${HERE}${name}`, "utf8")));
   assert.deepEqual(leaks, [], "use tmp() from helpers.mjs, so the folder is removed when the file ends");
 });
