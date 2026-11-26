@@ -1,0 +1,41 @@
+{
+  "name": "desktop-app",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @app/desktop start",
+    "gate": "pnpm check && pnpm test:e2e && pnpm scan:secrets",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "lint": "eslint . && prettier --check . && knip",
+    "format": "prettier --write .",
+    "typecheck": "tsc -p tsconfig.scripts.json && pnpm -r typecheck",
+    "test": "vitest run",
+    "test:e2e": "pnpm --filter @app/desktop test:e2e",
+    "build": "pnpm --filter @app/desktop build",
+    "build:win-zip": "node scripts/build-win-zip.ts",
+    "scan:secrets": "node scripts/scan-secrets.ts",
+    "new:module": "node scripts/new-module.ts"
+  },
+  "devDependencies": {
+    "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
+    "@eslint/js": "10.0.1",
+    "@secretlint/secretlint-rule-pattern": "13.1.0",
+    "@secretlint/secretlint-rule-preset-recommend": "13.1.0",
+    "@types/node": "26.6.6",
+    "eslint": "10.15.0",
+    "eslint-import-resolver-typescript": "4.4.5",
+    "eslint-plugin-boundaries": "7.4.4",
+    "globals": "17.14.0",
+    "knip": "6.44.1",
+    "prettier": "3.10.1",
+    "secretlint": "13.1.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.73.0",
+    "vitest": "5.1.1",
+    "yaml": "2.9.1"
+  }
+}

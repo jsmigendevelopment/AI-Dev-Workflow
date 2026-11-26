@@ -295,13 +295,14 @@ Each one comes with a recipe. Nothing is installed until a feature needs it.
 
 **How the code is laid out:** one folder per feature. A request goes route → service → database, and features can't reach into each other. That's a rule lint enforces, not a stack choice. See [Guardrails](#-guardrails).
 
-A **stack pack** is that stack already working: configs, the folder skeleton, an example module through every layer, CI and the checks. At slice 0 the agent pulls it into your project. There are 5 packs: 2 ready, 3 stubs.
+A **stack pack** is that stack already working: configs, the folder skeleton, an example module through every layer, CI and the checks. At slice 0 the agent pulls it into your project. There are 5 packs: 2 ready, 1 starter without its skill yet, 2 stubs.
 
 | Pack | Status | What's in it |
 |---|---|---|
 | [`tanstack-start`](stacks/tanstack-start/) | Ready | The default web stack on Cloudflare. It runs, tests and builds with no accounts and no keys. Security headers, rate limits, accessibility checks, SEO files, generators and deploys are in from the start. |
 | [`monorepo-expo`](stacks/monorepo-expo/) | Ready | One repo for web and mobile: an Expo app for iOS and Android, the web pack in `apps/web`, and one API contract both follow. |
-| [`electron-desktop`](stacks/electron-desktop/PACK.md) · [`python-fastapi`](stacks/python-fastapi/PACK.md) · [`unity`](stacks/unity/PACK.md) | Stub | Researched and fact-checked in 2026-11. Not built yet. The agent builds the starter in your project from `PACK.md`. |
+| [`electron-desktop`](stacks/electron-desktop/) | Starter | A desktop app for Windows, macOS and Linux: Electron with a hardened window, a local SQLite data file and an example module. It installs, tests, packages and starts with no accounts and no keys. No pack skill yet: the agent reads its `README.md` and `PACK.md`. |
+| [`python-fastapi`](stacks/python-fastapi/PACK.md) · [`unity`](stacks/unity/PACK.md) | Stub | Researched and fact-checked in 2026-11. Not built yet. The agent builds the starter in your project from `PACK.md`. |
 
 No pack for your stack? The agent sets up the same things by hand, and offers to save the result as a new pack.
 

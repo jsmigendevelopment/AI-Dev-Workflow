@@ -1,0 +1,2 @@
+# LF everywhere, so Prettier's check passes on a Windows checkout too.
+* text=auto eol=lf

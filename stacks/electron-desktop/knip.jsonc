@@ -1,0 +1,16 @@
+// knip: unused files, exports and dependencies (part of `pnpm lint`).
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["**/lint-fixtures/**", ".agents/**", ".claude/**"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.ts"],
+      "ignoreDependencies": [
+        // scripts/scan-secrets.ts runs secretlint's bin by path; the rules load from .secretlintrc.json.
+        "secretlint",
+        "@secretlint/secretlint-rule-preset-recommend",
+        "@secretlint/secretlint-rule-pattern",
+      ],
+    },
+  },
+}
