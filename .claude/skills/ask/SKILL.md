@@ -23,7 +23,7 @@ An interruption costs the person their focus. Silence costs the project hours. T
 
 Not sure if it's a blocker or a decision? If other work can still move, it's a decision.
 
-**Critical** means production is down or there's a security hole someone could use right now. Only critical blockers ping while the person is away or in quiet hours. Add `--critical` for those, and only those.
+**Critical** means production is down or there's a security hole someone could use right now. Only critical blockers ping while the person is away or in quiet hours. Add `--critical` for those, and only those. An always-stop 🛑 is sent once with `node .claude/hooks/notify.mjs --level blocker`, on Full too, never with `--critical`: it pings at once when the person is here, and waits for `/back` while they're away or in quiet hours.
 
 ## Try before you block
 
@@ -91,7 +91,7 @@ Then, for both:
 
 1. Write the resume note in `docs/state.md`: what was in flight and the next step, so `/back` can pick up from the repo alone.
 2. Show the proof: `P list --mine`, and `timer.mjs status` if you armed a timer. After a stop: `Nothing this session started is running.` and `none`.
-3. Touch only what this session started. Another thread's processes, other projects and the person's own servers stay. To stop one, ask first: `P stop all`, another live session's id and a PID the registry didn't record are refused without `--yes`, which you add only after the person's yes.
+3. Touch only what this session started. Another thread's processes, other projects and the person's own servers stay. Below Full, to stop one, ask first: `P stop all`, another live session's id and a PID the registry didn't record are refused without `--yes`, which you add only after the person's yes. On Full, leave it running and put it in the FYI.
 
 Back from a pause: `P resume`. **Done when** the proof shows only paused items (pause) or nothing (stop), and the resume note is written.
 

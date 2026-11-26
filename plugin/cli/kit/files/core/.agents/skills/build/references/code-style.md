@@ -42,7 +42,7 @@ Warn at 300 lines a file. 500 is the hard cap. Keep functions under about 60 lin
 
 ### 6. On-design UI only
 
-Use the design tokens and the UI kit's components. No one-off colours, spacing or font sizes, such as `#3b82f6`, `mt-[13px]` or `font-size: 15px`. A new token is a design decision, so ask the person.
+Use the design tokens and the UI kit's components. No one-off colours, spacing or font sizes, such as `#3b82f6`, `mt-[13px]` or `font-size: 15px`. A new token is a design decision: below Full, ask the person. On Full, add it, record it as "AI pick, not reviewed" and put it in the FYI; the review checks it.
 
 **Why:** one-off values are how a UI drifts. Tokens keep every screen in step, and a theme change happens in one place.
 
