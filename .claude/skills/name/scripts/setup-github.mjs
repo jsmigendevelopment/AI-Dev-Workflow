@@ -25,7 +25,7 @@
 // Environments, the production reviewer and SECRETS_MODE exist only for GitHub Actions: it makes
 // them only when docs/stack.md says ci = "actions". On ci = "local" (every repo, unless the person
 // turned Actions on) the session deploys read nothing from GitHub, so it skips them and says why.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -41,6 +41,11 @@ const run = (cmd, input) =>
 const api = (method, path, body) =>
   run(["api", "-X", method, path, ...(body ? ["--input", "-"] : [])], body ? JSON.stringify(body) : undefined);
 const git = (cmd) => execFileSync("git", cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+// The repository's top folder, where docs/ lives; this folder when git can't say.
+function repoRoot() {
+  const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  return top.status === 0 ? top.stdout.trim() : ".";
+}
 
 // --- Which plan? --plan, then the profile, then ask. ---
 function planFromArgs() {
@@ -50,8 +55,7 @@ function planFromArgs() {
   return { plan: (value || "").toLowerCase(), from: "--plan" };
 }
 function planFromProfile() {
-  let root = ".";
-  try { root = git(["rev-parse", "--show-toplevel"]); } catch {}
+  const root = repoRoot();
   const homes = [".onrails", ".ai-dev-workflow"].map((name) => join(homedir(), name, "profile.toml"));
   for (const file of [join(root, "docs", "profile.toml"), ...homes]) {
     if (!existsSync(file)) continue;
@@ -93,11 +97,12 @@ try {
 const PUBLIC = visibility === "public";
 
 // --- ci = "actions" only when docs/stack.md says so (#139). ---
+// A trailing # comment is allowed. The same rule as push-secrets.mjs and the TanStack pack's
+// ci-mode.ts; one test runs the same cases on all three.
+const CI_ACTIONS = /^ci[ \t]*=[ \t]*"actions"[ \t]*(?:#.*)?\r?$/m;
 function ciFromStack() {
-  let root = ".";
-  try { root = git(["rev-parse", "--show-toplevel"]); } catch {}
-  const file = join(root, "docs", "stack.md");
-  return existsSync(file) && /^ci\s*=\s*"actions"\s*$/m.test(readFileSync(file, "utf8")) ? "actions" : "local";
+  const file = join(repoRoot(), "docs", "stack.md");
+  return existsSync(file) && CI_ACTIONS.test(readFileSync(file, "utf8")) ? "actions" : "local";
 }
 const ACTIONS = ciFromStack() === "actions";
 

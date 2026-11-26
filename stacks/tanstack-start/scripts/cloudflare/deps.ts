@@ -32,13 +32,20 @@ export interface Deps {
    * .env.cloudflare.local. Only ever sent to the Cloudflare API, never logged.
    */
   secret(name: string): string | undefined
-  /** Why .env.cloudflare.local can't take a secret (not git-ignored), or null. Checked before one is made. */
-  localProblem(): string | null
+  /**
+   * Why .env.cloudflare.local can't take a secret (not git-ignored, or not writable), or null.
+   * Checked before one is made. `create`: make the file (mode 600) or open it for writing; a dry
+   * run passes false and only reads.
+   */
+  localProblem(create: boolean): string | null
   /**
    * Saves `NAME=value` in .env.cloudflare.local (git-ignored, mode 600), where the deploys read it.
-   * False when the value can't be written safely. The value is never printed.
+   * False when the value can't be written safely; it may also throw (EACCES, a full disk). The
+   * value is never printed.
    */
   saveLocal(name: string, value: string): boolean
+  /** Whether the deploys can read a value for `name` (the shell or .env.cloudflare.local). Never the value. */
+  hasLocal(name: string): boolean
   readText(path: string): string
   writeText(path: string, text: string): void
   exists(path: string): boolean

@@ -5,20 +5,19 @@ import {
   type AccessContext,
   ensureApp,
   ensureLogins,
-  ensureServiceToken,
-  ghSecret,
   type GithubWrites,
   githubWrites,
   missingLogins,
   results,
-  saveForDeploys,
   type Target,
   type Who,
 } from './access.ts'
 import type { Deps, Log, Options } from './deps.ts'
 import { LOCAL_FILE } from './local-env.ts'
 import { LOGIN_NAMES, type LoginName, parseLogins } from './logins.ts'
-import { type Account, type EnvName, type EnvResources, firstJson, setEnvVar } from './wrangler-config.ts'
+import { protectWithPassword } from './password.ts'
+import { ensureServiceToken } from './service-token.ts'
+import { type Account, type EnvName, type EnvResources, setEnvVar } from './wrangler-config.ts'
 
 // ---------------------------------------------------------------- the person's choices
 
@@ -88,51 +87,6 @@ export function readProductionPaths(value: string): { paths?: string[]; problem?
   if (!paths.length || paths.some((p) => !PATH.test(p)))
     return { problem: '--protect-production takes all, or paths like /admin/*,/ops/* (each starts with /).' }
   return { paths }
-}
-
-// ---------------------------------------------------------------- the password gate
-
-async function protectWithPassword(
-  deps: Deps,
-  options: Options,
-  log: Log,
-  github: GithubWrites,
-): Promise<boolean> {
-  const listed = await deps.wrangler(['secret', 'list', '--env', 'test', '--format', 'json'])
-  const names =
-    listed.status === 0 ? (firstJson<{ name: string }[]>(listed.stdout) ?? []).map((s) => s.name) : []
-  if (names.includes('SITE_PASSWORD') && !options.newPassword) {
-    log(
-      `exists  SITE_PASSWORD on the test Worker (the deploys read it as TEST_SITE_PASSWORD in ${LOCAL_FILE}; pass --new-password to replace it)`,
-    )
-    return true
-  }
-  const where = `the test Worker and ${LOCAL_FILE} as TEST_SITE_PASSWORD${github.actions ? ', and in the GitHub environments test and preview' : ''}`
-  if (options.dryRun) {
-    log(
-      `would make a random SITE_PASSWORD (never the repo name) and save it on ${where}. It is never printed.`,
-    )
-    return true
-  }
-  const problem = deps.localProblem()
-  if (problem) return (log(`  ${problem} No password was made.`), false)
-  const password = deps.randomSecret()
-  const put = await deps.wrangler(['secret', 'put', 'SITE_PASSWORD', '--env', 'test'], password)
-  if (put.status !== 0) {
-    log(
-      `  could not set SITE_PASSWORD on the test Worker: ${(put.stderr || put.stdout).trim().split('\n').at(-1)}`,
-    )
-    return false
-  }
-  log('  set SITE_PASSWORD on the test Worker (previews use it too)')
-  saveForDeploys(deps, log, 'TEST_', { SITE_PASSWORD: password })
-  if (github.gh) await ghSecret(deps, log, 'SITE_PASSWORD', password, ['test', 'preview'])
-  else if (github.actions)
-    log(
-      `  GitHub CLI not signed in: set SITE_PASSWORD in the GitHub environments test and preview by hand, from ${LOCAL_FILE}.`,
-    )
-  log(`  The person opens ${LOCAL_FILE} to read the password (TEST_SITE_PASSWORD). It is never printed.`)
-  return true
 }
 
 // ---------------------------------------------------------------- Cloudflare Access

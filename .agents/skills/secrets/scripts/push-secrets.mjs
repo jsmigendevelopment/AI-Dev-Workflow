@@ -8,6 +8,8 @@
 // On ci = "local" (every repo, unless the person turned Actions on) nothing reads GitHub's copies,
 // so nothing goes to GitHub: secrets go to the Cloudflare Workers with --wrangler, and plain
 // variables belong in wrangler.jsonc vars.
+// Its last line names, by name only, every value it stored nowhere ("Stored nowhere: ... Keep ..."),
+// or says "Every value is stored somewhere." Only then may .env.production.local go.
 // GitHub Free has no environments on a private repo. There setup-github sets the repository
 // variable SECRETS_MODE to "repository", and this pushes repository secrets and variables named
 // TEST_<name> and PRODUCTION_<name> instead: the names the pack's workflows read in that mode.
@@ -20,12 +22,23 @@ const DRY = args.includes("--dry-run");
 const WRANGLER = args.includes("--wrangler");
 const only = args.includes("--env") ? args[args.indexOf("--env") + 1] : null;
 
-// "actions" only for a `ci = "actions"` line in the nearest docs/stack.md, up to the repo root.
+// "actions" only for a `ci = "actions"` line (a trailing # comment allowed) in the nearest
+// docs/stack.md, up to the repository root, or only in this folder before `git init`. The same
+// rule as setup-github.mjs and the TanStack pack's ci-mode.ts; one test runs the same cases on all.
+const CI_ACTIONS = /^ci[ \t]*=[ \t]*"actions"[ \t]*(?:#.*)?\r?$/m;
+function repoRoot(start) {
+  for (let dir = start; ; dir = dirname(dir)) {
+    if (existsSync(join(dir, ".git"))) return dir;
+    if (dirname(dir) === dir) return null;
+  }
+}
 function ci() {
-  for (let dir = process.cwd(); ; dir = dirname(dir)) {
+  const start = process.cwd();
+  const top = repoRoot(start) ?? start;
+  for (let dir = start; ; dir = dirname(dir)) {
     const file = join(dir, "docs", "stack.md");
-    if (existsSync(file)) return /^ci\s*=\s*"actions"\s*$/m.test(readFileSync(file, "utf8")) ? "actions" : "local";
-    if (existsSync(join(dir, ".git")) || dirname(dir) === dir) return "local";
+    if (existsSync(file)) return CI_ACTIONS.test(readFileSync(file, "utf8")) ? "actions" : "local";
+    if (dir === top || dirname(dir) === dir) return "local";
   }
 }
 
@@ -84,13 +97,13 @@ if (!Object.keys(meta).length) {
 
 const envs = ["test", "production"].filter((e) => !only || e === only);
 const GITHUB = ci() === "actions";
-if (!GITHUB) {
-  console.log("ci = \"local\" (docs/stack.md): nothing goes to GitHub. Secrets go to Cloudflare with --wrangler; plain variables belong in wrangler.jsonc vars.");
-  if (!WRANGLER) process.exit(0);
-}
+if (!GITHUB) console.log("ci = \"local\" (docs/stack.md): nothing goes to GitHub. Secrets go to Cloudflare with --wrangler; plain variables belong in wrangler.jsonc vars.");
 const mode = GITHUB ? secretsMode() : "environment";
 if (mode === "repository") console.log("SECRETS_MODE is \"repository\" (GitHub Free, private repo): GitHub values go to TEST_ and PRODUCTION_ repository names.");
 let failed = 0;
+let found = 0;
+// Every value no destination took, as `NAME (env)`: its .env.<env>.local is its only copy.
+const nowhere = [];
 for (const env of envs) {
   const file = `.env.${env}.local`;
   if (!existsSync(file)) { console.log(`${env}: no ${file}, skipped`); continue; }
@@ -99,21 +112,35 @@ for (const env of envs) {
     if (!m.scope.includes(env)) continue;
     const value = values[name];
     if (!value) { console.log(`${env}: ${name} is empty in ${file}, skipped`); continue; }
+    found++;
     const gh = githubTarget(name, env, mode);
     const targets = m.secret
       ? [...(GITHUB ? [["gh", ["secret", "set", gh.name, ...gh.where]]] : []), ...(WRANGLER ? [["npx", ["wrangler", "secret", "put", name, "--env", env]]] : [])]
       : GITHUB ? [["gh", ["variable", "set", gh.name, ...gh.where, "--body", value]]] : [];
+    if (!targets.length) {
+      const why = m.secret ? "a secret, and nothing takes one on ci = \"local\" without --wrangler" : "a plain variable: it goes in wrangler.jsonc vars";
+      console.log(`${env}: ${name} ${DRY ? "would be" : "is"} stored nowhere (${why})`);
+    }
+    let stored = false;
     for (const [cmd, cmdArgs] of targets) {
       const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})` : "Cloudflare secret";
-      if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); continue; }
+      if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); stored = true; continue; }
       try {
         execFileSync(cmd, cmdArgs, { input: m.secret ? value : undefined, stdio: ["pipe", "ignore", "pipe"] });
         console.log(`${env}: set ${name} as a ${where}`);
+        stored = true;
       } catch (e) {
         failed++;
         console.log(`${env}: FAILED ${name} as a ${where}: ${String(e.stderr || "").split("\n")[0]}`);
       }
     }
+    if (!stored) nowhere.push(`${name} (${env})`);
   }
 }
+// The secrets skill offers to delete .env.production.local only after "Every value is stored somewhere."
+if (!found) console.log("No values found to store.");
+else if (nowhere.length) {
+  const keep = envs.filter((env) => nowhere.some((n) => n.endsWith(`(${env})`))).map((env) => `.env.${env}.local`);
+  console.log(`${DRY ? "Would store nowhere" : "Stored nowhere"}: ${nowhere.join(", ")}. Keep ${keep.join(" and ")} until each one is stored.`);
+} else console.log(DRY ? "Every value would be stored somewhere." : "Every value is stored somewhere.");
 process.exit(failed ? 1 : 0);

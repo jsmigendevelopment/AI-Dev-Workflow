@@ -196,64 +196,27 @@ export async function githubWrites(deps: Deps, ci: Ci | undefined): Promise<Gith
 /** The prefix the deploys read a site's values under: TEST_ (test and previews) or PRODUCTION_. */
 export const localPrefix = (envs: string[]) => (envs.includes('production') ? 'PRODUCTION_' : 'TEST_')
 
-/** Saves each value in .env.cloudflare.local as `<prefix><name>`. Names only in the log. */
+/**
+ * Saves each value in .env.cloudflare.local as `<prefix><name>`. Returns null, or why one couldn't
+ * be saved: a name and an error code at most, never a value. Names only in the log.
+ */
 export function saveForDeploys(deps: Deps, log: Log, prefix: string, values: Record<string, string>) {
-  const failed = Object.entries(values)
-    .filter(([name, value]) => !deps.saveLocal(prefix + name, value))
-    .map(([name]) => prefix + name)
+  for (const [name, value] of Object.entries(values)) {
+    const problem = saveOne(deps, prefix + name, value)
+    if (problem) return problem
+  }
   const names = Object.keys(values).map((name) => prefix + name)
-  log(
-    failed.length
-      ? `  could not save ${failed.join(' and ')} in ${LOCAL_FILE}: put the value there by hand`
-      : `  saved ${names.join(' and ')} in ${LOCAL_FILE} (git-ignored, owner-only), where the deploys read it`,
-  )
+  log(`  saved ${names.join(' and ')} in ${LOCAL_FILE} (git-ignored, owner-only), where the deploys read it`)
+  return null
 }
 
-/** A service token for the smoke tests, saved where the deploys read it. No id: it wasn't made. */
-export async function ensureServiceToken(
-  ctx: AccessContext,
-  worker: string,
-  envs: string[],
-): Promise<{ id?: string; ok: boolean }> {
-  const { deps, log, a } = ctx
-  const name = `${worker} CI`
-  const prefix = localPrefix(envs)
-  const names = `${prefix}CF_ACCESS_CLIENT_ID and ${prefix}CF_ACCESS_CLIENT_SECRET`
-  const tokens =
-    results<{ id: string; name: string }[]>(await deps.api('GET', `${a}/access/service_tokens`)) ?? []
-  const found = tokens.find((t) => t.name === name)
-  if (found) {
-    log(
-      `exists  service token "${name}" (Cloudflare shows its secret only once: if ${LOCAL_FILE} lacks ${names}, refresh the token in Zero Trust → Service credentials and put both values there)`,
-    )
-    return { id: found.id, ok: true }
+function saveOne(deps: Deps, name: string, value: string): string | null {
+  try {
+    return deps.saveLocal(name, value) ? null : `${name} could not be saved in ${LOCAL_FILE}`
+  } catch (error) {
+    // The error's message can name the file but never the value; its code says enough.
+    return `${LOCAL_FILE} could not be written (${(error as NodeJS.ErrnoException).code ?? 'an error'})`
   }
-  const github = ctx.github.actions
-    ? `, and in the GitHub environment${envs.length > 1 ? 's' : ''} ${envs.join(' and ')}`
-    : ''
-  log(
-    `${ctx.dryRun ? 'would create' : 'creating'} service token "${name}" (1 year) and save it in ${LOCAL_FILE} as ${names}${github}. Its secret is never printed.`,
-  )
-  if (ctx.dryRun) return { ok: true }
-  const problem = deps.localProblem()
-  if (problem) {
-    log(`  ${problem} Cloudflare shows a token's secret only once, so no token was made.`)
-    return { ok: false }
-  }
-  const token = results<{ id: string; client_id: string; client_secret: string }>(
-    await deps.api('POST', `${a}/access/service_tokens`, { name, duration: '8760h' }),
-  )
-  if (!token) {
-    log('  could not create the service token. Check the token permissions above.')
-    return { ok: false }
-  }
-  const values = { CF_ACCESS_CLIENT_ID: token.client_id, CF_ACCESS_CLIENT_SECRET: token.client_secret }
-  saveForDeploys(deps, log, prefix, values)
-  if (ctx.github.gh)
-    for (const [key, value] of Object.entries(values)) await ghSecret(deps, log, key, value, envs)
-  else if (ctx.github.actions)
-    log(`  GitHub CLI not signed in: set both in GitHub by hand, from ${LOCAL_FILE}.`)
-  return { id: token.id, ok: true }
 }
 
 /** The Access application, created or brought in line. Returns its audience tag (AUD), if known. */

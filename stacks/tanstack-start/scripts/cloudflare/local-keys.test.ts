@@ -2,7 +2,7 @@
 // password) goes to .env.cloudflare.local, where the session deploys read it, never to the screen.
 // On ci = "local" nothing goes to GitHub; ci = "actions" keeps the GitHub copies (protection.test.ts).
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -18,6 +18,17 @@ const ACCESS = { CLOUDFLARE_ACCESS_TOKEN: 'set' }
 const TOKEN_SECRET = 'cfast_SECRET' // what the fake Cloudflare API answers for a new service token
 const PASSWORD = 'Zx81_random-SECRET-value-0123456' // the fakes' randomSecret()
 const github = (calls: string[]) => calls.filter((c) => c.startsWith('gh '))
+/** docs/stack.md text → the CI it names. A trailing comment is fine; a commented-out line isn't. */
+const CI_CASES: [string, 'actions' | 'local'][] = [
+  ['## CI\n\nci = "actions"\n', 'actions'],
+  ['ci="actions"', 'actions'],
+  ['ci = "actions"  # turned on by the person\n', 'actions'],
+  ['ci = "actions"\r\n', 'actions'],
+  ['ci = "local"\n', 'local'],
+  ['', 'local'],
+  ['# ci = "actions" was turned off\nci = "local"\n', 'local'],
+  ['ci = "actions-later"\n', 'local'],
+]
 
 /** Everything written to the real stdout and stderr while `fn` runs. */
 async function printed<T>(fn: () => Promise<T>): Promise<{ result: T; text: string }> {
@@ -152,6 +163,19 @@ describe('the file itself', () => {
     },
   )
 
+  it('refuses a file it can’t write, and a real run makes the file owner-only before any value', () => {
+    const dir = repository()
+    const file = join(dir, '.env.cloudflare.local')
+    expect(localFileProblem(file, dir, false)).toBeNull()
+    expect(existsSync(file)).toBe(false) // a dry run only reads
+    expect(localFileProblem(file, dir, true)).toBeNull()
+    expect(readFileSync(file, 'utf8')).toBe('')
+    if (process.platform !== 'win32') expect(statSync(file).mode & 0o777).toBe(0o600)
+    const folder = join(dir, 'folder')
+    mkdirSync(join(folder, '.env.cloudflare.local'), { recursive: true })
+    expect(localFileProblem(join(folder, '.env.cloudflare.local'), dir, true)).toContain("can't be written")
+  })
+
   it('refuses a file git does not ignore', () => {
     const dir = repository('node_modules\n')
     expect(localFileProblem(join(dir, '.env.cloudflare.local'), dir)).toContain("isn't git-ignored")
@@ -159,12 +183,8 @@ describe('the file itself', () => {
 })
 
 describe('ci in docs/stack.md', () => {
-  it('is "actions" only for an exact ci = "actions" line, else local', () => {
-    expect(ciFrom('## CI\n\nci = "actions"\n')).toBe('actions')
-    expect(ciFrom('ci = "local"\n')).toBe('local')
-    expect(ciFrom('')).toBe('local')
-    expect(ciFrom('# ci = "actions" was turned off\nci = "local"\n')).toBe('local')
-  })
+  // The same cases as cli/test/ci-local-secrets.test.mjs runs against push-secrets and setup-github.
+  it.each(CI_CASES)('%j reads as %s', (stack, ci) => expect(ciFrom(stack)).toBe(ci))
 
   it('reads the nearest docs/stack.md up to the repository root; none means local', () => {
     const root = mkdtempSync(join(tmpdir(), 'ci-mode-'))
@@ -177,6 +197,19 @@ describe('ci in docs/stack.md', () => {
       expect(readCi(join(root, 'apps', 'web'))).toBe('actions')
     } finally {
       rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('without a .git yet, reads only the app folder, never a docs/stack.md above it', () => {
+    const outer = mkdtempSync(join(tmpdir(), 'ci-mode-'))
+    try {
+      mkdirSync(join(outer, 'docs'))
+      writeFileSync(join(outer, 'docs', 'stack.md'), 'ci = "actions"\n')
+      mkdirSync(join(outer, 'app'))
+      expect(readCi(join(outer, 'app'))).toBe('local')
+      expect(readCi(outer)).toBe('actions')
+    } finally {
+      rmSync(outer, { recursive: true, force: true })
     }
   })
 })
