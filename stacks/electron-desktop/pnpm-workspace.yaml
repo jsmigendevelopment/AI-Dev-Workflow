@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - packages/*
+# Electron Forge refuses pnpm's default isolated layout: it copies node_modules into the package.
+nodeLinker: hoisted
+# Packages allowed to run install scripts: only electron-winstaller, which picks Squirrel's 7-Zip.
+# Add one only when a dependency brings it in. Electron has no install script: its binary comes from
+# its own `install-electron` command.
+allowBuilds:
+  electron-winstaller: true
+  # drizzle-kit's esbuild runs from its prebuilt platform package; its install script only checks it.
+  esbuild: false

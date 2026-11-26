@@ -1,0 +1,11 @@
+node_modules
+pnpm-lock.yaml
+out
+out-e2e
+.vite
+coverage
+.agents
+.claude
+.codex
+docs
+*.md

@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+/*
+ * Theme tokens: a neutral starting palette. Replace the values with the app's own from docs/design.md.
+ * light-dark() follows the device's colour scheme.
+ */
+:root {
+  color-scheme: light dark;
+  --canvas: light-dark(#f7f7f8, #111113);
+  --fg: light-dark(#18181b, #f4f4f5);
+  --brand: light-dark(#2563eb, #60a5fa);
+  --action: light-dark(#1d4ed8, #93c5fd);
+  --on-action: light-dark(#ffffff, #0b1220);
+  --surface: light-dark(#ffffff, #1c1c1f);
+  --inset: light-dark(#eef2f7, #26262b);
+  --muted: light-dark(#52525b, #b4b4bb);
+  --line: light-dark(#e4e4e7, #34343a);
+  --field-line: light-dark(#71717a, #8e8e96);
+  --shadow: light-dark(rgb(24 24 27 / 0.08), rgb(0 0 0 / 0.3));
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-fg: var(--fg);
+  --color-brand: var(--brand);
+  --color-action: var(--action);
+  --color-on-action: var(--on-action);
+  --color-surface: var(--surface);
+  --color-inset: var(--inset);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-field-line: var(--field-line);
+  --font-sans: system-ui, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --radius-r1: 0.5rem;
+  --radius-r2: 0.75rem;
+  --radius-r3: 1.125rem;
+  --shadow-hair: 0 10px 35px -24px var(--shadow);
+  --spacing-nav: 13rem;
+  --spacing-page: 78rem;
+}
+
+@layer base {
+  body {
+    background: var(--canvas);
+    color: var(--fg);
+    font: 0.875rem/1.55 var(--font-sans);
+  }
+  h1,
+  h2,
+  h3 {
+    line-height: 1.35;
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

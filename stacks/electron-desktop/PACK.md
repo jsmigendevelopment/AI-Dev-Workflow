@@ -1,6 +1,6 @@
-# Stub pack: Electron desktop (Windows, macOS, Linux)
+# Electron desktop pack (Windows, macOS, Linux)
 
-**Stub pack. Researched and fact-checked; not built yet. Researched 2026-11-22, fact-checked 2026-11-23. Re-check versions before building.**
+**Researched 2026-11-22, fact-checked 2026-11-23. The starter app is in this folder (2026-11-26): see [`README.md`](README.md). It was built from this file and proved in a real app, so build steps 3 to 9 are done in it. It pins Electron 45.5.0, a patch above the table below. It has no `stack-electron-desktop` skill yet. Re-check versions before building.**
 
 **Confidence: medium.** Electron is the pick when the app needs embedded Chromium views, a session partition per account, or Node native modules such as a terminal. Clerk is an optional module, not the reason to choose it. Its Electron SDK is beta. If an app needs none of those things, Tauri is close to a coin flip, and it wins on size.
 
