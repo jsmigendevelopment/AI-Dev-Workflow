@@ -46,7 +46,7 @@ Pass 3 done = **MVP complete on the test site.** Not launch. Launch is the perso
 A step is done when all of this is true, and not before:
 
 - every `auto` acceptance check has a passing test that carries its ID;
-- the checks passed on the merged commit (`onrails/check`), and the lane's reviews passed on that same commit;
+- the checks passed on the merged head commit (`coordinate` step 6.1) and on main after the merge (step 8), and the lane's reviews passed on that same head commit;
 - it's merged to main, live on the test site, and the smoke test passed;
 - its try line is on the "To try" list in `docs/state.md`.
 

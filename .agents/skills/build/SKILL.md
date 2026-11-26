@@ -13,7 +13,8 @@ description: Use when implementing one issue ("implement issue 12", "build this 
    - **Sent by another session?** Your brief is a handoff (`../ask/references/handoffs.md`). Before any work, comment the receipt on its record: `Got it · <your session> · My reading: <one line>`. Your reading differs from the owner's quoted words, or they could mean two things? That's step 2.
 2. **Unclear? Ask, don't guess.** An unclear issue, one with a `[NEEDS CLARIFICATION]` marker, or a brief your reading doesn't match, is a ⏳ decision. Use the `ask` skill: comment up to three questions, each with your recommended answer, label it `needs-human`, ping, and stop work on this issue. Run alone? Start the next ready issue (step 14, "Run alone"); there's no branch of this one to take on. If the work would hit the always-stop list, it's a 🛑 blocker instead.
    - **Blocked by setup** (no environment, key, account or access)? Climb "Try before you block" in `ask`. What's left gets a `needs-human` record with the "Setup step for you" and a ping, in this turn. Then build every part that doesn't need it. Never end on "the person will have to fix it" in chat alone.
-3. **Branch** from the latest main: `feat/<n>-<short-name>`, or `fix/<n>-<short-name>` for a bug. No issue, no branch: ask for one. Start each commit message with the issue number.
+3. **Branch** from the latest main: `feat/<n>-<short-name>`, or `fix/<n>-<short-name>` for a bug. In the loop, use the branch your brief names. No issue, no branch: ask for one. Start each commit message with the issue number.
+   - **Run alone, and no claim on the issue names your branch?** Comment one, as `coordinate` step 3 writes it: `Claimed by <session> at <time> · branch <your branch>`. The loop's local checks run only a branch a claim names.
 4. **Copy the nearest example.** Find the closest module, route or test the repo already has, and match its naming, error handling, layout and test style. If a generator exists (`pnpm new:module` or similar, listed in "Commands that work here"), use it. Never free-write a module a generator makes.
 5. **Tests first: red, green, refactor.** Turn every `auto` acceptance check into a test whose title starts with the check's ID: `AC-12-2: WHEN a visitor is signed out THEN the list answers 401`. One check per test. Take one check at a time:
    1. **Red.** Write the test for this check. Run it and watch it fail for the right reason: the assertion, not a typo or a missing import.
@@ -111,6 +112,7 @@ The shape is in `docs/architecture.md`.
 - Change the schema or an API contract unless the issue says to.
 - Read, print or commit `.env` files, tokens or keys. Refer to secrets by name. Need a value? Use the `secrets` checklist, never chat.
 - Touch another issue's work.
+- Add, enable or depend on a GitHub Actions workflow. A tool's docs say "add this workflow"? Run the command it would run from your session instead.
 
 ## References
 
