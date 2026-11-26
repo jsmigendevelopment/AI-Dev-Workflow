@@ -2,8 +2,8 @@
 // Keeps .claude/skills (Claude Code) identical to .agents/skills (Codex, the master copy),
 // .github/ISSUE_TEMPLATE/slice.md identical to the issues skill's template, and the copies in COPIES
 // identical to their masters.
-// It also writes the plugin's starter skills (plugin/skills/<name>/SKILL.md): the master's
-// frontmatter plus the hand-off step in scripts/plugin-handoff.md.
+// It also writes the plugin's skills: the starter skills (plugin/skills/<name>/SKILL.md), each the master's
+// frontmatter plus the hand-off step in scripts/plugin-handoff.md, and plain copies of PLUGIN_COPIES.
 // Usage:  node scripts/sync-skills.mjs          copy the master copies over the mirrors
 //         node scripts/sync-skills.mjs --check  fail if a mirror differs
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -60,18 +60,28 @@ function pluginSkill(name) {
   return front[0] + "\n" + header + body;
 }
 
+// Plugin skills that work the same with or without the kit, so the plugin ships the master as it is (#178).
+const PLUGIN_COPIES = ["update"];
+
+/** Every plugin skill file, as [path, text]: the hand-off skills, then the plain copies. */
+function pluginFiles() {
+  const handoff = Object.keys(PLUGIN_SKILLS).map((name) => [join(PLUGIN_DEST, name, "SKILL.md"), pluginSkill(name), HANDOFF]);
+  const copies = PLUGIN_COPIES.flatMap((name) => files(join(SRC, name)).map((f) => [join(PLUGIN_DEST, relative(SRC, f)), readFileSync(f, "utf8"), f]));
+  return [...handoff, ...copies];
+}
+
 function pluginProblems() {
-  const want = Object.keys(PLUGIN_SKILLS).map((name) => [join(PLUGIN_DEST, name, "SKILL.md"), pluginSkill(name)]);
-  const problems = want.filter(([path, text]) => !existsSync(path) || readFileSync(path, "utf8") !== text).map(([path]) => `differs: ${path} (made from ${HANDOFF})`);
+  const want = pluginFiles();
+  const problems = want.filter(([path, text]) => !existsSync(path) || readFileSync(path, "utf8") !== text).map(([path, , from]) => `differs: ${path} (made from ${from})`);
   const extra = files(PLUGIN_DEST).filter((f) => !want.some(([path]) => path === f));
   return [...problems, ...extra.map((f) => `not made by this script: ${f}`)];
 }
 
 function writePluginSkills() {
   rmSync(PLUGIN_DEST, { recursive: true, force: true });
-  for (const name of Object.keys(PLUGIN_SKILLS)) {
-    mkdirSync(join(PLUGIN_DEST, name), { recursive: true });
-    writeFileSync(join(PLUGIN_DEST, name, "SKILL.md"), pluginSkill(name));
+  for (const [path, text] of pluginFiles()) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, text);
   }
 }
 
@@ -100,7 +110,7 @@ if (process.argv.includes("--check")) {
     console.error(problems.join("\n") + "\n\nRun: node scripts/sync-skills.mjs");
     process.exit(1);
   }
-  console.log(`skills in sync (${a.length} files, ${Object.keys(PLUGIN_SKILLS).length} plugin skills)`);
+  console.log(`skills in sync (${a.length} files, ${Object.keys(PLUGIN_SKILLS).length + PLUGIN_COPIES.length} plugin skills)`);
 } else {
   for (const [from, to] of COPIES) {
     mkdirSync(dirname(to), { recursive: true });
@@ -113,5 +123,5 @@ if (process.argv.includes("--check")) {
   console.log(`copied ${SRC} -> ${DEST}`);
   console.log(`copied ${ISSUE_SRC} -> ${ISSUE_DEST}`);
   writePluginSkills();
-  console.log(`made ${PLUGIN_DEST}/{${Object.keys(PLUGIN_SKILLS).join(",")}}/SKILL.md`);
+  console.log(`made ${PLUGIN_DEST}/{${[...Object.keys(PLUGIN_SKILLS), ...PLUGIN_COPIES].join(",")}}`);
 }

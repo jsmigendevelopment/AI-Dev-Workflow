@@ -10,6 +10,7 @@
 | 🧭 | **`/or:join`** | **`/join`** | `$join` | You're new to a repo that isn't set up yet | "Help me get set up in this repo" |
 | ☀️ | **`/or:back`** | **`/back`** | `$back` | You're starting work, or back from a break | "I'm back" · "pick up where we left off" |
 | 🌙 | **`/or:afk`** | **`/afk`** | `$afk` | You're stepping away and want it to keep building | "going to lunch" · "good night" |
+| 🔄 | **`/or:update`** | **`/update`** | `$update` | You want the latest onRails: plugin, global skills and the project's kit | "update onRails" · "get the latest" |
 
 > [!TIP]
 > **Typing the command always works.** The plain phrase usually does, on a strong model.
@@ -29,7 +30,7 @@ claude plugin install core@onrails --scope user
 
 Inside Claude Code instead? `/plugin marketplace add …` then `/plugin install core@onrails`, and **pick "user"** as the scope. A project install only works in that folder.
 
-Codex: `codex plugin marketplace add jsmigendevelopment/onRails`, then `codex plugin add or@onrails`. Updates are by hand (`claude plugin marketplace update onrails`, then `claude plugin update core@onrails`). Cloud sessions don't load personal plugins; they use the repo's skills. Don't mix the plugin with `init --global`. → [README](../README.md#install-as-a-plugin)
+Codex: `codex plugin marketplace add jsmigendevelopment/onRails`, then `codex plugin add or@onrails`. To update, type `/update`, or run `npx onrails@latest update --all` in a terminal, then `/reload-plugins`. Cloud sessions don't load personal plugins; they use the repo's skills. Don't mix the plugin with `init --global`. → [README](../README.md#install-as-a-plugin)
 
 **Adding the kit to an app you already have?** → [Step by step](add-to-existing-app.md)
 
