@@ -68,9 +68,9 @@ test("refusal: PID 1, 0, negatives, non-integers, ours, a missing or changed sta
 test("a registry record {pid: 1, group: true, start: null} with a dead agent gets no signal from session-end, stop stale or ps", async () => {
   const sys = fakeSys({ procs: { 1: { args: "init", group: 1 }, 4000: { group: 3000 } }, stdin: '{"session_id":"s-1"}' });
   const procs = [
-    { id: "pone", pid: 1, start: null }, { id: "pzero", pid: 0, start: "start-0" }, { id: "pneg", pid: -1, start: "start-1" },
-    { id: "pinit", pid: 1, start: "start-1" }, { id: "pagent", pid: AGENT, start: `start-${AGENT}` },
-    { id: "pgrp", pid: 4000, start: "start-4000" },
+    { id: "p0001", pid: 1, start: null }, { id: "p0000", pid: 0, start: "start-0" }, { id: "pffff", pid: -1, start: "start-1" },
+    { id: "pa001", pid: 1, start: "start-1" }, { id: "pa500", pid: AGENT, start: `start-${AGENT}` },
+    { id: "p4000", pid: 4000, start: "start-4000" },
   ];
   for (const rec of procs) seed(sys, { group: true, command: "x", ...rec });
   const end = await run(sys, ["session-end"]);
@@ -148,9 +148,9 @@ test("AC-156-1: WHEN a group record's group holds this script, its parent or the
   const me = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
   for (const [name, pid, args] of [["this script", 999, "node procs.mjs"], ["its parent", 900, "bash"], ["the agent", AGENT, "/opt/claude-code/bin/claude"]]) {
     const sys = fakeSys({ procs: { 4000: { args: "pnpm dev" }, [pid]: { args, parent: 4000, group: 4000 } }, stdin: '{"session_id":"s-1"}' });
-    seed(sys, { id: "pmine", pid: 4000, start: "start-4000", command: "pnpm dev", ...me });
-    seed(sys, { id: "pstale", pid: 4000, start: "start-4000", command: "pnpm dev" });
-    for (const argv of [["stop", "pmine"], ["stop", "stale"], ["stop", "all", "--yes"], ["session-end"]]) await run(sys, argv);
+    seed(sys, { id: "pface", pid: 4000, start: "start-4000", command: "pnpm dev", ...me });
+    seed(sys, { id: "pfade", pid: 4000, start: "start-4000", command: "pnpm dev" });
+    for (const argv of [["stop", "pface"], ["stop", "stale"], ["stop", "all", "--yes"], ["session-end"]]) await run(sys, argv);
     const reaper = sys.calls.find((c) => / reap --registry /.test(c));
     if (reaper) await run(sys, reaper.split(" ").slice(3));
     assert.deepEqual(signals(sys), [], name);
@@ -175,12 +175,12 @@ test("AC-174-3: WHEN a non-group record's PID is the agent's parent THEN no sign
   const me = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
   // The agent's parent in another group than the agent (a shell with job control), or in the agent's; or it leads its own.
   for (const [group, parentGroup, agentGroup] of [[false, 3000, AGENT], [false, 3000, 3000], [true, 450, AGENT]]) {
-    for (const argv of [["stop", "pmine"], ["stop", "stale"], ["stop", "all", "--yes"], ["session-end"], ["ps", "--stop", "450", "--yes"]]) {
+    for (const argv of [["stop", "pface"], ["stop", "stale"], ["stop", "all", "--yes"], ["session-end"], ["ps", "--stop", "450", "--yes"]]) {
       const procs = { 450: { args: "bash", group: parentGroup }, [AGENT]: { args: "/opt/claude-code/bin/claude", parent: 450, group: agentGroup } };
       const sys = fakeSys({ procs, stdin: '{"session_id":"s-1"}' });
       if (argv[0] !== "ps") {
-        seed(sys, { id: "pmine", pid: 450, start: "start-450", group, command: "bash", ...me });
-        seed(sys, { id: "pstale", pid: 450, start: "start-450", group, command: "bash" });
+        seed(sys, { id: "pface", pid: 450, start: "start-450", group, command: "bash", ...me });
+        seed(sys, { id: "pfade", pid: 450, start: "start-450", group, command: "bash" });
       }
       const r = await run(sys, argv);
       const reaper = sys.calls.find((c) => / reap --registry /.test(c));
@@ -196,9 +196,9 @@ test("AC-174-3: WHEN a non-group record's tree holds the agent below its parent 
   const me = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
   // The record is the agent's grandparent: 400, then the shell 450, then the agent. Only its tree shows that.
   const procs = { 400: { args: "sshd", group: 400 }, 450: { args: "bash", parent: 400, group: 450 }, [AGENT]: { args: "/opt/claude-code/bin/claude", parent: 450, group: AGENT } };
-  for (const argv of [["stop", "pmine"], ["stop", "all", "--yes"], ["session-end"]]) {
+  for (const argv of [["stop", "pface"], ["stop", "all", "--yes"], ["session-end"]]) {
     const sys = fakeSys({ procs, stdin: '{"session_id":"s-1"}' });
-    seed(sys, { id: "pmine", pid: 400, start: "start-400", group: false, command: "sshd", ...me });
+    seed(sys, { id: "pface", pid: 400, start: "start-400", group: false, command: "sshd", ...me });
     const r = await run(sys, argv);
     const reaper = sys.calls.find((c) => / reap --registry /.test(c));
     if (reaper) await run(sys, reaper.split(" ").slice(3));

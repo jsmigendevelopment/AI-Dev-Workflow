@@ -9,9 +9,9 @@ import { realSys, winAccess } from "../src/procs-sys.mjs";
 import { AGENT, fakeSys, inRepo, run, seed, signals, stamp, startDev } from "./procs-fake.mjs";
 
 const OWN = { owned: true, writers: [] };
-const STALE = { id: "pbad", pid: 4000, start: "start-4000", group: false, command: "pnpm dev" };
+const STALE = { id: "p0bad", pid: 4000, start: "start-4000", group: false, command: "pnpm dev" };
 const MINE = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
-const STOPS = [["stop", "stale"], ["stop", "all", "--yes"], ["stop", "pbad", "--yes"], ["ps", "--stop", "all", "--yes"], ["session-end"]];
+const STOPS = [["stop", "stale"], ["stop", "all", "--yes"], ["stop", "p0bad", "--yes"], ["ps", "--stop", "all", "--yes"], ["session-end"]];
 
 // Runs a command, then the reaper session-end would start, as the real one does.
 async function runAll(sys, argv) {
@@ -100,10 +100,10 @@ test("AC-174-1: the real machine reads a Windows ACL through PowerShell with the
 
 test("AC-174-2: WHEN a win32 record's tree holds the agent, this script or its parent THEN no taskkill runs", async () => {
   for (const [name, pid, args] of [["the agent", AGENT, "C:\\claude\\claude.exe"], ["this script", 999, "node procs.mjs"], ["its parent", 900, "cmd.exe"]]) {
-    for (const argv of [["stop", "pmine"], ...STOPS, ["stop", "4001", "--yes"]]) {
+    for (const argv of [["stop", "pface"], ...STOPS, ["stop", "4001", "--yes"]]) {
       const procs = { 4000: { onTerm: "stay" }, 4001: { parent: 4000, onTerm: "stay" }, [pid]: { args, parent: 4001 } };
       const sys = fakeSys({ platform: "win32", procs, stdin: '{"session_id":"s-1"}' });
-      seed(sys, { ...STALE, id: "pmine", ...MINE });
+      seed(sys, { ...STALE, id: "pface", ...MINE });
       seed(sys, STALE);
       await runAll(sys, argv);
       assert.deepEqual(signals(sys), [], `${name}: ${argv.join(" ")}`);
@@ -113,8 +113,8 @@ test("AC-174-2: WHEN a win32 record's tree holds the agent, this script or its p
   // The process tree can't be read: whether it holds the agent can't be told, so nothing runs either.
   const sys = fakeSys({ platform: "win32", procs: { 4000: {} } });
   sys.table = () => null;
-  seed(sys, { ...STALE, id: "pmine", ...MINE });
-  const r = await run(sys, ["stop", "pmine"]);
+  seed(sys, { ...STALE, id: "pface", ...MINE });
+  const r = await run(sys, ["stop", "pface"]);
   assert.deepEqual(signals(sys), [], r.out);
-  assert.match(r.out, /Left pmine alone: the process tree can't be read/);
+  assert.match(r.out, /Left pface alone: the process tree can't be read/);
 });

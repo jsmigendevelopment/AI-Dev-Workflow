@@ -188,6 +188,8 @@ function resume(sys, log, { dir, me }) {
 const VALUE = new Set(["--why", "--until", "--for", "--owner", "--grace", "--registry", "--stop", "--guard"]);
 const BOOL = new Set(["--mine", "--json", "--yes"]);
 
+// A value flag given twice is refused, never overwritten: a later copy must not replace --guard, --registry or --grace.
+// Everything after -- is a command (start) or ids (reap), never an option.
 function parse(argv) {
   const flags = {}, rest = [];
   for (let i = 0; i < argv.length; i++) {
@@ -195,6 +197,7 @@ function parse(argv) {
     if (a === "--") return { flags, rest, command: argv.slice(i + 1) };
     if (VALUE.has(a)) {
       if (argv[i + 1] === undefined) return { error: `${a} needs a value` };
+      if (Object.hasOwn(flags, a.slice(2))) return { error: `${a} is given twice` };
       flags[a.slice(2)] = argv[++i];
     } else if (BOOL.has(a)) flags[a.slice(2)] = true;
     else if (a.startsWith("-")) return { error: `Unknown option: ${a}` };
@@ -231,7 +234,7 @@ export async function main(argv, { sys = realSys(), log = console.log, ask } = {
     case "session-start": return sessionStart(sys, log, ctx);
     case "session-end": return sessionEnd(sys, log, ctx);
     case "watch": return watch(sys, path, readGuard(flags.guard));
-    case "reap": return reap(sys, path, args, flags.grace ? Number(flags.grace) : GRACE_S, readGuard(flags.guard));
+    case "reap": return reap(sys, path, [...args, ...command], flags.grace ? Number(flags.grace) : GRACE_S, readGuard(flags.guard));
     default: return fail(log, USAGE);
   }
 }

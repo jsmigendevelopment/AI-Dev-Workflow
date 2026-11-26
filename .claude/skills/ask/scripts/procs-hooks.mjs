@@ -3,7 +3,7 @@
 // The master copy is scripts/procs-hooks.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { MINUTE, SCRIPT, age, findAgent, inspect, livePids, newId, newRecord, past, sameStart, survey } from "./procs-records.mjs";
+import { MINUTE, SCRIPT, age, findAgent, inspect, isId, livePids, newId, newRecord, past, sameStart, survey } from "./procs-records.mjs";
 import { NO_AGENT, forget, stopRecords } from "./procs-stop.mjs";
 import { askAgain, fixable, load, logFor, untrusted, update } from "./procs-store.mjs";
 
@@ -12,13 +12,14 @@ const WATCH_HOURS = 24;
 
 // The reaper and the watcher outlive the command that starts them, so their parent is gone, and with no CLAUDE_PID
 // (as under Codex) walking up never reaches the agent. So that command passes the agent and its parent, each with its
-// start time, as --guard <pid>@<start>,... (#174).
+// start time, as --guard <pid>@<start>,... (#174). When the parent's start can't be read, it passes no --guard at
+// all: the agent alone would make the runner count the agent as known while the parent goes unguarded.
 function guardFlag(sys, me) {
   if (!me.agent) return [];
   const parent = sys.info([me.agent.pid])?.get(me.agent.pid)?.parent;
   const start = Number.isInteger(parent) ? sys.info([parent])?.get(parent)?.start : null;
-  const held = start ? [me.agent, { pid: parent, start }] : [me.agent];
-  return ["--guard", held.map((g) => `${g.pid}@${encodeURIComponent(g.start)}`).join(",")];
+  if (!start) return [];
+  return ["--guard", [me.agent, { pid: parent, start }].map((g) => `${g.pid}@${encodeURIComponent(g.start)}`).join(",")];
 }
 
 /** --guard's processes as [{ pid, start }], or null when it wasn't given or can't be read: then the agent isn't known from it. */
@@ -116,11 +117,12 @@ export async function sessionEnd(sys, log, { dir, me }) {
   let hook = {};
   try { hook = JSON.parse((await sys.stdin()) || "{}"); } catch { hook = {}; } // run by hand: no hook input
   const owner = { ...me, session: hook.session_id || me.session };
-  const due = (survey(sys, dir, owner, { prune: true }) ?? []).filter((r) => r.mine || r.owner === "gone");
+  // Only ids the registry itself makes go to the reaper, after --, so a record's id can never be read as an option.
+  const due = (survey(sys, dir, owner, { prune: true }) ?? []).filter((r) => (r.mine || r.owner === "gone") && isId(r.id));
   const guard = due.length ? guardFlag(sys, me) : [];
   for (const path of new Set(due.map((r) => r.path))) {
     const here = due.filter((r) => r.path === path);
-    const reaper = sys.spawn([process.execPath, PROCS, "reap", "--registry", path, ...guard, ...here.map((r) => r.id)], { cwd: dirname(path), log: logFor(sys, path, "reap") });
+    const reaper = sys.spawn([process.execPath, PROCS, "reap", "--registry", path, ...guard, "--", ...here.map((r) => r.id)], { cwd: dirname(path), log: logFor(sys, path, "reap") });
     if (!reaper) { await stopRecords(sys, here, { grace: 2 }); forget(sys, here); }
   }
   if (due.length) log(`Stopping ${due.length} background process(es) this session or an ended one started.`);

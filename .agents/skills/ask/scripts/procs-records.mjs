@@ -81,6 +81,9 @@ export function newRecord(sys, me, flags, fields) {
   };
 }
 
+/** True for an id shaped exactly as newId makes it. Only such ids go on a command line (#174). */
+export const isId = (id) => typeof id === "string" && /^p[0-9a-f]{4}$/.test(id);
+
 export function newId(sys, path) {
   const taken = new Set(load(path, sys).map((r) => r.id));
   for (;;) { const id = `p${randomBytes(2).toString("hex")}`; if (!taken.has(id)) return id; }
