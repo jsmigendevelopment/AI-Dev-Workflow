@@ -13,9 +13,10 @@ const preview =
     deployPreview(deps, pr)
 const production = (confirm?: string) => (deps: Parameters<typeof deployProduction>[0]) =>
   deployProduction(deps, confirm)
+// `wrangler deploy ` with its space: the read-only `wrangler deployments list` changes nothing.
 const changes = (calls: string[]) =>
   calls.filter((c) =>
-    /pnpm build|wrangler (deploy|versions upload|d1 migrations|rollback)|-X (POST|PATCH)/.test(c),
+    /pnpm build|wrangler (deploy |versions upload|d1 migrations|rollback)|-X (POST|PATCH)/.test(c),
   )
 
 describe('pnpm deploy:preview', () => {

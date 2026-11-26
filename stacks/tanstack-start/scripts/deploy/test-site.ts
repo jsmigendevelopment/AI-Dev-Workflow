@@ -1,11 +1,14 @@
 // `pnpm deploy:test`: main to the test site, run from the session after each merge. Install from the
 // lockfile, build, migrate the test database, deploy, then the smoke test against the deployed URL.
 // Any failure after the deploy (no URL, a failed smoke test, a crash) puts the previous version back
-// and stops with what to put in a bug issue. The deploy output is masked. The very first test deploy
-// is setup-cloudflare's (the same commands), so the first pull request has a Worker to preview on.
+// and stops with what to put in a bug issue, also when the deploy step failed after making the new
+// version live (release.ts). One test deploy at a time (lock.ts). The deploy output is masked. The
+// very first test deploy is setup-cloudflare's (the same commands), so the first pull request has a
+// Worker to preview on.
 import type { DeployDeps } from './deps.ts'
+import { oneAtATime } from './lock.ts'
+import { deployAndVerify } from './release.ts'
 import {
-  afterDeploy,
   clearRedirect,
   environment,
   gateEnv,
@@ -39,12 +42,16 @@ async function deploy(deps: DeployDeps) {
     // `-c wrangler.jsonc`: D1 commands read the source config, not the build's flattened copy.
     const migrate = ['d1', 'migrations', 'apply', 'DB', '--remote', '-c', 'wrangler.jsonc']
     await step(deps, 'apply the D1 migrations to test', deps.wrangler(migrate, TEST))
-    const out = await step(
-      deps,
-      'deploy the test Worker',
-      deps.wrangler(['deploy', '--message', `main ${sha}`], TEST),
-    )
-    await afterDeploy(deps, { env: TEST, worker: test.worker, sha, after: AFTER }, async () => {
+    const at = {
+      env: TEST,
+      worker: test.worker,
+      sha,
+      message: `main ${sha}`,
+      what: 'deploy the test Worker',
+      after: AFTER,
+    }
+    await deployAndVerify(deps, at, async (out) => {
+      // TEST_APP_URL first, when set: the test site's own address. Else the workers.dev URL.
       const url = deps.local('TEST_APP_URL') ?? workersDevUrl(out)
       if (!url)
         throw new Stop(
@@ -60,4 +67,5 @@ async function deploy(deps: DeployDeps) {
   }
 }
 
-export const deployTest = (deps: DeployDeps) => masking(deps, deploy)
+export const deployTest = (deps: DeployDeps) =>
+  masking(deps, (masked) => oneAtATime(masked, 'test', 'pnpm deploy:test', () => deploy(masked)))
