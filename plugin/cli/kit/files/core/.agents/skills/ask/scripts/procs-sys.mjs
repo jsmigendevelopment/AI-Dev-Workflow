@@ -5,6 +5,8 @@
 //   git(dir, args) its output, "" for nothing, null when git failed · uid, gid this user's ids (null on Windows)
 //   privateGroup(gid) true when this user is the group's one member, false when not, null when it can't tell
 //   acl(path) true when the path has a POSIX ACL, false when it has none, null when it can't tell
+//   winAcl(path) on Windows { owned, writers }: whether this user (or the admins) owns it, and every other account
+//   that can write it; null when it can't tell, and off Windows
 // Linux and macOS read ps; Windows reads Win32_Process through PowerShell. No dependencies.
 // The master copy is scripts/procs-sys.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { spawn, spawnSync } from "node:child_process";
@@ -16,9 +18,11 @@ import { homedir, userInfo } from "node:os";
  * (git, ps, powershell.exe, taskkill, or a full path) runs, with spawnSync's answer. By default it is spawnSync, which
  * looks a bare name up through PATH from the current folder, as before. fullPath is true only for a run that starts a
  * full path it found itself: doctor's, which skips any copy a project ships and goes through cmd.exe for a Windows
- * .cmd shim (#185, #215).
+ * .cmd shim (#185, #215). So fullPath without a run throws: spawnSync would start a bare git in the target folder (#174).
  */
-export function realSys({ platform = process.platform, run = spawnSync, fullPath = false } = {}) {
+export function realSys({ platform = process.platform, run, fullPath = false } = {}) {
+  if (fullPath && !run) throw new Error("realSys: fullPath needs the run that found the full path");
+  run ??= spawnSync;
   // null when the tool can't run or reports an error; "" when it found nothing (ps -p with no match exits 1, silently).
   const out = (cmd, args) => {
     const r = run(cmd, args, { encoding: "utf8", timeout: 15000, windowsHide: true });
@@ -38,6 +42,13 @@ export function realSys({ platform = process.platform, run = spawnSync, fullPath
     privateGroup: (gid) => (platform !== "linux" ? null : soleMember(gid, userName(), groupSources(out, strict, gid))),
     // Only Linux is asked: there the tools are known. Anywhere else it can't tell, so the caller refuses.
     acl: (path) => (platform !== "linux" ? null : hasAcl(aclSources(strict, path))),
+    // The path goes in the environment, never in the command line, so no quoting can change the script.
+    winAcl(path) {
+      if (platform !== "win32") return null;
+      const r = run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WIN_ACL],
+        { encoding: "utf8", timeout: 15000, windowsHide: true, env: { ...process.env, ONRAILS_ACL_PATH: path } });
+      return r.error || r.status !== 0 ? null : winAccess(r.stdout);
+    },
     now: () => Date.now(),
     // Its output, "" when it found nothing, or null when git failed in any way: a failure is never "nothing found".
     // A bare git is looked up from the spawn's working folder (a relative PATH entry; on Windows that folder first),
@@ -112,6 +123,43 @@ export function hasAcl({ getfacl, ls, lsVersion }) {
   if (typeof ls !== "string" || !lsVersion?.startsWith("ls (GNU coreutils)")) return null;
   const mode = /^[-dlbcps][-rwxsStT]{9}([+.]?)\s/.exec(ls);
   return mode ? mode[1] === "+" : null;
+}
+
+// The ACL of $env:ONRAILS_ACL_PATH: this user's SID, the owner's, "nodacl" for a null DACL (everyone has full
+// access), then one line per rule, "<Allow|Deny> <SID> <rights>". Single quotes only, as in windowsInfo.
+const WIN_ACL = ["$ErrorActionPreference = 'Stop'", "$t = [System.Security.Principal.SecurityIdentifier]",
+  "$a = Get-Acl -LiteralPath $env:ONRAILS_ACL_PATH", "'user ' + [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value",
+  "'owner ' + $a.GetOwner($t).Value", "if ($a.GetSecurityDescriptorSddlForm('Access') -match 'NO_ACCESS_CONTROL') { 'nodacl' }",
+  "foreach ($r in $a.GetAccessRules($true, $true, $t)) { '{0} {1} {2}' -f $r.AccessControlType, $r.IdentityReference.Value, [long]$r.FileSystemRights }"].join("; ");
+// Any right that changes what is in it, who may, or that it is there: write or append data (make files or folders),
+// write attributes, delete a child or itself, change its ACL or owner, and generic all or write.
+const WIN_WRITE = 0x2 | 0x4 | 0x10 | 0x40 | 0x100 | 0x10000 | 0x40000 | 0x80000 | 0x10000000 | 0x40000000;
+// Accounts that may write besides this user: SYSTEM, Administrators, CREATOR OWNER and OWNER RIGHTS (they stand for
+// the owner) and TrustedInstaller. They can already do anything on the machine. The owner may be this user, SYSTEM or
+// Administrators, which an elevated session makes the owner of what it creates.
+const WIN_TRUSTED = ["S-1-5-18", "S-1-5-32-544", "S-1-3-0", "S-1-3-4", "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"];
+const WIN_OWNERS = ["S-1-5-18", "S-1-5-32-544"];
+const SID = /^S-1(-\d+)+$/;
+
+/**
+ * winAcl() from its PowerShell output: { owned, writers }, owned when this user, SYSTEM or Administrators owns the
+ * path, writers every other account an Allow rule lets write it (a deny is ignored: it can't take away another
+ * rule's grant to someone else). null for output it doesn't know, so the caller refuses.
+ */
+export function winAccess(text) {
+  let user = null, owner = null;
+  const writers = new Set();
+  for (const line of (text ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    const [word, sid, rights, ...more] = line.split(" ");
+    if (line === "nodacl") writers.add("S-1-1-0");
+    else if (more.length || !SID.test(sid ?? "")) return null;
+    else if (word === "user" && rights === undefined) user = sid;
+    else if (word === "owner" && rights === undefined) owner = sid;
+    else if (!["Allow", "Deny"].includes(word) || !/^-?\d+$/.test(rights ?? "")) return null;
+    else if (word === "Allow" && (Number(rights) >>> 0) & WIN_WRITE) writers.add(sid);
+  }
+  if (!user || !owner) return null;
+  return { owned: [user, ...WIN_OWNERS].includes(owner), writers: [...writers].filter((s) => s !== user && !WIN_TRUSTED.includes(s)) };
 }
 
 // Append, create, and never through a symlink (Windows has no O_NOFOLLOW; the store checks the folder there).
