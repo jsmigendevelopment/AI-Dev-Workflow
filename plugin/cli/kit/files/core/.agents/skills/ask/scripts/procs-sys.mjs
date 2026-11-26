@@ -10,19 +10,15 @@
 import { spawn, spawnSync } from "node:child_process";
 import { closeSync, constants, existsSync, openSync, readFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
-import { isAbsolute } from "node:path";
 
 /**
- * The real machine. platform is for tests: the checks that only Linux can answer. which(name) turns a bare tool name
- * (git, ps, powershell.exe, taskkill) into the file to run, or null when none may run: doctor passes its own PATH
- * search, which skips copies a project ships (#185). By default the name goes through PATH, as before.
+ * The real machine. platform is for tests: the checks that only Linux can answer. run(cmd, args, opts) is how a tool
+ * (git, ps, powershell.exe, taskkill, or a full path) runs, with spawnSync's answer. By default it is spawnSync, which
+ * looks a bare name up through PATH from the current folder, as before. fullPath is true only for a run that starts a
+ * full path it found itself: doctor's, which skips any copy a project ships and goes through cmd.exe for a Windows
+ * .cmd shim (#185, #215).
  */
-export function realSys({ platform = process.platform, which = (name) => name } = {}) {
-  // A tool that may not run fails the way a missing one does.
-  const run = (cmd, args, opts) => {
-    const file = isAbsolute(cmd) ? cmd : which(cmd);
-    return file ? spawnSync(file, args, opts) : { error: new Error(`${cmd} not found`) };
-  };
+export function realSys({ platform = process.platform, run = spawnSync, fullPath = false } = {}) {
   // null when the tool can't run or reports an error; "" when it found nothing (ps -p with no match exits 1, silently).
   const out = (cmd, args) => {
     const r = run(cmd, args, { encoding: "utf8", timeout: 15000, windowsHide: true });
@@ -44,8 +40,12 @@ export function realSys({ platform = process.platform, which = (name) => name } 
     acl: (path) => (platform !== "linux" ? null : hasAcl(aclSources(strict, path))),
     now: () => Date.now(),
     // Its output, "" when it found nothing, or null when git failed in any way: a failure is never "nothing found".
-    git(cwd, args) {
-      const r = run("git", ["-C", cwd, ...args], { encoding: "utf8", timeout: 15000, windowsHide: true });
+    // A bare git is looked up from the spawn's working folder (a relative PATH entry; on Windows that folder first),
+    // so it gets -C and runs from the current folder: never one a repo in the index commits. A full path run takes
+    // the folder as its working folder instead, so only plain words reach cmd.exe for a Windows .cmd git (#215).
+    git(dir, args) {
+      const where = fullPath ? { cwd: dir } : {};
+      const r = run("git", fullPath ? args : ["-C", dir, ...args], { ...where, encoding: "utf8", timeout: 15000, windowsHide: true });
       return r.error || r.status !== 0 ? null : r.stdout.trim();
     },
     info: (pids) => (platform === "win32" ? windowsInfo(pwsh, pids) : posixInfo(out, pids)),

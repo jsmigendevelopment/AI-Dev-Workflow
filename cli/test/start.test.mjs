@@ -2,12 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROJECT_MANIFEST } from "../src/kit.mjs";
 import { entryCommand, offerStart } from "../src/start.mjs";
-import { findCommand } from "../src/system.mjs";
-import { exists, fake, fakeAsk, fakeSystem, logger, put, safeEnv, tmp } from "./helpers.mjs";
+import { findCommand, realSystem } from "../src/system.mjs";
+import { checkPath, exists, fake, fakeAsk, fakeSystem, logger, put, safeEnv, tmp } from "./helpers.mjs";
 
 // A fake world where spawnInteractive records what would have started. No agent ever runs.
 function world(commands) {
@@ -132,4 +132,99 @@ test("init through the binary without a terminal never starts an agent", { skip:
   assert.match(r.stdout, /Open this folder there, start a new session and type \/idea/);
   assert.ok(!exists(out, ""), "the fake agent never ran");
   assert.equal(spawnSync(process.execPath, [CLI, "init", tmp(), "--start", "--no-start"], { env: safeEnv() }).status, 2);
+});
+
+// #215: init --start finds the agent with toolPath, the search doctor and update --all use, and starts it by that
+// full path through launch. run is a recording spawnSync: no agent, fake or real, starts in these in-process tests.
+function recorder() {
+  const calls = [];
+  const run = (file, args, opts) => (calls.push({ argv: [file, ...args], cwd: opts?.cwd }), { status: 0 });
+  return { calls, run };
+}
+
+test("AC-215-1: WHEN a fake claude sits in <project>/node_modules/.bin first on PATH and init --start runs there THEN the fake never runs", async () => {
+  const project = tmp(), installed = tmp("onrails-installed-");
+  put(project, "node_modules/.bin/claude", "the project's copy\n");
+  put(installed, "claude", "the person's claude\n");
+  const env = { PATH: [join(project, "node_modules/.bin"), installed].join(delimiter) };
+  const { calls, run } = recorder();
+  const sys = realSystem({ projectDir: project, platform: "linux", env, run });
+  assert.equal(await offerStart(project, "idea", { sys, start: true, interactive: false, log: logger() }), 0);
+  assert.deepEqual(calls, [{ argv: [join(installed, "claude"), "/idea"], cwd: project }], "started by the full path the search found");
+});
+
+test("AC-215-1: on Windows, a claude.cmd in <project>/node_modules/.bin never runs; the person's claude.cmd starts through cmd.exe from ComSpec", async () => {
+  const project = tmp(), installed = tmp("onrails-installed-");
+  const ComSpec = "C:\\Windows\\System32\\cmd.exe";
+  put(project, "node_modules/.bin/claude.cmd", "the project's copy\n");
+  for (const name of ["claude", "claude.cmd", "claude.ps1"]) put(installed, name, "npm's shim\n");
+  const env = { PATH: [join(project, "node_modules/.bin"), installed].join(delimiter), PATHEXT: ".com;.exe;.bat;.cmd", ComSpec };
+  const { calls, run } = recorder();
+  const sys = realSystem({ projectDir: project, platform: "win32", env, run });
+  await offerStart(project, "idea", { sys, start: true, interactive: false, log: logger() });
+  assert.deepEqual(calls.map((c) => c.argv), [[ComSpec, "/d", "/s", "/c", `""${join(installed, "claude.cmd")}" /idea"`]]);
+});
+
+test("AC-215-1: WHEN the only claude on PATH is in a folder inside the project THEN init --start through the binary says it wasn't found and it never runs", { skip: process.platform === "win32" }, () => {
+  const project = tmp(), elsewhere = tmp();
+  const out = join(tmp(), "ran.txt");
+  fake(join(project, "tools"), "claude", `#!/bin/sh\necho ran > "${out}"\n`);
+  // Run from another folder, so only the project init is given can make the search skip <project>/tools.
+  const env = safeEnv({}, { bins: [join(project, "tools")] });
+  const r = spawnSync(process.execPath, [CLI, "init", project, "--start"], { cwd: elsewhere, encoding: "utf8", env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Claude Code and Codex were not found on your PATH/);
+  assert.ok(!exists(out, ""), "the project's claude never ran");
+});
+
+test("AC-215-2: WHEN the only claude on PATH is in a relative entry THEN init says Claude Code wasn't found and starts nothing", async () => {
+  const cwd = tmp();
+  put(cwd, "rel-bin/claude", "a copy found through a relative PATH entry\n");
+  const { calls, run } = recorder();
+  const log = logger();
+  const sys = realSystem({ projectDir: tmp(), platform: "linux", env: { PATH: "rel-bin" }, run });
+  const here = process.cwd();
+  process.chdir(cwd);
+  try {
+    await offerStart(tmp(), "idea", { sys, start: true, interactive: false, log });
+  } finally {
+    process.chdir(here);
+  }
+  assert.match(log.text(), /Claude Code and Codex were not found on your PATH/);
+  assert.deepEqual(calls, []);
+});
+
+test("AC-215-2: through the binary, a claude only in a relative PATH entry is not found and never runs", { skip: process.platform === "win32" }, () => {
+  const cwd = tmp();
+  const out = join(tmp(), "ran.txt");
+  fake(join(cwd, "rel-bin"), "claude", `#!/bin/sh\necho ran > "${out}"\n`);
+  const env = checkPath({ ...safeEnv(), PATH: `rel-bin${delimiter}${safeEnv().PATH}` }, cwd);
+  const r = spawnSync(process.execPath, [CLI, "init", tmp(), "--start"], { cwd, encoding: "utf8", env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Claude Code and Codex were not found on your PATH/);
+  assert.ok(!exists(out, ""), "the relative entry's claude never ran");
+});
+
+test("#215: spawnInteractive refuses a name the search won't start, and starts nothing", () => {
+  const project = tmp();
+  put(project, "node_modules/.bin/claude", "the project's copy\n");
+  const { calls, run } = recorder();
+  const sys = realSystem({ projectDir: project, platform: "linux", env: { PATH: join(project, "node_modules/.bin") }, run });
+  assert.throws(() => sys.spawnInteractive(["claude", "/idea"], { cwd: project }), /Could not start claude: claude found only in a node_modules\/\.bin, not run/);
+  assert.deepEqual(calls, []);
+});
+
+// #215 review round 1: has asks the same question spawnInteractive does, so a tool launch refuses is never offered.
+test("#215 round 1: on Windows, a claude.cmd in a PATH folder whose name holds % is not offered, and spawnInteractive gives launch's reason", async () => {
+  const installed = tmp("onrails-100%-");
+  put(installed, "claude.cmd", "npm's shim\n");
+  const env = { PATH: installed, PATHEXT: ".com;.exe;.bat;.cmd", ComSpec: "C:\\Windows\\System32\\cmd.exe" };
+  const { calls, run } = recorder();
+  const log = logger();
+  const sys = realSystem({ projectDir: tmp(), platform: "win32", env, run });
+  assert.equal(sys.has("claude"), false);
+  assert.throws(() => sys.spawnInteractive(["claude", "/idea"]), /^Error: Could not start claude: cmd\.exe would expand the % in .*claude\.cmd$/);
+  assert.equal(await offerStart(tmp(), "idea", { sys, start: true, interactive: false, log }), 0);
+  assert.match(log.text(), /Claude Code and Codex were not found on your PATH/);
+  assert.deepEqual(calls, []);
 });
