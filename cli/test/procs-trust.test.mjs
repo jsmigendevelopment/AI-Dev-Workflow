@@ -84,12 +84,13 @@ test("AC-156-4: WHEN the .onrails name changes while a group-writable root is ch
 });
 
 // Runs one command on the fake machine in a child process, so a read that blocks shows as a timeout, not a hung test.
+// Its result is the line after RESULT: helpers.mjs loads node:test, which writes its own report to stdout too.
 const FAKE = fileURLToPath(new URL("./procs-fake.mjs", import.meta.url));
 function runApart(home, cmd) {
   const code = `import { fakeSys, run } from ${JSON.stringify(pathToFileURL(FAKE).href)};
     const sys = fakeSys({ stdin: '{"session_id":"s-1"}' });
     sys.home = process.argv[1];
-    process.stdout.write(JSON.stringify(await run(sys, [process.argv[2]])));`;
+    console.log("RESULT:" + JSON.stringify(await run(sys, [process.argv[2]])));`;
   return spawnSync(process.execPath, ["--input-type=module", "-e", code, home, cmd], { encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL" });
 }
 
@@ -109,8 +110,9 @@ test("AC-156-4: WHEN procs-index.json is a FIFO or a link to /dev/zero THEN list
       const r = runApart(home, cmd);
       assert.equal(r.error?.code, undefined, `${name}, ${cmd}: it didn't finish`);
       assert.equal(r.status, 0, `${name}, ${cmd}: ${r.stderr}`);
-      assert.equal(JSON.parse(r.stdout).code, 0, `${name}, ${cmd}`);
-      if (cmd === "list") assert.equal(JSON.parse(r.stdout).out, "Nothing registered is running.", name);
+      const result = JSON.parse(r.stdout.split("\n").find((l) => l.startsWith("RESULT:")).slice("RESULT:".length));
+      assert.equal(result.code, 0, `${name}, ${cmd}`);
+      if (cmd === "list") assert.equal(result.out, "Nothing registered is running.", name);
       assert.ok(Date.now() - started < 8000, `${name}, ${cmd}`);
     }
   }
