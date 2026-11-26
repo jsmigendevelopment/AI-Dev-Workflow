@@ -2,12 +2,13 @@
 //   info(pids)  pid -> { parent, group, start, cpu, mem (KB) } for the live ones, or null when it can't tell
 //   table()     every process as { pid, ppid, pgid, args }, or null
 //   signal, taskkill, spawn (detached, in its own group), killSpawned, sleep, stdin, now
-//   git(dir, args) its output, "" for nothing, null when git failed · uid this user's id (null on Windows)
+//   git(dir, args) its output, "" for nothing, null when git failed · uid, gid this user's ids (null on Windows)
+//   privateGroup(gid) true when this user is the group's one member, false when not, null when it can't tell
 // Linux and macOS read ps; Windows reads Win32_Process through PowerShell. No dependencies.
 // The master copy is scripts/procs-sys.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { spawn, spawnSync } from "node:child_process";
-import { closeSync, constants, openSync } from "node:fs";
-import { homedir } from "node:os";
+import { closeSync, constants, openSync, readFileSync } from "node:fs";
+import { homedir, userInfo } from "node:os";
 
 /** The real machine. */
 export function realSys() {
@@ -21,6 +22,10 @@ export function realSys() {
   const children = new Map();
   return {
     platform, env: process.env, home: homedir(), cwd: process.cwd(), parentPid: process.ppid, selfPid: process.pid, uid: process.getuid?.() ?? null,
+    gid: process.getgid?.() ?? null,
+    // Linux's user private groups only: on macOS the primary group is staff, which every user shares.
+    privateGroup: (gid) => (platform !== "linux" ? null : soleMember(gid, userName(),
+      { group: readOrNull("/etc/group"), passwd: readOrNull("/etc/passwd"), getent: out("getent", ["group", String(gid)]) })),
     now: () => Date.now(),
     // Its output, "" when it found nothing, or null when git failed in any way: a failure is never "nothing found".
     git(cwd, args) {
@@ -41,6 +46,22 @@ export function realSys() {
     sleep: (ms) => new Promise((done) => setTimeout(done, ms)),
     stdin: readStdin,
   };
+}
+
+const readOrNull = (path) => { try { return readFileSync(path, "utf8"); } catch { return null; } };
+const userName = () => { try { return userInfo().username; } catch { return null; } };
+
+/**
+ * Whether user is the one member of group gid: the group is named after the user, lists no one else, and is no
+ * other user's primary group. group and passwd are /etc/group and /etc/passwd, getent is `getent group <gid>`
+ * (each null when it can't be read). null when no source has the group: it can't tell, so the caller refuses.
+ */
+export function soleMember(gid, user, { group, passwd, getent }) {
+  const rows = (text) => (text ?? "").split("\n").map((l) => l.trim().split(":")).filter((f) => f.length >= 4);
+  const entries = [...rows(group), ...rows(getent)].filter((f) => f[2] === String(gid));
+  if (!user || !entries.length) return null;
+  if (entries.some((f) => f[0] !== user || f[3].split(",").some((m) => m && m !== user))) return false;
+  return !rows(passwd).some((f) => f[3] === String(gid) && f[0] !== user);
 }
 
 // Append, create, and never through a symlink (Windows has no O_NOFOLLOW; the store checks the folder there).

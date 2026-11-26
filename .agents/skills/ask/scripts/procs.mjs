@@ -25,7 +25,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureWatcher, reap, sessionEnd, sessionStart, watch } from "./procs-hooks.mjs";
 import { MINUTE, SCRIPT, age, iso, newId, newRecord, survey, whoAmI } from "./procs-records.mjs";
-import { homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
+import { askGitAgain, fixable, homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
 import { GRACE_S, NO_LIST, floor, forget, guarded, stopRecords } from "./procs-stop.mjs";
 import { realSys } from "./procs-sys.mjs";
 
@@ -55,7 +55,11 @@ function list(sys, log, { dir, me, mine, json, hint }) {
   if (!seen) return fail(log, NO_PS, 1);
   const shown = mine ? seen.filter((r) => r.mine) : seen;
   if (json) return log(JSON.stringify(shown, null, 2)), 0;
-  if (!shown.length) return log(mine ? "Nothing this session started is running." : "Nothing registered is running."), 0;
+  // A registry skipped for its mode is named first, so "nothing is running" never hides it.
+  const skipped = fixable(sys, dir);
+  for (const why of skipped) log(`Not read: ${why}. Until then its processes aren't listed or stopped.`);
+  const others = skipped.length ? " else" : "";
+  if (!shown.length) return log(mine ? `Nothing${others} this session started is running.` : `Nothing${others} registered is running.`), 0;
   log(`${mine ? "This session's" : "Registered"} background processes (${shown.length}):`);
   for (const r of shown) log(row(r, sys.now()));
   const stale = shown.filter((r) => r.stale).length;
@@ -205,6 +209,7 @@ const USAGE = "Usage: procs.mjs start --why \"...\" --until \"...\" [--for <min>
 export async function main(argv, { sys = realSys(), log = console.log, ask } = {}) {
   const { error, flags, rest, command } = parse(argv);
   if (error) return fail(log, `${error}\n${USAGE}`);
+  askGitAgain(sys); // git's answers last one command
   let [cmd, ...args] = rest;
   const cli = cmd === "ps";
   if (cli) [cmd, args] = [flags.stop ? "stop" : "list", [flags.stop]];

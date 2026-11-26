@@ -6,10 +6,11 @@
 // folder, its file or its logs, is never read or written: a branch or another account must not be able to hand
 // the registry its records. Its folder and logs folder must be this user's too, and nobody else may write them
 // (only ~/.onrails may be group-writable). The file is checked and read through one open file, so what is read
-// is what passed. A repo registry must also be its repo's own, in a repo this user owns.
+// is what passed, and so is the index. A repo registry must also be its repo's own, in a repo this user owns
+// whose root only this user can write (docs/decisions.md row 61).
 // No dependencies. The master copy is scripts/procs-store.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { randomBytes } from "node:crypto";
-import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
@@ -17,6 +18,7 @@ const readText = (p) => { try { return readFileSync(p, "utf8"); } catch { return
 const IGNORE = "*\n";
 // Never through a symlink, and never waiting on a FIFO. Windows has neither flag; there the name checks stand alone.
 const READ = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
+const MAX_BYTES = 1 << 20; // far more than any registry or index holds
 
 /** ~/.onrails, or ~/.ai-dev-workflow (its name before the rename) while only that one exists. */
 export function homeDir(home = homedir()) {
@@ -27,8 +29,11 @@ export function homeDir(home = homedir()) {
 export const homeRegistry = (sys) => join(homeDir(sys.home), "procs.json");
 const indexPath = (sys) => join(homeDir(sys.home), "procs-index.json");
 
-// Each git answer once per run: the session-end hook has 3 seconds for every registry in the index.
+// Each git answer once per command: the session-end hook has 3 seconds for every registry in the index.
+// The watcher runs for hours, so it forgets them before each pass: a branch checked out since may track the registry.
 const answers = new WeakMap();
+/** Forgets git's answers, so the next check asks git again. procs.mjs calls it once per command, the watcher once per pass. */
+export const askGitAgain = (sys) => void answers.delete(sys.git);
 function git(sys, dir, args) {
   const memo = answers.get(sys.git) ?? new Map();
   answers.set(sys.git, memo);
@@ -56,23 +61,37 @@ function kind(path) {
   }
 }
 
-// Why a file or folder's stat s can't be trusted, or null: another user's, or others can write it (unless chmod is
-// null). Only on Linux and macOS: Windows has no POSIX owner or mode bits.
-function ownerProblem(sys, s, path, chmod) {
+// Why a file or folder's stat s can't be trusted, or null: another user's, or it has one of the write bits
+// (the group's and others' by default), which chmod clears. Only on Linux and macOS: Windows has no POSIX owner or mode bits.
+function ownerProblem(sys, s, path, chmod, bits = 0o022) {
   if (sys.platform === "win32") return null;
   if (!Number.isInteger(sys.uid)) return "this user's id can't be read, so the registry's owner can't be checked";
   if (s.uid !== sys.uid) return `${path} belongs to another user`;
-  if (chmod && s.mode & 0o022) return `${path} can be written by other users: run chmod ${chmod} ${path}, which keeps what's in it`;
+  if (s.mode & bits) return `${path} can be written by other users: run chmod ${chmod} ${path}, which keeps what's in it`;
   return null;
 }
 
-// A folder the registry reads from or writes into: missing, or a real folder of this user's that nobody else can
-// write. shared: ~/.onrails, which other kit files share, may be group-writable (docs/decisions.md row 59).
+// A folder the registry reads from or writes into: missing, or a real folder of this user's, right where its
+// name says, that nobody else can write. shared: ~/.onrails, which other kit files share, may be group-writable,
+// never world-writable (docs/decisions.md row 59).
 function folderProblem(sys, dir, shared = false) {
   const k = kind(dir);
   if (k === "missing") return null;
   if (k !== "dir") return `${dir} is a symlink or not a folder`;
-  return ownerProblem(sys, lstatSync(dir), dir, shared ? null : "700");
+  if (sys.platform !== "win32" && realpathSync(dir) !== join(realpathSync(dirname(dir)), basename(dir))) return `${dir} isn't the folder its name says`;
+  return shared ? ownerProblem(sys, lstatSync(dir), dir, "o-w", 0o002) : ownerProblem(sys, lstatSync(dir), dir, "700");
+}
+
+// The repo root holds the name .onrails, so whoever can write it can put any folder there. Others never; the group
+// only with the sticky bit, or when it is this user's own group with no one else in it (docs/decisions.md row 61).
+function rootProblem(sys, root) {
+  if (sys.platform === "win32") return null;
+  const s = lstatSync(root);
+  if (s.uid !== sys.uid) return `the repo at ${root} belongs to another user`;
+  if (s.mode & 0o002) return `others can write the repo at ${root}: run chmod o-w ${root}`;
+  if (!(s.mode & 0o020) || s.mode & 0o1000) return null;
+  if (s.gid === sys.gid && sys.privateGroup?.(s.gid) === true) return null;
+  return `the group can write the repo at ${root}, and it isn't this user's alone: run chmod g-w ${root}`;
 }
 
 const folders = (sys, path) => folderProblem(sys, dirname(path), path === homeRegistry(sys)) ?? folderProblem(sys, join(dirname(path), "logs"));
@@ -96,22 +115,46 @@ function gitProblem(sys, path) {
   const inRepo = kind(root) === "dir" && git(sys, root, ["rev-parse", "--git-common-dir"]) !== null;
   if (!inRepo) return home ? null : `${path} isn't in a git repo`;
   if (!home && registryPath(sys, root) !== path) return `${path} isn't its repo's registry`;
-  if (!home && sys.platform !== "win32" && lstatSync(root).uid !== sys.uid) return `the repo at ${root} belongs to another user`;
+  const why = home ? null : rootProblem(sys, root);
+  if (why) return why;
   const tracked = git(sys, root, ["ls-files", "--", basename(dir)]);
   if (tracked === null) return `git ls-files failed in ${root}, so it can't tell whether a branch wrote ${dir}`;
   return tracked ? `git tracks files in ${dir}, so a branch could have written them` : null;
 }
 
-function readIndex(sys) {
+// Opens a file once, checks what was opened (a regular file of this user's that nobody else can write, and not
+// huge) and reads that same file. The name is never opened twice: it could point somewhere else by the second time.
+// { text } (null when it is missing) or { why }.
+function readChecked(sys, path) {
+  let fd;
+  try { fd = openSync(path, READ); } catch (error) {
+    return error.code === "ENOENT" ? { text: null } : { why: `${path} can't be opened as a plain file (${error.code})` };
+  }
   try {
-    const list = JSON.parse(readText(indexPath(sys)) ?? "{}").registries;
-    return Array.isArray(list) ? list.filter((p) => typeof p === "string") : [];
-  } catch { return []; } // a broken index lists nothing; each repo still finds its own registry
+    const s = fstatSync(fd);
+    const why = !s.isFile() ? `${path} isn't a regular file` : s.size > MAX_BYTES ? `${path} is over ${MAX_BYTES} bytes` : ownerProblem(sys, s, path, "600");
+    return why ? { why } : { text: readFileSync(fd, "utf8") };
+  } finally { closeSync(fd); }
 }
 
+// A broken or untrusted index lists nothing, and the next write replaces it; each repo still finds its own registry.
+function readIndex(sys) {
+  const path = indexPath(sys);
+  if (folderProblem(sys, dirname(path), true)) return [];
+  const { text } = readChecked(sys, path);
+  try {
+    const list = JSON.parse(text ?? "{}").registries;
+    return Array.isArray(list) ? list.filter((p) => typeof p === "string") : [];
+  } catch { return []; } // not JSON: the same as no index
+}
+
+const candidates = (sys, dir) => [...new Set([registryPath(sys, dir), homeRegistry(sys), ...readIndex(sys)])].filter((p) => existsSync(p));
+
 /** Every registry to look at: this folder's, the home one, and each repo's that a record was ever added to. Trusted ones only. */
-export const registries = (sys, dir) => [...new Set([registryPath(sys, dir), homeRegistry(sys), ...readIndex(sys)])]
-  .filter((p) => existsSync(p) && !untrusted(sys, p));
+export const registries = (sys, dir) => candidates(sys, dir).filter((p) => !untrusted(sys, p));
+
+/** Why each registry skipped only for a mode this user can fix with chmod was skipped: a list names them, so none hides in silence. */
+export const fixable = (sys, dir) => candidates(sys, dir).map((p) => untrusted(sys, p)).filter((why) => why?.includes("run chmod"));
 
 function parse(text) {
   try {
@@ -120,18 +163,9 @@ function parse(text) {
   } catch { return []; } // a broken file reads as empty; the next write replaces it
 }
 
-// Opens the registry once, checks what was opened (a regular file of this user's that nobody else can write),
-// and reads that same file. The name is never opened twice: it could point somewhere else by the second time.
 function read(sys, path) {
-  let fd;
-  try { fd = openSync(path, READ); } catch (error) {
-    return error.code === "ENOENT" ? { procs: [] } : { why: `${path} can't be opened as a plain file (${error.code})` };
-  }
-  try {
-    const s = fstatSync(fd);
-    const why = s.isFile() ? ownerProblem(sys, s, path, "600") : `${path} isn't a regular file`;
-    return why ? { why } : { procs: parse(readFileSync(fd, "utf8")) };
-  } finally { closeSync(fd); }
+  const { text, why } = readChecked(sys, path);
+  return why ? { why } : { procs: text === null ? [] : parse(text) };
 }
 
 /** The registry's records: [] when it is missing, broken or can't be trusted. sys says who reads (by default, this process). */

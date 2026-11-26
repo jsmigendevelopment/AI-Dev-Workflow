@@ -9,6 +9,9 @@ import { homeRegistry, untrusted } from "../src/procs-store.mjs";
 import { NOW, fakeSys, inRepo, run, signals, startDev } from "./procs-fake.mjs";
 
 const posix = { skip: process.platform === "win32" ? "Windows has no POSIX owner or mode" : false };
+// What list says when the registry at path is skipped only for a mode chmod fixes (#156, review round 2).
+const skippedFor = (path, chmod) => `Not read: ${path} can be written by other users: run chmod ${chmod} ${path}, which keeps what's in it. `
+  + "Until then its processes aren't listed or stopped.\nNothing else registered is running.";
 
 test("a registry git tracks came with a branch: it is never read, signalled from or written", async () => {
   const tracked = (dir, args) => (args.includes("--git-common-dir") ? ".git" : args[0] === "ls-files" ? "procs.json" : null);
@@ -75,7 +78,7 @@ test("AC-156-4: WHEN git ls-files fails, or the registry isn't owned by the user
   for (const [name, make] of Object.entries(cases)) {
     const [sys, path, mode] = make();
     const { listed, codes } = await tryAll(sys, path, mode);
-    assert.equal(listed, "Nothing registered is running.", name);
+    assert.equal(listed, mode ? skippedFor(path, "600") : "Nothing registered is running.", name);
     assert.deepEqual(codes, [1, 1], `${name}: the reaper and the watcher refuse it`);
     assert.deepEqual(signals(sys), [], name);
     assert.ok(sys.live.has(4000), name);
@@ -111,7 +114,8 @@ test("AC-156-4: WHEN the .onrails folder or its logs folder is another user's, o
     writeFileSync(path, JSON.stringify({ version: 1, procs: [stale] }), { mode: 0o600 });
     chmodSync(join(sys.cwd, folder), mode);
     if (owner) chownSync(join(sys.cwd, folder), owner, owner);
-    assert.equal((await run(sys, ["list"])).out, "Nothing registered is running.", name);
+    const listed = owner ? "Nothing registered is running." : skippedFor(join(sys.cwd, folder), "700");
+    assert.equal((await run(sys, ["list"])).out, listed, name);
     await run(sys, ["stop", "stale"]);
     const start = await startDev(sys);
     assert.equal(start.code, 1, name);
