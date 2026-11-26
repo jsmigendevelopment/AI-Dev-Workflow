@@ -4,10 +4,12 @@
 //   probe(cmd, args, {cwd})   run a read-only check: { ok, out (first line), all, stdout } or null
 //   exec(argv, {cwd})         run a fix the person said yes to, output shown live: true/false
 //   spawnInteractive(argv, {cwd})  hand the terminal to an agent session: its exit code
+// probe and exec run a command only by the full path toolPath finds, never one a project ships (#185).
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, join, win32 } from "node:path";
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
+import { projectManifestName } from "./sync.mjs";
 
 export function findCommand(name, { env = process.env, platform = process.platform } = {}) {
   const exts = platform === "win32" ? ["", ...(env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";")] : [""];
@@ -19,6 +21,71 @@ export function findCommand(name, { env = process.env, platform = process.platfo
     }
   }
   return null;
+}
+
+// A folder's real path, or null when it doesn't exist (then it holds no tool).
+function realDir(dir) {
+  try {
+    return realpathSync(dir);
+  } catch {
+    return null;
+  }
+}
+
+// True when dir is root or inside it. Only a ".." path segment leaves root: a folder named "..x" is inside it.
+const within = (dir, root) => {
+  const rel = relative(root, dir);
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+};
+
+const BIN = /(^|[\\/])node_modules[\\/]\.bin[\\/]*$/i;
+
+/** The nearest folder at or above dir that is an onRails project, by real path, or null. A filesystem root never is. */
+export function nearestProject(dir) {
+  for (let at = realDir(dir) ?? resolve(dir); dirname(at) !== at; at = dirname(at)) if (projectManifestName(at)) return at;
+  return null;
+}
+
+// The project, the current folder and the nearest project at or above each, by real path: a terminal is often in
+// a subfolder. A filesystem root is never one, and neither is the home folder or a folder that holds it (/home)
+// unless it is an onRails project: a terminal opens in ~, and ~/.local/bin or an nvm folder there is where claude and
+// codex live. A project that holds HOME (a sandbox or CI job can set HOME inside it) stays a root, so its own claude
+// never runs. That includes ~ itself as a project: its tools are skipped too.
+function projectRoots(projectDir, home) {
+  const realHome = realDir(home) ?? resolve(home);
+  const dropped = (dir) => dirname(dir) === dir || (within(realHome, dir) && !projectManifestName(dir));
+  const roots = [[projectDir, "this project"], [process.cwd(), "the current folder"]]
+    .flatMap(([dir, label]) => [{ dir: realDir(dir), label }, { dir: nearestProject(dir), label: "this project" }])
+    .filter(({ dir }) => dir && !dropped(dir));
+  return { roots, home: realHome };
+}
+
+// Why a PATH entry is skipped ({ why, mine }), or null to search it. The node_modules/.bin test runs on the real path
+// too, so ".bin/." and "./.bin" are caught: npx puts the current folder's and each ancestor's first. mine: every root
+// that holds it is ~ as a project, where ~/.local/bin may be the person's own. Anywhere else a project can ship it.
+function skipped(entry, { roots, home }) {
+  if (!isAbsolute(entry)) return { why: "in a relative PATH entry" };
+  const dir = realDir(entry);
+  if (!dir) return { why: "missing" };
+  if (BIN.test(entry) || BIN.test(dir)) return { why: "in a node_modules/.bin" };
+  const inside = roots.filter((r) => within(dir, r.dir));
+  return inside.length ? { why: `inside ${inside[0].label}`, mine: inside.every((r) => r.dir === home) } : null;
+}
+
+/**
+ * The tool's full path on PATH, never a copy a project ships: { path } or { why }, plus { found, mine } when only a
+ * skipped entry has it. update --all (#178) and every command doctor runs (#185) find their tools with it.
+ */
+export function toolPath(name, sys, projectDir) {
+  const roots = projectRoots(projectDir, sys.home);
+  const look = (PATH) => findCommand(name, { env: { PATH, PATHEXT: sys.env.PATHEXT }, platform: sys.platform });
+  const entries = (sys.env.PATH || sys.env.Path || "").split(delimiter).filter(Boolean)
+    .map((entry) => ({ entry, skip: skipped(entry, roots) }));
+  const path = look(entries.filter((e) => !e.skip).map((e) => e.entry).join(delimiter));
+  if (path) return { path };
+  const hit = entries.find((e) => e.skip && e.skip.why !== "missing" && look(e.entry));
+  if (!hit) return { why: `${name} isn't on your PATH` };
+  return { why: `${name} found only ${hit.skip.why}, not run`, found: look(hit.entry), mine: hit.skip.mine };
 }
 
 // How exec and spawnInteractive start argv, with no shell: { file, args, env, verbatim? }.
@@ -41,17 +108,33 @@ export function launch(argv, { platform = process.platform, env = process.env } 
   return { file: cmdExe, args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], env: winEnv, verbatim: true };
 }
 
-export function realSystem() {
+// projectDir is the project doctor checks: toolPath skips PATH entries inside it, and inside the current folder.
+export function realSystem({ projectDir = process.cwd() } = {}) {
   const platform = process.platform;
-  return {
+  const sys = {
     platform,
     isRoot: typeof process.getuid === "function" && process.getuid() === 0,
     home: homedir(),
     env: process.env,
+  };
+  // How probe and exec start argv: by full path through launch, with no shell (a .cmd shim through cmd.exe). null
+  // when the command is found only where a project could have put it, or launch won't hand its words to cmd.exe.
+  const start = ([cmd, ...args]) => {
+    const file = isAbsolute(cmd) ? cmd : toolPath(cmd, sys, projectDir).path;
+    if (!file) return null;
+    try {
+      return launch([file, ...args], { platform });
+    } catch {
+      return null; // shown as a missing tool or a failed fix, the same as one that isn't there
+    }
+  };
+  return {
+    ...sys,
     has: (name) => findCommand(name) !== null,
     probe(cmd, args, { cwd } = {}) {
-      // Probes are fixed strings too; the shell lets Windows start .cmd shims.
-      const r = spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: 15000, shell: platform === "win32" });
+      const how = start([cmd, ...args]);
+      if (!how) return null;
+      const r = spawnSync(how.file, how.args, { cwd, env: how.env, encoding: "utf8", timeout: 15000, windowsVerbatimArguments: how.verbatim });
       if (r.error || r.status === null) return null;
       const all = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
       return { ok: r.status === 0, out: all.split(/\r?\n/)[0] ?? "", all, stdout: (r.stdout ?? "").trim() };
@@ -64,10 +147,10 @@ export function realSystem() {
       return r.status ?? 1;
     },
     exec(argv, { cwd } = {}) {
+      const how = start(argv);
+      if (!how) return false;
       try {
-        // Inside the try: a command launch refuses to hand to cmd.exe is a failed fix, shown as one.
-        const { file, args, env, verbatim } = launch(argv);
-        execFileSync(file, args, { cwd, env, stdio: "inherit", windowsVerbatimArguments: verbatim });
+        execFileSync(how.file, how.args, { cwd, env: how.env, stdio: "inherit", windowsVerbatimArguments: how.verbatim });
         return true;
       } catch {
         return false;

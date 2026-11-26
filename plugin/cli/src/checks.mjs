@@ -12,7 +12,7 @@ import { readProjectManifest } from "./sync.mjs";
 import { FAIL, INFO, OK } from "./marks.mjs";
 import { realSystem } from "./system.mjs";
 
-export function runChecks(projectDir, { kitDir, sys = realSystem() } = {}) {
+export function runChecks(projectDir, { kitDir, sys = realSystem({ projectDir }) } = {}) {
   const checks = [];
   const add = (status, label, fix, required = true, remedy) => checks.push({ status, label, fix, required, remedy });
 

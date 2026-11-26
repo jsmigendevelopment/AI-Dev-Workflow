@@ -22,8 +22,9 @@ test("#178: update --all never runs a claude from the project, the current folde
   assert.match(plan.stdout, new RegExp(`would run\\n\\s+${esc(join(m.bin, "claude"))} plugin marketplace update onrails`));
   const r = m.run(["update", dir, "--all"], { PATH }, cwd);
   assert.equal(r.status, 0, r.stderr);
-  // Only plugin commands: doctor's own `claude --version` probe still uses the bare name (#185).
   assert.deepEqual(pluginCalls(m), BOTH);
+  // doctor's own `claude --version` probe finds claude the same way, so no planted claude ran at all (#185).
+  assert.doesNotMatch(m.calls(), /^planted/m, m.calls());
 });
 
 test("#178: run from the home folder, or given it as the project, update --all still runs the claude in ~/.local/bin", unixOnly, () => {
@@ -62,8 +63,8 @@ test("#178: a node_modules/.bin entry written as .bin/. or ./.bin is still skipp
     const r = m.run(["update", dir, "--all"], { PATH: [entry, m.env.PATH].join(delimiter) }, dir);
     assert.equal(r.status, 0, r.stderr);
   }
-  // Only plugin commands: doctor's own `claude --version` probe still uses the bare name (#185).
   assert.deepEqual(pluginCalls(m), [...BOTH, ...BOTH], "the ancestor's node_modules/.bin never ran a plugin command");
+  assert.doesNotMatch(m.calls(), /^planted/m, "nor doctor's --version probe (#185)");
 });
 
 test("#178: a project that holds the home folder stays a root, so a claude it ships never runs", unixOnly, () => {
