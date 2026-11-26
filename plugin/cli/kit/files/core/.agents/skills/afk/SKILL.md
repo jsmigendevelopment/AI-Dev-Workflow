@@ -56,7 +56,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 - **Anything that needs the person:** use the `ask` skill at its level, label it `needs-human`, and move on. Don't wait. While the person is away, `notify.mjs` holds every ping except critical blockers (production down, a live security hole).
 - **New issues:** only for bugs the checks find, a pass gate's audit and cleanup pick, and the retro's findings at the hard stop. Feedback the person left before going: something wrong or slow in what's built is an issue; something missing is a row in `docs/features.md`, never an issue. Don't invent features.
 - **Main goes red:** stop merging, file a bug, and keep building only on branches.
-  - **On Full:** follow `coordinate` step 7: after one fix round, a fresh agent runs `diagnose` on the next tier up before the person hears of it. A 🛑 only when that also fails and nothing else can move.
+  - **On Full:** follow `coordinate` step 7: after one fix round, a fresh agent runs `diagnose` on the next tier up before anyone pings the person. Still red? Revert the merge that turned main red through a pull request and send its issue back for a fix round; with no merge to blame, another `diagnose` round or a split through `issues`. A 🛑 only for an always-stop cause.
 - **A pass is done:** follow `coordinate`'s "End of a pass": run the gate's audit and cleanup pick, and build that gate work. Start nothing from the next pass. When the gate work runs out, stop, and write it to the `/afk` section. The person's try-out and the re-plan wait for them. On Full they don't: `qa` tries it, the re-plan runs, and the next pass starts (`../pyramid/references/pass-gate.md`).
 - **An issue fails twice** (a builder that dies or a rejected check, counted together): below Full, park it.
   - **On Full:** keep it moving with `coordinate`'s review cap: one more round with a fresh builder on the next tier up, then a split through `issues`. Record "AI pick, not reviewed" and add it to the next batched ℹ️ FYI.
@@ -70,7 +70,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 
 - **The watchdog rides the sweep:** one timer, the sweep timer. Before you go, `node .agents/skills/coordinate/scripts/timer.mjs should-arm` must exit 1 (a live timer). Exit 0 (none, or dead)? Start `coordinate`: it cancels a dead one and arms one. Every second sweep (about 20 minutes), `coordinate` runs these checks:
   - any builder with no new commit in 20 minutes is stuck: below Full, park its issue (don't blindly restart it);
-    - **On Full:** stop the stuck builder, count it as one failed round, and follow `coordinate`'s review cap: a fresh builder on the next tier up, then a split through `issues`. A strongest-tier builder is never stopped (`ask`, "A running job"): its issue waits for its result, with an ℹ️ FYI, and the loop goes on with other issues;
+    - **On Full:** stop the stuck builder and count it as one failed round toward the review cap: before the cap, a fresh builder on the same tier; at the cap, follow `coordinate`'s review cap. A strongest-tier builder is never stopped on your own call (the always-stop list; `ask`, "A running job"): its issue waits for its result, with an ℹ️ FYI, and the loop goes on with other issues;
   - check usage;
   - check that main is green;
   - check `gh api rate_limit`.
