@@ -16,23 +16,27 @@ const NAMED = 5;
 // zero-width ones, U+FEFF, tag characters, the soft hyphen), lone surrogates, and line and paragraph separators.
 // \p{Cs} is a backstop: JSON.stringify already escapes lone surrogates. Default_Ignorable_Code_Point adds what draws
 // nothing though it isn't a format character: the Hangul fillers, variation selectors, the combining grapheme joiner
-// (#231). One TOKEN is a JSON escape or one code point, so a cut never splits either.
-const UNSAFE = /^[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]$/u;
+// (#231). Blanks that look like the plain space, or like nothing: every \p{Zs} but U+0020, and the Braille blank
+// U+2800. One TOKEN is a JSON escape or one code point, so a cut never splits either.
+const UNSAFE = /^(?! )[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}\p{Zs}⠀\p{Default_Ignorable_Code_Point}]$/u;
 // Combining marks stack on one letter: past MARKS in a row, each is escaped, so a long run can't hide or smear text.
+// One right after an escape is escaped too: it would draw on the escape's last letter.
 const MARK = /^\p{M}$/u;
 const MARKS = 3;
 const TOKEN = /\\u[0-9a-f]{4}|\\.|./gsu;
 // \uXXXX for each UTF-16 unit, so a character past U+FFFF (a tag character) escapes as its whole pair.
 const escape = (t) => t.replace(/[\s\S]/g, (u) => `\\u${u.charCodeAt(0).toString(16).padStart(4, "0")}`);
 
-// A record's id or command made safe to print on one line (#233, #231): JSON-quoted, each UNSAFE character and each
-// mark past MARKS in a row escaped as \uXXXX, and cut to max characters, the last one an ellipsis. With bare, text
-// that needs no escape and no cut prints as it is.
+// A record's id or command made safe to print on one line (#233, #231): JSON-quoted, each UNSAFE character, each
+// mark past MARKS in a row and each mark right after an escape escaped as \uXXXX, and cut to max characters, the last
+// one an ellipsis. With bare, text that needs no escape and no cut prints as it is.
 function printable(id, { bare = false, max = ID_CHARS, none = "no id" } = {}) {
-  let marks = 0;
+  let marks = 0, last = "";
   const tokens = (JSON.stringify(id) ?? none).match(TOKEN).map((t) => {
-    marks = MARK.test(t) ? marks + 1 : 0;
-    return UNSAFE.test(t) || marks > MARKS ? escape(t) : t;
+    const mark = MARK.test(t);
+    marks = mark ? marks + 1 : 0;
+    last = UNSAFE.test(t) || marks > MARKS || (mark && last.startsWith("\\")) ? escape(t) : t;
+    return last;
   });
   const text = tokens.join("");
   if (bare && text === `"${id}"` && text.length <= max) return id;

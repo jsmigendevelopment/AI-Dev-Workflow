@@ -52,3 +52,16 @@ test("#231: WHEN an id holds a long run of combining marks THEN the first 3 prin
   assert.equal(await startLine("việt", "pnpm dev"), "việt · pnpm dev", "two marks on one letter print bare");
   assert.equal(await endId("a͏b"), '"a\\u034fb"', "the combining grapheme joiner is invisible: always escaped");
 });
+
+test("#231: WHEN a combining mark follows an escape THEN it prints escaped too, so it can't draw on the escape's last letter", async () => {
+  assert.equal(await endId("\\́"), '"\\\\\\u0301"', "after JSON's own escape of a backslash");
+  assert.equal(await endId("a​̸b"), '"a\\u200b\\u0338b"', "after an escaped zero-width space");
+  assert.equal(await endId("​́̂x́"), '"\\u200b\\u0301\\u0302x́"', "a run after an escape, then a mark on a plain letter");
+  assert.equal(await startLine("pold1", "\u001b́ls"), 'pold1 · "\\u001b\\u0301ls"', "in a command at session start too");
+});
+
+test("#231: WHEN an id or command holds a blank other than the plain space THEN it prints escaped", async () => {
+  assert.equal(await endId("a b　c⠀d e f g"), '"a\\u00a0b\\u3000c\\u2800d\\u2003e\\u202ff g"');
+  assert.equal(await startLine("pold1", "pnpm dev"), 'pold1 · "pnpm\\u00a0dev"');
+  assert.equal(await startLine("pold1", "pnpm dev --port 5173"), "pold1 · pnpm dev --port 5173", "the plain space prints bare");
+});

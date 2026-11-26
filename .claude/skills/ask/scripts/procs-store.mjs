@@ -11,14 +11,14 @@
 // the ACL. Its records count only when the file holds its own inode, which update() writes into it: a patch, an
 // unpacked archive or a copy is a new file, so its records read as none (#174, row 106). Inode numbers are reused, so
 // the mark is a filter, not a proof: each record still needs a live process with the same start time. Every folder
-// on the way to the one that holds .onrails (the repo root, or the home folder) must be this user's or root's, and
-// nobody else may write it, sticky folders aside; on Linux it must be on a file system whose ACLs getfacl shows (#231).
+// on the way to the one that holds .onrails (the repo root, or the home folder), and each symlink on the way, must be
+// this user's or root's, nobody else may write it (sticky folders aside), and on Linux getfacl shows its ACLs (#231).
 // No dependencies. The master copy is scripts/procs-store.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { randomBytes } from "node:crypto";
 import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { pathProblem } from "./procs-path.mjs";
+import { HOME_OFF, pathProblem } from "./procs-path.mjs";
 
 const readText = (p) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
 const IGNORE = "*\n";
@@ -80,13 +80,15 @@ function ownerProblem(sys, s, path, chmod, bits = 0o022) {
 }
 
 // On Windows: owned by this user (or SYSTEM or Administrators), and no other account may write it. A folder made
-// directly under C:\ lets every signed-in user write, and what is made inside it inherits that (#174).
-function aclProblem(sys, path) {
-  const acl = winAcl(sys, path);
-  if (!acl) return `who can write ${path} can't be read, so its owner can't be checked`;
-  if (!acl.owned) return `${path} belongs to another account`;
+// directly under C:\ lets every signed-in user write, and what is made inside it inherits that (#174). The home
+// folder (home) gets its own words: a repo can move, the home folder can't.
+function aclProblem(sys, path, home = false) {
+  const acl = winAcl(sys, path), where = home ? `the home folder ${path}` : path, off = home ? `: ${HOME_OFF}` : "";
+  if (!acl) return `who can write ${where} can't be read, so its owner can't be checked${off}`;
+  if (!acl.owned) return `${where} belongs to another account${off}`;
   if (!acl.writers.length) return null;
-  return `${path} can be written by other accounts (${acl.writers.join(", ")}): keep the repo in your user folder, or take their write access away`;
+  const fix = home ? "take their write access away, or the home registry and the index stay off" : "keep the repo in your user folder, or take their write access away";
+  return `${where} can be written by other accounts (${acl.writers.join(", ")}): ${fix}`;
 }
 
 // A folder the registry reads from or writes into: missing, or a real folder of this user's, right where its
@@ -158,7 +160,7 @@ function gitProblem(sys, path) {
 // The folder that holds .onrails and every folder on the way to it (procs-path.mjs, #231). On Windows only the home
 // folder's ACL is read here, and the repo root's in gitProblem: each folder above would cost a PowerShell start.
 const holderProblem = (sys, holder, home) => (sys.platform !== "win32" ? pathProblem(sys, holder, home, groupProblem)
-  : home ? aclProblem(sys, holder) : null);
+  : home ? aclProblem(sys, holder, true) : null);
 
 // Opens a file once, checks what was opened (a regular file of this user's that nobody else can write, and not
 // huge) and reads that same file. The name is never opened twice: it could point somewhere else by the second time.
@@ -198,8 +200,8 @@ const candidates = (sys, dir) => [...new Set([registryPath(sys, dir), homeRegist
 /** Every registry to look at: this folder's, the home one, and each repo's that a record was ever added to. Trusted ones only. */
 export const registries = (sys, dir) => candidates(sys, dir).filter((p) => !untrusted(sys, p));
 
-// What a skip this user can fix says to do: a chmod, or where to keep the repo (#231: Windows ACLs and file systems too).
-const FIX = /run chmod|keep the repo|use a repo/;
+/** A skip whose text says what to do: a chmod, where the repo goes, or that the home registry stays off (#231). */
+export const FIX = /run chmod|keep the repo|use a repo|move the repo|real path|write access away|stay off/;
 
 /** Why each registry, or the index, skipped for something this user can fix was skipped: a list names them, so none hides in silence. */
 export const fixable = (sys, dir) => [...new Set([...candidates(sys, dir).map((p) => untrusted(sys, p)), readIndex(sys).why])]

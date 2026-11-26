@@ -3,41 +3,17 @@
 // be read, and Windows registries skipped for their ACL. They run on the fake machine in procs-fake.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, chownSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, chownSync, lchownSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmp } from "./helpers.mjs";
 import { processChecks } from "../src/project-checks.mjs";
 import { mountType, realSys } from "../src/procs-sys.mjs";
-import { NOW, fakeSys, inRepo, repoFile, run, seed, signals, stamp, startDev } from "./procs-fake.mjs";
+import { STALE, fakeSys, hit, homeWith, ownedBy, repoAt, repoFile, run, runAll, seed, signals, startDev, stopped } from "./procs-fake.mjs";
 
 const posix = { skip: process.platform === "win32" ? "Windows has no POSIX owner or mode" : false };
-const STALE = { id: "p0bad", kind: "process", pid: 4000, start: "start-4000", group: true, command: "pnpm dev", why: "w", until: "u",
-  session: "s-old", agent: { pid: 600, start: "start-600" }, startedAt: new Date(NOW).toISOString() };
 const STOPS = [["stop", "stale"], ["stop", "all", "--yes"], ["stop", "p0bad", "--yes"], ["ps", "--stop", "all", "--yes"], ["session-end"]];
 // What reaches both the home registry's record and the index's: no single id.
 const EVERY = [["stop", "stale"], ["stop", "all", "--yes"], ["ps", "--stop", "all", "--yes"]];
-
-// Runs a command, then the reaper session-end would start, as the real one does.
-async function runAll(sys, argv) {
-  const r = await run(sys, argv);
-  const reaper = sys.calls.find((c) => / reap --registry /.test(c));
-  if (reaper) await run(sys, reaper.split(" ").slice(3));
-  return r;
-}
-
-const stopped = (sys) => signals(sys).some((c) => / -?4000 /.test(`${c} `));
-
-// A repo at dir whose registry holds one stale record for the live PID 4000, private and marked as a session marks it,
-// so only the check under test may refuse it.
-function repoAt(dir, more = {}) {
-  const sys = fakeSys({ procs: { 4000: {} }, git: inRepo(""), stdin: '{"session_id":"s-1"}', ...more });
-  mkdirSync(join(dir, ".onrails", "logs"), { recursive: true, mode: 0o700 });
-  sys.cwd = dir;
-  const file = join(dir, ".onrails", "procs.json");
-  writeFileSync(file, JSON.stringify({ version: 1, procs: [STALE] }), { mode: 0o600 });
-  stamp(file);
-  return sys;
-}
 
 test("AC-231-1: WHEN a folder above the repo root can be written by another user THEN the repo registry is never read for a signal", posix, async () => {
   const cases = [
@@ -102,6 +78,39 @@ test("AC-231-1: WHEN a folder above the repo belongs to another user THEN its re
   assert.equal(stopped(other), false, "another user's folder above");
 });
 
+// A repo reached through a link named dir in a folder of the given mode (sticky as /tmp, or not).
+function throughLink(mode) {
+  const real = tmp("procs-real-"), lobby = tmp("procs-lobby-");
+  const sys = repoAt(join(real, "repo"));
+  chmodSync(lobby, mode);
+  symlinkSync(real, join(lobby, "dir"));
+  sys.cwd = join(lobby, "dir", "repo");
+  return { sys, real, link: join(lobby, "dir") };
+}
+
+test("AC-231-1: WHEN a symlink on the way to the repo belongs to another user THEN its registry is never read, sticky folder or not", posix, async () => {
+  for (const mode of [0o1777, 0o755]) {
+    for (const [owner, signalled] of [[4242, false], [process.getuid(), true], [0, true]]) {
+      const { sys, link } = throughLink(mode);
+      sys.lstat = ownedBy(link, owner);
+      await run(sys, ["stop", "stale"]);
+      assert.equal(stopped(sys), signalled, `a link owned by uid ${owner} in a folder ${mode.toString(8)}`);
+    }
+  }
+});
+
+test("AC-231-1: WHEN a symlink in a sticky folder belongs to another user THEN its registry is never read (as root only: it needs lchown)", posix, async (t) => {
+  if (process.getuid?.() !== 0) return t.skip("lchown to another user needs root");
+  for (const [owner, signalled] of [[4242, false], [1000, true]]) {
+    const { sys, real, link } = throughLink(0o1777);
+    sys.uid = 1000; // this user is not root here, so root's folders still pass
+    for (const p of ["repo", "repo/.onrails", "repo/.onrails/logs", "repo/.onrails/procs.json"]) chownSync(join(real, p), 1000, 0);
+    lchownSync(link, owner, owner); // only files inside this test's own temp folders
+    await run(sys, ["stop", "stale"]);
+    assert.equal(stopped(sys), signalled, `a link owned by uid ${owner}`);
+  }
+});
+
 test("AC-231-1: list, ps and doctor name the folder above and the chmod that fixes it, and start starts nothing", posix, async () => {
   const above = tmp("procs-above-");
   const sys = repoAt(join(above, "repo"));
@@ -116,21 +125,6 @@ test("AC-231-1: list, ps and doctor name the folder above and the chmod that fix
   assert.ok(r.out.includes(why), r.out);
   assert.ok(!sys.calls.some((c) => c.startsWith("spawn")));
 });
-
-// A machine whose home folder holds a stale record in ~/.onrails, and an index naming a repo's registry with another.
-function homeWith(more = {}) {
-  const sys = fakeSys({ procs: { 4000: {}, 4001: {} }, stdin: '{"session_id":"s-1"}', ...more });
-  seed(sys, STALE);
-  const repo = tmp("procs-repo-");
-  const file = join(repo, ".onrails", "procs.json");
-  mkdirSync(join(repo, ".onrails", "logs"), { recursive: true, mode: 0o700 });
-  writeFileSync(file, JSON.stringify({ version: 1, procs: [{ ...STALE, id: "p0b0b", pid: 4001, start: "start-4001" }] }), { mode: 0o600 });
-  stamp(file);
-  writeFileSync(join(sys.home, ".onrails", "procs-index.json"), JSON.stringify({ registries: [file] }), { mode: 0o600 });
-  sys.git = (dir, args) => (!dir.startsWith(repo) ? null : args.includes("--git-common-dir") ? join(repo, ".git") : args[0] === "ls-files" ? "" : null);
-  return sys;
-}
-const hit = (sys) => ({ home: signals(sys).some((c) => / -?4000( |$)/.test(c)), index: signals(sys).some((c) => / -?4001( |$)/.test(c)) });
 
 test("AC-231-2: WHEN the home folder can be written by another account THEN the home registry and the index are never read for a signal", posix, async () => {
   for (const [mode, sole, read] of [[0o755, false, true], [0o700, false, true], [0o775, true, true], [0o775, false, false], [0o2775, null, false], [0o777, true, false], [0o1777, true, false]]) {
@@ -147,6 +141,17 @@ test("AC-231-2: WHEN the home folder can be written by another account THEN the 
   assert.equal(r.code, 1);
   assert.ok(r.out.includes(`the group can write the home folder ${sys.home}, and it isn't this user's alone: run chmod g-w ${sys.home}`), r.out);
   assert.ok(!sys.calls.some((c) => c.startsWith("spawn")));
+});
+
+test("AC-231-2: WHEN a Windows home folder can be written by another account, or its ACL can't be read THEN the home registry and the index are never read for a signal", async () => {
+  const OWN = { owned: true, writers: [] };
+  for (const [acl, read] of [[OWN, true], [{ owned: true, writers: ["S-1-5-11"] }, false], [null, false], [{ owned: false, writers: [] }, false]]) {
+    for (const argv of EVERY) {
+      const sys = homeWith({ platform: "win32", winAcl: (path) => (path === sys.home ? acl : OWN) });
+      await runAll(sys, argv);
+      assert.deepEqual(hit(sys), { home: read, index: read }, `home ${JSON.stringify(acl)}, ${argv.join(" ")}`);
+    }
+  }
 });
 
 test("AC-231-3: WHEN ~/.onrails has a named-user ACL entry, or whether it has one can't be told THEN nothing in it is read for a signal", posix, async () => {
@@ -174,7 +179,7 @@ test("AC-231-3: WHEN the repo root or a folder above it is on a file system whos
       await run(sys, ["stop", "stale"]);
       assert.equal(stopped(sys), signalled, `${where} on ${type}`);
       if (!signalled && where === "root") {
-        assert.ok((await run(sys, ["list"])).out.includes(`Not read: ${root} is on a ${type ?? "unknown"} file system, whose ACLs getfacl and ls don't show`));
+        assert.ok((await run(sys, ["list"])).out.includes(`Not read: ${root} is on ${type ? `a ${type}` : "an unknown"} file system, whose ACLs getfacl and ls don't show`));
       }
     }
   }
@@ -213,6 +218,6 @@ test("AC-231-4: WHEN a Windows registry is skipped because another account can w
   assert.deepEqual(start.slice(0, 3), ["### A process registry was skipped (the process registry)", `- ${why}`,
     "Until then its processes aren't listed, stopped or cleaned up at session end. Tell the person in your first reply, with what it says to do."]);
   assert.deepEqual(processChecks(sys.cwd, { sys }), [{ status: "✗", required: false, label: `Process registry not read: ${why}`,
-    fix: "Do what it says: it keeps the records, and its processes are listed and stopped again" }]);
+    fix: "Do what it says: until then its processes aren't listed or stopped, and a repo moved to another file system or cloned again starts with no records" }]);
   assert.deepEqual(signals(sys), []);
 });
