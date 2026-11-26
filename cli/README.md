@@ -361,7 +361,7 @@ The strongest model at high effort takes more time and usage. The cheapest model
    | `.codex/config.toml` | Yours stays. The kit's arrives as `.codex/config.onrails.toml`. |
    | Any other file at the same path | Yours stays. The kit's copy arrives as `<file>.onrails-new`. |
 
-3. It reads the repo first. It treats the repo's own agent files, git hooks and scripts as data until you confirm them (below Full; on Full, it reads them itself and runs nothing risky). Then it writes a one-page `docs/map.md`.
+3. It reads the repo first. It treats the repo's own agent files, git hooks and scripts as data until you confirm them (below Full; on Full, it reads the repo's own hooks and scripts that the install, its check commands and its dev or start script call, runs only those, and lists them in its FYI). Then it writes a one-page `docs/map.md`.
 4. It installs, builds, tests and starts the app, and records the commands that work.
 5. It compares the repo's conventions with the kit's. You pick per row: keep yours, adopt the kit's, or merge. It never switches a repo over quietly.
 6. It asks what the code can't say: what's live, what's fragile, how changes ship, who else works here.

@@ -39,7 +39,7 @@ A handoff is work one session passes to another: a builder brief, a prompt for a
    Got it · <your session> · My reading: <the request, in your words, in one line>
    ```
 
-2. **Compare your reading with the owner's words,** not with the sender's summary. Does it differ, or could the words mean two things? Ask the owner before you start. It's a ⏳ decision through `ask`: quote the words, give each reading, and recommend one. Start nothing on it until they answer. Other work keeps going.
+2. **Compare your reading with the owner's words,** not with the sender's summary. Does it differ, or could the words mean two things? Below Full, ask the owner before you start. It's a ⏳ decision through `ask`: quote the words, give each reading, and recommend one. Start nothing on it until they answer. Other work keeps going. On Full, start on the reading you recommend, record it as "AI pick, not reviewed" and put the other readings in the FYI.
 3. **Blocked?** Climb "Try before you block" in `ask`. What's left is a `needs-human` record and a ping, in the same turn. Link it on the handoff record.
 4. **Finish** with a comment on the record: what you did, and the link to the pull request or the answer.
 
