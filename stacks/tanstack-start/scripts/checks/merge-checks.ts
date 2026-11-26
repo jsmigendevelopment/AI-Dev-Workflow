@@ -6,7 +6,8 @@ import type { CommandResult } from '../cloudflare/deps.ts'
 import { pnpmProblem } from '../pnpm-pin.ts'
 
 export interface CheckDeps {
-  run(cmd: string, args: string[], cwd?: string): Promise<CommandResult>
+  /** Runs a command; `env` adds variables to the shell's. */
+  run(cmd: string, args: string[], cwd?: string, env?: Record<string, string>): Promise<CommandResult>
   exists(path: string): boolean
   /** A file's text, or undefined when it can't be read. */
   read(path: string): string | undefined
@@ -111,6 +112,8 @@ async function gitleaks(deps: CheckDeps, how: 'local' | 'docker', files: string)
 /**
  * Scans a copy of what git tracks at HEAD, not the checkout: in a dev checkout the git-ignored
  * .env.local, .dev.vars and .env.cloudflare.local hold the person's own keys, and would fail it.
+ * The copy comes from a scratch index (read-tree, then checkout-index), not `git archive`: an
+ * archive honours attributes that can leave tracked files out. The checkout's own index is untouched.
  */
 const secretScan = (deps: CheckDeps, root: string): Check => ({
   name: 'secret scan (gitleaks)',
@@ -119,13 +122,12 @@ const secretScan = (deps: CheckDeps, root: string): Check => ({
     if (!how) return { result: 'skip', note: 'needs gitleaks or Docker' }
     const tree = deps.tempDir()
     try {
-      const tar = `${tree}/tracked.tar`
-      const copied = outcome(
-        await deps.run('git', ['-C', root, 'archive', '--format=tar', '--prefix=files/', '-o', tar, 'HEAD']),
-      )
+      const index = { GIT_INDEX_FILE: `${tree}/index` }
+      const read = outcome(await deps.run('git', ['-C', root, 'read-tree', 'HEAD'], undefined, index))
+      if (read.result === 'fail') return read
+      const copy = ['-C', root, 'checkout-index', '--all', `--prefix=${tree}/files/`]
+      const copied = outcome(await deps.run('git', copy, undefined, index))
       if (copied.result === 'fail') return copied
-      const extracted = outcome(await deps.run('tar', ['-xf', tar, '-C', tree]))
-      if (extracted.result === 'fail') return extracted
       return await gitleaks(deps, how, `${tree}/files`)
     } finally {
       deps.remove(tree)

@@ -40,10 +40,7 @@ function inDocker() {
     .filter(Boolean)
     .map((file) => posix.dirname(file).replace(/^\.$/, ''))
   const gitFolder = statSync(join(root, '.git'), { throwIfNoEntry: false })?.isDirectory() ?? false
-  // Windows has no uid; root needs nothing handed back.
-  const uid = process.getuid?.()
-  const owner = uid ? `${uid}:${process.getgid?.() ?? uid}` : undefined
-  return spawnSync('docker', dockerArgs({ root, app, packages, gitFolder, command: playwright, owner }), {
+  return spawnSync('docker', dockerArgs({ root, app, packages, gitFolder, command: playwright }), {
     stdio: 'inherit',
   })
 }

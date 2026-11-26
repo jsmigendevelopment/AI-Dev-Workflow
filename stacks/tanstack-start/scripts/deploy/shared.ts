@@ -195,21 +195,31 @@ export const failure = (error: unknown, when: string) =>
     ? error.message
     : `the deploy script crashed ${when}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
 
+/** What to do with a Worker's first version when it can't be rolled back: there is none before it. */
+export const noEarlierVersion = (worker: string) =>
+  `there is no earlier version to roll back to: this was the first deploy of ${worker}. ` +
+  `Keep the site on its Coming soon page (LAUNCHED "false") until a deploy passes its smoke test, ` +
+  `or delete the Worker after the person's yes: pnpm exec wrangler delete --name ${worker}`
+
 /**
  * Runs what follows a successful `wrangler deploy` (finding the URL, the smoke test). Any failure in
  * it, a stop or a crash, rolls the code back, so a version that never passed its smoke test doesn't
- * stay live. `after` ends the stop message: what the rollback didn't undo, and what to do next.
+ * stay live. A Worker's `first` deploy has nothing to roll back to, so the stop says so instead.
+ * `after` ends the stop message: what the rollback didn't undo, and what to do next.
  */
 export async function afterDeploy(
   deps: DeployDeps,
-  at: { env: ChildEnv; worker: string; sha: string; after: string },
+  at: { env: ChildEnv; worker: string; sha: string; after: string; first?: boolean },
   verify: () => Promise<void>,
 ) {
   try {
     await verify()
   } catch (error) {
     const why = failure(error, 'after the deploy')
-    throw new Stop(`${why}\n\n${await rollBack(deps, at.env, at.worker, at.sha)}\n${at.after}`)
+    const back = at.first
+      ? `The new version (${at.sha}) is live on ${at.worker} and failed its check, and ${noEarlierVersion(at.worker)}.`
+      : await rollBack(deps, at.env, at.worker, at.sha)
+    throw new Stop(`${why}\n\n${back}\n${at.after}`)
   }
 }
 

@@ -10,11 +10,11 @@
 // kind runs at a time, and only with the pnpm package.json pins.
 // The logic and its tests are in scripts/deploy/.
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 
 import { localEntries, localValue } from './cloudflare/local-env.ts'
 import type { ChildEnv, DeployDeps } from './deploy/deps.ts'
+import { alive, create, readPlain } from './deploy/lock-files.ts'
 import { deployPreview } from './deploy/preview.ts'
 import { deployProduction } from './deploy/production.ts'
 import { Stop } from './deploy/shared.ts'
@@ -41,28 +41,6 @@ async function status(url: string, headers: Record<string, string>) {
   }
 }
 
-/** Writes a new file; false when it exists already (the deploy lock). */
-function create(path: string, text: string) {
-  mkdirSync(dirname(path), { recursive: true })
-  try {
-    writeFileSync(path, text, { flag: 'wx' })
-    return true
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false
-    throw error
-  }
-}
-
-/** Signal 0 checks a process exists without touching it. EPERM: it exists, under another user. */
-function alive(pid: number) {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
-}
-
 const deps: DeployDeps = {
   run,
   wrangler: (args, env) => run('pnpm', ['exec', 'wrangler', ...args], env),
@@ -70,6 +48,7 @@ const deps: DeployDeps = {
   local: (name) => localValue(name),
   known: () => [...Object.entries(process.env), ...localEntries()],
   readText: (path) => readFileSync(path, 'utf8'),
+  readPlain,
   exists: existsSync,
   remove: (path) => rmSync(path, { force: true }),
   create,

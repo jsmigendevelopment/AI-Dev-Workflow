@@ -105,6 +105,72 @@ describe.each(DEPLOYS)(
         expect(stopped).toContain(`pnpm exec wrangler rollback --name ${worker}`)
       }
     })
+
+    it('AC-150-1: WHEN an earlier run of this commit is live and the deploy fails before anything new goes live THEN it never smoke-tests or rolls back, and says nothing new went live', async () => {
+      for (const local of [{ [urlVar]: URL }, {}])
+        for (const over of [
+          { failing: 'wrangler deploy --message' },
+          { crashing: 'wrangler deploy --message' },
+        ]) {
+          const { code, calls, stopped } = await run({ live: message, local, ...over })
+          expect(code).toBe(1)
+          expect(calls.indexOf(list)).toBeLessThan(
+            calls.indexOf(`${env} wrangler deploy --message ${message}`),
+          )
+          expect(smoked(calls)).toEqual([])
+          expect(rolledBack(calls)).toEqual([])
+          expect(stopped).toContain(
+            `Nothing new went live: the newest deployment of ${worker} is the one from before this run`,
+          )
+          expect(stopped).not.toContain('went live anyway')
+        }
+    })
+
+    it('AC-150-1: WHEN the deployments can’t be read before the deploy THEN a failed deploy never rolls back, even when the newest one carries this run’s message', async () => {
+      const over = { live: message, firstListFails: true, failing: 'wrangler deploy --message', local: {} }
+      const { code, calls, stopped } = await run(over)
+      expect(code).toBe(1)
+      expect(smoked(calls)).toEqual([])
+      expect(rolledBack(calls)).toEqual([])
+      expect(stopped).toContain("Couldn't tell whether this run's version went live")
+      expect(stopped).toContain("the deployments couldn't be read before the deploy")
+    })
+
+    it('AC-150-1: WHEN a Worker’s first deploy fails before the Worker exists THEN it says nothing could be live', async () => {
+      const over = { workers: [], live: undefined, failing: 'wrangler deploy --message' }
+      const { code, calls, stopped } = await run(over)
+      expect(code).toBe(1)
+      expect(smoked(calls)).toEqual([])
+      expect(rolledBack(calls)).toEqual([])
+      expect(stopped).toContain(`Nothing new went live: ${worker} doesn't exist on the account yet`)
+    })
+
+    it('AC-150-1: WHEN a Worker’s first version is live and fails its smoke test THEN it runs no rollback and says there is no earlier version', async () => {
+      for (const partWay of [true, false]) {
+        const over = { workers: [], live: undefined, partWay, smokePasses: false }
+        const { code, calls, stopped } = await run(over)
+        expect(code).toBe(1)
+        // Production smoke-tests workers.dev when the deploy prints it, else PRODUCTION_APP_URL.
+        expect(calls.filter((c) => / pnpm test:/.test(c))).toHaveLength(1)
+        expect(rolledBack(calls)).toEqual([])
+        expect(stopped).toContain(
+          `there is no earlier version to roll back to: this was the first deploy of ${worker}`,
+        )
+        expect(stopped).toContain(`pnpm exec wrangler delete --name ${worker}`)
+        expect(stopped).not.toContain('Roll it back by hand')
+      }
+    })
+
+    it('AC-150-1: WHEN a Worker’s first deploy fails part-way and its deployment carries no message THEN it says it couldn’t tell, never that nothing went live', async () => {
+      const over = { workers: [], live: undefined, partWay: true, untagged: true }
+      const { code, calls, stopped } = await run(over)
+      expect(code).toBe(1)
+      expect(smoked(calls)).toEqual([])
+      expect(rolledBack(calls)).toEqual([])
+      expect(stopped).toContain("Couldn't tell whether this run's version went live")
+      expect(stopped).not.toContain('Nothing new went live')
+      expect(stopped).toContain(`pnpm exec wrangler delete --name ${worker}`)
+    })
   },
 )
 
@@ -175,6 +241,48 @@ describe.each(ALL)('pnpm $name runs one at a time', ({ name, deploy }) => {
     const { code } = await attempt(place, deploy)
     expect(code).toBe(0)
     expect(place.files[lock]).toBeUndefined()
+  })
+
+  it('AC-150-7: WHEN another run takes over the same ended run’s lock first THEN it stops and leaves that run’s lock', async () => {
+    const place = freshPlace()
+    place.files[lock] = '777 2026-11-26T10:00:00Z'
+    const other = '888 2026-11-26T10:05:00Z'
+    // The other run takes over while this one checks whether PID 777 is still running.
+    const racing = (deps: DeployDeps) =>
+      deploy({ ...deps, alive: () => ((place.files[lock] = other), false) })
+    const { code, calls, stopped } = await attempt(place, racing)
+    expect(code).toBe(1)
+    expect(stopped).toContain('took the lock')
+    expect(writes(calls)).toEqual([])
+    expect(place.files[lock]).toBe(other)
+    expect(place.files[`${lock}.takeover`]).toBeUndefined()
+  })
+
+  it('AC-150-7: WHEN another run is taking over the ended run’s lock right now THEN it stops before it changes anything', async () => {
+    const place = freshPlace()
+    place.files[lock] = '777 2026-11-26T10:00:00Z'
+    place.files[`${lock}.takeover`] = '888 2026-11-26T10:05:00Z'
+    const { code, calls, stopped } = await attempt(place, deploy)
+    expect(code).toBe(1)
+    expect(stopped).toContain(`delete ${lock}.takeover`)
+    expect(writes(calls)).toEqual([])
+    expect(place.files[lock]).toBe('777 2026-11-26T10:00:00Z')
+  })
+
+  it('AC-150-7: WHEN the lock file isn’t one a deploy wrote THEN it stops, says to delete it by hand, and never prints what it holds', async () => {
+    for (const text of ['777 2026-11-26T10:00:00Z extra', 'TOKEN=planted-value-1234', '', undefined]) {
+      const place = freshPlace()
+      place.files[lock] = text ?? '777 2026-11-26T10:00:00Z'
+      // undefined: a link, or not a plain file, which the real reader refuses (lock.test.ts).
+      const linked = (deps: DeployDeps) =>
+        deploy(text === undefined ? { ...deps, readPlain: () => undefined } : deps)
+      const { code, calls, stopped, output } = await attempt(place, linked)
+      expect(code).toBe(1)
+      expect(stopped).toContain(`the deploy lock ${lock} isn't one this script wrote`)
+      expect(stopped).toContain('delete it by hand')
+      expect(`${stopped}\n${output()}`).not.toMatch(/planted|extra|PID 777/)
+      expect(writes(calls)).toEqual([])
+    }
   })
 
   it('AC-150-7: WHEN it fails THEN it still frees the lock', async () => {

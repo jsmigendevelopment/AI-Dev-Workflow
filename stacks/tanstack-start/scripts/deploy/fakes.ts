@@ -21,7 +21,7 @@ export interface Place {
   comments: [string, string][]
   /** Files the pull request changes under migrations/. */
   migrations: string[]
-  /** Workers on the account (`wrangler versions list --name`). */
+  /** Workers on the account (`wrangler versions list` and `deployments list --name`). */
   workers: string[]
   /** The step that fails: a command line prefix such as `pnpm build` or `wrangler deploy`. */
   failing?: string
@@ -33,6 +33,12 @@ export interface Place {
   partWay: boolean
   /** The newest deployment's message (`wrangler deployments list`); none listed when undefined. */
   live?: string
+  /** The newest deployment's id number: each deploy or rollback that goes live makes a new one. */
+  serial: number
+  /** A Worker's first deploy goes live without its message, as wrangler's first-deploy path may. */
+  untagged: boolean
+  /** The first `wrangler deployments list` fails; later ones answer. */
+  firstListFails: boolean
   /** The pnpm on PATH (`pnpm --version`). */
   pnpm: string
   /** PIDs of the processes still running. */
@@ -62,6 +68,9 @@ export const freshPlace = (over: Partial<Place> = {}): Place => ({
   deployPrints: 'Uploaded\nDeployed triggers\n  https://app-x.ann.workers.dev\n',
   partWay: false,
   live: 'main 0000000',
+  serial: 2,
+  untagged: false,
+  firstListFails: false,
   pnpm: '12.21.0',
   running: [],
   echo: '',
@@ -139,34 +148,60 @@ function checkout(place: Place, args: string[]): CommandResult {
   return ok()
 }
 
-function wrangler(place: Place, args: string[]): CommandResult {
+/** A missing Worker, as wrangler reports it. */
+const NO_WORKER = fail('✘ [ERROR] This Worker does not exist on your account. [code: 10007]')
+
+/** `wrangler deployments list --name <worker>`. */
+function listDeployments(place: Place, worker: string): CommandResult {
+  if (place.firstListFails) {
+    place.firstListFails = false
+    return fail('✘ [ERROR] A request to the Cloudflare API (/workers/deployments) failed.')
+  }
+  return place.workers.includes(worker) ? ok(deployments(place)) : NO_WORKER
+}
+
+/** A new deployment goes live: a deploy (which creates a missing Worker) or a rollback. */
+function goLive(place: Place, worker: string, message: string) {
+  const first = !place.workers.includes(worker)
+  if (first) place.workers.push(worker)
+  place.live = first && place.untagged ? '' : message
+  place.serial++
+}
+
+function wrangler(place: Place, args: string[], env: ChildEnv = {}): CommandResult {
   const cmd = args.join(' ')
+  const worker = `app-${env.CLOUDFLARE_ENV ?? 'test'}`
   if (args[0] === 'versions' && args[1] === 'list')
-    return place.workers.includes(args[3]!)
-      ? ok('[]')
-      : fail('✘ [ERROR] This Worker does not exist on your account. [code: 10007]')
+    return place.workers.includes(args[3]!) ? ok('[]') : NO_WORKER
   if (args[0] === 'versions' && args[1] === 'upload')
     return ok(
       `Uploaded app-test\nVersion Preview URL: https://v1-app-test.ann.workers.dev\nAlias URL: https://${args[3]}-app-test.ann.workers.dev\n`,
     )
   if (cmd.startsWith('d1 time-travel info')) return ok('⛅️ wrangler\n{\n  "bookmark": "bm-42"\n}')
-  if (args[0] === 'deployments' && args[1] === 'list') return ok(deployments(place.live))
-  const message = args[args.indexOf('--message') + 1]
-  if (args[0] === 'rollback') place.live = message
+  if (args[0] === 'deployments' && args[1] === 'list') return listDeployments(place, args[3]!)
+  const message = args[args.indexOf('--message') + 1]!
+  if (args[0] === 'rollback') goLive(place, worker, message)
   if (args[0] !== 'deploy') return ok()
-  place.live = message
+  goLive(place, worker, message)
   return place.partWay
     ? fail('Uploaded app\n✘ [ERROR] A request to the Cloudflare API (/zones/z1/workers/routes) failed.')
     : ok(place.deployPrints)
 }
 
-/** `wrangler deployments list --json`: an older deployment, and `live` as the newest, out of order. */
-const deployments = (live?: string) =>
+/**
+ * `wrangler deployments list --json`: an older deployment, and `live` as the newest, out of order.
+ * A deployment with no message (`live` is '') has no annotation.
+ */
+const deployments = ({ live, serial }: Place) =>
   JSON.stringify(
     live === undefined
       ? []
       : [
-          { id: 'd2', created_on: '2026-11-02T10:00:00Z', annotations: { 'workers/message': live } },
+          {
+            id: `d${serial}`,
+            created_on: `2026-11-02T10:00:${String(serial).padStart(2, '0')}Z`,
+            annotations: live ? { 'workers/message': live } : {},
+          },
           {
             id: 'd1',
             created_on: '2026-11-01T10:00:00Z',
@@ -206,7 +241,7 @@ export function fakes(place: Place) {
     wrangler(args, env) {
       const l = line('wrangler', args, env)
       calls.push(l)
-      return broken(l) ?? Promise.resolve(wrangler(place, args))
+      return broken(l) ?? Promise.resolve(wrangler(place, args, env))
     },
     status(_url, headers) {
       tries.push(headers)
@@ -215,6 +250,7 @@ export function fakes(place: Place) {
     local: (name) => place.local[name],
     known: () => place.listed ?? Object.entries(place.local),
     readText: (path) => place.files[path]!,
+    readPlain: (path) => place.files[path],
     exists: (path) => path in place.files,
     remove: (path) => void delete place.files[path],
     create(path, text) {

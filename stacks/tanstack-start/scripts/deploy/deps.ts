@@ -17,6 +17,8 @@ export interface DeployDeps {
   /** Every name and value in the shell and in .env.cloudflare.local, only to mask the secret ones. */
   known(): [string, string | undefined][]
   readText(path: string): string
+  /** A plain file's text, never through a symlink; undefined when it is missing, a link or not a file. */
+  readPlain(path: string): string | undefined
   exists(path: string): boolean
   remove(path: string): void
   /** Creates a file only if it doesn't exist yet (its folder too). False when it already exists. */

@@ -8,8 +8,13 @@ import { join } from 'node:path'
 import { type CheckDeps, mergeChecks, runChecks } from './checks/merge-checks.ts'
 
 const deps: CheckDeps = {
-  run(cmd, args, cwd) {
-    const r = spawnSync(cmd, args, { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  run(cmd, args, cwd, env) {
+    const r = spawnSync(cmd, args, {
+      cwd,
+      env: { ...process.env, ...env },
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    })
     return Promise.resolve({
       status: r.status ?? 1,
       stdout: r.stdout ?? '',

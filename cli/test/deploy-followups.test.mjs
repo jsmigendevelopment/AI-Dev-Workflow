@@ -22,17 +22,25 @@ test("AC-150-3: the skill and the README say what the deploys do with TEST_APP_U
   }
 });
 
-// A catch block with nothing in it, not even a comment, with or without a binding.
-const EMPTY_CATCH = /catch\s*(\([^)]*\))?\s*\{\s*\}/;
+// A catch block with nothing in it, not even a comment, with or without a binding, on one line or
+// across several.
+const EMPTY_CATCH = /catch\s*(\([^)]*\))?\s*\{\s*\}/g;
+
+/** Each empty catch in `text`, as `<name>:<line>`. */
+const emptyCatches = (name, text) =>
+  [...text.matchAll(EMPTY_CATCH)].map((m) => `${name}:${text.slice(0, m.index).split("\n").length}`);
+
+test("AC-150-4: the empty-catch guard finds an empty catch on one line or across several", () => {
+  // Split, so this file's own text holds no empty catch.
+  assert.deepEqual(emptyCatches("a.mjs", "try { x() } catch {" + "}\n"), ["a.mjs:1"]);
+  assert.deepEqual(emptyCatches("b.mjs", "try {\n  x()\n} catch (error) {\n}\n"), ["b.mjs:3"]);
+  assert.deepEqual(emptyCatches("c.mjs", "try {\n  x()\n} catch {\n  // gone already: nothing to clean\n}\n"), []);
+});
 
 test("AC-150-4: no test or fake in cli/test has an empty catch: each says why it can go on", () => {
   const dir = join(REPO, "cli/test");
   const empty = readdirSync(dir)
     .filter((name) => name.endsWith(".mjs"))
-    .flatMap((name) =>
-      read(join("cli/test", name))
-        .split("\n")
-        .flatMap((line, i) => (EMPTY_CATCH.test(line) ? [`${name}:${i + 1}`] : [])),
-    );
+    .flatMap((name) => emptyCatches(name, read(join("cli/test", name))));
   assert.deepEqual(empty, []);
 });
