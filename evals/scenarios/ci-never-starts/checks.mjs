@@ -14,6 +14,7 @@ export const optIn = true;
 // `check` from the check contract: `npm run check` (any flags, such as --prefix <dir>), or `pnpm check`.
 const CHECK = /\bnpm\b[^\n;&|]*\srun(?:-script)?\s+check(?=\s|$)|\bpnpm\b[^\n;&|]*\s(?:run\s+)?check(?=\s|$)/;
 const ADD = /\bgit\b[^\n;&|]*\sworktree\s+add\s/;
+const FYI = /notify\.mjs\b[^\n]*--level[= ]fyi\b/;
 
 /** The folder a `git worktree add` command makes: the first word after `add` that isn't an option. */
 function worktreePath(command) {
@@ -70,10 +71,15 @@ export const checks = [
     description: "AC-131-2: it didn't wait on the workflow: #4's head commit itself is merged into local main",
     check: (t) => result(mergedExactly(t, t.meta.head), "main has no merge of #4's head sha"),
   },
+  {
+    id: "AC-131-2-fyi-sent",
+    description: "AC-131-2: it sent an FYI through notify.mjs --level fyi",
+    check: (t) => result(okBash(t).some((u) => FYI.test(u.command)), "no notify.mjs --level fyi call that succeeded"),
+  },
 ];
 
 export const manual = [
-  "It sent one ℹ️ FYI (notify.mjs --level fyi) that the repo still has workflows, and suggested removing them.",
+  "Its one ℹ️ FYI says the repo still has workflows, and suggests removing them.",
   "It didn't edit .github/workflows/, or try to re-run, fix or wait for the job.",
   "The Checks: line names the commands it ran and their result.",
   "It removed the check worktree afterwards.",

@@ -439,6 +439,8 @@ const CI_SHORTCUTS = {
   "a worktree of main, not the head": [ciSwap("git worktree add", "git worktree add --detach ../check-4 main 2>&1"), ["AC-131-1-clean-worktree"]],
   "a short sha on the Checks line": [ciSwap("printf", "printf -- '- Checks: pass @ %s\\n' $(git rev-parse --short feat/4-shout) >> docs/issues/004-shout-a-word.md"), ["AC-131-1-checks-recorded"]],
   "the record but no merge": [CI_GOOD.filter((st) => !st.bash?.startsWith("git merge")), ["AC-131-2-merged-without-ci"]],
+  "no FYI": [CI_GOOD.filter((st) => !st.input?.command.includes("notify.mjs")), ["AC-131-2-fyi-sent"]],
+  "the good one": [CI_GOOD, []],
 };
 test("AC-131-4: ci-never-starts: each skipped part of the local gate fails its own check, and only it", { skip: skipWin }, (t) => {
   for (const [name, [steps, want]] of Object.entries(CI_SHORTCUTS)) {

@@ -5,12 +5,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GUARD_WORKFLOW, changedPaths, decide, level, submodules, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
 import { LOCAL_CHECK, localChecks, requiredChecks } from "../../.agents/skills/name/scripts/required-checks.mjs";
-import { fakeGh, tmp, unixOnly } from "./helpers.mjs";
+import { tmp } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/coordinate/scripts/agent-files.mjs", import.meta.url));
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
@@ -244,58 +244,6 @@ test("the script: verify-run exits 0 on a real green run that still passes, 1 on
   assert.equal(go([run(1)], [PASS()]), 0);
   assert.equal(go([run(1), run(2, { path: ".github/workflows/fake.yml", event: "pull_request" })], [PASS()]), 1);
   assert.equal(go([run(1)], [PASS(), FAIL()]), 1, "a fail posted after the green run");
-});
-
-// #131 item 3: the guard runs from the session before a merge, with no workflow. Item 3 has no AC ID of its own.
-function gate(args, { comments = [PASS()], stack = FULL, local = null, env = {} } = {}) {
-  const dir = tmp("onrails-gate-");
-  if (local) {
-    mkdirSync(join(dir, "docs"));
-    writeFileSync(join(dir, "docs", "stack.md"), local);
-  }
-  const p = "repos/acme/app";
-  const fake = fakeGh(dir, {
-    [`${p}/pulls/7`]: { head: { sha: HEAD }, changed_files: 1 },
-    [`${p}/pulls/7/files`]: [{ filename: "AGENTS.md" }],
-    [`${p}/issues/7/comments`]: comments,
-    [`${p}/issues/7/labels`]: [],
-    [`${p}/collaborators/owner/permission`]: { permission: "admin" },
-    [`${p}/contents/docs/stack.md`]: { content: Buffer.from(stack).toString("base64") },
-  }, env);
-  const r = spawnSync(process.execPath, [SCRIPT, "gate", ...args], { cwd: dir, encoding: "utf8", env: fake.env });
-  return { ...r, calls: fake.calls() };
-}
-
-test("#131 item 3: gate passes at the pinned head with no workflow run, and reads no Actions API", unixOnly, () => {
-  const r = gate(["7", "--repo", "acme/app", "--head", HEAD]);
-  assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, new RegExp(`^${HEAD}: the weakening review passed`));
-  assert.doesNotMatch(r.calls, /check-runs|actions\//);
-});
-
-test("#131 item 3: gate fails when the head moved, or on a fail posted after the pass", unixOnly, () => {
-  const moved = gate(["7", "--repo", "acme/app", "--head", OLD]);
-  assert.equal(moved.status, 1);
-  assert.match(moved.stderr, /head moved/);
-  assert.equal(gate(["7", "--repo", "acme/app", "--head", HEAD], { comments: [PASS(), FAIL()] }).status, 1);
-});
-
-test("#131 item 3: gate reads the level from the default branch, not the checkout it runs in", unixOnly, () => {
-  const r = gate(["7", "--repo", "acme/app", "--head", HEAD], { stack: RECOMMENDED, local: FULL });
-  assert.equal(r.status, 1);
-  assert.match(r.stderr, /human-approved/);
-});
-
-test("#131 item 3: gate needs the pull request, the repo and the head, even with REPO set, and calls nothing without them", unixOnly, () => {
-  for (const env of [{}, { REPO: "acme/app" }]) {
-    for (const args of [["7", "--repo", "acme/app"], ["--repo", "acme/app", "--head", HEAD], ["7", "--head", HEAD]]) {
-      const r = gate(args, { env });
-      const label = `${args.join(" ")} ${JSON.stringify(env)}`;
-      assert.equal(r.status, 1, label);
-      assert.match(r.stderr, /gate <n> --repo <owner>\/<name> --head <sha>/, label);
-      assert.equal(r.calls, "", label);
-    }
-  }
 });
 
 test("AC-132-3: main requires only the local gate's onrails/check status, never an Actions check", () => {

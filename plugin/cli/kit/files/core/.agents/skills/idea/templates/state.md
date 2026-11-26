@@ -10,6 +10,7 @@ The handoff note between sessions. Keep it under 30 lines, not counting "To try"
 - **In flight:** issues being built or reviewed right now
 - **Next up:** 
 - **Coordinators active:** who or what might be working on this repo besides you
+- **Main's checks:** <!-- coordinate step 8 writes it after each merge: Checks: pass @ <main's full sha>, or Checks: fail @ <sha> and the red command -->
 - **Gotchas:** anything the next session must know
 
 ## Waiting on you
