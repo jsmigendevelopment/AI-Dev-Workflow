@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { decide } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
 import { doctor } from "../src/doctor.mjs";
+import { realSystem } from "../src/system.mjs";
 import { main, probe, render } from "../src/preflight.mjs";
 import { fakeSys, HEALTHY, project, readProject } from "./preflight-fakes.mjs";
 import { fakeSystem, logger, put, tmp } from "./helpers.mjs";
@@ -13,7 +14,7 @@ const REMOTE = { ok: true, out: "https://github.com/acme/app.git", all: "https:/
 const ON = JSON.stringify({ enabled: true, allowed_actions: "all" });
 const OFF = JSON.stringify({ enabled: false });
 const PERMS = "gh api repos/acme/app/actions/permissions";
-const answer = (json) => ({ ok: true, out: json, all: json });
+const answer = (json) => ({ ok: true, out: json, all: json, stdout: json });
 
 function doctorText(dir, probes = {}) {
   const log = logger();
@@ -41,6 +42,18 @@ test("#133: doctor warns when Actions is still on, says so when all is clear, an
   put(dir, "docs/stack.md", '# Stack\n\nci = "actions"\n');
   const actions = doctorText(dir, { [PERMS]: answer(ON) });
   assert.doesNotMatch(actions, /workflow file|GitHub Actions is on|onrails ci local/);
+});
+
+test("AC-200-5: WHEN gh prints a notice on stderr THEN doctor's Actions row still reads the answer", () => {
+  const dir = tmp();
+  const notice = "A new release of gh is available: 2.60.0 → 2.61.0";
+  const noisy = (json) => ({ ok: true, out: json, all: `${json}\n${notice}`, stdout: json });
+  assert.match(doctorText(dir, { [PERMS]: noisy(OFF) }), /✓ No GitHub Actions: no workflow files, and Actions is off for acme\/app/);
+  assert.match(doctorText(dir, { [PERMS]: noisy(ON) }), /✗ GitHub Actions is on for acme\/app/);
+  // The real probe keeps stdout apart from the notice, so doctor gets the answer alone.
+  const real = realSystem().probe(process.execPath, ["-e", `process.stdout.write(${JSON.stringify(OFF)}); process.stderr.write("${notice}\\n")`]);
+  assert.equal(real.stdout, OFF);
+  assert.match(real.all, /A new release of gh/);
 });
 
 test("#133: preflight warns under its table about workflow files, before the read too, and runs nothing for it then", async () => {
