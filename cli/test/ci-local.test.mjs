@@ -13,6 +13,10 @@ import { fakeAsk, logger, makeKit, put, tmp } from "./helpers.mjs";
 const FULL = "# Stack\n\n## Automation level\n\n- **Level:** full\n";
 const RECOMMENDED = "# Stack\n\n## Automation level\n\n- **Level:** recommended\n";
 const PUT = "gh api --method PUT repos/acme/app/actions/permissions -F enabled=false";
+const ORIGIN_HEAD = "git symbolic-ref --short refs/remotes/origin/HEAD";
+const LS_TREE = "git ls-tree -z origin/main -- .github/workflows/";
+/** `git ls-tree -z` output for these files under .github/workflows/. */
+const lsTree = (files) => files.map((f) => `100644 blob ${"0".repeat(40)}\t${f}\0`).join("");
 
 /** A repo with two workflows and a GitHub remote. */
 function repo(stack = FULL) {
@@ -46,6 +50,8 @@ function fakeRun(dir, { answers = {} } = {}) {
     const table = {
       "git rev-parse --show-toplevel": { ok: true, out: dir },
       "git remote get-url origin": { ok: true, out: "git@github.com:acme/app.git" },
+      [ORIGIN_HEAD]: { ok: true, out: "origin/main" },
+      [LS_TREE]: { ok: true, out: lsTree([".github/workflows/ci.yml", ".github/workflows/deploy.yml"]) },
       [PUT]: { ok: true, out: "" },
       "gh api repos/acme/app": { ok: true, out: JSON.stringify({ default_branch: "main" }) },
       "git status --porcelain": { ok: true, out: " D .github/workflows/ci.yml" },
@@ -71,7 +77,7 @@ test("AC-133-1: WHEN `npx onrails ci local --dry-run` runs in a repo with workfl
   assert.match(text, /fix\/<n>-no-actions/);
   assert.match(text, /ci = "local" to docs\/stack\.md/);
   assert.doesNotMatch(text, /ISSUE_TEMPLATE/, "only the workflows go");
-  assert.deepEqual(fake.calls, ["git rev-parse --show-toplevel", "git remote get-url origin"], "a dry run only reads");
+  assert.deepEqual(fake.calls, ["git rev-parse --show-toplevel", "git remote get-url origin", ORIGIN_HEAD, LS_TREE], "a dry run only reads");
   assert.equal(readFileSync(join(dir, "docs", "stack.md"), "utf8"), FULL);
   assert.ok(existsSync(join(dir, ".github", "workflows", "ci.yml")));
 });
@@ -148,6 +154,48 @@ test("#133: a repo with no GitHub remote gets a plain reason, and nothing runs",
   assert.equal(await ciLocal(dir, { log, run: fake.run }), 1);
   assert.match(log.text(), /no GitHub remote/);
   assert.deepEqual(fake.calls.filter((c) => c.startsWith("gh")), []);
+});
+
+test("AC-200-3: WHEN the checkout's workflow files differ from the default branch's THEN the plan lists the default branch's", async () => {
+  const dir = repo();
+  const fake = fakeRun(dir, { answers: { [LS_TREE]: { ok: true, out: `${lsTree([".github/workflows/old.yml"])}040000 tree ${"0".repeat(40)}\t.github/workflows/nested\0` } } });
+  const log = logger();
+  assert.equal(await ciLocal(dir, { dryRun: true, log, run: fake.run }), 0);
+  const text = log.text();
+  assert.match(text, /removes \.github\/workflows\/old\.yml/);
+  assert.doesNotMatch(text, /ci\.yml|deploy\.yml/, "not the checkout's files");
+  assert.doesNotMatch(text, /removes \.github\/workflows\/nested$/m, "only files, as GitHub reads them");
+  assert.match(text, /from the default branch \(origin\/main\)/);
+
+  const unknown = fakeRun(dir, { answers: { [ORIGIN_HEAD]: { ok: false, out: "", err: "fatal: ref refs/remotes/origin/HEAD is not a symbolic ref" } } });
+  const none = logger();
+  assert.equal(await ciLocal(dir, { dryRun: true, log: none, run: unknown.run }), 0);
+  assert.doesNotMatch(none.text(), /ci\.yml|deploy\.yml/, "never the checkout's files, even when git can't name the default branch");
+  assert.match(none.text(), /git remote set-head origin --auto/);
+});
+
+test("AC-200-4: WHEN git status --porcelain fails THEN no issue is opened", async () => {
+  const dir = repo();
+  const fake = fakeRun(dir, { answers: { "git status --porcelain": { ok: false, out: "", err: "fatal: index file corrupt" } } });
+  const log = logger();
+  assert.equal(await ciLocal(dir, { log, run: fake.run }), 1);
+  assert.deepEqual(fake.calls.filter((c) => /issues|pulls|git push|git commit/.test(c)), []);
+  assert.match(log.text(), /git status failed: fatal: index file corrupt/);
+  assert.ok(fake.calls.some((c) => c.startsWith("git worktree remove --force")), "the temp worktree still goes");
+});
+
+test("#200: the local fix/<n>-no-actions branch is deleted once pushed, and kept, with a note, when the push fails", async () => {
+  const dir = repo();
+  const fake = fakeRun(dir);
+  assert.equal(await ciLocal(dir, { log: logger(), run: fake.run }), 0);
+  const removed = fake.calls.findIndex((c) => c.startsWith("git worktree remove --force"));
+  assert.equal(fake.calls.indexOf("git branch -D fix/7-no-actions"), removed + 1, "deleted after the worktree that holds it goes");
+
+  const failed = fakeRun(dir, { answers: { "git push": { ok: false, out: "", err: "fatal: could not read Username" } } });
+  const log = logger();
+  assert.equal(await ciLocal(dir, { log, run: failed.run }), 1);
+  assert.ok(!failed.calls.some((c) => c.startsWith("git branch -D")), "an unpushed commit is kept");
+  assert.match(log.text(), /The local branch fix\/7-no-actions is kept: git push -u origin fix\/7-no-actions sends it/);
 });
 
 /** A kit installed in a repo with workflows, and a newer kit to update to. */

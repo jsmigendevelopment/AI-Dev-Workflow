@@ -34,6 +34,7 @@ Usage:
                                           plugin is the recommended way now: see the README
   npx onrails update [dir] [--dry-run] [--yes]
                                           update to the kit in this CLI version
+                                          --yes also answers ci local: Actions off and a pull request
   npx onrails@latest update [dir] --all [--dry-run] [--yes]
                                           bring everything to the latest: the Claude Code and
                                           Codex plugins, the global entry skills, this project's
