@@ -183,13 +183,16 @@ function outsideOf(path, layout) {
  * The PATH for every probe before the read, as { [its key in env]: value }: the system's real path of each full-path
  * entry that exists outside every checkout of the repo, and none at all when the layout can't be read. The commands get
  * it too, so nothing they start comes from the repo, and they get the resolved paths, never the raw entries.
+ * Why each folder another user could write was left off goes into dropped.
  */
-export function pathOutside(dir, platform, env, layout = repoLayout(dir)) {
+export function pathOutside(dir, platform, env, layout = repoLayout(dir), dropped = []) {
   const split = platform === "win32" ? ";" : ":";
   // A folder another local user can write or swap is unsafe in the same way: they choose what runs from it (#232).
   const keep = (entry) => {
     const real = layout && isAbsolute(entry) ? outsideOf(entry, layout) : null;
-    return real && !othersCanWrite(real, { platform }) ? [real] : [];
+    const why = real && othersCanWrite(real, { platform });
+    if (why) dropped.push(why);
+    return real && !why ? [real] : [];
   };
   const keys = Object.keys(env).filter((key) => key.toUpperCase() === "PATH");
   return Object.fromEntries(keys.map((key) => [key, String(env[key]).split(split).flatMap(keep).join(split)]));
@@ -216,12 +219,22 @@ export function tempFolders(dir, platform = process.platform, layout = repoLayou
       // A folder this sandbox can't write: the next one, or none, and those rows wait for the read.
       continue;
     }
-    const safe = !othersCanWrite(made, { platform });
-    hooks ??= safe ? made : null;
-    if (safe && !outside && layout && outsideOf(made, layout)) outside = made;
-    if (made !== hooks && made !== outside) rmSync(made, { recursive: true, force: true });
+    // The real path is what gets checked, so it is the only one handed out: a written path through a symlink keeps
+    // the folder that holds that symlink in play, and nothing checks that folder (#232).
+    let real;
+    try {
+      real = realpathSync.native(made);
+    } catch {
+      // Gone or unreadable just after it was made: not used.
+      rmSync(made, { recursive: true, force: true });
+      continue;
+    }
+    const safe = !othersCanWrite(real, { platform });
+    hooks ??= safe ? real : null;
+    if (safe && !outside && layout && outsideOf(real, layout)) outside = real;
+    if (real !== hooks && real !== outside) rmSync(real, { recursive: true, force: true });
   }
-  const away = outside && { cwd: outside, env: { GIT_CEILING_DIRECTORIES: dirname(realpathSync.native(outside)) } };
+  const away = outside && { cwd: outside, env: { GIT_CEILING_DIRECTORIES: dirname(outside) } };
   const remove = () => { for (const f of new Set([hooks, outside])) if (f) rmSync(f, { recursive: true, force: true }); };
   return { hooks, away, remove };
 }

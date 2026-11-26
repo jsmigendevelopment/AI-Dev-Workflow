@@ -1,9 +1,9 @@
 // #232: before the read, preflight never runs or reads from a folder another local user can write or swap: npm's temp
-// folder, the repo-top search and the PATH folders it keeps. Real folders with real modes; another user is a chown
-// when the tests run as root, else this user's id seen as someone else's. Nothing here mounts anything.
+// folder, the repo-top search and the PATH folders it keeps. Real folders with real modes; another user's folder is
+// one whose owner a fake sys reads as someone else, the same as root or not. Nothing here mounts or chowns anything.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, chownSync, mkdirSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, lstatSync, mkdirSync, readdirSync, realpathSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathOutside, tempFolders } from "../src/preflight-layout.mjs";
 import { isRead, markRead, othersCanWrite, repoTop } from "../src/preflight-sys.mjs";
@@ -20,14 +20,12 @@ function folder(mode, parent = temp("onrails-writers-")) {
   return dir;
 }
 
-/** Makes dir another local user's: a real chown as root, else this user's own id is read as someone else's. */
+/** A fake sys that reads dir as another local user's: its owner is someone else, for root and for anyone else alike. */
 function othersOwn(dir) {
-  if (process.getuid() === 0) {
-    chownSync(dir, 65534, 65534);
-    return {};
-  }
-  const uid = process.getuid();
-  return { sys: { uid: uid + 1, gid: process.getgid(), acl: () => false, privateGroup: () => true } };
+  const real = native(dir);
+  const other = process.getuid() === 65534 ? 65533 : 65534;
+  const lstat = (path) => (path === real ? { ...lstatSync(path), uid: other } : lstatSync(path));
+  return { sys: { uid: process.getuid(), gid: process.getgid(), acl: () => false, privateGroup: () => true, lstat } };
 }
 
 test("AC-232-1: WHEN preflight runs npm from its outside temp folder THEN npm reads no project or .npmrc from a folder above it", posixOnly, () => {
@@ -44,7 +42,7 @@ test("AC-232-1: WHEN preflight runs npm from its outside temp folder THEN npm re
   assert.match(detail, /^127\.0\.0\.1:9 didn't answer/, "npm used the person's own .npmrc");
   assert.equal(report.away, true);
   const table = runScript(repo, { HOME: home, TMPDIR: above, PATH: pathWith("node", "npm") }).stdout;
-  assert.match(table, /ran from an empty temp folder outside it that only this user can write, and npm looked for no project above it/);
+  assert.match(table, /ran from an empty temp folder outside it that only this user can write, and npm read no project settings above it/);
   // npm's own compile cache may stay there; preflight's temp folder may not.
   assert.deepEqual(readdirSync(above).filter((name) => name.startsWith("onrails-")), [], "the temp folder wasn't removed");
 });
@@ -92,7 +90,8 @@ test("AC-232-2: WHEN repoTop() walks up from a folder THEN it stops at, and neve
   const theirs = folder(0o755);
   mkdirSync(join(theirs, ".git"));
   const { sys } = othersOwn(theirs);
-  if (!sys) assert.equal(repoTop(theirs), null, "another user's folder was trusted");
+  assert.equal(repoTop(theirs, { sys }), null, "another user's folder was trusted");
+  assert.equal(repoTop(theirs), native(theirs), "the control: the same folder as this user's own is trusted");
   assert.match(othersCanWrite(native(theirs), { sys }), /belongs to another user/);
 });
 
@@ -138,4 +137,48 @@ test("AC-232-3: WHEN the only git, npm and gh on PATH are in a folder another us
   fakes(open, ["git", "npm", "gh"], fresh);
   runScript(repo, `${open}:${pathWith("node")}`, "--json");
   assert.deepEqual(ran(fresh), [], "preflight ran a tool from a folder another user can write");
+});
+
+test("AC-232-3: WHEN preflight leaves a PATH folder off, or --mark-read refuses a repo, THEN it says which folder and why", posixOnly, () => {
+  const repo = folder(0o755);
+  mkdirSync(join(repo, ".git"));
+  const open = folder(0o777);
+  const table = runScript(repo, `${open}:${pathWith("node")}`).stdout;
+  assert.match(table, new RegExp(`Left off PATH before the read[^\\n]*: others can write ${native(open)}`), "the table didn't say why git wasn't found");
+  chmodSync(repo, 0o777);
+  const refused = runScript(repo, pathWith("node"), "--mark-read").stdout;
+  assert.match(refused, new RegExp(`not marked: others can write ${native(repo)}`), "the refusal didn't name the folder");
+});
+
+test("AC-232-1: WHEN the temp base is reached through a symlink in a folder others can write THEN only the checked real path is used", posixOnly, () => {
+  const open = folder(0o777);
+  const target = folder(0o700);
+  const link = join(open, "link");
+  symlinkSync(target, link);
+  const temps = tempFolders(temp("onrails-writers-repo-"), "linux", undefined, [link]);
+  try {
+    for (const used of [temps.hooks, temps.away.cwd]) {
+      assert.equal(dirname(used), native(target), `${used} goes through a folder another user can write`);
+      assert.equal(used, native(used), `${used} isn't a real path`);
+    }
+    assert.equal(temps.away.env.GIT_CEILING_DIRECTORIES, native(target));
+  } finally {
+    temps.remove();
+  }
+  assert.deepEqual(readdirSync(target), [], "the temp folder wasn't removed");
+});
+
+test("AC-232-1: WHEN npm runs from its outside temp folder THEN the person's global npmrc still names the registry", posixOnly, () => {
+  const above = temp("onrails-writers-above-");
+  writeFileSync(join(above, "package.json"), "{}");
+  writeFileSync(join(above, ".npmrc"), "registry=http://127.0.0.2:9/\n");
+  // npm finds its global npmrc at <its prefix>/etc/npmrc, and PREFIX names that prefix. HOME holds no user .npmrc.
+  const prefix = temp("onrails-writers-prefix-");
+  mkdirSync(join(prefix, "etc"));
+  writeFileSync(join(prefix, "etc", "npmrc"), "registry=http://127.0.0.4:9/\n");
+  const repo = temp("onrails-writers-repo-");
+  const report = runScript(repo, { TMPDIR: above, PREFIX: prefix, PATH: pathWith("node", "npm") }, "--json");
+  const detail = report.results.find((r) => r.id === "registry").detail;
+  assert.match(detail, /^127\.0\.0\.4:9 didn't answer/, "npm skipped the global npmrc");
+  assert.equal(report.away, true);
 });

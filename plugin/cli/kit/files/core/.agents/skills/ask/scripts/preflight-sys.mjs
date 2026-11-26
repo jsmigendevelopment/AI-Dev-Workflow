@@ -28,21 +28,23 @@ function writers(sys, path, s) {
 
 /**
  * Why another local user could write the folder at path, or swap it or a folder above it, or null when only this user
- * (or root) can. A folder that can't be checked counts as written by others. sys gives uid, gid, acl and privateGroup.
+ * (or root) can. A folder that can't be checked counts as written by others. sys gives uid, gid, acl and privateGroup,
+ * and a test's sys may give lstat in place of the real one.
  */
 export function othersCanWrite(path, { platform = process.platform, sys = mine() } = {}) {
   if (platform === "win32") return null;
   if (!Number.isInteger(sys.uid)) return "this user's id can't be read";
+  const look = sys.lstat ?? lstatSync;
   try {
     const real = realpathSync.native(path);
-    const why = writers(sys, real, lstatSync(real));
+    const why = writers(sys, real, look(real));
     if (why) return why;
     // Each child was checked a step before (path itself, then each folder above it), so this user or root owns it.
     for (let child = real, at = dirname(real); at !== child; child = at, at = dirname(at)) {
-      const s = lstatSync(at);
+      const s = look(at);
       if (s.uid !== sys.uid && s.uid !== 0) return `${at} belongs to another user, who could swap ${child}`;
       const shared = writers(sys, at, s);
-      if (shared && !(s.mode & 0o1000)) return `${shared}, without the sticky bit that stops a swap of ${child}`;
+      if (shared && !(s.mode & 0o1000)) return `${at} has no sticky bit to stop a swap of ${child}, and ${shared}`;
     }
     return null;
   } catch (error) {
@@ -217,11 +219,12 @@ function ownGitDir(at) {
 /**
  * The real folder that holds the first .git entry of any kind at or above dir, where git's own search stops, or null.
  * It stops at a folder another user can write or swap, and trusts nothing there: they could have put that .git (#232).
+ * check is othersCanWrite's options, for a test's sys.
  */
-export function repoTop(dir) {
+export function repoTop(dir, check = {}) {
   if (!existsSync(dir)) return null;
   for (let at = realpathSync(dir); ; at = dirname(at)) {
-    if (othersCanWrite(at)) return null;
+    if (othersCanWrite(at, check)) return null;
     if (kindOf(join(at, ".git"))) return at;
     if (dirname(at) === at) return null;
   }
@@ -262,6 +265,13 @@ export function isRead(dir) {
   const top = repoTop(dir);
   const mark = top && marker(top);
   return Boolean(mark) && small(mark.file) === mark.text;
+}
+
+/** Why --mark-read refuses dir's own checkout: another user could write or swap it, or its git folder. Else null. */
+export function markRefusal(dir) {
+  const top = existsSync(dir) ? realpathSync(dir) : null;
+  const own = top && ownGitDir(top);
+  return own ? (othersCanWrite(top) ?? othersCanWrite(own.admin ?? own.git)) : null;
 }
 
 /** Writes the marker for the checkout whose .git is next to dir, never one above it. Returns the folder it marked, or null. */
