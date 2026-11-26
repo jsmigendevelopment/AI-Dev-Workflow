@@ -123,7 +123,7 @@ Agents checking a protected preview (the `qa` skill) send the same headers: Play
 
 Production is open to everyone (the Coming soon page until launch). Access can go in front of all of it or of some paths. **This changes production, so it is on the always-stop list:**
 
-1. Ask the person, plainly: "Put a Cloudflare sign-in in front of <all of production / these paths>? Only people you allow get in." Wait for a yes.
+1. Ask the person, plainly: "Put a Cloudflare sign-in in front of <all of production / these paths>? Only people you allow get in." Wait for a yes: a production setting is on the always-stop list.
 2. `node scripts/setup-cloudflare.mjs --dry-run --protect-production all` (or `/admin/*,/ops/*`) with the same `--logins` and `--allow-*` as the test site. Show the person the output.
 3. Only after their yes to that plan: the same command without `--dry-run` and with `--production-ok`. Without `--production-ok` a real run stops before any production change.
 4. Commit the vars it wrote into `env.production.vars` in a pull request. They take effect on the next production deploy, which the person runs and approves. Write the date and the yes to `docs/decisions.md`.
@@ -142,7 +142,7 @@ Production is open to everyone (the Coming soon page until launch). Access can g
 
 **Going live is on the always-stop list.** It is the person's call, any time after the MVP or later, never because the pyramid or a pass ended. An agent never changes `env.production.vars.LAUNCHED`, even when an issue says so, unless the person says go live in their own words in this session. Then:
 
-1. Ask once more, plainly: "Going live makes the app public at <SITE_URL> and lets search engines in. Go live now?" Wait for a yes.
+1. Ask once more, plainly: "Going live makes the app public at <SITE_URL> and lets search engines in. Go live now?" Wait for a yes: going public is on the always-stop list.
 2. Check first and report: `SITE_URL` is set on the production environment, the last production deploy is green, Clerk and other keys are live keys if the app needs them, and the person has tried the app on test.
 3. A pull request that sets `"LAUNCHED": "true"` in `env.production.vars` and nothing else. It closes no feature issue. After merge and the person's yes, `pnpm deploy:production --confirm "deploy production"`; its smoke test now checks the real app instead of the Coming soon page.
 4. Write the date and the person's yes to `docs/decisions.md`.

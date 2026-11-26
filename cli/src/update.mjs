@@ -3,6 +3,7 @@ import { rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { NEW_SUFFIX, OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
 import { toNative } from "./files.mjs";
+import { FULL_OVERRIDE_KIT, fullOnOldKit, olderThan } from "./full-kit.mjs";
 import { confirm } from "./prompt.mjs";
 import { apply, oldKitNewFiles, plan, projectManifestName, readProjectManifest, report } from "./sync.mjs";
 
@@ -17,6 +18,10 @@ export async function update(dir = ".", { dryRun = false, kitDir, ask, yes = fal
   const actions = plan(projectDir, kit, old.files);
   log(`${dryRun ? "Plan (dry run, nothing written)" : "Updating"}: kit v${old.kitVersion} -> v${kit.version}`);
   report(actions, log);
+  const oldFull = fullOnOldKit(projectDir, old.kitVersion);
+  if (oldFull) {
+    log(`${oldFull}. ${olderThan(kit.version, FULL_OVERRIDE_KIT) ? `This CLI has v${kit.version}. Run: npx onrails@latest update` : `This update brings v${kit.version}.`}`);
+  }
   const oldName = projectManifestName(projectDir) === OLD_PROJECT_MANIFEST;
   if (dryRun) {
     if (oldName) log(`The kit's record is still ${OLD_PROJECT_MANIFEST}. update will offer to rename it ${PROJECT_MANIFEST}.`);

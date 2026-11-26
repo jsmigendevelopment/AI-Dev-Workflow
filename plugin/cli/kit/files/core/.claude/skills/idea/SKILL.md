@@ -41,7 +41,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 5. **Intermission: name it and make the repo,** while stage 2 finishes. Open `name`. After an auto grill, the name was picked at the review, so start at its step 3. On Full, `name` asks nothing. It runs `git init`, sets up GitHub if the person wants it, and moves `kickoff/` into `docs/`.
 
-6. **Approve the wireframes.** Revise the full stage-2 set until the person says yes (`wireframes` stage 2, steps 5 and 6). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row. Auto grill doesn't skip it. **On Full,** skip the wait: record the row as "AI pick, not reviewed" (`wireframes` stage 2, step 6) and go on.
+6. **Approve the wireframes.** Below Full, revise the full stage-2 set until the person says yes (`wireframes` stage 2, steps 5 and 6). **Gate:** no tech grill and no pyramid until `docs/decisions.md` has the approval row. Auto grill doesn't skip it. **On Full,** skip the wait: record the row as "AI pick, not reviewed" (`wireframes` stage 2, step 6) and go on.
 
 7. **Tech grill.** Open `stack`: platform, stack, architecture, API, data, UI kit, auth, environments, CI and the risk dial, plus the automation level from step 0. It's short. After an auto grill, the one-way doors confirmed at the review are answers, not questions. On Full, take the recommended picks with no question round. Crucial unknowns go to `research` first (on Full, it decides and sends an FYI). It writes `docs/stack.md`, `docs/architecture.md` and `docs/security-policy.md`.
 

@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AUTO_GRILL_PLAN, REVIEWS, reviewPlan } from "./auto-grill-reviews.mjs";
+import { LIFT_PLAN } from "./decision-lifts-gate-plan.mjs";
 
 const KIT = JSON.parse(readFileSync(new URL("../../cli/package.json", import.meta.url), "utf8")).version;
 const KIT_RE = KIT.replaceAll(".", "\\.");
@@ -60,8 +61,8 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
   assert.match(r.stdout, /preflight-blocked: its own limits, 24 turns, 240 s, \$0\.5 budget/);
   const optIn = r.stdout.match(/^Opt-in, not in this run: (.+)\. Name them with --scenario\.$/m)?.[1].split(", ") ?? [];
-  assert.deepEqual(optIn.sort(), ["ci-never-starts", "clean-up-server", "test-by-hand-zero"]);
-  assert.match(r.stdout, /Opt-in, not in this run: ci-never-starts, clean-up-server, test-by-hand-zero\. Name them with --scenario\./);
+  assert.deepEqual(optIn.sort(), ["ci-never-starts", "clean-up-server", "decision-lifts-gate", "test-by-hand-zero"]);
+  assert.match(r.stdout, /Opt-in, not in this run: ci-never-starts, clean-up-server, decision-lifts-gate, test-by-hand-zero\. Name them with --scenario\./);
   assert.doesNotMatch(r.stdout, /test-by-hand-zero \[with\]/);
   assert.doesNotMatch(r.stdout, /ci-never-starts \[with\]/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
@@ -327,6 +328,7 @@ const SCENARIO_PLANS = {
     with: { steps: [{ bash: "git worktree add --detach ../check-4 $(git rev-parse feat/4-shout) 2>&1" }, { bash: "npm --prefix ../check-4 run check" }, { bash: "printf -- '- Checks: pass @ %s · npm run check: pass\\n' $(git rev-parse feat/4-shout) >> docs/issues/004-shout-a-word.md" }, { bash: "git merge -q --no-ff $(git rev-parse feat/4-shout) -m '#4 Shout a word'" }, { bash: "git worktree remove ../check-4" }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"This repo still has GitHub Actions workflows\"" }, ok: true }, { text: "Ran npm run check in a clean worktree of #4's head: pass. Merged it on main. Its CI job never started, and I didn't wait for it." }] },
     without: { steps: [{ bash: "cat docs/issues/004-shout-a-word.md" }, { text: "#4's CI job never started: a billing error. I'll wait for CI to pass before I merge it. Fix the billing, then re-run the job." }] },
   },
+  "decision-lifts-gate": LIFT_PLAN,
   "one-prompt": {
     with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { tool: "Skill", input: { skill: "coordinate" }, ok: true }, { bash: "git checkout -qb feat/1-the-skeleton && mkdir -p src && printf 'export const app = 1;\\n' > src/app.mjs && git add src && git commit -qm '#1 The skeleton'" }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is built on feat/1-the-skeleton, and the loop goes on." }] },
     without: { steps: [{ write: "src/app.js", content: "x" }, { tool: "AskUserQuestion", input: { questions: [{ question: "Add sign-in next?" }] } }, { text: "I built a first version. Want me to add sign-in next?" }] },

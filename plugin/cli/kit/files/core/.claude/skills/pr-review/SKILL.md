@@ -21,7 +21,7 @@ You did not write this code. Judge only the **issue, the diff and the check resu
    - feature modules don't import each other's internals;
    - no business logic in a controller, and no SQL in a service;
    - no hand-rolled components the UI kit already has;
-   - no one-off colours, spacing or font sizes, and no new design token the person didn't approve;
+   - no one-off colours, spacing or font sizes, and no new design token the person didn't approve (on Full, a new token recorded as "AI pick, not reviewed" passes, as `build` step 7 says);
    - the screens match `docs/design.md`.
 5. **Code rules.** Check each one. Lint catches some, not all:
    - [ ] **Reuse:** no new helper, component or util that duplicates one the repo already has. Search for it.
@@ -56,13 +56,13 @@ You did not write this code. Judge only the **issue, the diff and the check resu
    - [ ] **Translations:** strings in the module's `copy.ts`, or its message keys if translation is on. No strings built by concatenation.
    - [ ] **Access:** owner filters in the repository, or `check(user, action, object)` through the port. No role checks scattered in code. Someone else's object returns "not found".
 7. **Bugs:** edge cases, errors, empty states, off-by-one errors, races.
-8. **Instruction files:** if the diff touches `AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/`, `.codex/` or `.github/`, say so. That needs the person.
+8. **Instruction files:** if the diff touches `AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/`, `.codex/` or `.github/`, say so. Below Full, that needs the person. On Full, the code review and the local guard decide it, with the weakening review standing in for the person (`automation`'s `references/full.md`).
 
 ## Verdict
 
 Post **one comment** on the pull request. Don't use GitHub's approve button: the builder and you usually share one account, and GitHub won't let an author approve their own pull request.
 - The first line is `Code review: approve @ <commit sha>` or `Code review: request changes @ <commit sha>`.
-- The second line is `Needs the person: yes` or `no`, with the reason. It's yes when the lane, the risk dial or the automation level in `docs/stack.md` says the person merges it (the more careful one wins), or when the diff touches the instruction files (not on Full automation: there the weakening review stands in). It's never yes because you'd like a second opinion.
+- The second line is `Needs the person: yes` or `no`, with the reason. Below Full, it's yes when the lane, the risk dial or the automation level in `docs/stack.md` says the person merges it (the more careful one wins), or when the diff touches the instruction files. On Full it's no, whatever the lane or the risk dial: the dial adds reviews there, never a person, and the weakening review stands in for the instruction files (#103). The one yes on Full is a diff that touches an always-stop item (real data, production), which waits for the person at every level (rule 16). It's never yes because you'd like a second opinion.
 - **Briefed as the weakening review** (Full automation)? Follow "The weakening review" in `../automation/references/full.md`: one question, the exact pass or fail comment, then remove and re-add the `weakening-reviewed` label so the check re-runs.
 - Then numbered findings: the file and line, what's wrong, the fix. Mark each one **must fix** or **nice to have.** Only must-fix findings block the merge.
 
