@@ -31,6 +31,10 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
 12. **Never force-push, and never push straight to `main`.** Changes reach main through a pull request.
 13. **Ask before using the strongest model tier, once per session** (not on Full automation), unless `docs/profile.toml` says not to (see the `routing` skill).
 14. **Preflight before you build.** The first step of `/idea`, `/join`, `/back` and every build is `node .agents/skills/ask/scripts/preflight.mjs`: one table of what your sandbox blocks. Installs blocked? Scaffold nothing. Fix what you can, then send ONE message for the rest (`ask`, `references/preflight.md`).
+15. **Clean up what you start.** Start every background process (a dev server, a watcher, a tail, a browser) through the registry: `node .agents/skills/ask/scripts/procs.mjs start --why "<why>" --until "<when it stops>" -- <command>`. Every wait and loop has a timeout or a try limit. When a task is done, stop what you started for it (`procs.mjs stop <id>`). Never stop what you didn't start without asking.
+    - **Pause** ("pause", "hold on", "brb") means back soon: stop your work, loops, timers and polling now. Keep only the dev server: `procs.mjs stop <id>` for the rest, then `procs.mjs pause` marks it paused.
+    - **Stop** ("stop", "shut it down", "kill it", "go to sleep", "I'm done for the day") means stop everything this session owns now, timers and scheduled tasks too (`procs.mjs stop mine`).
+    - Both cover strongest-tier runs, write a resume note in `docs/state.md`, and end with `procs.mjs list --mine`. After a stop it's empty. Unsure which? Pause, and say stop frees the rest (`ask`, "Pause and stop").
 
 ## Code
 

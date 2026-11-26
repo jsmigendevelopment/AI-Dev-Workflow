@@ -43,6 +43,13 @@ if (state) {
 
 process.stdout.write(out.join("\n") + "\n");
 
+// Background processes an ended session left running (#126): the registry lists them, so this session stops them.
+const procs = join(root, ".agents/skills/ask/scripts/procs.mjs");
+if (existsSync(procs)) {
+  const r = spawnSync(process.execPath, [procs, "session-start"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 8000 });
+  if (r.stdout?.trim()) process.stdout.write(`\n${r.stdout.trim()}\n`);
+}
+
 // Opt-in work log (writes only if the profile turns it on; never inside the repo).
 const worklog = join(root, ".agents/skills/afk/scripts/worklog.mjs");
 if (existsSync(worklog)) spawnSync(process.execPath, [worklog, "log", "session-start"], { cwd: root, stdio: "ignore", timeout: 3000 });

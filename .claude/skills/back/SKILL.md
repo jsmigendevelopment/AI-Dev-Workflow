@@ -42,7 +42,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
    - **Waiting on you,** most important first: 🛑 blockers, then ⏳ decisions, each with its recommended answer, from the board and the "Waiting on you" list in `docs/state.md`. Then run `node .claude/hooks/notify.mjs --clear`, so held pings don't fire now that they've been seen.
    - **FYI:** ready to try, usage, rate limits, and stale research dossiers, each with its re-check date. Offer to re-check one before a decision leans on it.
    - **Usage** used, and when it resets. Per account, if there's more than one, with its waiting work.
-   - **Still running.**
+   - **Still running:** `node .agents/skills/ask/scripts/procs.mjs list`. Back from a pause in this session? `procs.mjs resume`. A stale one (its owner session is gone, or past its time or its pause) was started by onRails: stop it with `procs.mjs stop stale` and say so.
    - **Anyone else** who touched the repo.
 
 7. **Retro, after a long run.** The person was away for the night or longer, or the loop merged or parked 5 or more issues since the last retro? Run the retro below, unless the `/afk` section in `docs/state.md` already has one for this run. Then show its findings in the report.
@@ -59,7 +59,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
 9. **Feedback becomes issues or ideas.** As the person tries things, sort each point. Something wrong or slow in what's built: open `issues` and write one issue for it, and the loop builds the fix in the current pass (labelled `gate` while a gate runs). Something missing is a new idea: add a row to `docs/features.md`, and the next re-plan places it. Don't fix things inline unless they're tiny. Take a line off "To try" once they've tried it.
 
-10. **Before the session ends,** stop the dev server if you started it, and update `docs/state.md`. Overwrite it, keep it under 30 lines, and leave it so a brand-new session could take over.
+10. **Before the session ends,** stop what you started (`procs.mjs stop mine`, then its list is empty), and update `docs/state.md`. Overwrite it, keep it under 30 lines, and leave it so a brand-new session could take over.
 
 ## Retro
 

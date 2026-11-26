@@ -63,6 +63,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.agents/skills/ask/scripts/procs.mjs\" session-end",
+            "commandWindows": "node .agents/skills/ask/scripts/procs.mjs session-end",
+            "timeout": 3
+          }
+        ]
       }
     ]
   }

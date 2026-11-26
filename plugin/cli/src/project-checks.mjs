@@ -1,4 +1,4 @@
-// The checks about this project: the kit, the skills mirror, stale research, .env files, Playwright, wrangler.
+// The checks about this project: the kit, the skills mirror, stale research, stale background processes, .env files, Playwright, wrangler.
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { staleDossiers } from "./check-research.mjs";
@@ -8,6 +8,7 @@ import { OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
 import { projectManifestName, readProjectManifest } from "./sync.mjs";
 import { MARKS } from "./marks.mjs";
 import { personalValues } from "./research-library.mjs";
+import { realSys, staleSummary } from "./procs.mjs";
 
 function sameTree(a, b) {
   const fa = walk(a), fb = walk(b);
@@ -54,6 +55,7 @@ export function projectChecks(projectDir, { kitDir, sys }) {
   add(state ? OK : INFO, state ? "docs/state.md present" : "No docs/state.md yet: type /idea for a new app or /join for an existing repo");
 
   checks.push(...researchChecks(projectDir));
+  checks.push(...processChecks(projectDir, { sys: { ...realSys(), home: sys.home } }));
   checks.push(...profileChecks(projectDir));
   checks.push(...envChecks(projectDir, MARKS));
   const deps = projectDeps(projectDir);
@@ -75,6 +77,19 @@ function researchChecks(projectDir) {
   return [{
     status: FAIL, required: false, label: `${stale.length} stale research dossier(s): ${list}`,
     fix: "Re-check each with the research skill, or mark it superseded in docs/research/README.md",
+  }];
+}
+
+// Background processes an onRails session started and nobody stopped (#126). procs.mjs is synced from scripts/.
+// sys is the registry's machine (procs-sys.mjs), so tests can pass a fake.
+export function processChecks(projectDir, { sys }) {
+  const { total, stale, unreadable } = staleSummary(projectDir, { sys });
+  if (unreadable) return [{ status: MARKS.INFO, label: "Background processes not checked (ps failed here)" }];
+  if (!total) return [];
+  if (!stale.length) return [{ status: MARKS.OK, label: `${total} registered background process(es), none stale` }];
+  return [{
+    status: MARKS.FAIL, required: false, label: `${stale.length} stale background process(es): ${stale.map((r) => `${r.id} ${r.command} (${r.stale})`).join(", ")}`,
+    fix: "Run: npx onrails ps --stop stale",
   }];
 }
 

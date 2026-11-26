@@ -11,6 +11,7 @@ import { offerHomeMove } from "../src/home.mjs";
 import { init } from "../src/init.mjs";
 import { libraryInit } from "../src/library-init.mjs";
 import { main as preflight } from "../src/preflight.mjs";
+import { main as procs } from "../src/procs.mjs";
 import { profileCopy, profileInit, profileShow } from "../src/profile.mjs";
 import { terminalAsk } from "../src/prompt.mjs";
 import { signature } from "../src/signature.mjs";
@@ -38,6 +39,11 @@ Usage:
                                           for agents: probe this session's sandbox (repo, .git, the
                                           registry, GitHub, loopback, a browser, Node) and print one
                                           table with the fix ladder for each failure
+  npx onrails ps [dir] [--json]           list the background processes agents started: age, owner,
+                                          CPU, memory, and which are stale (owner gone, or past their time)
+  npx onrails ps [dir] --stop <id|all|stale|pid> [--yes]
+                                          stop them: TERM, then KILL after 5 s. Asks first for a PID
+                                          onRails didn't start
   npx onrails accounts [dir]              list the profile's accounts and their config folders
   npx onrails add <pack> [dir] [--force]  copy a stack pack into the project
   npx onrails add --list                  list the stack packs
@@ -65,6 +71,11 @@ async function main(argv) {
   if (argv[0] === "signature" && !argv.includes("--help") && !argv.includes("-h")) return signature(argv.slice(1));
   // preflight reads its own flags too. It is read-only and never offers the home-folder move.
   if (argv[0] === "preflight") return preflight(argv.slice(1));
+  // ps reads its own flags (--stop takes a value), and asks on the terminal before it stops a PID it didn't record.
+  if (argv[0] === "ps" && !argv.includes("--help") && !argv.includes("-h")) {
+    const ask = terminalAsk();
+    try { return await procs(argv, { ask }); } finally { ask.close(); }
+  }
   const flags = new Set(argv.filter((a) => a.startsWith("-")));
   const [command, ...args] = argv.filter((a) => !a.startsWith("-"));
   const known = new Set(["--dry-run", "--force", "--list", "--list-addons", "--fix", "--yes", "-y", "--help", "-h", "--version", "-v",
