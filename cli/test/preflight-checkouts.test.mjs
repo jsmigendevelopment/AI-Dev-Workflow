@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import fs, { mkdirSync, realpathSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { join, relative } from "node:path";
-import { markRead, pathOutside, tempFolders } from "../src/preflight-sys.mjs";
+import { pathOutside, tempFolders } from "../src/preflight-layout.mjs";
+import { markRead } from "../src/preflight-sys.mjs";
 import { fakes, gitRepo, pathWith, ran, runScript, sh, status, temp } from "./preflight-fakes.mjs";
 
 const posixOnly = { skip: process.platform === "win32" ? "the fakes are POSIX shell scripts" : false };
@@ -50,7 +51,7 @@ test("AC-182-2: WHEN the repo has more than one linked worktree THEN the PATH be
   for (const dir of [main, tree, second]) assert.deepEqual(pathOutside(dir, "linux", env), { PATH: native(out) }, dir);
 });
 
-test("AC-182-2: WHEN the common .git folder's worktree list can't be read THEN the main checkout still counts as the repo", posixOnly, () => {
+test("AC-182-2: WHEN the common .git folder's worktree list can't be read THEN the PATH before the read keeps no entry at all", posixOnly, () => {
   const mark = temp("onrails-checkouts-mark-");
   const { main, tree } = repoWithTree(mark);
   const out = temp("onrails-checkouts-out-");
@@ -58,7 +59,8 @@ test("AC-182-2: WHEN the common .git folder's worktree list can't be read THEN t
   fs.readdirSync = () => { throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" }); };
   syncBuiltinESMExports();
   try {
-    assert.deepEqual(pathOutside(tree, "linux", { PATH: `${join(main, "bin2")}:${out}` }), { PATH: native(out) });
+    // Fails closed: even the folder outside every checkout is left out, as no checkout can be ruled out.
+    assert.deepEqual(pathOutside(tree, "linux", { PATH: `${join(main, "bin2")}:${out}` }), { PATH: "" });
   } finally {
     fs.readdirSync = real;
     syncBuiltinESMExports();

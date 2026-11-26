@@ -240,5 +240,7 @@ test("#169: an x-range with a prerelease reads as a version, so it can't make No
 });
 
 test("#169: the system layer ships next to preflight in the ask skill and the CLI", () => {
-  for (const at of [".agents/skills/ask/scripts", "cli/src"]) assert.equal(read(`${at}/preflight-sys.mjs`), read("scripts/preflight-sys.mjs"), at);
+  for (const at of [".agents/skills/ask/scripts", "cli/src"]) {
+    for (const name of ["preflight-sys.mjs", "preflight-layout.mjs"]) assert.equal(read(`${at}/${name}`), read(`scripts/${name}`), `${at}/${name}`);
+  }
 });

@@ -7,7 +7,8 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSy
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { main, probe } from "../src/preflight.mjs";
-import { commandFor, isRead, markRead, tempFolders } from "../src/preflight-sys.mjs";
+import { tempFolders } from "../src/preflight-layout.mjs";
+import { commandFor, isRead, markRead } from "../src/preflight-sys.mjs";
 import { logger, put } from "./helpers.mjs";
 import { fakeSys, gitRepo, HEALTHY, pathWith, PLAYWRIGHT, project, runScript, sh, status, temp } from "./preflight-fakes.mjs";
 
