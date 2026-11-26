@@ -19,6 +19,14 @@ const MANIFEST = { name: "app", private: true, scripts: { check: "pnpm lint && p
 const BUMPED = { ...MANIFEST, devDependencies: { vite: "8.4.0" } };
 const LOCK = "lockfileVersion: '9.0'\npackages:\n  vite@8.3.0:\n    resolution: {integrity: sha512-old}\n";
 const LOCK_BUMPED = "lockfileVersion: '9.0'\npackages:\n  vite@8.4.0:\n    resolution: {integrity: sha512-new}\n";
+/** npm's lockfile with vite at `v`, its funding URL included; `more` changes vite's entry. */
+const npmLock = (v, more = {}) => JSON.stringify({
+  name: "app", lockfileVersion: 3, requires: true,
+  packages: {
+    "": { name: "app", devDependencies: { vite: v } },
+    "node_modules/vite": { version: v, resolved: `https://registry.npmjs.org/vite/-/vite-${v}.tgz`, integrity: "sha512-x", dev: true, funding: { url: "https://github.com/sponsors/vitejs" }, ...more },
+  },
+}, null, 2);
 const changed = (...paths) => paths.map((p) => (Array.isArray(p) ? { filename: p[1], previous_filename: p[0], status: "renamed" } : { filename: p, status: "modified" }));
 const commit = (sha = HEAD, author = BOT, committer = "web-flow", verified = true) => ({ sha, author: author && { login: author }, committer: committer && { login: committer }, commit: { verification: { verified } } });
 const pullOf = ({ sha = HEAD, files = 2, commits = 1, ref = BUMP, from = "acme/app", author = BOT } = {}) => ({
@@ -65,10 +73,14 @@ test("AC-226-1: WHEN a Dependabot pull request only bumps versions in package.js
   assert.match(r.calls, new RegExp(`contents/package\\.json\\?ref=${MERGE_BASE}`), "the manifest is read at the merge base");
   const cases = {
     "a workspace's manifest": { files: changed("apps/web/package.json"), before: { "apps/web/package.json": MANIFEST }, after: { "apps/web/package.json": BUMPED } },
-    "npm's lockfile on the registry": {
-      files: changed("package-lock.json"),
-      before: { "package-lock.json": '"resolved": "https://registry.npmjs.org/vite/-/vite-8.3.0.tgz",\n' },
-      after: { "package-lock.json": '"resolved": "https://registry.npmjs.org/vite/-/vite-8.4.0.tgz",\n' },
+    "npm's lockfile on the registry": { files: changed("package-lock.json"), before: { "package-lock.json": npmLock("8.3.0") }, after: { "package-lock.json": npmLock("8.4.0") } },
+    "pnpm's checksum with a slash, its registry tarball and a dependency named type": {
+      after: { "pnpm-lock.yaml": `${LOCK_BUMPED}    resolution: {integrity: sha512-h///Lr5a9rib/v1G==, tarball: https://registry.npmjs.org/vite/-/vite-8.4.0.tgz}\n  d@1.0.2:\n    dependencies:\n      type: 2.7.3\n` },
+    },
+    "yarn's lockfile on the registry": {
+      files: changed("yarn.lock"),
+      before: { "yarn.lock": 'vite@^8.3.0:\n  version "8.3.0"\n  resolved "https://registry.yarnpkg.com/vite/-/vite-8.3.0.tgz#a"\n' },
+      after: { "yarn.lock": 'vite@^8.4.0:\n  version "8.4.0"\n  resolved "https://registry.yarnpkg.com/vite/-/vite-8.4.0.tgz#b"\n  integrity sha512-a//b+c==\n' },
     },
     "a range and Dependabot's own committer": { commits: [commit(HEAD, BOT, BOT)], after: { "package.json": { ...MANIFEST, devDependencies: { vite: "^8.4.0 || >=9.0.0-rc.1" } } } },
     "a link the merge base already had": { before: { "pnpm-lock.yaml": `${LOCK}  ui@link:../ui:\n` }, after: { "pnpm-lock.yaml": `${LOCK_BUMPED}  ui@link:../ui:\n` } },
@@ -116,6 +128,10 @@ test("AC-226-2: WHEN a bump's package.json changes more than dependency versions
     "a file value": dep("file:../vite"),
     "an npm alias": dep("npm:other@1.0.0"),
     "a dist-tag": dep("latest"),
+    "a word after the digits": dep("8.4.0abc"),
+    "a tarball name": dep("1.tgz"),
+    "a tarball name with a prerelease": dep("8.4.0-x.tar.gz"),
+    "a tar name in capitals": dep("8.4.0-x.TAR"),
     "not JSON": { after: { "package.json": "{" } },
   });
 });
@@ -128,8 +144,37 @@ test("AC-226-2: WHEN a bump's lockfile points a new line off the npm registry TH
     "a local directory": lock("    resolution: {directory: ../vite, type: directory}"),
     "a file spec": lock("  vite@file:../vite:"),
     "a new link": lock("  ui@link:../ui:"),
-    "npm's resolved path": { files: changed("package-lock.json"), before: { "package-lock.json": "{}\n" }, after: { "package-lock.json": '"resolved": "packages/x",\n' } },
+    "npm's resolved path": npm(npmLock("8.4.0", { resolved: "packages/x" })),
   }, /npm registry/);
+});
+
+/** A bump whose npm lockfile at the head is `text`. */
+const npm = (text) => ({ files: changed("package-lock.json"), before: { "package-lock.json": npmLock("8.3.0") }, after: { "package-lock.json": text } });
+
+test("AC-226-2: WHEN a bump's lockfile hides an off-registry source behind an escape, a split line or a URL with no scheme THEN own-branch.mjs exits 1, with no sha", unixOnly, () => {
+  const lock = (lines) => ({ after: { "pnpm-lock.yaml": `${LOCK_BUMPED}${lines}\n` } });
+  const yarn = (line) => ({ files: changed("yarn.lock"), before: { "yarn.lock": "" }, after: { "yarn.lock": `vite@^8.4.0:\n${line}\n` } });
+  const npmText = (from, to) => npm(npmLock("8.4.0").replace(from, to));
+  const VITE = '"resolved": "https://registry.npmjs.org/vite/-/vite-8.4.0.tgz"';
+  // A backslash, so each escape below reaches the lockfile as the parser reads it.
+  const BS = String.fromCharCode(92);
+  refused({
+    "pnpm: an escaped key": lock(`    resolution: {type: directory, "d${BS}x69rectory": ../vite}`),
+    "pnpm: an escaped value": lock(`        version: "link${BS}x3a../vite"`),
+    "pnpm: a tarball with no scheme": lock("    resolution: {integrity: sha512-new, tarball: //example.com/vite.tgz}"),
+    "pnpm: a relative tarball": lock("    resolution: {integrity: sha512-new, tarball: vite/-/vite-8.4.0.tgz}"),
+    "pnpm: a URL with one slash": lock("    resolution: {tarball: https:/example.com/vite.tgz}"),
+    "pnpm: a git resolution with no URL": lock("    resolution:\n      type: git\n      repo: git@example.com:x/vite.git\n      commit: abc"),
+    "pnpm: explicit keys": lock("    resolution:\n      ? type\n      : directory\n      ? directory\n      : ../vite"),
+    "yarn: a resolved path with no quotes": yarn("  resolved ../vite.tgz"),
+    "yarn: a workspace": yarn('  resolution: "vite@workspace:packages/vite"'),
+    "npm: an escaped key": npmText(VITE, `"${BS}u0072esolved": "../vite.tgz"`),
+    "npm: an escaped value": npmText('"version": "8.4.0"', `"version": "file${BS}u003a../vite"`),
+    "npm: a resolved with no scheme on its own line": npmText(VITE, '"resolved":\n        "//example.com/vite.tgz"'),
+    "npm: a link split across lines": npmText(VITE, `${VITE},\n        "link"\n        : true`),
+    "npm: a new package outside node_modules": npm(npmLock("8.4.0").replace('"node_modules/vite"', '"../vite": { "version": "8.4.0" },\n    "node_modules/vite"')),
+  }, /npm registry/);
+  refused({ "npm: not JSON": npm("{") }, /valid JSON/);
 });
 
 test("AC-226-2: WHEN a commit on a bump isn't Dependabot's own and verified THEN own-branch.mjs exits 1, its files' contents not read", unixOnly, () => {
