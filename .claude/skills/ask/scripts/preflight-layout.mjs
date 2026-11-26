@@ -1,10 +1,10 @@
 // Preflight's repo layout (#182): which folders are this repository, read the way the system and git read them, and
 // the PATH and temp folders the probes get before the read, outside all of them. Nothing here runs git.
 // The master copy is scripts/preflight-layout.mjs in the kit; sync-skills.mjs copies it next to each preflight.mjs.
-import { existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
+import { lstatSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
-import { othersCanWrite } from "./preflight-sys.mjs";
+import { notOwnFolder, othersCanSwapIn, othersCanWrite } from "./preflight-sys.mjs";
 
 /** Something about the layout can't be read or isn't what git writes: the caller fails closed. */
 class Unknown extends Error {}
@@ -166,16 +166,27 @@ function within(real, { tops, common }) {
   return false;
 }
 
-/** The system's real path of an existing folder when it is outside the repo, else null. Anything unreadable counts as inside. */
-function outsideOf(path, layout) {
+/** True when the real path real is outside the repo. Anything unreadable counts as inside. */
+function outsideReal(real, layout) {
   try {
-    const real = realOrNone(path);
-    return real && !within(real, layout) ? real : null;
+    return !within(real, layout);
   } catch (error) {
     // A folder this process can't look into or above can't be shown to be outside the repo: left out.
-    if (error instanceof Unknown || error.code) return null;
+    if (error instanceof Unknown || error.code) return false;
     throw error;
   }
+}
+
+/** The system's real path of an existing folder when it is outside the repo, else null. Anything unreadable counts as inside. */
+function outsideOf(path, layout) {
+  let real;
+  try {
+    real = realOrNone(path);
+  } catch (error) {
+    if (error instanceof Unknown) return null;
+    throw error;
+  }
+  return real && outsideReal(real, layout) ? real : null;
 }
 
 // A PATH can name folders inside the repo, and the way preflight was started can add some (#182).
@@ -204,35 +215,41 @@ export function pathOutside(dir, platform, env, layout = repoLayout(dir), droppe
 const BASES = (platform) => [tmpdir(), platform === "win32" ? null : "/tmp", homedir()];
 
 /**
+ * A new empty folder in base, only this user's, or null. The base's real path is checked first, so that no other user
+ * can add, rename or replace an entry in it or swap a folder above it; the folder is made in that real path and its
+ * path is used as made, never resolved again. So the folder checked is the folder used and removed (#232).
+ */
+function makeIn(base, platform) {
+  let real, made;
+  try {
+    real = realpathSync.native(base);
+    if (othersCanSwapIn(real, { platform })) return null;
+    made = mkdtempSync(join(real, "onrails-preflight-"));
+  } catch {
+    // A folder that is gone, or that this sandbox can't read or write: the next one, or none.
+    return null;
+  }
+  if (!notOwnFolder(made, { platform })) return made;
+  // Not the plain folder mkdtemp makes: only that entry goes, and a symlink's target is never followed.
+  rmSync(made, { recursive: true, force: true });
+  return null;
+}
+
+/**
  * Empty temp folders for the probes, each one only this user can write and no one can swap. hooks: an empty hooks
  * folder, or null. away: how to run a command outside the repo, from such a folder whose real path is outside every
  * checkout of the repo, with a git that searches no folder above it; or null, also when the layout can't be read.
+ * With none, the rows that need one wait for the read.
  */
 export function tempFolders(dir, platform = process.platform, layout = repoLayout(dir), bases = BASES(platform)) {
   let hooks = null, outside = null;
   for (const base of bases) {
-    if ((hooks && (outside || !layout)) || !base || !existsSync(base)) continue;
-    let made;
-    try {
-      made = mkdtempSync(join(base, "onrails-preflight-"));
-    } catch {
-      // A folder this sandbox can't write: the next one, or none, and those rows wait for the read.
-      continue;
-    }
-    // The real path is what gets checked, so it is the only one handed out: a written path through a symlink keeps
-    // the folder that holds that symlink in play, and nothing checks that folder (#232).
-    let real;
-    try {
-      real = realpathSync.native(made);
-    } catch {
-      // Gone or unreadable just after it was made: not used.
-      rmSync(made, { recursive: true, force: true });
-      continue;
-    }
-    const safe = !othersCanWrite(real, { platform });
-    hooks ??= safe ? real : null;
-    if (safe && !outside && layout && outsideOf(real, layout)) outside = real;
-    if (real !== hooks && real !== outside) rmSync(real, { recursive: true, force: true });
+    if ((hooks && (outside || !layout)) || !base) continue;
+    const made = makeIn(base, platform);
+    if (!made) continue;
+    hooks ??= made;
+    if (!outside && layout && outsideReal(made, layout)) outside = made;
+    if (made !== hooks && made !== outside) rmSync(made, { recursive: true, force: true });
   }
   const away = outside && { cwd: outside, env: { GIT_CEILING_DIRECTORIES: dirname(outside) } };
   const remove = () => { for (const f of new Set([hooks, outside])) if (f) rmSync(f, { recursive: true, force: true }); };
