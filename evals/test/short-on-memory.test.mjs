@@ -1,5 +1,5 @@
 // AC-4 of #171, the opt-in eval short-on-memory: each shortcut of the good transcript fails its own check,
-// and only it. Its own file, so run.test.mjs, already past 500 lines, doesn't grow (decision 49).
+// and only it. Its own file, like each scenario's transcript tests (decision 49, #180).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
