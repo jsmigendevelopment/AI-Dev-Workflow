@@ -2,8 +2,8 @@
 // In order: the Claude Code and Codex plugins (only where the tool and its plugin are both there), the global
 // entry skills (only when init --global was used), the project's kit (only inside an onRails project),
 // then doctor and a summary of each part before and after. It only consumes a release: no bump, tag or publish.
-import { realpathSync } from "node:fs";
-import { delimiter, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { existsSync, realpathSync } from "node:fs";
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { doctor } from "./doctor.mjs";
 import { globalSkillChecks, initGlobal } from "./global.mjs";
 import { PROJECT_MANIFEST, loadKit } from "./kit.mjs";
@@ -29,13 +29,16 @@ const within = (dir, root) => {
 
 const BIN = /(^|[\\/])node_modules[\\/]\.bin[\\/]*$/i;
 
-// The project and the current folder, by real path. The home folder, a folder that holds it, and a filesystem root
-// are never one: a terminal opens in ~, and ~/.local/bin or an nvm folder there is where claude and codex live.
+// The project and the current folder, by real path. A filesystem root is never one, and neither is the home folder
+// or a folder that holds it (/home) unless it is an onRails project: a terminal opens in ~, and ~/.local/bin or an
+// nvm folder there is where claude and codex live. A project that holds HOME (a sandbox or CI job can set HOME inside
+// it) stays a root, so its own claude never runs. That includes ~ itself as a project: its tools are skipped too.
 function projectRoots(projectDir, home) {
   const realHome = realDir(home) ?? resolve(home);
+  const dropped = (dir) => dirname(dir) === dir || (within(realHome, dir) && !existsSync(join(dir, PROJECT_MANIFEST)));
   return [[projectDir, "this project"], [process.cwd(), "the current folder"]]
     .map(([dir, label]) => ({ dir: realDir(dir), label }))
-    .filter(({ dir }) => dir && dirname(dir) !== dir && !within(realHome, dir));
+    .filter(({ dir }) => dir && !dropped(dir));
 }
 
 // Why a PATH entry is skipped, or null to search it. The node_modules/.bin test runs on the real path too,
@@ -49,7 +52,8 @@ function skipped(entry, roots) {
   return root ? `inside ${root.label}` : null;
 }
 
-// The tool's full path on PATH, never a copy a project ships: { path } or, when only a skipped entry has it, { why }.
+// The tool's full path on PATH, never a copy a project ships: { path } or { why }, plus { found } when only a
+// skipped entry has it.
 function toolPath(name, sys, projectDir) {
   const roots = projectRoots(projectDir, sys.home);
   const look = (PATH) => findCommand(name, { env: { PATH, PATHEXT: sys.env.PATHEXT }, platform: sys.platform });
@@ -58,7 +62,7 @@ function toolPath(name, sys, projectDir) {
   const path = look(entries.filter((e) => !e.why).map((e) => e.entry).join(delimiter));
   if (path) return { path };
   const hit = entries.find((e) => e.why && e.why !== "missing" && look(e.entry));
-  return { why: hit ? `${name} found only ${hit.why}, not run` : `${name} isn't on your PATH` };
+  return hit ? { why: `${name} found only ${hit.why}, not run`, found: look(hit.entry) } : { why: `${name} isn't on your PATH` };
 }
 
 // Step 1. Each command runs with no shell, by full path, and a failed one ends that tool's steps.
@@ -71,8 +75,10 @@ function plugins(sys, projectDir, dryRun, log) {
       log(`   ${p.label} plugin: not installed, skipped`);
       continue;
     }
-    const { path, why } = toolPath(p.tool, sys, projectDir);
+    const { path, why: reason, found } = toolPath(p.tool, sys, projectDir);
     if (!path) {
+      // The person can tell their own tool (~ as a project) from one the project ships; this CLI can't.
+      const why = found ? `${reason}. If ${found} is yours, run it by hand: ${p.commands.map((c) => showCommand([found, ...c])).join(", then ")}` : reason;
       log(`   ${name} v${p.version}: skipped, ${why}`);
       rows.push({ tool: p.tool, part: name, before: `v${p.version}`, note: `skipped: ${why}` });
       continue;

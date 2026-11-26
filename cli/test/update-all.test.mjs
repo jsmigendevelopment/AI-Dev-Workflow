@@ -1,10 +1,10 @@
 // #178: `update --all` brings the plugins, the global entry skills and the project's kit to the latest.
-// Each test runs the CLI binary with a temp HOME and a PATH that holds only fake `claude` and `codex`
-// (they record every call) and Node itself, so no real plugin command runs and the real home is never read.
+// Each test runs the CLI binary with a temp HOME and a PATH of temp folders that hold only fake `claude` and
+// `codex` (they record every call) and a link to Node. Never Node's own folder: an npm-installed claude sits there.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { init } from "../src/init.mjs";
@@ -34,16 +34,22 @@ const CODEX = FAKE("codex", `if (args.join(" ") === "plugin marketplace upgrade 
 }`);
 const claudeRecord = (v) => JSON.stringify({ version: 2, plugins: { "core@onrails": [{ scope: "user", installPath: "/x", version: v }] } });
 
+/** A new temp folder that holds only a link to Node, so `#!/usr/bin/env node` fakes start and nothing else is found. */
+function nodeOnly(dir = tmp("onrails-node-")) {
+  symlinkSync(process.execPath, join(dir, "node"));
+  return dir;
+}
+
 /** A machine: temp HOME, fake tools on PATH, both plugins at 0.6.0 and a stale global idea skill unless told otherwise. */
-function machine({ tools = ["claude", "codex"], plugins = tools, global = true } = {}) {
-  const home = tmp("onrails-home-"), bin = tmp("onrails-bin-");
+function machine({ tools = ["claude", "codex"], plugins = tools, global = true, home = tmp("onrails-home-") } = {}) {
+  const bin = nodeOnly(tmp("onrails-bin-"));
   for (const t of tools) put(bin, t, t === "claude" ? CLAUDE : CODEX), chmodSync(join(bin, t), 0o755);
   if (plugins.includes("claude")) put(home, ".claude/plugins/installed_plugins.json", claudeRecord("0.6.0"));
   if (plugins.includes("codex")) put(home, ".codex/plugins/cache/onrails/or/0.6.0/skills/idea/SKILL.md", "x");
   if (global) put(home, ".claude/skills/idea/SKILL.md", "an older idea\n");
   const logFile = join(bin, "calls.log");
   // Only these variables: no CLAUDE_CONFIG_DIR, CODEX_HOME or real PATH from the shell running the tests.
-  const env = { PATH: [bin, dirname(process.execPath)].join(delimiter), HOME: home, USERPROFILE: home, TMPDIR: dirname(home), FAKE_LOG: logFile, FAKE_NEW: "0.7.9" };
+  const env = { PATH: bin, HOME: home, USERPROFILE: home, TMPDIR: dirname(home), FAKE_LOG: logFile, FAKE_NEW: "0.7.9" };
   const run = (args, extra = {}, cwd = undefined) => spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8", env: { ...env, ...extra } });
   return { home, bin, env, run, calls: () => (existsSync(logFile) ? readFileSync(logFile, "utf8") : "") };
 }
@@ -185,7 +191,7 @@ function homeInstall() {
   const m = machine({ tools: [], plugins: ["claude"], global: false });
   const local = join(m.home, ".local", "bin");
   put(local, "claude", CLAUDE), chmodSync(join(local, "claude"), 0o755);
-  return { ...m, PATH: [local, dirname(process.execPath)].join(delimiter) };
+  return { ...m, PATH: [local, nodeOnly()].join(delimiter) };
 }
 const pluginCalls = (m) => m.calls().split("\n").filter((l) => / plugin /.test(l));
 const BOTH = ["claude plugin marketplace update onrails", "claude plugin update core@onrails"];
@@ -210,7 +216,7 @@ test("#178: run from the home folder, or given it as the project, update --all s
 test("#178: a claude found only inside the project is named as that, not as missing from PATH, and doesn't run", unixOnly, () => {
   const m = homeInstall(), dir = join(m.home, "work", "app");
   put(join(dir, "tools"), "claude", PLANTED), chmodSync(join(dir, "tools", "claude"), 0o755);
-  const r = m.run(["update", dir, "--all"], { PATH: [join(dir, "tools"), dirname(process.execPath)].join(delimiter) }, tmp());
+  const r = m.run(["update", dir, "--all"], { PATH: [join(dir, "tools"), nodeOnly()].join(delimiter) }, tmp());
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /Claude Code plugin core@onrails v0\.6\.0: skipped, claude found only inside this project, not run/);
   assert.doesNotMatch(r.stdout, /isn't on your PATH/);
@@ -292,4 +298,46 @@ test("#178: the /update skill runs the CLI from a temp folder, its fallback is t
   assert.doesNotMatch(skill, /two levels above/, "a project's copy would point into the project");
   assert.match(skill, /No plugin installed\? There's no fallback: it's a 🛑 blocker, with this one command .*`npx --yes onrails@latest update "<project root>" --all`/);
   assert.match(skill, /\*\*No kit here\*\* \(no `ask` skill/);
+});
+
+test("#178: no CLI test that runs update --all puts Node's own folder on a child's PATH, where an npm-installed claude or codex sits", () => {
+  const dir = fileURLToPath(new URL(".", import.meta.url));
+  const runsAll = (text) => /["']update["']/.test(text) && /["']--all["']/.test(text);
+  const nodeFolder = /dirname\(\s*(?:process\.)?execPath\s*\)/;
+  const bad = readdirSync(dir).filter((f) => f.endsWith(".mjs")).filter((f) => {
+    const text = readFileSync(join(dir, f), "utf8");
+    return runsAll(text) && nodeFolder.test(text);
+  });
+  assert.deepEqual(bad, [], "give each child a temp folder with only a link to node and its fakes");
+});
+
+test("#178: a project that holds the home folder stays a root, so a claude it ships never runs", unixOnly, () => {
+  const proj = project(), home = join(proj, ".home");
+  const m = machine({ tools: [], plugins: ["claude"], global: false, home });
+  put(join(proj, "tools"), "claude", PLANTED), chmodSync(join(proj, "tools", "claude"), 0o755);
+  // ~/.local/bin is inside the project too, so it fails safe: found only inside the project, nothing runs.
+  const local = join(home, ".local", "bin");
+  put(local, "claude", CLAUDE), chmodSync(join(local, "claude"), 0o755);
+  const r = m.run(["update", proj, "--all"], { PATH: [join(proj, "tools"), local, m.bin].join(delimiter) }, tmp());
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Claude Code plugin core@onrails v0\.6\.0: skipped, claude found only inside this project, not run/);
+  assert.deepEqual(pluginCalls(m), [], r.stdout);
+});
+
+test("#178: when the home folder is itself an onRails project, its claude is skipped and the message says how to run it by hand", unixOnly, () => {
+  const m = homeInstall();
+  put(m.home, ".onrails.json", JSON.stringify({ kitVersion: "0.1.0" }));
+  const found = join(m.home, ".local", "bin", "claude");
+  const r = m.run(["update", "--all", "--dry-run"], { PATH: m.PATH }, m.home);
+  assert.equal(r.status, 0, r.stderr);
+  const hint = `If ${found} is yours, run it by hand: ${found} plugin marketplace update onrails, then ${found} plugin update core@onrails`;
+  assert.match(r.stdout, new RegExp(`skipped, claude found only inside this project, not run\\. ${esc(hint)}`));
+  assert.deepEqual(pluginCalls(m), []);
+});
+
+test("#178: on Windows a .cmd path with a % never reaches cmd.exe, which expands it even inside quotes", () => {
+  const env = { ComSpec: "C:\\Windows\\System32\\cmd.exe" };
+  assert.throws(() => launch(["C:\\Users\\me\\100%PATH%\\npm\\claude.cmd", "plugin"], { platform: "win32", env }), /cmd\.exe would expand the % in/);
+  const exe = launch(["C:\\tools\\100%\\codex.exe", "plugin"], { platform: "win32", env });
+  assert.equal(exe.file, "C:\\tools\\100%\\codex.exe", "an .exe starts with no cmd.exe, so a % is safe there");
 });

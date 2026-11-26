@@ -35,6 +35,8 @@ export function launch(argv, { platform = process.platform, env = process.env } 
   if (!found || !/\.(cmd|bat)$/i.test(found)) return { file: found ?? argv[0], args: argv.slice(1), env: winEnv };
   const args = argv.slice(1);
   if (args.some((a) => !/^[\w.:=/@$+,-]+$/.test(a))) throw new Error(`only plain words go to cmd.exe, not: ${args.join(" ")}`);
+  // The path comes from the person's PATH, and cmd.exe expands %NAME% even inside quotes.
+  if (found.includes("%")) throw new Error(`cmd.exe would expand the % in ${found}`);
   const cmdExe = env.ComSpec || win32.join(env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
   return { file: cmdExe, args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], env: winEnv, verbatim: true };
 }
