@@ -94,6 +94,50 @@ export const REVIEWS = {
   "E: plain words, whole pennies": { review: GOOD_E, fails: [] },
 };
 
+// #108: each tightened check catches a review that passed before, and each good review that failed
+// before passes. Every one is GOOD_E with one change, so it fails only the check that change is about.
+const edit = (from, to) => {
+  if (!GOOD_E.includes(from)) throw new Error(`GOOD_E has no "${from}"`);
+  return GOOD_E.replace(from, to);
+};
+const DOOR_E = GOOD_E.slice(GOOD_E.indexOf("### Door"), GOOD_E.indexOf("## Look"));
+
+export const REVIEWS_108 = {
+  "1: the money door after the first '##' section": {
+    review: edit(DOOR_E, "").replace("## Everything else", `${DOOR_E}## Everything else`),
+    fails: ["AC-6-money-door-block"],
+  },
+  "2: a question that points at the table below": {
+    review: edit("Question: Confirm this pick, or which one?", "Question: Confirm this pick, or change it in the table below?"),
+    fails: ["AC-6-money-own-question"],
+  },
+  "2: a question that sweeps in the rest too": {
+    review: edit("Question: Confirm this pick, or which one?", "Question: Is this pick fine, and the theme too?"),
+    fails: ["AC-6-money-own-question"],
+  },
+  "2: a float pick that only says cents": {
+    review: edit("Pick: Whole numbers of pennies, stored with the currency", "Pick: Dollars as a plain JS number, rounded to cents"),
+    fails: ["AC-6-money-pick-fixed"],
+  },
+  "3: money buried under 'Look and feel'": {
+    review: edit("Layout A (#list-a) or B (#list-b).", "Layout A (#list-a) or B (#list-b). The split screen shows dollars as a float."),
+    fails: ["AC-6-money-not-in-table"],
+  },
+  "4: bold door fields": {
+    review: DOOR_E.split("\n").reduce((r, l) => r.replace(l, l.replace(/^(\w[\w ]*):/, "**$1:**")), GOOD_E),
+    fails: [],
+  },
+  "4: door fields as a list": {
+    review: DOOR_E.split("\n").reduce((r, l) => r.replace(l, l.replace(/^(\w[\w ]*):/, "- $1:")), GOOD_E),
+    fails: [],
+  },
+  "4: money later in the door topic": { review: edit("### Door: money", "### Door: time and money"), fails: [] },
+  "4: 'amount' in a table row": {
+    review: edit("| Theme | Both |", "| Theme | Both |\n| Density | A small amount on each screen |"),
+    fails: [],
+  },
+};
+
 /** The plan for one review: write it, then show it. */
 export const reviewPlan = (review) => ({ steps: [write(review), { text: review }] });
 
