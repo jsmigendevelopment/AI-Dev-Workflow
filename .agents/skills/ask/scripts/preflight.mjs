@@ -12,13 +12,14 @@
 // It changes nothing else: a temp file, a temp branch (or a temp git config key), a temp folder
 // outside the repo and a local port are made and removed.
 // Exit 0: nothing to fix. 1: something to fix or blocked. 2: a bad flag. No dependencies.
-// The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs and preflight-layout.mjs; sync-skills.mjs
-// copies all three into the ask skill and the CLI. Before the read, never start it through npx (#182): npx changes PATH
+// The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs, preflight-layout.mjs and preflight-ci.mjs;
+// sync-skills.mjs copies all four into the ask skill and the CLI. Before the read, never start it through npx (#182): npx changes PATH
 // and which onrails runs, in ways the repo can steer.
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ciWarnings } from "./preflight-ci.mjs";
 import { pathOutside, repoLayout, tempFolders } from "./preflight-layout.mjs";
 import { isRead, markRead, realSys } from "./preflight-sys.mjs";
 
@@ -350,7 +351,9 @@ export async function probe(dir, sys = realSys(), given = {}) {
     const results = CHECKS.map((id) => ({ id, label: LABELS[id], ladder: [], ...found[id] }));
     const at = new Date(sys.now()).toISOString().replace(/:\d\d\.\d{3}Z$/, "Z");
     const ok = results.every((r) => r.status !== "fix" && r.status !== "blocked");
-    return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg, read), ok, read, state: existsSync(join(dir, "docs", "state.md")), results };
+    // Workflow files or Actions on (#133): a warning with its fix, never a failed row. Before the read, files only.
+    const warnings = await ciWarnings(dir, sys, read);
+    return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg, read), ok, read, state: existsSync(join(dir, "docs", "state.md")), results, warnings };
   } finally {
     temps.remove();
   }
@@ -364,12 +367,14 @@ function unreadNote(report) {
     + " /join or /back marks it with `--mark-read`; then run preflight again."];
 }
 
+const warningLines = (warnings = []) => (warnings.length ? ["", ...warnings.map((w) => `Warning: ${w}`)] : []);
+
 /** The one table, each failure's ladder, and a draft of the ONE message for whatever the ladder doesn't clear. */
 export function render(report) {
   const out = [`Preflight · ${TOOLS[report.tool]} · ${report.checkedAt}`, "", "| Check | Result | Detail |", "|---|---|---|"];
   for (const r of report.results) out.push(`| ${r.label} | ${MARK[r.status]} | ${r.detail.replace(/\s+/g, " ").replaceAll("|", "\\|")} |`);
-  out.push(...unreadNote(report));
-  const open = report.results.filter((r) => r.status === "fix" || r.status === "blocked");
+  out.push(...unreadNote(report), ...warningLines(report.warnings));
+  const open =report.results.filter((r) => r.status === "fix" || r.status === "blocked");
   const blocked = open.filter((r) => r.status === "blocked");
   if (!open.length) return [...out, "", "Environment: ok."].join("\n");
   out.push("", `${open.length} to fix. Work down each ladder in order, then run preflight again. Ask only for what's left, in ONE message.`);
@@ -447,8 +452,9 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
       const detail = "Environment: ok on record, and nothing changed. Skipped the probes. Run without --if-changed to check again.";
       // Still unmarked: the note goes with the skip too, so /back and build learn to mark it.
       const note = unreadNote({ read, state: state !== null });
-      return log(flags.has("--json") ? JSON.stringify({ ok: true, skipped: true, read, fingerprint: record.fingerprint, detail, note: note[1] }, null, 2)
-        : [detail, ...note].join("\n")), 0;
+      const warnings = await ciWarnings(dir, null, false);
+      return log(flags.has("--json") ? JSON.stringify({ ok: true, skipped: true, read, fingerprint: record.fingerprint, detail, note: note[1], warnings }, null, 2)
+        : [detail, ...note, ...warningLines(warnings)].join("\n")), 0;
     }
   }
   const report = await probe(dir, sys, given);
