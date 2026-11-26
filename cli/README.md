@@ -27,7 +27,7 @@ Start a new Claude Code session. For other setups, see [Codex](#codex) or [npm](
 | [`/back`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/back/SKILL.md) · `$back` | Start or resume work | See what changed, who's working and what to do first. |
 | [`/afk`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/afk/SKILL.md) · `$afk` | Step away | Set a time, check usage and safety, then keep building until a hard stop. |
 
-The other 25 skills run for you. To run one step yourself, see the [cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself).
+The other 26 skills run for you. To run one step yourself, see the [cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself).
 
 [![npm package version](https://img.shields.io/npm/v/onrails?style=flat-square&color=a63407)](https://www.npmjs.com/package/onrails)
 [![Works with Claude Code](https://img.shields.io/badge/works%20with-Claude%20Code-7c3aed?style=flat-square)](#-install)
@@ -89,7 +89,7 @@ AI agents follow your instructions. Where you leave a gap, they guess. They can 
 | Part | What it is | When it applies |
 |---|---|---|
 | [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blob/main/AGENTS.md) | 13 standing rules, the code rules and a stop-and-ask list | Every session |
-| 29 skills | Step-by-step instructions, one job each | When a request names the skill |
+| 30 skills | Step-by-step instructions, one job each | When a request names the skill |
 | Guardrails | CI checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
 
 - **Rules and conventions keep it on track.** It asks instead of guessing. Lint and CI fail the build when the code breaks a rule.
@@ -371,7 +371,7 @@ The strongest model at high effort takes more time and usage. The cheapest model
 ```
 AGENTS.md                  ← rules every agent follows, every session (Codex + Claude)
 CLAUDE.md                  ← one line: @AGENTS.md
-.agents/skills/            ← the 29 skills, master copy (Codex reads this)
+.agents/skills/            ← the 30 skills, master copy (Codex reads this)
 .claude/skills/            ← the same skills (Claude Code reads this)
 .claude/settings.json      ← Claude Code: blocked git commands and hooks
 .claude/hooks/             ← the session-start and notify hooks
@@ -392,7 +392,7 @@ scripts/check-research.mjs ← checks a research folder: index, provenance, labe
 |---|---|
 | **You type** (4) | `idea` · `join` · `back` · `afk` |
 | **Planning** (9) | `grill` · `wireframes` · `name` · `stack` · `secrets` · `research` · `pyramid` · `issues` · `routing` |
-| **The loop** (8) | `coordinate` · `build` · `diagnose` · `pr-review` · `pr-security` · `qa` · `ask` · `automation` |
+| **The loop** (9) | `coordinate` · `build` · `diagnose` · `pr-review` · `pr-security` · `qa` · `test-by-hand-as-the-user` · `ask` · `automation` |
 | **Know-how**, named in issues (6) | `web-performance` · `web-security` · `seo` · `a11y` · `dependencies` · `writing-for-agents` |
 | **Stack packs** (2) | `stack-tanstack-start` · `stack-monorepo-expo` |
 

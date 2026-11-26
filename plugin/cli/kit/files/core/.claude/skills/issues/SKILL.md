@@ -22,6 +22,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
 5. **Acceptance checks.** Write each one as `AC-<issue>-<n>: WHEN <situation> THEN <result>`, numbered from 1, one result each. The test that proves it carries the ID in its title. No number until the issue exists? Create it, then add the IDs with `gh issue edit`.
    - **`auto`:** becomes an automated test that CI runs on every pull request. Most checks should be `auto`.
    - **`agent`:** needs judgement (layout, flow, copy). A fresh `qa` agent checks it on the preview before merge. Write the steps to click and what you should see.
+   - **A number, an estimate, a price or a formula changes?** It gets an `auto` check with real expected values for several inputs, not only an `agent` check: `AC-9-2: WHEN the length is 2 minutes THEN the estimate says 2 min`.
    - For anything a signed-in user owns, add one check that **a signed-out visitor and a second user can't read or delete it.**
    - **Unsure what the person wants?** Write `[NEEDS CLARIFICATION: <question>]` where the gap is, and ask it through `ask`. A marker blocks `status:ready`. Answered? Replace the marker with the answer.
 6. **Complexity.** Write `Complexity: <1–10> · <one-line reason>`. Score the hardest part, not the line count. **Aim for 4 or under.** At 5 to 7, the reason says why it can't be cut thinner. **Above 7, split it** before it's ready.

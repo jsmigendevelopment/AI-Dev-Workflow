@@ -52,6 +52,7 @@ You rarely need these. The four commands call them for you.
 | `/pr-review N` | `$pr-review N` | You want a fresh review of pull request N |
 | `/pr-security N` | `$pr-security N` | Pull request N touches auth, secrets, personal data or money |
 | `/qa` | `$qa` | You want a change checked in a real browser, on the preview or the test site |
+| `/test-by-hand-as-the-user` | `$test-by-hand-as-the-user` | You want an agent to click through a change the way you would, and get a table of each input, what it expected and what it saw |
 | `/secrets` | `$secrets` | The app needs API keys or env vars wired up |
 | `/stack` | `$stack` | You want to pick the tech, or change a pick |
 | `/automation` | `$automation` | You want agents to do more or less on their own. Or say "switch to recommended". |

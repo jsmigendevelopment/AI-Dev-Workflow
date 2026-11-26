@@ -22,7 +22,7 @@ on:
           - claude-opus-5-5
           - claude-fable-5-2
       scenario:
-        description: "Scenarios, comma-separated (empty: all)"
+        description: "Scenarios, comma-separated (empty: all but the opt-in ones)"
         type: string
         default: ""
 permissions:
