@@ -242,7 +242,7 @@ A migration that must drop or rename (nothing to keep yet, and the person agreed
 
 ## Checks before merge
 
-The pack ships no GitHub Actions workflows, and `docs/stack.md` says `ci = "local"`. Before a pull request merges, an agent other than its builder runs these on its exact head commit in a clean worktree, and records the result as the `onrails/check` commit status (the kit's `coordinate` skill):
+The pack ships no GitHub Actions workflows, and `docs/stack.md` says `ci = "local"`. Before a pull request merges, an agent other than its builder runs these on its exact head commit in its own clean clone, with no tokens and an empty home folder, and records the result as the `onrails/check` commit status (the kit's `coordinate` skill):
 
 1. `pnpm check`, then `pnpm test:e2e` (`pnpm exec playwright install chromium` once).
 2. `pnpm check:merge`: the pnpm `packageManager` pins, the bundle budgets, a check that migrations match the tables, `pnpm audit --audit-level=high`, the licence allow-list, no `.clerk/` files committed, `docs/research` (with the kit's checker), gitleaks (over a copy of the files git tracks at `HEAD`, so a dev checkout's git-ignored keys aren't scanned) and Semgrep (a local binary, else Docker), and the screenshot tests in Playwright's Linux image (Docker). A check this machine can't run is skipped with the reason; name every skip in the pull request.

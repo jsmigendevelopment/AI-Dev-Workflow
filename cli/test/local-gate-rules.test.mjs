@@ -3,15 +3,14 @@
 // are text the agents read, so those tests read the text.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { fakeGh, nodeOnly, safeEnv, tmp, unixOnly } from "./helpers.mjs";
+import { HEAD, rules } from "./pr-rules-fakes.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const script = (name) => fileURLToPath(new URL(`../../.agents/skills/coordinate/scripts/${name}`, import.meta.url));
-const HEAD = "d".repeat(40);
 const coordinate = () => read(".agents/skills/coordinate/SKILL.md");
 /** Step 6.1 of coordinate, the local checks, up to the code review. */
 const localChecks = () => coordinate().slice(coordinate().indexOf("1. **Local checks**"), coordinate().indexOf("2. **Code review.**"));
@@ -27,7 +26,7 @@ test("AC-225-1: WHEN the project has check:merge and pr:rules THEN step 6.1 runs
   const scripts = JSON.parse(read("stacks/tanstack-start/package.json")).scripts;
   for (const name of ["check:merge", "pr:rules", "deploy:preview"]) assert.ok(scripts[name], `the pack's package.json names ${name}`);
   const run = subStep(3);
-  assert.match(run, /In it, run the install and `check`/, "in the clean worktree of the exact head");
+  assert.match(run, /In it, run the install and `check`/, "in the clean clone of the exact head");
   const at = (text) => (assert.ok(run.includes(text), text), run.indexOf(text));
   assert.ok(at("then `test:e2e` if the project has it") < at("`pnpm check:merge`"), "after check and test:e2e");
   assert.ok(at("`pnpm check:merge`") < at("`node .agents/skills/coordinate/scripts/pr-rules.mjs <n>"), "then the rules");
@@ -38,18 +37,32 @@ test("AC-225-1: WHEN the project has check:merge and pr:rules THEN step 6.1 runs
   assert.match(comment, /A `check:merge` failure, `pr-rules\.mjs` exit 1, or a merge check main has and the head dropped is `Checks: fail`; a skip isn't\./);
 });
 
-test("AC-225-1: every command in the head's worktree runs with tokens unset, and only main's copy of the rules gets the token", () => {
+/** Lines that give a command a token: a clause that names a token and isn't only about unsetting it. */
+function tokenGrants(text) {
+  const names = /\btokens?\b|[A-Z_]TOKEN\b/i;
+  const grants = /\bwith (?:the |a |your )?(?:`[A-Z_]*TOKEN`|[\w ]*\btokens?\b)(?!\s+unset)|`[A-Z_]*TOKEN` set\b|\b(?:keeps?|gets?|reach(?:es)?|except)\b|\bunset only\b/i;
+  const unsetOnly = (clause) => /\bunset\b|`env -u /i.test(clause) && !grants.test(clause);
+  return text.split("\n").filter((line) => line.split(/(?<=[.;:])\s+/).some((clause) => names.test(clause) && !unsetOnly(clause)));
+}
+/** The grants a step must not have: one not about your checkout of main, or one about the head's clone ("In it"). */
+const headGrants = (text) => tokenGrants(text).filter((line) => !/from your own checkout of main/.test(line) || /\bIn it\b|head's (?:worktree|clone)/.test(line));
+
+test("AC-225-1: every command in the head's clone runs with tokens unset, and only main's copy of the rules gets the token", () => {
   const run = subStep(3);
-  assert.match(run, /\*\*In the head's worktree, every command runs with tokens unset, with no exception\.\*\*/);
-  assert.match(run, /`env -u GH_TOKEN -u GITHUB_TOKEN -u CLOUDFLARE_API_TOKEN <command>`/);
-  // Any line that lets a command keep a token must be about your checkout of main, never the head's worktree ("In it").
-  const grants = /\b(?:keeps?|gets?|reach(?:es)?)\b[^.]*\btokens?\b|\bunset only\b|\bonly the deploy\b|\bexcept\b/i;
-  const granting = run.split("\n").filter((line) => /token/i.test(line) && grants.test(line));
-  assert.ok(granting.length, "one line names the command that gets the token");
-  for (const line of granting) {
-    assert.match(line, /from your own checkout of main/, line);
-    assert.doesNotMatch(line, /\bIn it\b|head's worktree/, line);
-  }
+  assert.match(run, /\*\*In the head's clone, every command runs with tokens unset and an empty home, with no exception\.\*\*/);
+  assert.match(run, /`env -u GH_TOKEN -u GITHUB_TOKEN -u CLOUDFLARE_API_TOKEN HOME=<home> /);
+  // Any line that gives a command a token must be about your checkout of main, never the head's clone.
+  assert.ok(tokenGrants(run).length, "one line names the command that gets the token");
+  assert.deepEqual(headGrants(run), []);
+  // Round 2 review, nice item 1: these phrasings give a command in the head's clone a token, so they must be caught.
+  const rule = run.split("\n").find((line) => line.includes("every command runs with tokens unset")) ?? "";
+  for (const added of [
+    "\n         - In the head's clone, run `pnpm check:merge` with `GH_TOKEN` set.",
+    "\n         - In it, run `node scripts/audit.mjs` with the GitHub token.",
+    "\n         - In it, `pnpm pr:rules <n>` keeps the GitHub token.",
+    "\n         - In it, run `pnpm deploy:preview <n>` with `CLOUDFLARE_API_TOKEN` set and the rest unset.",
+  ]) assert.notDeepEqual(headGrants(run + added), [], added);
+  assert.notDeepEqual(headGrants(run.replace(rule, `${rule} In it, run \`node scripts/audit.mjs\` with the GitHub token.`)), [], "added to the unset rule");
   assert.match(run, /from your own checkout of main, run `node \.agents\/skills\/coordinate\/scripts\/pr-rules\.mjs <n> --repo <owner>\/<repo> --head <sha>`: the issue link, the branch name and the size\. It is the one command here that gets the GitHub token/);
   // The head's own pr:rules never runs: the head would decide what the token reaches.
   assert.doesNotMatch(run.replace("Never run the head's `pnpm pr:rules`", ""), /`pnpm pr:rules/);
@@ -62,8 +75,8 @@ test("#225: main's package.json decides which merge checks run, so a pull reques
   assert.doesNotMatch(run, /where the head's `package\.json` has them/);
 });
 
-test("#225: pr-rules.mjs exit 1 is a fail, and exit 2 never gives Checks: pass and tries again next sweep", () => {
-  assert.match(subStep(3), /`pr-rules\.mjs` exit 1 is `Checks: fail`\. Exit 2 \(a usage or API error, or a file list GitHub cut short\) never gives `Checks: pass`: post no verdict, and try again next sweep\./);
+test("#225: pr-rules.mjs exit 1 is a fail, a list cut short included, and exit 2 never gives Checks: pass and tries again next sweep", () => {
+  assert.match(subStep(3), /`pr-rules\.mjs` exit 1 is `Checks: fail`, a file list GitHub cut short on two reads in a row included\. Exit 2 \(a usage or API error, or counts that don't add up on two reads in a row\) never gives `Checks: pass`: post no verdict, and try again next sweep\./);
   assert.match(subStep(5), /`pr-rules\.mjs` exit 2 never gives `Checks: pass`: post no verdict, and try again next sweep\./);
 });
 
@@ -159,20 +172,6 @@ test("AC-225-3: step 6.1.4 runs mark-check once, and on a refused required statu
   assert.match(again, /Don't run it again: send one ℹ️ FYI per run of the loop that names that rule, not one per sweep/);
 });
 
-/** A pull request for pr-rules.mjs: number 9 of acme/app, from `branch`, with `body`, `labels` and the files changed
- * ([name, additions, deletions, old name of a rename]). `changed` is GitHub's `changed_files`: the list's length by default. */
-function rules({ body = "Adds sharing.\n\nCloses #5", branch = "feat/5-share", labels = [], author = "builder", files = [["src/a.ts", 10, 5]], changed, sha = HEAD, attributes = "", args = ["9", "--repo", "acme/app", "--head", HEAD] } = {}) {
-  const dir = tmp("onrails-rules-");
-  execFileSync("git", ["init", "-q", dir], { env: safeEnv() });
-  writeFileSync(join(dir, ".gitattributes"), attributes);
-  const fake = fakeGh(dir, {
-    "repos/acme/app/pulls/9": { number: 9, body, user: { login: author }, labels: labels.map((name) => ({ name })), head: { ref: branch, sha }, changed_files: changed === undefined ? files.length : changed },
-    "repos/acme/app/pulls/9/files": files.map(([filename, additions, deletions, previous_filename]) => ({ filename, additions, deletions, ...(previous_filename ? { status: "renamed", previous_filename } : {}) })),
-  });
-  const r = spawnSync(process.execPath, [script("pr-rules.mjs"), ...args], { cwd: dir, encoding: "utf8", env: fake.env });
-  return { ...r, calls: fake.calls() };
-}
-
 test("AC-225-4: WHEN a project has no pr:rules THEN pr-rules.mjs still checks the issue link and the branch name", unixOnly, () => {
   const ok = rules();
   assert.equal(ok.status, 0, ok.stderr);
@@ -220,12 +219,17 @@ test("AC-225-4: a renamed file is skipped only when its old and new names are bo
   assert.match(both.stdout, /3 changed lines/);
 });
 
-test("AC-225-4: WHEN GitHub lists fewer files than the pull request changes THEN pr-rules.mjs exits 2, never a pass", unixOnly, () => {
+test("AC-225-4: WHEN GitHub lists fewer files than the pull request changes on two reads in a row THEN pr-rules.mjs fails (exit 1), never a pass", unixOnly, () => {
   const files = Array.from({ length: 3000 }, (_, i) => [`plugin/f${i}.md`, 33, 0]);
   const cut = rules({ files, changed: 3500, attributes: "plugin/** linguist-generated\n" });
-  assert.equal(cut.status, 2, cut.stderr);
-  assert.match(cut.stderr, /GitHub listed 3000 of the 3500 files #9 changes \(its list stops at 3000\), so the size can't be counted\. That's never a pass/);
+  assert.equal(cut.status, 1, cut.stderr);
+  assert.match(cut.stderr, /GitHub listed 3000 of the 3500 files #9 changes, twice \(its list stops at 3000\), so the size can't be counted\. Split the pull request\. That's a fail, never a pass\./);
   assert.equal(cut.stdout, "");
+  assert.equal(cut.calls.split("\n").filter((l) => l.endsWith("repos/acme/app/pulls/9/files")).length, 2, "read twice, then decided");
+  // A list cut short once and whole on the second read is counted as usual.
+  const once = rules({ files, changed: 3500, again: { pull: { changed_files: 1, additions: 10, deletions: 5 }, files: [["src/a.ts", 10, 5]] } });
+  assert.equal(once.status, 0, once.stderr);
+  assert.match(once.stdout, /15 changed lines/);
   const unknown = rules({ changed: null });
   assert.equal(unknown.status, 2, "no changed_files is never a pass");
 });
