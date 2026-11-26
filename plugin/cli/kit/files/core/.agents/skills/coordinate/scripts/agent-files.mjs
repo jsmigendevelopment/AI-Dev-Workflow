@@ -19,7 +19,8 @@
 //   node agent-files.mjs verify-run <n> [--repo owner/name] [--head <sha>]   optional, where the workflow still runs: the head's agent-files
 //                                          runs are real and green, and the guard still passes on the live comments
 //                                          and labels. --head pins the sha; it fails if the pull request moved.
-// Tests: --files <json> --stack <file> --comments <json> --labels a,b --head <sha> --trusted a,b
+// Tests: --files <json> --packages <json> --stack <file> --comments <json> --labels a,b --head <sha> --trusted a,b
+//        (--packages maps each package.json path to { "base": text, "head": text }; null is a side without the file)
 //        verify-run --runs <json> [the flags above, for the live decision]
 // Exit 0 passes, 1 fails. No dependencies.
 import { execFileSync } from "node:child_process";
@@ -45,6 +46,40 @@ export const CHECK_FILES = new RegExp([
 ].join(""), "i");
 // Every protected path: the agents' rules and level, or check code.
 const isProtected = (path) => RULE_FILES.test(path) || CHECK_FILES.test(path);
+/** A package.json at any depth (#163): its scripts and inline check config are check code, its dependencies aren't. */
+export const PACKAGE_FILE = /(?:^|\/)package\.json$/i;
+/** The package.json keys that are check code: `pnpm check` lives in `scripts`, the rest hold check config inline. */
+export const CHECK_KEYS = ["scripts", "eslintConfig", "prettier", "jest", "knip", "jscpd", "lint-staged"];
+
+// One side of a package.json as an object. A missing side is empty; an unreadable or unparsable one is an error.
+function packageSide(side, name) {
+  if (side === null || side === undefined) return { value: {} };
+  if (typeof side !== "string") return { error: `couldn't read the ${name}: ${side.error ?? "no text"}` };
+  let value;
+  try {
+    value = JSON.parse(side);
+  } catch (error) {
+    return { error: `the ${name} isn't valid JSON: ${error.message}` };
+  }
+  return value && typeof value === "object" && !Array.isArray(value) ? { value } : { error: `the ${name} isn't a JSON object` };
+}
+
+/**
+ * The package.json files whose check keys changed, as "path (scripts, prettier)". `packages` maps each path to
+ * { base, head }: text, null when the file isn't there, or { error } when it couldn't be read. Every changed
+ * package.json needs an entry: one with none, or a side that can't be read or parsed, counts as changed (fails closed).
+ */
+export function packageChanges(changed, packages = {}) {
+  const paths = [...new Set([...changed.filter((p) => PACKAGE_FILE.test(p)), ...Object.keys(packages)])];
+  return paths.flatMap((path) => {
+    const sides = packages[path] ?? { base: { error: "no text" } };
+    const [base, head] = [packageSide(sides.base, "base"), packageSide(sides.head, "head")];
+    const error = base.error ?? head.error ?? (sides.base == null && sides.head == null ? "it isn't there at either side" : null);
+    if (error) return [`${path} (${error})`];
+    const keys = CHECK_KEYS.filter((key) => JSON.stringify(base.value[key]) !== JSON.stringify(head.value[key]));
+    return keys.length ? [`${path} (${keys.join(", ")})`] : [];
+  });
+}
 // A submodule entry in the API's file list: its patch is a "Subproject commit <sha>" line.
 const SUBPROJECT = /^[-+]Subproject commit [0-9a-f]{40}/m;
 export const GUARD_WORKFLOW = ".github/workflows/agent-files.yml";
@@ -87,14 +122,14 @@ export function headVerdict(comments, head, trusted) {
 }
 
 /** Pass or fail, and why. */
-export function decide({ changed = [], labels = [], stack = "", comments = [], head = "", trusted = new Set(), expected = null, total = null, modules = [] }) {
+export function decide({ changed = [], labels = [], stack = "", comments = [], head = "", trusted = new Set(), expected = null, total = null, modules = [], packages = {} }) {
   if (expected && head && expected !== head) return { pass: false, why: `The pull request's head moved from ${expected} to ${head}. The run for the new head decides.` };
   if (total !== null && (total > MAX_FILES || total > changed.length)) {
     return { pass: false, why: `The pull request changes ${total} files, and the API listed ${changed.length} (it stops at ${MAX_FILES}). The guard can't see them all, so it fails. Split the pull request.` };
   }
   const odd = changed.filter((p) => CONTROL.test(p));
   if (odd.length) return { pass: false, why: `A file name has a control character or a line break: ${odd.map((p) => JSON.stringify(p)).join(", ")}. Rename it.` };
-  const rules = [...new Set([...changed.filter(isProtected), ...modules.map((p) => `${p} (a submodule)`)])];
+  const rules = [...new Set([...changed.filter(isProtected), ...modules.map((p) => `${p} (a submodule)`), ...packageChanges(changed, packages)])];
   if (!rules.length) return { pass: true, why: "no agent rule, check or level files changed" };
   const full = level(stack) === "full";
   const verdict = headVerdict(comments, head, trusted);
@@ -191,18 +226,72 @@ function defaultStack(repo) {
   }
 }
 
+/** A file's text at a commit, from the contents API: null on a 404. Throws on any other failure, or on no text. */
+function textAt(repo, path, ref) {
+  let file;
+  try {
+    file = JSON.parse(gh(`repos/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${ref}`));
+  } catch (error) {
+    if (httpStatus(error) === 404) return null;
+    throw error;
+  }
+  // A folder, a symlink or a file over 1 MB comes back without base64 text.
+  if (file?.type !== "file" || file.encoding !== "base64") throw new Error(`the contents API gave no text (type ${file?.type}, encoding ${file?.encoding})`);
+  return Buffer.from(file.content, "base64").toString("utf8");
+}
+
+// The sides a package.json may be missing from, by the file list: an added or copied file has no base, a removed one
+// no head, and a rename's new name no base and its old name no head. Listed twice, a side may be missing only if both say so.
+function packageFiles(files) {
+  const found = new Map();
+  const add = (path, base, head) => {
+    if (!PACKAGE_FILE.test(path)) return;
+    const was = found.get(path) ?? { base: true, head: true };
+    found.set(path, { base: was.base && base, head: was.head && head });
+  };
+  for (const f of files) {
+    add(f.filename, ["added", "copied", "renamed"].includes(f.status), f.status === "removed");
+    if (f.previous_filename) add(f.previous_filename, false, f.status === "renamed");
+  }
+  return found;
+}
+
+/** Each changed package.json at the merge base and at the head (#163), in the shape packageChanges() reads. */
+function packagesFromApi(repo, pull, files) {
+  const wanted = packageFiles(files);
+  if (!wanted.size) return {};
+  let mergeBase;
+  try {
+    mergeBase = JSON.parse(gh(`repos/${repo}/compare/${pull.base.sha}...${pull.head.sha}`)).merge_base_commit.sha;
+  } catch (error) {
+    mergeBase = { error: `no merge base: ${reason(error)}` };
+  }
+  const side = (path, ref, mayBeMissing) => {
+    if (typeof ref !== "string") return ref;
+    try {
+      const text = textAt(repo, path, ref);
+      return text !== null || mayBeMissing ? text : { error: `not found at ${ref}, though the file list says it's there` };
+    } catch (error) {
+      return { error: `at ${ref}: ${reason(error)}` };
+    }
+  };
+  return Object.fromEntries([...wanted].map(([path, missing]) => [path, { base: side(path, mergeBase, missing.base), head: side(path, pull.head.sha, missing.head) }]));
+}
+
 function fromApi(repo, pr, expected, stackText) {
   const pull = JSON.parse(gh(`repos/${repo}/pulls/${pr}`));
   const head = pull.head.sha;
   const files = pages(`repos/${repo}/pulls/${pr}/files`);
   const changed = changedPaths(files);
   const modules = submodules(files);
+  const packages = packagesFromApi(repo, pull, files);
   const stack = stackText ?? (existsSync("docs/stack.md") ? readFileSync("docs/stack.md", "utf8") : "");
-  const comments = modules.length || changed.some(isProtected) ? pages(`repos/${repo}/issues/${pr}/comments`) : [];
+  const watched = modules.length || changed.some(isProtected) || packageChanges(changed, packages).length;
+  const comments = watched ? pages(`repos/${repo}/issues/${pr}/comments`) : [];
   const labels = pages(`repos/${repo}/issues/${pr}/labels`).map((l) => l.name);
   // writers() throws when a voter's access has no answer, so the guard fails closed (main, below).
   const voters = [...new Set(comments.filter((c) => verdictOf(c.body, head)).map((c) => c.user?.login).filter(Boolean))];
-  return { changed, modules, stack, comments, head, labels, trusted: writers(repo, voters), expected: expected || null, total: pull.changed_files };
+  return { changed, modules, packages, stack, comments, head, labels, trusted: writers(repo, voters), expected: expected || null, total: pull.changed_files };
 }
 
 /** The head's agent-files check runs, each with the workflow file and event that made it. */
@@ -223,6 +312,7 @@ function fromFlags(argv) {
   return {
     changed: changedPaths(files),
     modules: submodules(files),
+    packages: JSON.parse(read("--packages", "{}")),
     stack: read("--stack", ""),
     comments: JSON.parse(read("--comments", "[]")),
     labels: list("--labels"),
