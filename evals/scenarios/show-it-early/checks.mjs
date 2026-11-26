@@ -1,4 +1,5 @@
-// build and pyramid: slice 0 shows the running app, with its link, before any CI work (#99, AC-5).
+// build and pyramid: slice 0 shows the running app, with its link, before the checks are set up (#99, AC-5),
+// and the checks are set up the local way, with no GitHub Actions workflow (#141, AC-2).
 import { failedIds, result } from "../../lib/checks.mjs";
 
 // A command that runs a dev server: at the start of the command, or after ; && || | or (, with any
@@ -7,9 +8,18 @@ import { failedIds, result } from "../../lib/checks.mjs";
 const DEV = /(^|[;&|(])\s*(nohup\s+|timeout\s+\S+\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*((pnpm|yarn)\s+((-C|--filter|--dir)\s+\S+\s+)?(run\s+)?dev\b|npm\s+(run\s+dev|start)\b|node\s+(\.\/)?server\.mjs\b)/m;
 const LINK = /(localhost|127\.0\.0\.1):3000/;
 // A file written into .github/workflows: a redirect, tee or cp aimed there. Reads (`ls ... 2>/dev/null`) and mkdir don't count.
-const CI_WRITE = />>?\s*["']?\S*\.github\/workflows\/|\btee\s+(-a\s+)?["']?\S*\.github\/workflows\/|\bcp\b[^\n;&|]*\s["']?\S*\.github\/workflows\/?\S*(?=\s*($|[;&|]))/;
+const WORKFLOW_WRITE = />>?\s*["']?\S*\.github\/workflows\/|\btee\s+(-a\s+)?["']?\S*\.github\/workflows\/|\bcp\b[^\n;&|]*\s["']?\S*\.github\/workflows\/?\S*(?=\s*($|[;&|]))/;
+// The local checks set up: `ci = "local"` (either quote) written to docs/stack.md, by a Write, an Edit or a shell
+// command that writes the file: a redirect, tee, sed -i or --in-place, or perl -pi aimed there. A read that names both,
+// such as a grep, doesn't count, and nor does another file whose name starts docs/stack.md (a .bak copy).
+const LOCAL_LINE = /ci\s*=\s*["']local["']/;
+const STACK = /(^|\/)docs\/stack\.md$/;
+const STACK_PATH = String.raw`docs\/stack\.md(?=["'\s;&|)]|$)`;
+const STACK_WRITE = new RegExp(
+  String.raw`>>?\s*["']?\S*${STACK_PATH}|\btee\s+(-a\s+)?["']?\S*${STACK_PATH}|\bsed\b[^\n;&|]*\s(-i|--in-place)[^\n;&|]*${STACK_PATH}|\bperl\b[^\n;&|]*\s-\w*i[^\n;&|]*${STACK_PATH}`,
+);
 
-/** What happened, in order: "dev" (the server started), "link" (said to the person), "ci" (a CI file written). Errored calls don't count. */
+/** What happened, in order: "dev" (the server started), "link" (said to the person), "local" (ci = "local" written), "workflow" (a workflow file written). Errored calls don't count. */
 function timeline(events) {
   const failed = failedIds(events);
   const out = [];
@@ -20,9 +30,12 @@ function timeline(events) {
       if (b.type !== "tool_use" || failed.has(b.id)) continue;
       const command = String(b.input?.command ?? "");
       const path = String(b.input?.file_path ?? "");
+      const written = String(b.input?.content ?? b.input?.new_string ?? "") + (b.input?.edits ?? []).map((x) => x.new_string ?? "").join("\n");
       if (b.name === "Bash" && DEV.test(command)) out.push("dev");
-      if (b.name === "Bash" && CI_WRITE.test(command)) out.push("ci");
-      if (["Write", "Edit", "MultiEdit"].includes(b.name) && path.includes(".github/workflows/")) out.push("ci");
+      if (b.name === "Bash" && WORKFLOW_WRITE.test(command)) out.push("workflow");
+      if (b.name === "Bash" && LOCAL_LINE.test(command) && STACK_WRITE.test(command)) out.push("local");
+      if (["Write", "Edit", "MultiEdit"].includes(b.name) && path.includes(".github/workflows/")) out.push("workflow");
+      if (["Write", "Edit", "MultiEdit"].includes(b.name) && STACK.test(path) && LOCAL_LINE.test(written)) out.push("local");
     }
   }
   return out;
@@ -40,14 +53,22 @@ export const checks = [
     check: (t) => result(LINK.test(t.allText), "no localhost:3000 link in what the agent said"),
   },
   {
-    id: "AC-5-seen-before-ci",
-    description: "A CI file was written, and the dev server and the link both came before it",
+    id: "AC-5-seen-before-checks",
+    description: "The checks were set up the local way (ci = \"local\" in docs/stack.md), and the dev server and the link both came before it",
     check: (t) => {
       const line = timeline(t.events);
-      const ci = line.indexOf("ci");
-      if (ci < 0) return result(false, "no CI file was written");
-      const missing = ["dev", "link"].filter((x) => !line.slice(0, ci).includes(x));
-      return result(missing.length === 0, `before CI, no ${missing.join(" or ")}`);
+      const local = line.indexOf("local");
+      if (local < 0) return result(false, "ci = \"local\" was never written to docs/stack.md");
+      const missing = ["dev", "link"].filter((x) => !line.slice(0, local).includes(x));
+      return result(missing.length === 0, `before the checks, no ${missing.join(" or ")}`);
+    },
+  },
+  {
+    id: "AC-141-2-no-workflow",
+    description: "No file was written in .github/workflows/, and none is there at the end",
+    check: (t) => {
+      if (timeline(t.events).includes("workflow")) return result(false, "a file was written in .github/workflows/");
+      return result(!t.exists(".github/workflows"), ".github/workflows/ exists at the end");
     },
   },
 ];

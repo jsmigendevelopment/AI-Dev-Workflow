@@ -13,7 +13,7 @@ description: Use when the person is stepping away and wants the build loop to ke
    - **Long** (the night, or longer): the full unattended rules below.
    - **Check the automation level** in `docs/stack.md` (see `automation`):
      - **Hands-on:** no loop. Write the state note (step 5) and stop.
-     - **Recommended:** the overnight loop is off. For a long break, ask: *"Keep building while you're away, or finish what's in flight and stop?"* Recommend keep building if main is green.
+     - **Recommended:** the overnight loop is off. For a long break, ask: *"Keep building while you're away, or finish what's in flight and stop?"* Recommend keep building if main is green (the `Main's checks:` line in `docs/state.md` says pass).
      - **Full:** keep building. Ask nothing in this skill: take each recommended answer (`automation`'s `references/full.md`).
 
 2. **Check usage** (see "Checking usage" below). Count the ready issues and in-flight pull requests. If the queue could hit a limit before the person is back, ask what to do when it does:

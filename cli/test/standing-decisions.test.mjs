@@ -305,7 +305,7 @@ test("AC-173-2: WHEN the scan runs on the repo THEN it finds no unconditional as
   assert.match(read(named[3]), /On Full, take the one listed first in `\[accounts\]`, record it as "AI pick, not reviewed" and put it in the FYI\. Never pick by usage\./);
 });
 
-const JOIN_ON_FULL = "**On Full,** you run three things: the install, the repo's declared check contract (`check`, `lint`, `typecheck`, `test`, `build`, or what its CI runs) and the dev or start script step 3 runs (`dev` or `start`, or what its README names). Before you run any of them, read the repo's own hooks and scripts that they call. Run nothing else: never a deploy or release script, and nothing that reads its secrets. List each command, hook and script you read and ran in the FYI, as \"AI pick, not reviewed\".";
+const JOIN_ON_FULL = "**On Full,** you run three things: the install, the repo's declared check contract (`check`, `lint`, `typecheck`, `test`, `build`, or what its CI config runs, run locally) and the dev or start script step 3 runs (`dev` or `start`, or what its README names). Before you run any of them, read the repo's own hooks and scripts that they call. Run nothing else: never a deploy or release script, and nothing that reads its secrets. List each command, hook and script you read and ran in the FYI, as \"AI pick, not reviewed\".";
 const JOIN_SUMMARY = "on Full, it reads the repo's own hooks and scripts that the install, its check commands and its dev or start script call, runs only those, and lists them in its FYI";
 test("AC-173-3: WHEN join step 1 is read THEN its On Full line names what runs and what is read first", () => {
   const step1 = read(".agents/skills/join/SKILL.md").match(/^1\. \*\*Read before you run\.\*\*.*$/m)?.[0] ?? "";

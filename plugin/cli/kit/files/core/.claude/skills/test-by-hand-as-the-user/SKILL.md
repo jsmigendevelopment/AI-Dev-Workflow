@@ -5,7 +5,7 @@ description: Use when an agent tests a change by hand, clicking through the app 
 
 # Test by hand as the user: check that it's right, not that it shows up
 
-You click through the app the way a person would: in the person's own browser (Claude in Chrome), the built-in browser, or a browser you drive one step at a time. The automated suite (`test:e2e`, Playwright in CI) stays in `build` and `qa`.
+You click through the app the way a person would: in the person's own browser (Claude in Chrome), the built-in browser, or a browser you drive one step at a time. The automated suite (`test:e2e`, Playwright in the local gate) stays in `build` and `qa`.
 
 The failure this stops: the page renders, and the number on it is wrong. An agent changed a video length estimate, saw the page load, and reported it working. The estimate said 0 minutes for every choice.
 

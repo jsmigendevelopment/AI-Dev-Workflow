@@ -25,7 +25,7 @@ title: "[pass N] <slice>: <what a user can do after this>"
 ## Acceptance checks
 
 <!-- Written before the build. One result each. The test that proves it has the ID in its title.
-     auto  = becomes an automated test that CI runs on every pull request
+     auto  = becomes an automated test that the local gate runs on every pull request
      agent = needs judgement; a fresh agent checks it on the preview before merge
      Unsure? Write [NEEDS CLARIFICATION: <question>]. The issue can't be status:ready until it's answered. -->
 - [ ] `auto` AC-<issue>-1: WHEN  THEN 
