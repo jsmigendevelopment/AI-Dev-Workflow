@@ -2,8 +2,9 @@
 //   <repo's main checkout>/.onrails/procs.json   for a repo: every worktree shares it, and the folder ignores itself
 //   ~/.onrails/procs.json                        outside a repo (~/.ai-dev-workflow while only the old name exists)
 //   ~/.onrails/procs-index.json                  each repo registry ever written, so npx onrails ps finds them all
-// A registry git tracks, or a symlink for its folder, its file or its logs, is never read or written: a branch
-// must not be able to hand the registry its records.
+// A registry git tracks (or that git can't answer for), another user owns or can write, or a symlink for its
+// folder, its file or its logs, is never read or written: a branch or another account must not be able to hand
+// the registry its records. A repo registry must also be its repo's own, in a repo this user owns.
 // No dependencies. The master copy is scripts/procs-store.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { randomBytes } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -41,15 +42,39 @@ function kind(path) {
   }
 }
 
-/** Why a registry can't be trusted, or null. A symlink, or a file git tracks (it came with a branch). */
+/**
+ * Why a registry can't be trusted, or null. A symlink; a file another user owns or can write; a repo registry that isn't where registryPath puts it, in a repo this user owns; or a
+ * file git tracks (it came with a branch). A git error counts as untrusted, never as untracked.
+ */
 export function untrusted(sys, path) {
   const dir = dirname(path);
   if (!["missing", "dir"].includes(kind(dir))) return `${dir} is a symlink or not a folder`;
   for (const p of [path, join(dir, "logs")]) {
     if (!["missing", p === path ? "file" : "dir"].includes(kind(p))) return `${p} is a symlink or the wrong kind of file`;
   }
-  if (kind(dir) === "dir" && sys.git(dir, ["ls-files", "--", "."])) return `git tracks files in ${dir}, so a branch could have written them`;
+  return ownership(sys, path) ?? gitProblem(sys, path);
+}
+
+// Only on Linux and macOS: Windows has no POSIX owner or mode bits.
+function ownership(sys, path) {
+  if (sys.platform === "win32" || kind(path) !== "file") return null;
+  if (!Number.isInteger(sys.uid)) return "this user's id can't be read, so the registry's owner can't be checked";
+  const s = lstatSync(path);
+  if (s.uid !== sys.uid) return `${path} belongs to another user`;
+  if (s.mode & 0o022) return `${path} can be written by other users`;
   return null;
+}
+
+// The home registry may sit outside any repo. Any other must be its repo's own, in a repo this user owns.
+function gitProblem(sys, path) {
+  const dir = dirname(path), root = dirname(dir), home = path === homeRegistry(sys);
+  const inRepo = kind(root) === "dir" && sys.git(root, ["rev-parse", "--git-common-dir"]) !== null;
+  if (!inRepo) return home ? null : `${path} isn't in a git repo`;
+  if (!home && registryPath(sys, root) !== path) return `${path} isn't its repo's registry`;
+  if (!home && sys.platform !== "win32" && lstatSync(root).uid !== sys.uid) return `the repo at ${root} belongs to another user`;
+  const tracked = sys.git(root, ["ls-files", "--", basename(dir)]);
+  if (tracked === null) return `git ls-files failed in ${root}, so it can't tell whether a branch wrote ${dir}`;
+  return tracked ? `git tracks files in ${dir}, so a branch could have written them` : null;
 }
 
 function readIndex(sys) {
@@ -70,17 +95,18 @@ export function load(path) {
   } catch { return []; } // a broken file reads as empty; the next write replaces it
 }
 
-// Writes a file that must not exist yet, so a planted symlink is never followed.
+// Writes a file that must not exist yet, so a planted symlink is never followed. Owner-only, whatever the
+// umask, or untrusted() would refuse it on the next read.
 function writeNew(path, text) {
   rmSync(path, { force: true }); // removes a link itself, never its target
-  writeFileSync(path, text, { flag: "wx" });
+  writeFileSync(path, text, { flag: "wx", mode: 0o600 });
 }
 
 // The registry's folder and its logs folder. In a repo it ignores itself, so nothing in it is ever committed.
 function folder(sys, path) {
   const why = untrusted(sys, path);
   if (why) throw new Error(`the registry can't be used: ${why}`);
-  mkdirSync(join(dirname(path), "logs"), { recursive: true });
+  mkdirSync(join(dirname(path), "logs"), { recursive: true, mode: 0o700 });
   const ignore = join(dirname(path), ".gitignore");
   if (path !== homeRegistry(sys) && readText(ignore) !== IGNORE) writeNew(ignore, IGNORE);
   return dirname(path);

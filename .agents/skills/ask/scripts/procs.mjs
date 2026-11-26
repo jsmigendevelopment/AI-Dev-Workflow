@@ -118,11 +118,13 @@ async function stop(sys, log, ctx) {
   const picked = pick(seen, target);
   if (!picked.length && /^\d+$/.test(target)) return stopUnregistered(sys, log, Number(target), ctx);
   if (!picked.length && !["mine", "stale", "all"].includes(target)) return fail(log, `No record ${target}. See them all: ${ctx.listCmd}`, 1);
-  // Another live session's processes: only after a yes (issue rule 7). The person at the CLI is asked; an agent must ask them.
-  const others = target === "stale" ? [] : picked.filter((r) => !r.mine && r.owner === "alive");
+  // Another session's processes, live or with no agent recorded to tell: only after a yes (issue rule 7).
+  // The person at the CLI is asked; an agent must ask them.
+  const others = target === "stale" ? [] : picked.filter((r) => !r.mine && r.owner !== "gone");
   const names = others.map((r) => `${r.id} (${r.label})`).join(", ");
-  if (others.length && !flags.yes && !(await yes(ask, `Another live session started ${names}. Stop them too?`))) {
-    return fail(log, `Left everything alone: another live session started ${names}. Ask the person first. After a yes: ${ctx.stopCmd} ${target} --yes`, 1);
+  const who = others.every((r) => r.owner === "alive") ? "another live session" : "another session, maybe still live,";
+  if (others.length && !flags.yes && !(await yes(ask, `${who[0].toUpperCase()}${who.slice(1)} started ${names}. Stop them too?`))) {
+    return fail(log, `Left everything alone: ${who} started ${names}. Ask the person first. After a yes: ${ctx.stopCmd} ${target} --yes`, 1);
   }
   const grace = flags.grace ? Number(flags.grace) : GRACE_S;
   const { stopped, killed, refused } = await stopRecords(sys, picked, { grace });

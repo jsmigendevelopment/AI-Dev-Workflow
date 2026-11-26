@@ -1,7 +1,8 @@
 // The machine the process registry (procs.mjs) talks to, in one object so tests can pass a fake:
 //   info(pids)  pid -> { parent, group, start, cpu, mem (KB) } for the live ones, or null when it can't tell
 //   table()     every process as { pid, ppid, pgid, args }, or null
-//   signal, taskkill, spawn (detached, in its own group), killSpawned, sleep, stdin, git, now
+//   signal, taskkill, spawn (detached, in its own group), killSpawned, sleep, stdin, now
+//   git(dir, args) its output, "" for nothing, null when git failed · uid this user's id (null on Windows)
 // Linux and macOS read ps; Windows reads Win32_Process through PowerShell. No dependencies.
 // The master copy is scripts/procs-sys.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { spawn, spawnSync } from "node:child_process";
@@ -19,9 +20,13 @@ export function realSys() {
   const pwsh = (script) => out("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script]);
   const children = new Map();
   return {
-    platform, env: process.env, home: homedir(), cwd: process.cwd(), parentPid: process.ppid, selfPid: process.pid,
+    platform, env: process.env, home: homedir(), cwd: process.cwd(), parentPid: process.ppid, selfPid: process.pid, uid: process.getuid?.() ?? null,
     now: () => Date.now(),
-    git: (cwd, args) => out("git", ["-C", cwd, ...args])?.trim() || null,
+    // Its output, "" when it found nothing, or null when git failed in any way: a failure is never "nothing found".
+    git(cwd, args) {
+      const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8", timeout: 15000, windowsHide: true });
+      return r.error || r.status !== 0 ? null : r.stdout.trim();
+    },
     info: (pids) => (platform === "win32" ? windowsInfo(pwsh, pids) : posixInfo(out, pids)),
     table: () => (platform === "win32" ? windowsTable(pwsh) : posixTable(out)),
     signal(pid, sig) { try { process.kill(pid, sig); return true; } catch { return false; } },
@@ -67,10 +72,12 @@ function readStdin() {
 }
 
 const winQuote = (a) => (/^[\w@%+=:,./\\-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
-const pidList = (pids) => [...new Set(pids)].filter((p) => Number.isInteger(p) && p > 0);
+// ps and PowerShell fail the whole query on a PID out of range, so one bad record would hide every other one.
+const PID_MAX = 2147483647;
+const pidList = (pids) => [...new Set(pids)].filter((p) => Number.isInteger(p) && p > 0 && p <= PID_MAX);
 
-// A zombie has exited. lstart is five words on Linux and macOS.
-function posixInfo(out, pids) {
+/** info() on Linux and macOS, from ps run through out(cmd, args). A zombie has exited. lstart is five words. */
+export function posixInfo(out, pids) {
   const list = pidList(pids);
   if (!list.length) return new Map();
   const cols = ["pid", "ppid", "pgid", "stat", "pcpu", "rss", "lstart"].flatMap((c) => ["-o", `${c}=`]);
