@@ -1,10 +1,15 @@
 // Tests for the machine the process registry asks about groups and ACLs (#156, review round 3): procs-sys.mjs.
-// Only the parsers and the platform switch run here; no signal is sent and no process is started but ls or getfacl.
+// Only the parsers, the platform switch and how git is started run here; no signal is sent and no process is started
+// but ls, getfacl, git (#215) and the test's own fake git.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import { hasAcl, realSys, soleMember } from "../src/procs-sys.mjs";
-import { safeEnv, tmp } from "./helpers.mjs";
+import { checkPath, fake, put, safeEnv, tmp, unixOnly } from "./helpers.mjs";
+
+const SYS = new URL("../src/procs-sys.mjs", import.meta.url).href;
 
 const GNU = "ls (GNU coreutils) 9.4\nCopyright (C) 2023 Free Software Foundation, Inc.\n";
 
@@ -50,4 +55,36 @@ test("AC-156-4: a group isn't the user's own when getent passwd lists another us
   assert.equal(ask({ getentPasswd: null }), null, "getent is there but failed");
   assert.equal(ask({ passwd: null }), null, "no /etc/passwd and no getent");
   assert.equal(ask({ passwd: null, getentPasswd: passwd }), true, "getent alone");
+});
+
+// #215 review round 1: the default run is spawnSync, which looks a bare name up from the spawn's working folder (on
+// Linux through a relative PATH entry; on Windows that folder comes before PATH). The registry asks git about every
+// repo in its index, so git gets -C <folder> and runs from the current folder, as before #215. Otherwise a git that
+// one repo commits could run from a session in another folder.
+test("#215 round 1: WHEN the default realSys asks git about a folder THEN a git in a relative PATH entry under that folder never runs", unixOnly, () => {
+  const target = tmp("procs-target-"), here = tmp("procs-here-");
+  const log = join(tmp(), "git.log");
+  for (const [dir, who] of [[target, "target"], [here, "current"]]) fake(join(dir, "rel"), "git", `#!/bin/sh\necho "${who} $*" >> '${log}'\n`);
+  const script = `import { realSys } from ${JSON.stringify(SYS)};\nrealSys().git(${JSON.stringify(target)}, ["rev-parse", "--git-common-dir"]);`;
+  const env = checkPath({ ...safeEnv(), PATH: `rel${delimiter}${safeEnv().PATH}` }, here);
+  const r = spawnSync(process.execPath, ["--input-type=module", "-e", script], { cwd: here, encoding: "utf8", env });
+  assert.equal(r.status, 0, r.stderr);
+  const calls = existsSync(log) ? readFileSync(log, "utf8") : "";
+  assert.doesNotMatch(calls, /^target/m, "the target folder's git never runs");
+  // The control: the relative entry is live, read from the current folder, with the target folder as -C.
+  assert.equal(calls, `current -C ${target} rev-parse --git-common-dir\n`);
+});
+
+test("#215 round 1: on a fake Windows, the default realSys never makes the target folder git's working folder, which Windows searches first", () => {
+  const target = tmp("procs-target-");
+  put(target, "git.exe", "a git the repo commits\n");
+  const ran = [];
+  // spawnSync's lookup of a bare name on Windows: the spawn's working folder first, then PATH.
+  const run = (cmd, args, opts) => {
+    const first = join(opts.cwd ?? process.cwd(), `${cmd}.exe`);
+    ran.push([existsSync(first) ? first : cmd, ...args]);
+    return { status: 0, stdout: ".git\n" };
+  };
+  assert.equal(realSys({ platform: "win32", run }).git(target, ["rev-parse", "--git-common-dir"]), ".git");
+  assert.deepEqual(ran, [["git", "-C", target, "rev-parse", "--git-common-dir"]]);
 });
