@@ -24,27 +24,14 @@ import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 
+import { localValue } from './cloudflare/local-env.ts'
 import { setupCloudflare } from './cloudflare/setup.ts'
 
 const args = process.argv.slice(2)
 const value = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined)
 
-function localToken(name) {
-  if (process.env[name]) return process.env[name]
-  if (!existsSync('.env.cloudflare.local')) return undefined
-  const line = readFileSync('.env.cloudflare.local', 'utf8')
-    .split(/\r?\n/)
-    .find((l) => l.startsWith(`${name}=`))
-  return (
-    line
-      ?.slice(name.length + 1)
-      .trim()
-      .replace(/^(['"])(.*)\1$/, '$2') || undefined
-  )
-}
-
-const token = localToken('CLOUDFLARE_ZONE_TOKEN')
-const accessToken = localToken('CLOUDFLARE_ACCESS_TOKEN')
+const token = localValue('CLOUDFLARE_ZONE_TOKEN')
+const accessToken = localValue('CLOUDFLARE_ACCESS_TOKEN')
 const env = {
   ...process.env,
   CLOUDFLARE_ZONE_TOKEN: token ? 'set' : undefined,
@@ -114,7 +101,7 @@ const code = await setupCloudflare(
     run,
     api,
     randomSecret: () => randomBytes(24).toString('base64url'),
-    secret: (name) => (name.startsWith('ACCESS_') ? localToken(name) : undefined),
+    secret: (name) => (name.startsWith('ACCESS_') ? localValue(name) : undefined),
     readText: (p) => readFileSync(p, 'utf8'),
     writeText: (p, t) => writeFileSync(p, t),
     exists: existsSync,

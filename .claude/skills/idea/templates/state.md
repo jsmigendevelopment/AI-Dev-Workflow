@@ -4,6 +4,8 @@ The handoff note between sessions. Keep it under 30 lines, not counting "To try"
 
 - **Updated:** 
 - **Phase:** grill / planning / building pass N / polishing
+- **Environment:** <!-- written by preflight --record: ok, or the open rows (the ask skill's references/preflight.md) -->
+- **Strongest tier:** <!-- the person's yes or no, once per session: yes · <session> · <UTC time> (the routing skill) -->
 - **Last done:** 
 - **In flight:** issues being built or reviewed right now
 - **Next up:** 

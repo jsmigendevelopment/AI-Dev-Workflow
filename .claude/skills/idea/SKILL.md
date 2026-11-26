@@ -9,6 +9,8 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 **One prompt on Full automation.** The person gave the pitch with `/idea "<pitch>"`, and the level is Full (they said so, or the profile's `[defaults] automation = "full"`)? Ask nothing, from step 0 to the loop. Use auto grill. Say the level and the grill in one line, then run every step. Each step's "On Full" line says what replaces the person's answer. Every other level asks as written.
 
+**Preflight first.** Before step 0, run `node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <your effort>`. It probes your own sandbox in about 10 seconds and prints one table. A `✗` row? Follow `../ask/references/preflight.md`: fix what you can, climb its ladder, and ask for the rest in ONE message. Installs blocked? The kickoff goes on, but nothing is scaffolded until they work.
+
 **Each step names the skill to open.** Open it before the step, even if you think you know what it says. If your tool doesn't load it by name, read `../<skill>/SKILL.md` from this folder.
 
 ## Steps
@@ -25,6 +27,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
    - The profile's `[defaults] automation` is the suggested pick. Full picked? Say `automation`'s one-prompt line. Write the answer to `kickoff/decisions.md`. `stack` copies it into the "Automation level" section of `docs/stack.md` in step 7.
    - **Then ask: "Full grill or auto grill?"** In one line each: *full: I ask you about three questions at a time, topic by topic. Auto: you answer four questions, I make every other pick with two alternatives, and you review it all at once.* Full is the suggested pick for a first-time user. The profile's `[defaults] grill` overrides that. Write the answer to `kickoff/decisions.md`.
+   - **Then ask once, unless the profile already sets it:** *"May the planner use your strongest model without asking each time?"* Save the answer as `[routing] ask_before_strongest` in `docs/profile.toml` (a yes is `false`; make the file with that one key if there's none). It's the only time the kickoff asks. `routing`'s first rule reads it. On Full, don't ask: the current model is used.
 
 1. **Listen to the pitch.** Ask the person to describe the idea in their own words: what it is, who it's for, and any features they already have in mind. Don't interrupt yet. Then play it back in 3–5 lines and give your honest first take: what's strong, what's unclear, what's risky. Don't flatter. On Full, the pitch came with `/idea`: play it back and go on, without waiting.
 
@@ -45,7 +48,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 8. **Fill in the project facts** at the bottom of `AGENTS.md`.
 
 9. **Plan the build.** This is CTO work: the strongest model, high effort (see `routing`). Open `pyramid`. It plans slice 0 (the skeleton), outlines all three passes, cuts pass 1 into thin steps the person can try, checks the cut with its script, and designs the schema and API from the approved wireframes. It writes `docs/pyramid.md` and `docs/design.md`.
-   - If you're not on the strongest model, stop. Update `docs/state.md` and tell the person: "Start a new session on your strongest model and type `/back` to plan the build." On Full, carry on with the current model and record that in `docs/decisions.md`.
+   - Not on the strongest model? The tier question is asked once per session (`routing`'s first rule). After a yes, plan on it if this session can: a subagent or a cloud session on that model. It can't switch? Say so once, plan on the current model, and record the model and effort in `docs/decisions.md`. Never tell the person to start a new session. On Full, carry on with the current model and record that in `docs/decisions.md`.
 
 10. **Write the issues.** Everyday model, medium effort. Open `issues` for pass 1 only: one issue per step. Run its consistency check (its last step). Gaps become issues or questions for the person before step 12. On Full, a gap becomes an issue or a recorded guess, never a question.
 
@@ -56,7 +59,7 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
    - On Full, don't ask: record each missing one under "Waiting on you" as a parked item, not a 🛑 blocker, and list them all in one ℹ️ FYI. The app runs on its fakes.
    - Otherwise, if they say later: write each missing one to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the first deploy, and say building will continue and the app runs locally on its fakes, but the test site stays dark until then.
 
-12. **Hand off.** Write `docs/state.md` from `templates/state.md`. Then tell the person, in under 10 lines:
+12. **Hand off.** Write `docs/state.md` from `templates/state.md`, then run preflight again with `--record`, so its `Environment:` line is filled in. Then tell the person, in under 10 lines:
    - what's planned;
    - which issue goes first;
    - **when they'll first see it:** running locally at the start of slice 0, before CI; on the test site once slice 0 merges, and what still has to happen before then;

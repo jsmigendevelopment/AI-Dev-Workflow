@@ -5,6 +5,8 @@
   <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/banner.svg" alt="onRails: put your AI on rails. A train passes Pitch, Grill, Slice and Ship at golden hour. By Jay Smigen, JS Dev." width="960">
 </picture>
 
+[![Status: beta](https://img.shields.io/badge/status-beta-b45309?style=flat-square)](https://github.com/jsmigendevelopment/onRails/blob/main/CHANGELOG.md) Early and actively changing. Expect rough edges, especially on first setup.
+
 **onRails** helps AI agents plan, build, review and ship your app within rules you set.
 
 ## ⚡ Install
@@ -27,14 +29,14 @@ Start a new Claude Code session. For other setups, see [Codex](#codex) or [npm](
 | [`/back`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/back/SKILL.md) · `$back` | Start or resume work | See what changed, who's working and what to do first. |
 | [`/afk`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/afk/SKILL.md) · `$afk` | Step away | Set a time, check usage and safety, then keep building until a hard stop. |
 
-The other 25 skills run for you. To run one step yourself, see the [cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself).
+The other 26 skills run for you. To run one step yourself, see the [cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself).
 
 [![npm package version](https://img.shields.io/npm/v/onrails?style=flat-square&color=a63407)](https://www.npmjs.com/package/onrails)
 [![Works with Claude Code](https://img.shields.io/badge/works%20with-Claude%20Code-7c3aed?style=flat-square)](#-install)
 [![Works with Codex](https://img.shields.io/badge/works%20with-Codex-2563eb?style=flat-square)](#codex)
 [![MIT licence](https://img.shields.io/badge/licence-MIT-55566b?style=flat-square)](https://github.com/jsmigendevelopment/onRails/blob/main/LICENSE)
 
-[Install](#-install) · [Commands](#-the-four-commands) · [A run](#-what-a-run-looks-like) · [Guardrails](#-guardrails) · [Stacks](#-stacks-and-add-ons) · [Existing repo](#-add-it-to-a-repo-you-already-have) · [Cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md)
+[Install](#-install) · [Commands](#-the-four-commands) · [Defaults](#-opinionated-defaults) · [A run](#-what-a-run-looks-like) · [Guardrails](#-guardrails) · [Stacks](#-stacks-and-add-ons) · [Existing repo](#-add-it-to-a-repo-you-already-have) · [Cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md)
 
 ## More install options
 
@@ -89,7 +91,7 @@ AI agents follow your instructions. Where you leave a gap, they guess. They can 
 | Part | What it is | When it applies |
 |---|---|---|
 | [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blob/main/AGENTS.md) | 13 standing rules, the code rules and a stop-and-ask list | Every session |
-| 29 skills | Step-by-step instructions, one job each | When a request names the skill |
+| 30 skills | Step-by-step instructions, one job each | When a request names the skill |
 | Guardrails | CI checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
 
 - **Rules and conventions keep it on track.** It asks instead of guessing. Lint and CI fail the build when the code breaks a rule.
@@ -97,6 +99,30 @@ AI agents follow your instructions. Where you leave a gap, they guess. They can 
 - **Nobody checks their own work.** One fresh agent builds an issue. Other fresh agents review it and test it.
 
 See the [principles](https://github.com/jsmigendevelopment/onRails/blob/main/guide/principles.md) and [evidence](https://github.com/jsmigendevelopment/onRails/blob/main/guide/evidence.md) behind the kit.
+
+## 🧰 Opinionated defaults
+
+onRails ships its maker's own preferences. They are a starting point, not the only right way.
+
+- **The stack:** TanStack Start on Cloudflare, Clerk for sign-in, shadcn/ui, Drizzle and pnpm. See [Stacks](#-stacks-and-add-ons).
+- **The writing rules:** plain words, short sentences, about an 8th-grade reading level.
+- **The model routing:** which model and effort runs each job. See [Model routing](#-model-routing).
+- **The review steps:** nobody checks their own work, a fresh reviewer reads the diff, and a new commit needs a new review.
+
+**What you can change today: your profile.** Make it with `npx onrails profile init`. It lives at `~/.onrails/profile.toml`, and each new project gets a copy as `docs/profile.toml`. The skills read it as your defaults. The sections that matter most:
+
+| Section | What it sets |
+|---|---|
+| `[web]` | The framework, UI kit, database, sign-in, hosting, and tools never to suggest |
+| `[defaults]` | The package manager, risk dial, automation level, grill mode, repo visibility and licence |
+| `[design]` | The look and feel, light or dark, roomy or dense, and how your app's text sounds |
+| `[routing]` | Your model for each tier, and whether to ask before the strongest one |
+
+The grill still shows each pick for you to confirm. What you say in the session beats the profile. Only two stack packs are ready: TanStack Start, and TanStack Start with an Expo mobile app. For another stack, the agent sets up the same parts by hand. The risk dial and the automation level change who merges, but the review steps stay.
+
+**What the profile can't change yet:** the rules in `AGENTS.md` and the skills, such as the writing rules and the review steps. Today you edit those files in your project. `update` keeps your edits and puts the kit's new copy next to yours to compare. Layered settings and personal rules, with no kit files to edit, are planned in [#124](https://github.com/jsmigendevelopment/onRails/issues/124). They haven't shipped yet.
+
+**This is not a guarantee.** Agents can still be wrong, even with these rules and checks. You own what you ship.
 
 ## 🔁 What a run looks like
 
@@ -371,7 +397,7 @@ The strongest model at high effort takes more time and usage. The cheapest model
 ```
 AGENTS.md                  ← rules every agent follows, every session (Codex + Claude)
 CLAUDE.md                  ← one line: @AGENTS.md
-.agents/skills/            ← the 29 skills, master copy (Codex reads this)
+.agents/skills/            ← the 30 skills, master copy (Codex reads this)
 .claude/skills/            ← the same skills (Claude Code reads this)
 .claude/settings.json      ← Claude Code: blocked git commands and hooks
 .claude/hooks/             ← the session-start and notify hooks
@@ -392,7 +418,7 @@ scripts/check-research.mjs ← checks a research folder: index, provenance, labe
 |---|---|
 | **You type** (4) | `idea` · `join` · `back` · `afk` |
 | **Planning** (9) | `grill` · `wireframes` · `name` · `stack` · `secrets` · `research` · `pyramid` · `issues` · `routing` |
-| **The loop** (8) | `coordinate` · `build` · `diagnose` · `pr-review` · `pr-security` · `qa` · `ask` · `automation` |
+| **The loop** (9) | `coordinate` · `build` · `diagnose` · `pr-review` · `pr-security` · `qa` · `test-by-hand-as-the-user` · `ask` · `automation` |
 | **Know-how**, named in issues (6) | `web-performance` · `web-security` · `seo` · `a11y` · `dependencies` · `writing-for-agents` |
 | **Stack packs** (2) | `stack-tanstack-start` · `stack-monorepo-expo` |
 
@@ -459,6 +485,7 @@ At the end it asks: **Start Claude Code here now with /idea? (Y/n)**. Say yes an
 | `npx onrails init --global` | Copies only the four entry skills (`idea`, `join`, `back`, `afk`) to `~/.claude/skills` (Claude Code) and `~/.agents/skills` (Codex), so `/idea` works in any folder before the kit is there. Never overwrites: a file you changed keeps yours, and the kit's copy goes next to it as `.onrails-new`. In Claude Code your personal copy runs instead of a project's copy with the same name, so keep them in step. The [plugin](https://github.com/jsmigendevelopment/onRails#install-as-a-plugin) is the recommended way now; use one or the other. |
 | `npx onrails@latest update [--dry-run] [--yes]` | Updates to the newest kit. Files you haven't touched are replaced, files you changed are kept, new kit files are added, and files dropped from the kit are deleted if you never changed them. `--dry-run` shows the plan and writes nothing. `--yes` renames a kit record that still has its old name (see [Moving from ai-dev-workflow](#moving-from-ai-dev-workflow)). |
 | `npx onrails doctor` | Checks Node, git, `gh` and its sign-in, pnpm, Claude Code or Codex, the kit and its version, `AGENTS.md`, that `.agents/skills` and `.claude/skills` match, `docs/state.md`, that `.env.example` names every variable in `.env.local`, the Playwright Chromium (when the project uses `@playwright/test`) and wrangler and its sign-in (when there's a `wrangler.jsonc`), that your global entry skills (from `init --global`) match this CLI's kit, and whether the onRails plugin is installed (Claude Code or Codex) and matches the project's kit version, and that each account's config folder in the profile's `[accounts]` exists. It reads local install records only, and never looks inside an account's folder. Each problem gets a one-line fix. |
+| `npx onrails preflight [dir] [--record] [--if-changed] [--json] [--model <id>] [--effort <level>] [--tool <name>]` | For agents. `doctor` checks your terminal; this checks the agent's own sandbox, which has other permissions. It probes repo write, `.git` write, the package registry, GitHub, loopback, a browser (when the tests use Playwright), Node and the package manager, and prints one table. Each failure gets a ladder: a workaround in the sandbox, one command outside it, the environment tools, and you last, in one message. `--record` writes the result to `docs/state.md`; `--if-changed` skips the probes when nothing changed. It changes nothing but temp files. The kit ships the same script: `node .agents/skills/ask/scripts/preflight.mjs`. |
 | `npx onrails doctor --fix [--yes] [--dry-run]` | Offers a fix for each problem and runs it only after you type `y` (`--yes` says yes to all, `--dry-run` only prints the plan). See [What `doctor --fix` does](#what-doctor---fix-does). |
 | `npx onrails accounts [dir]` | Lists the accounts in the profile's `[accounts]` (the project's `docs/profile.toml`, else yours): label, tool, config folder and whether it exists, projects and jobs. Accounts are a fixed split by job or project, never by usage. |
 | `npx onrails signature [--theme professional\|personal] [--style full\|compact] [--markdown] [--write <file>]` | Prints your README signature from `[me.signature]` in the profile (the project's `docs/profile.toml`, else yours). `--theme personal` puts `[me.signature.personal]` on top. `--style compact` makes it one line. `--markdown` prints plain Markdown instead of HTML. `--write README.md` keeps the signature as the file's ending. It writes the block between `<!-- onrails:signature start -->` and `<!-- onrails:signature end sha256=<hex> -->`, the sha256 of the block, or adds `---` and the block at the end, so running it again changes nothing. A later run replaces the block when the end marker is the last non-blank line (markers count only as whole lines at column 0, outside fenced code) and the block's sha256 matches, or, for an end marker with no sha256, when the block equals a render of the current profile in any theme, style or mode. Anything else between the markers is refused. It keeps the file's line endings. A lone marker, two pairs, a reversed pair, text after the end marker or a code fence left open at the end is refused. Every key must have its type: strings, sizes from 1 to 512, `links` as `{ label, url }` strings. Unknown, dotted and duplicate keys, `[[me.signature.links]]` and `me = { signature = .. }` are refused. Values are allowlisted in every mode: URLs are plain `https://` with a lowercase host and a path (no port, query, fragment, `%`, `&` or `@`); text is normalized to NFC and holds only letters, numbers, emoji (skin tones, joined emoji, keycaps and flags too), single spaces and `. , ! ? ' ’ - – : ; ( ) & +`, with no combining mark left over, no invisible filler, and no email, `mailto:`, bare `scheme:` or `www.`. A colon before a space or at the end ("Builder: web apps", "Note:") is fine. A full stop needs a space after it or must end the value, so `example.com`, `Node.js` and `2.0` are refused, except in a link label. Escaping (HTML, and Markdown with `--markdown`) stays as a second layer. `mark_dark` is checked but not used yet. Exit codes: 1 a refused value or markers (nothing is written), 2 bad flags, 3 no `[me.signature]` (it says how to add one). |

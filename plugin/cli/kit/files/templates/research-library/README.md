@@ -2,7 +2,7 @@
 
 Every deep research you run, in any project, lands here. One pull request per research. You merge it.
 
-This repo must stay **private**. Research can name private projects, prices and plans. CI fails the moment the repo turns public, and onRails refuses to capture to a public library.
+This repo must stay **private**. Research can name private projects, prices and plans. `research-library.mjs private` fails the moment the repo turns public, and onRails refuses to capture to a public library.
 
 ## What one entry holds
 
@@ -35,6 +35,6 @@ node scripts/check-library.mjs --base origin/main  # also: append-only files did
 node scripts/research-library.mjs private <owner>/<repo>   # GitHub says it's private
 ```
 
-No dependencies. Node 22 or newer. CI runs the last two on every pull request (`.github/workflows/check.yml`).
+No dependencies. Node 22 or newer. There is no GitHub Actions workflow: run the last two before you merge a pull request, from a checkout of its branch. onRails checks that the repo is private and runs `check-library.mjs` on every capture.
 
 `scripts/check-research.mjs`, `scripts/research-library.mjs` and `schemas/` are copies from onRails. When onRails changes them, copy the new ones over.

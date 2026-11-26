@@ -5,7 +5,7 @@ description: Use when planning how to build an app or a big feature, or checking
 
 # Pyramid: see it working early, then make it great
 
-This is CTO work. Run it on the strongest model at high effort. Ask first, unless the profile says not to or the person already said yes (see `routing`). On Full automation: use the current model, record it in `docs/decisions.md`, and don't ask. It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next on a cheaper model.
+This is CTO work. Run it on the strongest model at high effort. Ask first, once per session, unless the profile says not to or the person already said yes (see `routing`). A session that can't switch models says so once and plans on the model it has. On Full automation: use the current model, record it in `docs/decisions.md`, and don't ask. It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next on a cheaper model.
 
 ## Why
 
@@ -61,19 +61,19 @@ pass 1  ████ ████ ████ ████ ████
 
 1. **Slice 0, the skeleton.** Before any feature:
    - If there's a stack pack for the chosen stack (a `stack-<name>` skill), open it and apply it. For the default web stack that's `stack-tanstack-start`. Otherwise set up the same things by hand.
-   - **First, the person sees it run.** Start the dev server and show them the starter page (`build`, "Show it"): "The app runs at http://localhost:3000. You'll see the starter page with your app's name." Keys not set? Run it on the fakes. Only then set up CI, secrets and the test deploy.
+   - **First, the person sees it run.** Start the dev server and show them the starter page (`build`, "Show it"): "The app runs at http://localhost:3000. You'll see the starter page with your app's name." Keys not set? Run it on the fakes. Only then set up the checks, secrets and the test deploy.
    - Every command in the check contract works.
    - Lint enforces the code rules a tool can check (see `AGENTS.md`), and there's a generator that makes a new module from the example one. Write its command in "Commands that work here" in `AGENTS.md`.
-   - CI runs on every pull request: checks, secret scan and agent-file guard (start from `templates/ci.yml` and `templates/agent-files.yml` in the `idea` skill), plus the issue-link check from the stack pack.
+   - The checks run from the session before every merge, never from GitHub Actions: `check`, `test:e2e`, a secret scan, the agent-file guard and the stack pack's pull request rules, recorded as the `onrails/check` commit status (`coordinate`). Write `ci = "local"` in `docs/stack.md`, and add no `.github/workflows/`.
    - **Set up in the skeleton** (see `guide/app-conventions.md` in the kit): the error system with request IDs and structured logs, a health endpoint, `/api/v1`, UTC times and money in cents, the ID strategy and standard columns, the audit log, feature flags, `object_action` event names, breakpoints and a type scale in the tokens, per-module `copy.ts`, and generators for module, route, section and component. A stack pack should ship these. Without one, build them by hand.
-   - Main deploys to test, and there's a preview per pull request if the host offers one. Record the test URL in `AGENTS.md`.
+   - Main deploys to test from the session after each merge, and there's a preview per pull request if the host offers one (the stack pack's `deploy:*` scripts). Record the test URL in `AGENTS.md`.
    - Open `secrets` and wire every key the stack needs.
    - **Set up GitHub for the person:**
      1. If `gh auth status` fails, ask them to run `gh auth login` and wait.
      2. Run `node .agents/skills/name/scripts/setup-github.mjs --dry-run` and show them the list.
      3. Say in one line what it does (labels, Dependabot, secret scanning, rules on main, a production environment that waits for them) and ask: *"Set this up now?"*
      4. On a yes, run it without `--dry-run` and show the results, including anything skipped because of their plan.
-     - Main requires `agent-files` only once `.github/workflows/agent-files.yml` is on it. Run the script again after slice 0 merges.
+     - Main requires at most the `onrails/check` commit status (only where a probe status posts), never an Actions check.
      - **On Full automation, ask nothing.** `gh` signed in? Run it without `--dry-run`, and put the results in an ℹ️ FYI. Not signed in? Run local mode (`../coordinate/references/local-mode.md`) and list `gh auth login` in the FYI.
 2. **Seed data and test users.** Once the schema is designed (step 4), the first step that adds a table also adds a seed script and **two test users**, so `qa` can always sign in and check that one user can't see another's data.
 3. **List the slices** from `docs/mvp.md`. One slice is one thing a user can do, end to end. Name the **core.** Keep only slices that pass "does the core work without it?". Not every app needs auth.

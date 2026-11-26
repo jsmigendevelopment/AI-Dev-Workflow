@@ -98,6 +98,8 @@ export default tseslint.config(
       'worker-configuration.d.ts',
     ],
   },
+  // The onRails kit's rules, skills and hooks sit next to the app but aren't app code (#146).
+  { ignores: ['.agents', '.claude', '.codex'] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {

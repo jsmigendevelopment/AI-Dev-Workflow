@@ -10,7 +10,7 @@ pnpm-workspace.yaml   apps/*, packages/*, the version catalog, which packages ma
 turbo.json            task graph, cache inputs and outputs
 tsconfig.base.json    strictness every workspace extends
 eslint.workspace.config.js, scripts/check-workspace-deps.js   the cross-workspace boundary check
-.github/workflows/ci.yml   checks, web e2e, supply chain, opt-in mobile e2e, secrets, agent files
+(no .github/workflows: checks, previews and deploys run from the session)
 apps/
   web/                the TanStack Start pack, pulled in at slice 0 (not stored here)
   mobile/             the Expo app
@@ -39,10 +39,10 @@ npx degit jsmigendevelopment/onRails/stacks/tanstack-start apps/web
 (or the kit CLI, which does both). Then fold the web pack into the monorepo:
 
 1. **Delete `apps/web/pnpm-workspace.yaml` and `apps/web/pnpm-lock.yaml`.** A nested workspace file makes pnpm treat `apps/web` as its own repo. Copy any `allowBuilds` or `minimumReleaseAgeExclude` entries it had that the root lacks into the root `pnpm-workspace.yaml`.
-2. **Delete `apps/web/.github/workflows/ci.yml`.** GitHub only reads workflows at the repo root; the root `ci.yml` already runs the web pack's checks, migration check, budgets, Playwright, audit and licence check. Move `apps/web/.github/dependabot.yml` to `.github/` and set its npm `directory` to `/`. Port any web CI step added later that the root file lacks.
-3. **Delete `apps/web/lefthook.yml`** (its git hook would install from `apps/web`, not the repo root). CI lints everything anyway.
-4. Set the names: `name`, `slug`, `scheme`, `ios.bundleIdentifier` and `android.package` in `apps/mobile/app.json`; `appId` in `apps/mobile/e2e/*.yaml`; the scheme and workspace names in the iOS e2e job; then the web pack's own renames (its README).
-5. `pnpm install`, then `pnpm check`. Both must pass before you change anything. Commit the `pnpm-lock.yaml` that install wrote: CI installs with `--frozen-lockfile`.
+2. **Move `apps/web/.github/dependabot.yml` to `.github/`** and set its npm `directory` to `/`, then delete `apps/web/.github/`. Neither pack ships a GitHub Actions workflow: never add one. The web pack's checks and deploys run from the root (`pnpm check:merge`, `pnpm deploy:test` and the rest, below).
+3. **Delete `apps/web/lefthook.yml`** (its git hook would install from `apps/web`, not the repo root). The merge gate lints everything anyway.
+4. Set the names: `name`, `slug`, `scheme`, `ios.bundleIdentifier` and `android.package` in `apps/mobile/app.json`; `appId` in `apps/mobile/e2e/*.yaml`; the scheme and workspace names in `e2e:build:ios` (`apps/mobile/package.json`); then the web pack's own renames (its README).
+5. `pnpm install`, then `pnpm check`. Both must pass before you change anything. Commit the `pnpm-lock.yaml` that install wrote: the merge gate installs with `--frozen-lockfile`.
 
 **Why no lockfile in this pack:** a lockfile must cover every workspace, and `apps/web` arrives from another pack at slice 0, so any lockfile stored here would be wrong the moment it is applied (and stale whenever the web pack changes). Every direct dependency is pinned to an exact version instead, and pnpm's minimum release age keeps brand-new transitive releases out. The project's own lockfile is created and committed at slice 0.
 
@@ -57,6 +57,9 @@ npx degit jsmigendevelopment/onRails/stacks/tanstack-start apps/web
 | `pnpm test:e2e`                               | the web app's Playwright suite (it runs on Linux)                                                                                                                                      |
 | `pnpm test:e2e:mobile`                        | Maestro flows in `apps/mobile/e2e` against an installed build on a running simulator or emulator                                                                                       |
 | `pnpm boundaries:report`                      | `turbo boundaries`, as a second opinion (experimental, not a gate)                                                                                                                     |
+| `pnpm check:merge`                            | after `pnpm check`, before merge: the web pack's extra checks (budgets, migrations match the tables, the audit, licences, gitleaks over the whole repo, Semgrep, screenshots). Skips what the machine can't run, and says so |
+| `pnpm pr:rules <n>`                           | pull request `<n>` is tied to an issue and small enough to review |
+| `pnpm deploy:preview <n>`, `deploy:test`, `deploy:production` | the web app's deploys, from the session (the web pack's README, "Deploys") |
 | `pnpm connect`                                | the web app's `pnpm connect` (keys, one provider at a time, from your own terminal), plus the mobile app's `EXPO_PUBLIC_*` in `apps/mobile/.env`                                       |
 | `pnpm --filter mobile dev`                    | Expo dev server (press `i` or `a`, or scan the QR code with Expo Go)                                                                                                                   |
 | `pnpm --filter mobile expo:doctor`            | Expo's project health check (needs network)                                                                                                                                            |
@@ -112,14 +115,15 @@ Per workspace: `cd apps/mobile && pnpm test` works the same way. Packages have n
 
 `apps/mobile/e2e/signed-out.yaml` is the smoke flow (fresh install lands on sign-in). `notes.yaml` (tag `signed-in`, skipped by default) signs in with a Clerk test user and adds and deletes a note; its hosted-page labels were not checked on a device.
 
-Maestro needs a running simulator or emulator, so it can't run in an agent's Linux sandbox or in `check`. In CI it is two opt-in jobs: add the `e2e:mobile` label to a pull request, or run the workflow by hand and choose android, ios or both. Each builds a release binary without EAS or signing, installs Maestro 2.12.1 and runs `maestro test e2e`. They were written from the tools' docs and not yet run: expect to adjust the first run.
+Maestro needs a running simulator or emulator, so it can't run in an agent's Linux sandbox or in `check`. It runs on a machine that has one, usually the person's: install Maestro 2.12.1, build a release binary without EAS or signing, install it, then run the flows. The build scripts were moved from the old CI jobs and not yet run: expect to adjust the first run.
 
-| Job                  | Runner                   | Time                                            | Cost on a private repo                         |
-| -------------------- | ------------------------ | ----------------------------------------------- | ---------------------------------------------- |
-| `mobile-e2e-android` | `ubuntu-latest` with KVM | about 20 to 30 min (native build plus emulator) | $0.006 a minute, so about $0.15 a run          |
-| `mobile-e2e-ios`     | `macos-latest`           | about 25 to 40 min                              | $0.062 a minute, so about $1.50 to $2.50 a run |
+| Platform | Build (in `apps/mobile`) | Then |
+| --- | --- | --- |
+| Android | `pnpm e2e:build:android` (Java 17 and the Android SDK) | `adb install android/app/build/outputs/apk/release/app-release.apk` on a running emulator, then `pnpm test:e2e:mobile` from the root |
+| iOS | `pnpm e2e:build:ios` (a Mac with Xcode) | `xcrun simctl install booted <the .app under build/Build/Products>`, then `pnpm test:e2e:mobile` |
 
-GitHub Free includes $12 of Actions compute a month on private repos (about 2,000 Linux or 190 macOS minutes); standard runners are free on public repos. Set the repo variables `E2E_API_URL` and `E2E_CLERK_PUBLISHABLE_KEY` (public values, so variables, not secrets) to test against the test environment. Expo Workflows also has a Maestro job type if you'd rather run on Expo's machines. Maestro can't drive a physical iPhone.
+Set `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` in the shell for the build to test against the test environment (public values). Expo Workflows also has a Maestro job type if you'd rather run on Expo's machines (it is paid past the free allowance: the person's call). Maestro can't drive a physical iPhone.
+
 
 ## Builds, signing, stores and updates (EAS)
 
@@ -152,4 +156,4 @@ Putting one React version in the catalog is the simpler setup if you prefer it, 
 
 ## What an agent can't check here
 
-Lint, types, Jest, the JS export and the boundary checks run on Linux with no device. Nothing here shows the app on a screen: layout, dark mode, the keyboard, safe areas, hosted sign-in in the in-app browser, deep-link return from Clerk, and push or camera permissions all need a person with a phone (Expo Go or a preview build), or the Maestro jobs. Say so in the pull request and ask the person to try it on a device before merge.
+Lint, types, Jest, the JS export and the boundary checks run on Linux with no device. Nothing here shows the app on a screen: layout, dark mode, the keyboard, safe areas, hosted sign-in in the in-app browser, deep-link return from Clerk, and push or camera permissions all need a person with a phone (Expo Go or a preview build), or the Maestro flows on a simulator. Say so in the pull request and ask the person to try it on a device before merge.

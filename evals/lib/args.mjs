@@ -4,7 +4,7 @@ export const DEFAULTS = {
   maxTurns: 12,
   timeoutSec: 240,
   maxBudgetUsd: 0.5,
-  maxRuns: 38,
+  maxRuns: 40,
 };
 // No flag can raise the number of runs past this. Each run is one paid Claude Code session.
 export const HARD_CAP = 40;
@@ -13,7 +13,7 @@ export const HELP = `node evals/run.mjs [options]
 
 Runs each scenario twice, with the onRails kit installed and without, and compares the checks.
 
-  --scenario <a,b>       only these scenarios (default: all)
+  --scenario <a,b>       only these scenarios (default: all but the opt-in ones)
   --model <id>           model for every run (default: ${DEFAULTS.model})
   --max-turns <n>        agent turns per run (default: ${DEFAULTS.maxTurns})
   --timeout <sec>        wall-clock limit per run (default: ${DEFAULTS.timeoutSec})

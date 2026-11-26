@@ -5,7 +5,7 @@ Optional pieces for an app made from `stacks/tanstack-start`. The tech grill (`s
 | Add-on | Adds | Packages | Lane |
 |---|---|---|---|
 | [`analytics`](analytics/ADDON.md) | Cloudflare Web Analytics beacon, off without a token | none | tiny |
-| [`sentry`](sentry/ADDON.md) | errors from the Worker and the browser, source maps uploaded from CI | `@sentry/cloudflare`, `@sentry/react`, `@sentry/vite-plugin` | normal |
+| [`sentry`](sentry/ADDON.md) | errors from the Worker and the browser, source maps uploaded by the deploy builds | `@sentry/cloudflare`, `@sentry/react`, `@sentry/vite-plugin` | normal |
 | [`email-resend`](email-resend/ADDON.md) | `EmailSender` port, Resend over `fetch`, memory fake, one escaped template | none | risky |
 | [`jobs`](jobs/ADDON.md) | Queues producer and consumer, Cron Triggers, an idempotent job ledger | none | normal |
 | [`stripe`](stripe/ADDON.md) | `billing` module: Checkout, the portal, a signed, idempotent webhook, test mode only | `stripe` | risky |

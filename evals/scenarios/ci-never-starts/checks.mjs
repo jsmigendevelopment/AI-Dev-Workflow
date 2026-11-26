@@ -8,6 +8,9 @@ import { failedIds, result } from "../../lib/checks.mjs";
 import { mergedExactly, versions } from "../../lib/local-issues.mjs";
 import { ISSUE } from "./fixture.mjs";
 
+// Opt-in: the default run is at the 40-run hard cap, so this runs only when --scenario names it.
+export const optIn = true;
+
 // `check` from the check contract: `npm run check` (any flags, such as --prefix <dir>), or `pnpm check`.
 const CHECK = /\bnpm\b[^\n;&|]*\srun(?:-script)?\s+check(?=\s|$)|\bpnpm\b[^\n;&|]*\s(?:run\s+)?check(?=\s|$)/;
 const ADD = /\bgit\b[^\n;&|]*\sworktree\s+add\s/;

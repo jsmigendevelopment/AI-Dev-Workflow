@@ -10,6 +10,7 @@ import { initGlobal } from "../src/global.mjs";
 import { offerHomeMove } from "../src/home.mjs";
 import { init } from "../src/init.mjs";
 import { libraryInit } from "../src/library-init.mjs";
+import { main as preflight } from "../src/preflight.mjs";
 import { profileCopy, profileInit, profileShow } from "../src/profile.mjs";
 import { terminalAsk } from "../src/prompt.mjs";
 import { signature } from "../src/signature.mjs";
@@ -33,6 +34,10 @@ Usage:
   npx onrails doctor [dir]                check your tools and the kit
   npx onrails doctor [dir] --fix [--yes] [--dry-run]
                                           offer a fix for each problem, run it after a yes
+  npx onrails preflight [dir] [--record] [--if-changed] [--json] [--model <id>] [--effort <level>]
+                                          for agents: probe this session's sandbox (repo, .git, the
+                                          registry, GitHub, loopback, a browser, Node) and print one
+                                          table with the fix ladder for each failure
   npx onrails accounts [dir]              list the profile's accounts and their config folders
   npx onrails add <pack> [dir] [--force]  copy a stack pack into the project
   npx onrails add --list                  list the stack packs
@@ -58,6 +63,8 @@ them to the new names, and --yes moves them. Nothing is deleted without a yes.`;
 async function main(argv) {
   // signature has flags that take values, so it reads its own.
   if (argv[0] === "signature" && !argv.includes("--help") && !argv.includes("-h")) return signature(argv.slice(1));
+  // preflight reads its own flags too. It is read-only and never offers the home-folder move.
+  if (argv[0] === "preflight") return preflight(argv.slice(1));
   const flags = new Set(argv.filter((a) => a.startsWith("-")));
   const [command, ...args] = argv.filter((a) => !a.startsWith("-"));
   const known = new Set(["--dry-run", "--force", "--list", "--list-addons", "--fix", "--yes", "-y", "--help", "-h", "--version", "-v",

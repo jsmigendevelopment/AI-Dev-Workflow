@@ -9,6 +9,8 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
 
 ## Steps
 
+**Preflight first.** Before step 0, run `node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <your effort>`. It probes your own sandbox in about 10 seconds and prints one table. A `✗` row? Follow `../ask/references/preflight.md`: fix what you can, climb its ladder, and ask for the rest in ONE message, before step 3 tries to install anything. Run it with `--record` once step 7 has written `docs/state.md`.
+
 0. **Ask the automation level first** (see `automation`). Show this table, and say in one line how it differs from the risk dial: *the automation level is how much agents do without you; the risk dial is how careful each merge is.* The profile's `[defaults] automation` is the suggested pick. For a repo other people already ship from, recommend Hands-on or Recommended, never Full. Write it into `docs/stack.md` in step 7.
 
 | Level | Agents do | You do |

@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GUARD_WORKFLOW, changedPaths, decide, level, submodules, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
-import { addAgentFiles, requiredChecks } from "../../.agents/skills/name/scripts/required-checks.mjs";
+import { LOCAL_CHECK, localChecks, requiredChecks } from "../../.agents/skills/name/scripts/required-checks.mjs";
 import { fakeGh, tmp, unixOnly } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/coordinate/scripts/agent-files.mjs", import.meta.url));
@@ -298,53 +298,31 @@ test("#131 item 3: gate needs the pull request, the repo and the head, even with
   }
 });
 
-test("slice 0: agent-files is required only once its workflow is on the default branch", () => {
-  assert.deepEqual(requiredChecks(false).map((c) => c.context), ["checks", "secrets"]);
-  assert.deepEqual(requiredChecks(true).map((c) => c.context), ["checks", "secrets", "agent-files"]);
-  const rules = [{ type: "deletion" }, { type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: requiredChecks(false) } }];
-  assert.equal(addAgentFiles(rules, false), null, "no workflow yet: nothing added");
-  const added = addAgentFiles(rules, true);
-  assert.deepEqual(added[1].parameters.required_status_checks.map((c) => c.context), ["checks", "secrets", "agent-files"]);
-  assert.equal(added[1].parameters.strict_required_status_checks_policy, true);
-  assert.equal(addAgentFiles(added, true), null, "already there: nothing changes");
-  assert.deepEqual(addAgentFiles([{ type: "deletion" }], true)[1].parameters.required_status_checks.map((c) => c.context), ["checks", "secrets", "agent-files"]);
+test("AC-132-3: main requires only the local gate's onrails/check status, never an Actions check", () => {
+  assert.deepEqual(requiredChecks().map((c) => c.context), ["onrails/check"]);
+  assert.equal(LOCAL_CHECK, "onrails/check");
+  // A rule setup-github made before #132 required the old workflows' checks: they never report now.
+  const old = [{ type: "deletion" }, { type: "required_status_checks", parameters: { strict_required_status_checks_policy: true,
+    required_status_checks: [{ context: "checks" }, { context: "secrets" }, { context: "agent-files" }, { context: "vercel", integration_id: 8 }] } }];
+  const swapped = localChecks(old);
+  assert.deepEqual(swapped[1].parameters.required_status_checks, [{ context: "vercel", integration_id: 8 }, { context: "onrails/check" }], "keeps a check the kit didn't add");
+  assert.equal(swapped[1].parameters.strict_required_status_checks_policy, true);
+  assert.equal(localChecks(swapped), null, "already there: nothing changes");
+  assert.deepEqual(localChecks([{ type: "deletion" }])[1].parameters.required_status_checks.map((c) => c.context), ["onrails/check"]);
 });
 
-const WORKFLOWS = [".agents/skills/idea/templates/agent-files.yml", "stacks/tanstack-start/.github/workflows/agent-files.yml", "stacks/monorepo-expo/.github/workflows/agent-files.yml"];
-const CI = [".agents/skills/idea/templates/ci.yml", "stacks/tanstack-start/.github/workflows/ci.yml", "stacks/monorepo-expo/.github/workflows/ci.yml"];
-
-test("the guard has its own workflow: default-branch triggers, read-only token, base checkout only", () => {
-  for (const p of WORKFLOWS) {
-    const yml = read(p);
-    assert.match(yml, /pull_request_target:\n\s+types: \[opened, synchronize, reopened, edited, labeled, unlabeled\]/, p);
-    assert.doesNotMatch(yml, /issue_comment/, p);
-    assert.match(yml, /permissions:\n\s+contents: read\n\s+pull-requests: read\n\s+issues: read\n/, p);
-    assert.doesNotMatch(yml, /: write\b/, p);
-    assert.match(yml, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}\n/, p);
-    assert.match(yml, /HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/, p);
-    assert.match(yml, /\$total" -gt 3000/, p);
-    assert.match(yml, /docs\/stack\\\.md\$/, p);
-    assert.doesNotMatch(yml, /ref: .*head|refs\/pull|pull\/.*\/head/, p);
-    assert.match(yml, /node "\$guard" --pr "\$PR"/, p);
-    assert.match(yml, /previous_filename/, p);
-    assert.match(yml, /grep -iE '/, p);
-    assert.match(yml, /\\\.codex/, p);
-    assert.match(yml, /AGENTS\(\\\.override\)\?\|CLAUDE\(\\\.local\)\?\|GEMINI/, p);
-    assert.match(yml, /\(\^\|\/\)\(\\\.agents\|\\\.claude\|\\\.codex\)\(\/\|\$\)\|\^\\\.github\(\/\|\$\)/, p);
-    assert.match(yml, /\\\.gitmodules\$/, p);
-    assert.match(yml, /Subproject commit/, p);
-    assert.match(yml, /node "\$guard" --pr "\$PR"\n\s+exit \$\?/, p);
-    assert.match(yml, /^ {2}agent-files:$/m, p);
+test("the guard runs from the session: no pack or template ships its workflow, and its script is there", () => {
+  for (const p of [".agents/skills/idea/templates/agent-files.yml", "stacks/tanstack-start/.github/workflows/agent-files.yml", "stacks/monorepo-expo/.github/workflows/agent-files.yml"]) {
+    assert.throws(() => read(p), /ENOENT/, p);
   }
+  // The script the workflow ran is what the session runs now; the tests above run it as a command.
+  assert.ok(read(".agents/skills/coordinate/scripts/agent-files.mjs").length > 0);
 });
 
-test("ci.yml no longer has the agent-files job", () => {
-  for (const p of CI) assert.doesNotMatch(read(p), /agent-files/, p);
-});
-
-test("#103: setup-github requires agent-files at every level, once the workflow exists", () => {
+test("#103, #132: setup-github requires onrails/check at every level, and never looks for a workflow", () => {
   const script = read(".agents/skills/name/scripts/setup-github.mjs");
-  assert.match(script, /required_status_checks: requiredChecks\(hasGuard\)/);
-  assert.match(script, /addAgentFiles\(/);
+  assert.match(script, /required_status_checks: requiredChecks\(\)/);
+  assert.match(script, /localChecks\(/);
+  assert.doesNotMatch(script, /\.github\/workflows/);
   assert.doesNotMatch(script, /FULL/, "the level never drops the check");
 });

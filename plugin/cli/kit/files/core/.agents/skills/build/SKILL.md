@@ -7,7 +7,8 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 
 ## Steps
 
-0. **Say you've started:** `node .agents/skills/coordinate/scripts/board.mjs event started issue=<n> title="<issue title>" thread="<your session name>"`. If it can't write (a cloud thread), skip it. The `status:in-progress` label carries it.
+0. **Preflight:** `node .agents/skills/ask/scripts/preflight.mjs --if-changed --record`. It skips the probes when `docs/state.md` says `Environment: ok` and the sandbox hasn't changed. A `✗` row? Follow `../ask/references/preflight.md` before anything else: fix what you can, climb its ladder, ONE message for the rest. Installs blocked? Don't scaffold, and don't build what needs them.
+   - **Say you've started:** `node .agents/skills/coordinate/scripts/board.mjs event started issue=<n> title="<issue title>" thread="<your session name>"`. If it can't write (a cloud thread), skip it. The `status:in-progress` label carries it.
 1. **Read the issue in full,** then `docs/design.md` for its screens, schema and API, and `docs/architecture.md`. Open `docs/stack.md` only if you're adding a library. Load the skills named on its `Skills:` line, and read every recipe on its `Recipes:` line (`.agents/skills/stack-tanstack-start/references/tanstack/<name>.md`): a form, data grid, chart, Markdown, code highlighting, long list or keyboard shortcuts follows its recipe, and its "Done when" list is part of the acceptance checks.
    - **Sent by another session?** Your brief is a handoff (`../ask/references/handoffs.md`). Before any work, comment the receipt on its record: `Got it · <your session> · My reading: <one line>`. Your reading differs from the owner's quoted words, or they could mean two things? That's step 2.
 2. **Unclear? Ask, don't guess.** An unclear issue, one with a `[NEEDS CLARIFICATION]` marker, or a brief your reading doesn't match, is a ⏳ decision. Use the `ask` skill: comment up to three questions, each with your recommended answer, label it `needs-human`, ping, and stop work on this issue. Run alone? Start the next ready issue (step 14, "Run alone"); there's no branch of this one to take on. If the work would hit the always-stop list, it's a 🛑 blocker instead.
@@ -36,6 +37,7 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 9. **Update the docs** your change makes wrong, in the same pull request.
 10. **Run every check** in "Commands that work here" in `AGENTS.md`: lint, typecheck, the boundary check, tests and build. All of it must pass.
 11. **Show it.** Did the step change what the person sees? Follow "Show it" below, and put the look in your report and the pull request.
+    - **Checking it in a browser yourself?** Load `test-by-hand-as-the-user`: predict every output first, move every input, and put its table in your report.
 12. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body, the issue's try line, and, for each AC ID, the test file that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
    - Aim for under about 400 changed lines, not counting lockfiles and generated files. Bigger? Split it, or label it `large-pr` and say why.
    - **Hands-on** automation (see "Automation level" in `docs/stack.md`)? Don't open it unless the person said to. Push the branch and tell them its name and the check results.

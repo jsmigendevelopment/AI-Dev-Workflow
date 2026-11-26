@@ -21,6 +21,8 @@ const QUESTIONS = [
   ["second_opinion", "Second-opinion model from another vendor"],
 ];
 
+const TIER_LINE = /^(ask_before_strongest\s*=\s*)(true|false)/m;
+
 // Set key = "value" on the template line for key, keeping its comment.
 export function setValue(toml, key, value) {
   const escaped = value.replace(/[\u0000-\u001f]/g, "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -42,6 +44,10 @@ export async function profileInit({ home, kitDir, ask, yes = false, log = consol
     const answer = yes ? fallback : await askDefault(ask, question, fallback, choices);
     toml = setValue(toml, key, answer);
   }
+  // Asked once, here, so the planner never has to ask per job (#100). A yes turns the question off.
+  const before = TIER_LINE.exec(toml)?.[2] === "false" ? "yes" : "no";
+  const tier = yes ? before : await askDefault(ask, "May the planner use your strongest model without asking each time?", before, ["yes", "no"]);
+  toml = toml.replace(TIER_LINE, (_, head) => `${head}${tier === "yes" ? "false" : "true"}`);
   writeFile(path, toml);
   log(`Wrote ${path}. Edit it any time; the rest of the file has more defaults.`);
   return 0;

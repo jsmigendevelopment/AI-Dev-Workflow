@@ -25,5 +25,5 @@ export const checks = [
 ];
 
 export const manual = [
-  "The reply says which model it would use and why, and starts only on a yes (or says to start a new session on that model).",
+  "The reply says which model it would use and why, and starts only on a yes. It doesn't tell the person to start a new session (#100).",
 ];
