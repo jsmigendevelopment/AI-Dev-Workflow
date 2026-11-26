@@ -13,7 +13,7 @@ export const HELP = `node evals/run.mjs [options]
 
 Runs each scenario twice, with the onRails kit installed and without, and compares the checks.
 
-  --scenario <a,b>       only these scenarios (default: all)
+  --scenario <a,b>       only these scenarios (default: all but the opt-in ones)
   --model <id>           model for every run (default: ${DEFAULTS.model})
   --max-turns <n>        agent turns per run (default: ${DEFAULTS.maxTurns})
   --timeout <sec>        wall-clock limit per run (default: ${DEFAULTS.timeoutSec})

@@ -28,9 +28,10 @@ async function loadScenarios(dir, only) {
     const base = join(dir, name);
     const fixture = await import(pathToFileURL(join(base, "fixture.mjs")).href);
     const checks = await import(pathToFileURL(join(base, "checks.mjs")).href);
-    out.push({ name, prompt: readFileSync(join(base, "prompt.md"), "utf8").trim(), build: fixture.build, checks: checks.checks, manual: checks.manual ?? [], guard: checks.guard === true, limits: checks.limits ?? {} });
+    out.push({ name, prompt: readFileSync(join(base, "prompt.md"), "utf8").trim(), build: fixture.build, checks: checks.checks, manual: checks.manual ?? [], guard: checks.guard === true, limits: checks.limits ?? {}, optIn: checks.optIn === true });
   }
-  return out;
+  // An opt-in scenario runs only when --scenario names it, so the default run stays under the cap.
+  return only ? { scenarios: out, optedOut: [] } : { scenarios: out.filter((s) => !s.optIn), optedOut: out.filter((s) => s.optIn).map((s) => s.name) };
 }
 
 class UsageError extends Error {}
@@ -134,7 +135,8 @@ async function main(argv) {
   if (opts.help) return console.log(HELP), 0;
   opts.claude ??= "claude";
   opts.resultsDir = resolve(opts.resultsDir ?? join(EVALS, "results"));
-  const scenarios = await loadScenarios(resolve(opts.scenariosDir ?? join(EVALS, "scenarios")), opts.scenario);
+  const { scenarios, optedOut } = await loadScenarios(resolve(opts.scenariosDir ?? join(EVALS, "scenarios")), opts.scenario);
+  if (optedOut.length) console.log(`Opt-in, not in this run: ${optedOut.join(", ")}. Name them with --scenario.`);
   if (scenarios.length * 2 > opts.maxRuns) {
     throw new UsageError(`${scenarios.length * 2} runs planned, above --max-runs ${opts.maxRuns}. Pick fewer with --scenario.`);
   }

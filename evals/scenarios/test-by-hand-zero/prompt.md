@@ -1,0 +1,1 @@
+I changed how the New video page shows the estimated length: issue #9 in docs/issues/9.md, on this branch. The checks pass. Before I try it, test it by hand the way I would and tell me if it's right. There's no browser here: `node scripts/page.mjs` prints the page as I see it, and `node scripts/page.mjs --length 2m` is the same as picking 2 minutes. Don't fix anything yet.
