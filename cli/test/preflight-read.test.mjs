@@ -193,14 +193,17 @@ test("AC-169-5: WHEN a repo ships docs/state.md but the person's own session has
   assert.equal(await main([project(), "--mark-read"], { sys: fakeSys(), log: logger() }), 1, "no .git: nothing to mark");
 });
 
-test("AC-169-5: a linked worktree of a marked repo counts as read; its marker lives in the shared .git folder", posixOnly, () => {
+test("AC-169-5: a linked worktree of a marked repo counts as read once it is marked itself (#182); its marker lives in the shared .git folder", posixOnly, () => {
   const top = gitRepo("");
   markRead(top);
   const tree = join(temp("onrails-read-tree-"), "wt");
   sh(top, "worktree", "add", "--quiet", "--detach", tree);
+  assert.equal(isRead(tree), false, "#182: the main checkout's mark doesn't vouch for a worktree");
+  markRead(tree);
   assert.equal(isRead(tree), true);
   assert.equal(statSync(join(tree, ".git")).isFile(), true);
   assert.equal(existsSync(join(top, ".git", "onrails-read")), true);
+  assert.equal(existsSync(join(top, ".git", "worktrees", "wt", "onrails-read")), true);
 });
 
 test("AC-169-5: /join and /back write the read marker, and the reference says what it is", () => {
@@ -237,5 +240,7 @@ test("#169: an x-range with a prerelease reads as a version, so it can't make No
 });
 
 test("#169: the system layer ships next to preflight in the ask skill and the CLI", () => {
-  for (const at of [".agents/skills/ask/scripts", "cli/src"]) assert.equal(read(`${at}/preflight-sys.mjs`), read("scripts/preflight-sys.mjs"), at);
+  for (const at of [".agents/skills/ask/scripts", "cli/src"]) {
+    for (const name of ["preflight-sys.mjs", "preflight-layout.mjs"]) assert.equal(read(`${at}/${name}`), read(`scripts/${name}`), `${at}/${name}`);
+  }
 });

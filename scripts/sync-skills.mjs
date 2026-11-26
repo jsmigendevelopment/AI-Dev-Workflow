@@ -19,9 +19,9 @@ const ISSUE_DEST = ".github/ISSUE_TEMPLATE/slice.md";
 const CHECKER = join("scripts", "check-research.mjs");
 const LIBRARY = join("scripts", "research-library.mjs");
 const TEMPLATE = join("templates", "research-library");
-// Preflight ships inside the ask skill, so an agent can run it with plain node, and in the CLI (npx onrails preflight).
-// preflight-sys.mjs is its system layer (#169): it goes wherever preflight.mjs goes.
-const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs"];
+// Preflight ships inside the ask skill, so an agent can run it with plain node, and in the CLI (a global onrails preflight).
+// preflight-sys.mjs is its system layer (#169), and preflight-layout.mjs finds the repo's checkouts (#182): they go wherever preflight.mjs goes.
+const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs", "preflight-layout.mjs"];
 // The process registry ships the same way: the ask skill for agents and the hooks, the CLI for npx onrails ps.
 const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-store.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
 const COPIES = [
