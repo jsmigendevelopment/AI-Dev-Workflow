@@ -118,6 +118,38 @@ test("#233: WHEN session-end skips records whose id the registry didn't make THE
   assert.deepEqual(ids(sys), ["--guard", "99999@x", "pcafe"], "nothing is dropped before the reaper runs");
 });
 
+// Round 1 of #244: what session-end prints for one skipped id, from the "Not stopping" line.
+async function skippedAs(id) {
+  const sys = machine(false);
+  seed(sys, { ...vite, id });
+  const line = (await run(sys, ["session-end"])).out.split("\n").find((l) => l.startsWith("Not stopping 1 "));
+  return /make \((.*)\), so the id never/s.exec(line ?? "")?.[1];
+}
+
+test("#233: WHEN a skipped id holds an ANSI escape THEN session-end prints it escaped, with no raw ESC", async () => {
+  assert.equal(await skippedAs("\u001b[31mx"), '"\\u001b[31mx"');
+});
+
+test("#233: WHEN a skipped id holds a C1 control, DEL, a bidi override or a line separator THEN session-end prints each escaped", async () => {
+  assert.equal(await skippedAs("\u009b31m\u007f\u202eevil\u2066\u2028"), '"\\u009b31m\\u007f\\u202eevil\\u2066\\u2028"');
+});
+
+test("#233: WHEN a skipped id is long THEN session-end prints at most 40 characters, never half an escape or a surrogate pair", async () => {
+  assert.equal(await skippedAs("a".repeat(200)), `"${"a".repeat(38)}\u2026`);
+  assert.equal(await skippedAs(`${"b".repeat(34)}\u009bcc`), `"${"b".repeat(34)}\u2026`, "the escape would pass 40: it goes whole");
+  assert.equal(await skippedAs(`${"d".repeat(37)}\u{1f600}`), `"${"d".repeat(37)}\u2026`, "the pair would pass 40: it goes whole");
+  assert.equal(await skippedAs("e".repeat(38)), `"${"e".repeat(38)}"`, "40 characters with the quotes: kept whole");
+});
+
+test("#233: WHEN session-end skips 12 records THEN it counts all 12 and names the first 5, then and 7 more", async () => {
+  const sys = machine(false);
+  for (let n = 1; n <= 12; n++) seed(sys, { ...vite, id: `x${n}` });
+  const { out } = await run(sys, ["session-end"]);
+  const line = 'Not stopping 12 background process(es) whose record id the registry didn\'t make ("x1", "x2", "x3", "x4", "x5" and 7 more), '
+    + "so the id never reaches the reaper's options. They stay recorded, and the next session lists them as stale.";
+  assert.ok(out.split("\n").includes(line), out);
+});
+
 test("AC-174-3: WHEN the reaper is given ids after -- THEN each is only an id, and a flag-like one changes no option", async () => {
   for (const group of [false, true]) {
     const fresh = detached(machine(group));

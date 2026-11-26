@@ -63,8 +63,8 @@ test("AC-156-4: on Linux with GNU ls, the real machine says a fresh folder has n
 });
 
 // #233: hasAcl's getfacl answer, checked against the real tool. A folder with only a default ACL (what new files in
-// it inherit) has an ACL; a fresh folder has none. Skipped where getfacl or setfacl is missing, or the file system
-// takes no ACL.
+// it inherit) has an ACL; a fresh folder has none. Skipped off Linux, where getfacl or setfacl is missing, or where
+// the file system takes no ACL; any other setfacl failure fails (noAclHere).
 test("AC-233-3: WHEN getfacl is on the machine THEN a real run on a folder with only a default ACL gives the answer the parser expects", (t) => {
   if (process.platform !== "linux") return t.skip("Linux only");
   const find = (name) => [`/usr/bin/${name}`, `/bin/${name}`].find((p) => existsSync(p));
@@ -72,9 +72,29 @@ test("AC-233-3: WHEN getfacl is on the machine THEN a real run on a folder with 
   if (!getfacl || !setfacl) return t.skip("no getfacl or setfacl here");
   const plain = tmp("procs-acl-"), shared = tmp("procs-acl-");
   const set = spawnSync(setfacl, ["-d", "-m", "u::rwx,g::rwx,o::---", "--", shared], { encoding: "utf8", env: safeEnv() });
-  if (set.status !== 0) return t.skip(`this file system takes no ACL: ${set.stderr.trim()}`);
+  const noAcl = noAclHere(set);
+  if (noAcl) return t.skip(noAcl);
   assert.equal(realSys().acl(shared), true, "a default ACL is an ACL");
   assert.equal(realSys().acl(plain), false, "the control: a fresh folder has none");
+});
+
+// Round 1 of #244: AC-233-3 skips on setfacl's answer only when the file system takes no ACL (EOPNOTSUPP). A wrong
+// flag, a usage error or a permission error fails with setfacl's stderr, so the check can't turn into a silent skip.
+function noAclHere(set) {
+  const why = String(set.stderr || set.error || "").trim();
+  if (set.status !== 0 && /Operation not supported/.test(why)) return `this file system takes no ACL: ${why}`;
+  assert.equal(set.status, 0, `setfacl failed: ${why}`);
+  return null;
+}
+
+test("AC-233-3: WHEN setfacl fails for any reason but a file system without ACLs THEN the real getfacl check fails with setfacl's stderr, never skips", () => {
+  assert.equal(noAclHere({ status: 0, stderr: "" }), null, "setfacl worked: the check runs");
+  const nope = noAclHere({ status: 1, stderr: "setfacl: /tmp/procs-acl-x: Operation not supported\n" });
+  assert.equal(nope, "this file system takes no ACL: setfacl: /tmp/procs-acl-x: Operation not supported");
+  for (const stderr of ["setfacl: invalid option -- 'q'\nTry `setfacl --help' for more information.\n", "setfacl: /tmp/procs-acl-x: Permission denied\n"]) {
+    assert.throws(() => noAclHere({ status: 1, stderr }), (e) => e instanceof assert.AssertionError && e.message.includes(stderr.trim()), stderr);
+  }
+  assert.throws(() => noAclHere({ status: null, stderr: null, error: new Error("spawnSync /usr/bin/setfacl EACCES") }), /EACCES/, "it didn't start");
 });
 
 test("AC-156-4: a group isn't the user's own when getent passwd lists another user in it, and can't tell when getent can't list", () => {

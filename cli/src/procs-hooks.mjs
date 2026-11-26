@@ -9,6 +9,27 @@ import { askAgain, fixable, load, logFor, untrusted, update } from "./procs-stor
 
 const PROCS = fileURLToPath(new URL("./procs.mjs", import.meta.url));
 const WATCH_HOURS = 24;
+const ID_CHARS = 40;
+const NAMED = 5;
+// What a terminal may act on or reorder: controls (C0, DEL, C1), lone surrogates, line and paragraph separators, and
+// bidi overrides and isolates. One TOKEN is a JSON escape or one code point, so a cut never splits either.
+const UNSAFE = /^[\p{Cc}\p{Cs}\u2028\u2029\u202a-\u202e\u2066-\u2069]$/u;
+const TOKEN = /\\u[0-9a-f]{4}|\\.|./gsu;
+
+// A record's id made safe to print on one line (#233): JSON-quoted, each UNSAFE character escaped as \uXXXX, and cut
+// to ID_CHARS characters, the last one an ellipsis. With bare, an id that needs no escape and no cut prints as it is.
+function printable(id, { bare = false } = {}) {
+  const tokens = (JSON.stringify(id) ?? "no id").match(TOKEN).map((t) => (UNSAFE.test(t) ? `\\u${t.charCodeAt(0).toString(16).padStart(4, "0")}` : t));
+  const text = tokens.join("");
+  if (bare && text === `"${id}"` && text.length <= ID_CHARS) return id;
+  if (text.length <= ID_CHARS) return text;
+  let out = "";
+  for (const t of tokens) { if (out.length + t.length > ID_CHARS - 1) break; out += t; }
+  return `${out}\u2026`;
+}
+
+// The first NAMED ids, then how many more, so thousands of odd records can't make one huge line.
+const named = (ids) => ids.slice(0, NAMED).join(", ") + (ids.length > NAMED ? ` and ${ids.length - NAMED} more` : "");
 
 // The reaper and the watcher outlive the command that starts them, so their parent is gone, and with no CLAUDE_PID
 // (as under Codex) walking up never reaches the agent. So that command passes the agent and its parent, each with its
@@ -104,7 +125,7 @@ export function sessionStart(sys, log, { dir, me }) {
   }
   if (!stale.length) return 0;
   log("### Background processes left running (the process registry)");
-  for (const r of stale) log(`- ${r.id} · ${r.command} · ${age(sys.now() - Date.parse(r.startedAt))} · ${r.stale}`);
+  for (const r of stale) log(`- ${printable(r.id, { bare: true })} · ${r.command} · ${age(sys.now() - Date.parse(r.startedAt))} · ${r.stale}`);
   log(`onRails started them. Stop them now with \`${SCRIPT} stop stale\`, and say so in your first reply.`);
   return 0;
 }
@@ -121,7 +142,7 @@ export async function sessionEnd(sys, log, { dir, me }) {
   // The others are named and counted, never skipped in silence (#233).
   const ours = (survey(sys, dir, owner, { prune: true }) ?? []).filter((r) => r.mine || r.owner === "gone");
   const due = ours.filter((r) => isId(r.id));
-  const odd = ours.filter((r) => !isId(r.id)).map((r) => (JSON.stringify(r.id) ?? "no id").slice(0, 40));
+  const odd = ours.filter((r) => !isId(r.id)).map((r) => printable(r.id));
   const guard = due.length ? guardFlag(sys, me) : [];
   for (const path of new Set(due.map((r) => r.path))) {
     const here = due.filter((r) => r.path === path);
@@ -129,7 +150,7 @@ export async function sessionEnd(sys, log, { dir, me }) {
     if (!reaper) { await stopRecords(sys, here, { grace: 2 }); forget(sys, here); }
   }
   if (due.length) log(`Stopping ${due.length} background process(es) this session or an ended one started.`);
-  if (odd.length) log(`Not stopping ${odd.length} background process(es) whose record id the registry didn't make (${odd.join(", ")}), `
+  if (odd.length) log(`Not stopping ${odd.length} background process(es) whose record id the registry didn't make (${named(odd)}), `
     + "so the id never reaches the reaper's options. They stay recorded, and the next session lists them as stale.");
   return 0;
 }

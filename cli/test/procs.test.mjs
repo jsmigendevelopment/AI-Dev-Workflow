@@ -137,6 +137,15 @@ test("AC-4: the session-start hook warns about orphans and names the command tha
   assert.ok(sys.live.has(4000), "it warns; it doesn't stop");
 });
 
+// Round 1 of #244 (#233): session start prints ids the way session end does, so an odd id can't drive the terminal.
+test("#233: WHEN a stale record's id holds an ANSI escape, a C1 control and a bidi override THEN session start prints it escaped and quoted", async () => {
+  const sys = fakeSys({ procs: { 4000: {} } });
+  seed(sys, { id: "\u001b[31m\u009bx\u202e", pid: 4000, start: "start-4000", command: "pnpm dev" });
+  const { out } = await run(sys, ["session-start"]);
+  assert.ok(out.split("\n").includes('- "\\u001b[31m\\u009bx\\u202e" · pnpm dev · 3d 0h · its owner session is gone'), out);
+  assert.doesNotMatch(out, /[\u001b\u009b\u202e]/);
+});
+
 test("AC-5: WHEN a process wasn't registered by onRails THEN ps --stop asks before touching it", async () => {
   const no = fakeSys({ procs: { 4242: {} } });
   const asked = [];
