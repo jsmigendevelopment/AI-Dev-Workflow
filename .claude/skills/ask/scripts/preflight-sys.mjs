@@ -3,18 +3,30 @@
 // The master copy is scripts/preflight-sys.mjs in the kit; sync-skills.mjs copies it next to each preflight.mjs.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { accessSync, constants, existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { connect, createServer } from "node:net";
-import { hostname } from "node:os";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { homedir, hostname, tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+
+/** True for a regular file this process may start. On POSIX a file without its run bit is passed over, as the shell does. */
+function runnable(file, win) {
+  try {
+    if (!statSync(file).isFile()) return false;
+    if (!win) accessSync(file, constants.X_OK);
+    return true;
+  } catch {
+    // Missing, unreadable or not runnable: the search goes on to the next PATH entry.
+    return false;
+  }
+}
 
 /** The file a command name starts, found on PATH (with PATHEXT on Windows), or undefined. Nothing is run. */
 function onPath(cmd, platform, env) {
   const win = platform === "win32";
   const exts = win ? (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").toLowerCase().split(";").filter((e) => /^\.(com|exe|bat|cmd)$/.test(e)) : [""];
-  // A relative PATH entry (".", or a bare name) is looked up from the current folder, which is the repo: skipped.
+  // A relative PATH entry (".", an empty one, or a bare name) is looked up from the current folder, which is the repo: skipped.
   return (env.PATH || env.Path || "").split(win ? ";" : ":").filter((dir) => dir && isAbsolute(dir))
-    .flatMap((dir) => exts.map((ext) => join(dir, cmd + ext))).find((f) => existsSync(f) && statSync(f).isFile());
+    .flatMap((dir) => exts.map((ext) => join(dir, cmd + ext))).find((f) => runnable(f, win));
 }
 
 // No shell, ever: on Windows a shell joins the arguments into one unquoted cmd.exe line. So a command
@@ -23,10 +35,11 @@ function onPath(cmd, platform, env) {
 /** How run starts a command, always with no shell: { file, args, verbatim? }, or null when it isn't on PATH. */
 export function commandFor(cmd, args, { platform = process.platform, env = process.env, execPath = process.execPath } = {}) {
   if (cmd === "node") return { file: execPath, args };
-  if (platform !== "win32") return { file: cmd, args };
-  const found = onPath(cmd, platform, env);
+  // Every platform starts a full path. Given a bare name, spawn searches PATH itself, relative and empty entries
+  // included, and reads those from the folder the command runs in, which is the repo for the git probes.
+  const found = isAbsolute(cmd) ? cmd : onPath(cmd, platform, env);
   if (!found) return null;
-  if (!/\.(bat|cmd)$/i.test(found)) return { file: found, args };
+  if (platform !== "win32" || !/\.(bat|cmd)$/i.test(found)) return { file: found, args };
   if (args.some((a) => !/^[\w.:=/-]+$/.test(a))) throw new Error(`preflight passes only plain words to cmd.exe, not: ${args.join(" ")}`);
   // cmd.exe /s drops the outer quotes, so a path with spaces stays one word. Node's own shell mode does the same.
   // A bare "cmd.exe" would be looked up in the current folder first, so the fallback is its full path.
@@ -60,7 +73,7 @@ function stopTree(child, platform, env) {
 }
 
 /** Runs one command with a timeout. Resolves { ok, out }, or null when it isn't installed. Nothing it started outlives it. */
-function runCommand(cmd, args, { cwd, timeout = 15000, config = [] }, { platform, env, start }) {
+function runCommand(cmd, args, { cwd, timeout = 15000, config = [], env: extra = {} }, { platform, env, start }) {
   // Git settings from the command line outrank the repo's own .git/config.
   const how = commandFor(cmd, cmd === "git" ? [...config.flatMap((c) => ["-c", c]), ...args] : args, { platform, env });
   if (!how) return Promise.resolve(null);
@@ -69,7 +82,7 @@ function runCommand(cmd, args, { cwd, timeout = 15000, config = [] }, { platform
     let out = "";
     let settled = false;
     const finish = (result) => { if (!settled) { settled = true; clearTimeout(timer); done(result); } };
-    const child = start(how.file, how.args, { cwd, env: spawnEnv(platform, env), shell: false, windowsVerbatimArguments: how.verbatim,
+    const child = start(how.file, how.args, { cwd, env: spawnEnv(platform, { ...env, ...extra }), shell: false, windowsVerbatimArguments: how.verbatim,
       windowsHide: true, detached: !win, stdio: ["ignore", "pipe", "pipe"] });
     const timer = setTimeout(() => {
       // A version probe can start a self-install that outlives it: the whole tree goes, and the run ends now.
@@ -117,24 +130,57 @@ function small(path) {
 }
 const same = (a, b) => existsSync(a) && existsSync(b) && realpathSync(a) === realpathSync(b);
 
-/** A linked worktree's shared .git folder. A .git file can name any folder, so only an admin folder that names it back counts. */
+/** What is at path, without following a symlink: "dir", "file", "link", "other", or null for nothing. */
+function kindOf(path) {
+  let entry;
+  try {
+    entry = lstatSync(path);
+  } catch {
+    // Nothing there, or a folder this process can't look in: as with existsSync, that counts as nothing.
+    return null;
+  }
+  return entry.isSymbolicLink() ? "link" : entry.isDirectory() ? "dir" : entry.isFile() ? "file" : "other";
+}
+
+// A .git file can name any folder, and a .git symlink can point at any repo's .git. So a .git file counts only for
+// a linked worktree git made: its admin folder sits in <shared .git>/worktrees/, that shared .git is a real folder
+// named .git (not a symlink), and the admin folder names this .git file back.
+/** A linked worktree's shared .git folder, as a real path, or null. */
 function linkedGitDir(file) {
   const own = /^gitdir: (.+)$/m.exec(small(file))?.[1]?.trim();
   if (!own) return null;
   const admin = resolve(dirname(file), own);
   const back = small(join(admin, "gitdir")).trim();
   const common = small(join(admin, "commondir")).trim();
-  return back && common && same(resolve(admin, back), file) ? resolve(admin, common) : null;
+  if (!back || !common) return null;
+  const shared = resolve(admin, common);
+  if (basename(shared) !== ".git" || kindOf(shared) !== "dir") return null;
+  const real = realpathSync(shared);
+  return dirname(realpathSync(admin)) === join(real, "worktrees") && same(resolve(admin, back), file) ? real : null;
+}
+
+/** The shared .git folder for the .git entry in the real folder at, or null. A .git symlink never counts. */
+function ownGitDir(at) {
+  const dot = join(at, ".git");
+  const kind = kindOf(dot);
+  // at is a real path and dot is no symlink, so dot is its own real path.
+  if (kind === "dir") return dot;
+  return kind === "file" ? linkedGitDir(dot) : null;
+}
+
+/** The real folder that holds the first .git entry of any kind at or above dir, where git's own search stops, or null. */
+export function repoTop(dir) {
+  if (!existsSync(dir)) return null;
+  for (let at = realpathSync(dir); ; at = dirname(at)) {
+    if (kindOf(join(at, ".git"))) return at;
+    if (dirname(at) === at) return null;
+  }
 }
 
 /** The repo's shared .git folder for dir, found without running git, or null. */
 export function gitDir(dir) {
-  if (!existsSync(dir)) return null;
-  for (let at = realpathSync(dir); ; at = dirname(at)) {
-    const dot = join(at, ".git");
-    if (existsSync(dot)) return statSync(dot).isDirectory() ? realpathSync(dot) : linkedGitDir(dot);
-    if (dirname(at) === at) return null;
-  }
+  const top = repoTop(dir);
+  return top ? ownGitDir(top) : null;
 }
 
 const stamp = (git) => {
@@ -148,10 +194,43 @@ export function isRead(dir) {
   return Boolean(git) && small(join(git, MARKER)) === stamp(git);
 }
 
-/** Writes the marker. Returns false when there's no .git folder to write it in. */
+/** Writes the marker in the .git next to dir, never one above it. Returns the folder whose .git it marked, or null. */
 export function markRead(dir) {
-  const git = gitDir(dir);
-  if (!git) return false;
+  const git = existsSync(dir) ? ownGitDir(realpathSync(dir)) : null;
+  if (!git) return null;
   writeFileSync(join(git, MARKER), stamp(git));
-  return true;
+  return dirname(git);
+}
+
+/** True when path's real path is top or inside it. */
+function within(path, top) {
+  const rel = relative(top, realpathSync(path));
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+// The session's TMPDIR can point into the repo, and git or npm run from a folder inside it read the repo's settings.
+/**
+ * Empty temp folders for the probes. hooks: an empty hooks folder. away: how to run a command outside the repo, from
+ * an empty folder whose real path is outside the repo's top folder, with a git that searches no folder above it; or null.
+ */
+export function tempFolders(dir, platform = process.platform) {
+  const top = repoTop(dir) ?? (existsSync(dir) ? realpathSync(dir) : resolve(dir));
+  const hooks = mkdtempSync(join(tmpdir(), "onrails-preflight-"));
+  let outside = within(hooks, top) ? null : hooks;
+  // Then the system's own temp folder, then the home folder.
+  for (const base of [platform === "win32" ? null : "/tmp", homedir()]) {
+    if (outside || !base || !existsSync(base)) continue;
+    let made;
+    try {
+      made = mkdtempSync(join(base, "onrails-preflight-"));
+    } catch {
+      // A folder this sandbox can't write: the next one, or none, and those rows wait for the read.
+      continue;
+    }
+    if (within(made, top)) rmSync(made, { recursive: true, force: true });
+    else outside = made;
+  }
+  const away = outside && { cwd: outside, env: { GIT_CEILING_DIRECTORIES: dirname(realpathSync(outside)) } };
+  const remove = () => { for (const f of new Set([hooks, outside])) if (f) rmSync(f, { recursive: true, force: true }); };
+  return { hooks, away, remove };
 }

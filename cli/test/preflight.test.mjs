@@ -289,7 +289,8 @@ test("on Windows, commands start with no shell: node is this Node, and only a .c
   assert.equal(commandFor("yarn", ["--version"], win).args[3], `""${join(bin, "yarn.bat")}" --version"`);
   assert.equal(commandFor("gh", ["api", "rate_limit"], win), null, "not on PATH: not installed");
   assert.throws(() => commandFor("npm", ["view", "a&b"], win), /plain words/);
-  assert.deepEqual(commandFor("git", ["status"], { platform: "linux", execPath: "/usr/bin/node" }), { file: "git", args: ["status"] });
+  // POSIX too finds the command on PATH first (#169): a bare name is never handed to spawn.
+  assert.equal(commandFor("git", ["status"], { platform: "linux", env: { PATH: "" }, execPath: "/usr/bin/node" }), null);
 });
 
 test("model and effort: what the session can see, or what the agent passes in", async () => {

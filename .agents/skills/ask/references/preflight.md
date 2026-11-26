@@ -13,13 +13,13 @@ node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <you
 - **When:** the first step of `/idea`, `/join`, `/back` and `build`.
 - **Once `docs/state.md` exists,** add `--if-changed --record`. It writes the result to the `Environment:` line there. When that line says ok and the sandbox hasn't changed (same machine, tool, Node, install settings and read mark), it skips every probe.
 - `–` rows are fine. GitHub at `–` means the loop runs in local mode (`../../coordinate/references/local-mode.md`).
-- **Until the repo is marked read, preflight runs no code the repo chose.** The mark is a file inside `.git/` that `/join` or `/back` writes with `preflight.mjs --mark-read` once your session has read the repo. `git clone` never copies it, and a copy that came with the repo doesn't count, so a `docs/state.md` the repo ships doesn't make it read. Until then:
+- **Until the repo is marked read, preflight runs no code the repo chose.** The mark is a file inside `.git/` that `/join` or `/back` writes with `preflight.mjs --mark-read` once your session has read the repo. Run it in the repo's top folder: it marks only the `.git` there, never a parent's, and prints the folder it marked. `git clone` never copies the mark, and a copy that came with the repo doesn't count, nor does a `.git` symlink or a `.git` file that isn't a linked worktree git made, so a `docs/state.md` the repo ships doesn't make it read. `--if-changed` says so too when it skips. Until then:
   - no `<pm> --version`: it finds the manager on PATH without running it, and reads a yarn version from a plain `yarnPath` file name where there is one;
   - no Playwright launch, which loads the project's own files;
-  - npm, `gh` and `git ls-remote` run from a temp folder outside the repo, against the remote's URL and the `.npmrc` registry only when they are plain;
+  - npm, `gh` and `git ls-remote` run from a temp folder whose real path is outside the repo, against the remote's URL and the `.npmrc` registry only when they are plain;
   - git runs with the repo's hooks turned off.
 
-  Those rows show `–` and say "after the repo is read", and one line under the table says the repo isn't marked yet. Run preflight again after `--mark-read`. Every command has `COREPACK_ENV_FILE=0`; on Windows, every command also has `NoDefaultCurrentDirectoryInExePath=1`, so the current folder is never searched for a program. A probe that runs past its time is stopped with everything it started.
+  Those rows show `–` and say "after the repo is read", and one line under the table says the repo isn't marked yet. Run preflight again after `--mark-read`. Every command starts by the full path preflight found on `PATH` (relative entries skipped), with `COREPACK_ENV_FILE=0`; on Windows, every command also has `NoDefaultCurrentDirectoryInExePath=1`, so the current folder is never searched for a program. A probe that runs past its time is stopped with everything it started.
 
 **Done when** the table is printed and every `✗` row has been through the steps below.
 

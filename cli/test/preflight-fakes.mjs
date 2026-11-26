@@ -1,8 +1,10 @@
 // The fake session and the sample repos the preflight tests share. The probes run against these,
-// so no test needs a network.
+// so no test needs a network. The real-run helpers at the end run the real script in throwaway repos (#169).
 import { after } from "node:test";
-import { mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { delimiter, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { markRead } from "../src/preflight-sys.mjs";
 import { put, tmp } from "./helpers.mjs";
 
@@ -68,4 +70,42 @@ export function readProject(files = {}) {
   markRead(dir);
   return dir;
 }
-export const status =(report, id) => report.results.find((r) => r.id === id).status;
+export const status = (report, id) => report.results.find((r) => r.id === id).status;
+
+const SCRIPT = fileURLToPath(new URL("../src/preflight.mjs", import.meta.url));
+
+/** The first file on this session's PATH with that name. */
+const which = (cmd) => (process.env.PATH ?? "").split(delimiter).map((dir) => join(dir, cmd)).find((f) => existsSync(f));
+
+/** A PATH folder that holds only the named real commands, so nothing else preflight runs is found. */
+export function pathWith(...cmds) {
+  const bin = temp("onrails-read-bin-");
+  for (const cmd of cmds) symlinkSync(which(cmd), join(bin, cmd));
+  return bin;
+}
+
+/** Runs the real script in dir with env, or with only this PATH. Returns the parsed report with --json, else the run. */
+export function runScript(dir, env, ...flags) {
+  const vars = { HOME: temp("onrails-read-home-"), ...(typeof env === "string" ? { PATH: env } : env) };
+  const r = spawnSync(process.execPath, [SCRIPT, dir, ...flags], { encoding: "utf8", env: vars, timeout: 60000 });
+  return flags.includes("--json") ? JSON.parse(r.stdout) : r;
+}
+
+export const sh = (dir, ...args) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+
+/** A git repo with one commit, then the extra lines in .git/config, and the files given. */
+export function gitRepo(config, files = {}) {
+  const dir = project({ "package.json": "{}", ...files });
+  sh(dir, "init", "--quiet");
+  sh(dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--quiet", "--allow-empty", "-m", "x");
+  writeFileSync(join(dir, ".git", "config"), `${readFileSync(join(dir, ".git", "config"), "utf8")}${config}`);
+  return dir;
+}
+
+// A Playwright package that leaves a file named "loaded" in the repo when it is loaded. Its launch answers like a real one.
+export const PLAYWRIGHT = {
+  "package.json": JSON.stringify({ devDependencies: { playwright: "1.60.0" } }),
+  "node_modules/playwright/package.json": JSON.stringify({ name: "playwright", main: "index.js" }),
+  "node_modules/playwright/index.js": "require('fs').writeFileSync(require('path').join(__dirname, '..', '..', 'loaded'), 'x');\n"
+    + "module.exports = { chromium: { launch: async () => ({ close: async () => {} }) } };\n",
+};

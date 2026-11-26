@@ -2,49 +2,23 @@
 // The real script runs in throwaway repos, with fakes that leave a file behind when they run.
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
-import { delimiter, isAbsolute, join, relative } from "node:path";
+import { chmodSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { isAbsolute, join, relative } from "node:path";
 import { PassThrough } from "node:stream";
 import { EventEmitter } from "node:events";
 import { fileURLToPath } from "node:url";
 import { main, probe, render, satisfies } from "../src/preflight.mjs";
 import { commandFor, isRead, markRead, realSys, spawnEnv } from "../src/preflight-sys.mjs";
 import { logger, put } from "./helpers.mjs";
-import { fakeSys, HEALTHY, project, readProject, status, temp } from "./preflight-fakes.mjs";
+import { fakeSys, gitRepo, HEALTHY, pathWith, PLAYWRIGHT, project, readProject, runScript, sh, status, temp } from "./preflight-fakes.mjs";
 
-const SCRIPT = fileURLToPath(new URL("../src/preflight.mjs", import.meta.url));
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const posixOnly = { skip: process.platform === "win32" ? "the fakes are POSIX shell scripts" : false };
 const row = (report, id) => report.results.find((r) => r.id === id);
 const PNPM = JSON.stringify({ packageManager: "pnpm@10.28.0" });
 
-/** The first file on this session's PATH with that name. */
-const which = (cmd) => (process.env.PATH ?? "").split(delimiter).map((dir) => join(dir, cmd)).find((f) => existsSync(f));
-
-/** A PATH folder that holds only the named real commands, so nothing else preflight runs is found. */
-function pathWith(...cmds) {
-  const bin = temp("onrails-read-bin-");
-  for (const cmd of cmds) symlinkSync(which(cmd), join(bin, cmd));
-  return bin;
-}
-
-/** Runs the real script in dir. Returns the parsed report. */
-function runScript(dir, bin, ...flags) {
-  const r = spawnSync(process.execPath, [SCRIPT, dir, ...flags], { encoding: "utf8", env: { PATH: bin, HOME: temp("onrails-read-home-") }, timeout: 60000 });
-  return flags.includes("--json") ? JSON.parse(r.stdout) : r;
-}
-
-const sh = (dir, ...args) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
-
 test("AC-169-1: WHEN a repo ships files that would make the Playwright launch check load its own code THEN preflight, before the repo is read, loads nothing from the repo", posixOnly, () => {
-  const dir = project({
-    "package.json": JSON.stringify({ devDependencies: { playwright: "1.60.0" } }),
-    "node_modules/playwright/package.json": JSON.stringify({ name: "playwright", main: "index.js" }),
-    // Loading it leaves a file behind, and its launch answers like a real one.
-    "node_modules/playwright/index.js": "require('fs').writeFileSync(require('path').join(__dirname, '..', '..', 'loaded'), 'x');\n"
-      + "module.exports = { chromium: { launch: async () => ({ close: async () => {} }) } };\n",
-  });
+  const dir = project(PLAYWRIGHT);
   mkdirSync(join(dir, ".git"));
   const bin = pathWith();
   const before = runScript(dir, bin, "--json");
@@ -57,15 +31,6 @@ test("AC-169-1: WHEN a repo ships files that would make the Playwright launch ch
   assert.equal(existsSync(join(dir, "loaded")), true, "marked read: the launch check runs as before");
   assert.equal(status(afterRead, "browser"), "ok");
 });
-
-/** A git repo with one commit, then the extra lines in .git/config, and the files given. */
-function gitRepo(config, files = {}) {
-  const dir = project({ "package.json": "{}", ...files });
-  sh(dir, "init", "--quiet");
-  sh(dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--quiet", "--allow-empty", "-m", "x");
-  writeFileSync(join(dir, ".git", "config"), `${readFileSync(join(dir, ".git", "config"), "utf8")}${config}`);
-  return dir;
-}
 
 test("AC-169-2: WHEN .git/config in a folder not made by git clone sets options that run commands THEN the GitHub probe runs none of them", posixOnly, () => {
   const other = temp("onrails-read-other-");

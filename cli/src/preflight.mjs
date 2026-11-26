@@ -15,11 +15,10 @@
 // The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs; sync-skills.mjs copies
 // both into the ask skill and the CLI (npx onrails preflight).
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isRead, markRead, realSys } from "./preflight-sys.mjs";
+import { isRead, markRead, realSys, tempFolders } from "./preflight-sys.mjs";
 
 /** The checks, in the order the table prints them. */
 export const CHECKS = ["repo", "git", "registry", "github", "loopback", "browser", "versions", "model"];
@@ -34,7 +33,8 @@ const LAUNCH = "const r=require('module').createRequire(process.cwd()+'/package.
 // The table, the ladder and the drafted message are read by the agent, and the message is posted. So a value
 // from the repo or the environment is printed only when it matches a safe pattern, and plain words stand in for it otherwise.
 const SAFE = { range: /^[\d.xX*^~<>= |]{1,40}$/, host: /^[a-z0-9.-]{1,253}(:\d{1,5})?$/i, version: /^\d+(\.\d+){0,2}(-[0-9A-Za-z.-]{1,40})?$/,
-  code: /^E[A-Z0-9_]{2,30}$/, model: /^[\w.:@\/[\]-]{1,80}$/, effort: /^[a-z]{1,12}$/i, flag: /^--?[a-z][\w-]{0,30}$/i };
+  code: /^E[A-Z0-9_]{2,30}$/, model: /^[\w.:@\/[\]-]{1,80}$/, effort: /^[a-z]{1,12}$/i, flag: /^--?[a-z][\w-]{0,30}$/i,
+  path: /^[\w .:~@+\/\\-]{1,400}$/ };
 const shown = (value, kind, instead) => (value != null && SAFE[kind].test(String(value)) ? String(value) : instead);
 // Command output can carry text from the repo too, so only a cause from this list, or an error code, is taken from it.
 const CAUSES = ["Read-only file system", "Permission denied", "Operation not permitted", "No space left on device", "Executable doesn't exist",
@@ -180,9 +180,13 @@ async function checkGit(dir, tool, sys, safe) {
 // scope. The registry the repo's .npmrc names is passed by hand, only when it is a plain URL.
 const PLAIN_REGISTRY = /^registry[ \t]*=[ \t]*(https?:\/\/[\w.-]+(:\d{1,5})?(\/[\w./-]*)?)[ \t]*$/m;
 
+// Said by the rows that run from outside the repo, when no temp folder outside it could be made.
+const NO_AWAY = "no empty temp folder outside the repo could be made, so it's checked after the repo is read";
+
 async function checkRegistry(dir, tool, sys, pm, safe) {
   const named = safe.read ? null : PLAIN_REGISTRY.exec(small(join(dir, ".npmrc")))?.[1];
-  const how = { cwd: safe.read ? dir : safe.outside };
+  const how = safe.read ? { cwd: dir } : safe.away;
+  if (!how) return { status: "limited", detail: NO_AWAY };
   const pick = named ? [`--registry=${named}`] : [];
   const url = await sys.run("npm", ["config", "get", "registry", ...pick], how);
   if (!url) return { status: "blocked", detail: "npm isn't installed", ladder: ladder("versions", tool) };
@@ -204,11 +208,12 @@ const PLAIN_REMOTE = /^(https?:\/\/[^\s@-][^\s@]*|ssh:\/\/([\w.-]+@)?[A-Za-z0-9]
 async function checkGithub(dir, sys, safe) {
   const remote = await sys.run("git", ["remote", "get-url", "origin"], { cwd: dir, ...safe.git });
   const url = remote?.ok ? remote.out.trim().split("\n")[0] : "";
+  const away = safe.read ? { cwd: dir } : safe.away;
+  if (!away) return { status: "limited", detail: NO_AWAY };
   // `gh api rate_limit` is free and proves the API answers. `gh auth status` can fail while the API works (a proxied token).
-  const api = await sys.run("gh", ["api", "rate_limit"], { cwd: safe.read ? dir : safe.outside });
+  const api = await sys.run("gh", ["api", "rate_limit"], away);
   const plain = safe.read || PLAIN_REMOTE.test(url);
-  const target = safe.read ? { args: ["origin"], cwd: dir } : { args: [url], cwd: safe.outside };
-  const push = url && plain ? await sys.run("git", ["ls-remote", "--heads", ...target.args], { cwd: target.cwd, timeout: 20000 }) : null;
+  const push = url && plain ? await sys.run("git", ["ls-remote", "--heads", safe.read ? "origin" : url], { ...away, timeout: 20000 }) : null;
   if (api?.ok && (!url || push?.ok)) return { status: "ok", detail: url ? "the remote and the API answer" : "the API answers; no remote yet" };
   const why = !api ? "gh isn't installed" : !api.ok ? "gh isn't signed in, or the API is limited"
     : plain ? "the remote didn't answer" : "the remote's URL isn't a plain https or ssh one, so it's checked after the repo is read";
@@ -313,9 +318,9 @@ export async function probe(dir, sys = realSys(), given = {}) {
   const manager = readManager(pkg);
   const pm = manager?.name ?? Object.entries(LOCKS).find(([file]) => existsSync(join(dir, file)))?.[1] ?? "npm";
   const read = isRead(dir);
-  const outside = mkdtempSync(join(tmpdir(), "onrails-preflight-"));
+  const temps = tempFolders(dir, sys.platform);
   // An empty hooks folder: no hook the repo ships, or names in its config, runs on the temp branch.
-  const safe = { read, outside, git: read ? {} : { config: [`core.hooksPath=${outside}`] } };
+  const safe = { read, away: temps.away, git: read ? {} : { config: [`core.hooksPath=${temps.hooks}`] } };
   try {
     const loop = await sys.loopback();
     const found = {
@@ -333,7 +338,7 @@ export async function probe(dir, sys = realSys(), given = {}) {
     const ok = results.every((r) => r.status !== "fix" && r.status !== "blocked");
     return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg, read), ok, read, state: existsSync(join(dir, "docs", "state.md")), results };
   } finally {
-    rmSync(outside, { recursive: true, force: true });
+    temps.remove();
   }
 }
 
@@ -412,8 +417,10 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
   if (flags.has("--help") || flags.has("-h")) return log(`Usage: ${USAGE}`), 0;
   dir = resolve(dir);
   if (flags.has("--mark-read")) {
-    if (markRead(dir)) return log("Marked this repo read on this machine. Run preflight again: every probe runs now."), 0;
-    return log("No .git folder found for this folder (or a .git file preflight doesn't follow): not marked. `git init` first, or run it in the main checkout."), 1;
+    // Only the .git next to dir: a folder under a bigger repo (a home-folder repo, say) never marks that repo.
+    const marked = markRead(dir);
+    if (marked) return log(`Marked this repo read on this machine: ${shown(marked, "path", "(path not printed)")}. Run preflight again: every probe runs now.`), 0;
+    return log("No .git folder of its own in this folder (or a .git file preflight doesn't follow): not marked. Run it in the repo's top folder, after `git init` if there's none."), 1;
   }
   const statePath = join(dir, "docs", "state.md");
   const state = existsSync(statePath) ? readFileSync(statePath, "utf8") : null;
@@ -421,9 +428,13 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
   if (flags.has("--if-changed")) {
     const tool = given.tool ?? detectTool(sys.env);
     const record = readRecord(state ?? "");
-    if (record?.ok && record.fingerprint === sandboxPrint(dir, tool, sys, readJson(join(dir, "package.json")), isRead(dir))) {
+    const read = isRead(dir);
+    if (record?.ok && record.fingerprint === sandboxPrint(dir, tool, sys, readJson(join(dir, "package.json")), read)) {
       const detail = "Environment: ok on record, and nothing changed. Skipped the probes. Run without --if-changed to check again.";
-      return log(flags.has("--json") ? JSON.stringify({ ok: true, skipped: true, fingerprint: record.fingerprint, detail }, null, 2) : detail), 0;
+      // Still unmarked: the note goes with the skip too, so /back and build learn to mark it.
+      const note = unreadNote({ read, state: state !== null });
+      return log(flags.has("--json") ? JSON.stringify({ ok: true, skipped: true, read, fingerprint: record.fingerprint, detail, note: note[1] }, null, 2)
+        : [detail, ...note].join("\n")), 0;
     }
   }
   const report = await probe(dir, sys, given);
