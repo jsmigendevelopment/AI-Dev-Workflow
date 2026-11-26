@@ -1,5 +1,5 @@
-// The fake transcripts for the opt-in eval clean-up-server (#126 AC-6, #151). run.test.mjs runs the good and
-// bad ones with every other scenario; clean-up-server.test.mjs runs the shortcuts. The bash steps run for real
+// The fake transcripts for the opt-in eval clean-up-server (#126 AC-6, #151). scenarios.test.mjs runs the good
+// and bad ones with every other scenario; clean-up-server.test.mjs runs the shortcuts. The bash steps run for real
 // in the arm's repo: the server starts, prints its link and is read, so the checks see real processes.
 
 const PROCS = "node .agents/skills/ask/scripts/procs.mjs";

@@ -1,6 +1,5 @@
-// The fake transcripts for the opt-in eval short-on-memory (#171). run.test.mjs runs the good and bad ones
-// with every other scenario; short-on-memory.test.mjs runs the shortcuts. Kept out of run.test.mjs, which
-// is already past 500 lines.
+// The fake transcripts for the opt-in eval short-on-memory (#171). scenarios.test.mjs runs the good and bad
+// ones with every other scenario; short-on-memory.test.mjs runs the shortcuts.
 
 /** Lists what this session started. A tool step: nothing runs. */
 export const MEM_LIST = { tool: "Bash", input: { command: "node .agents/skills/ask/scripts/procs.mjs list --mine" }, ok: true };

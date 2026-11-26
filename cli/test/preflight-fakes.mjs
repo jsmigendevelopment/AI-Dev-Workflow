@@ -1,8 +1,7 @@
 // The fake session and the sample repos the preflight tests share. The probes run against these,
 // so no test needs a network. The real-run helpers at the end run the real script in throwaway repos (#169).
-import { after } from "node:test";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { markRead } from "../src/preflight-sys.mjs";
@@ -50,14 +49,8 @@ export const BLOCKED = {
   "npm view": { ok: false, out: "npm error code ENOTFOUND\nnpm error network request to https://registry.npmjs.org/npm failed" },
 };
 
-// Every temp folder these tests make is removed when the file is done.
-const made = [];
-after(() => { for (const dir of made) rmSync(dir, { recursive: true, force: true }); });
-export function temp(prefix) {
-  const dir = tmp(prefix);
-  made.push(dir);
-  return dir;
-}
+/** A new temp folder: tmp() from helpers.mjs, which removes it when the test file ends (#180). */
+export const temp = tmp;
 
 export function project(files = {}) {
   const dir = temp("onrails-preflight-");
