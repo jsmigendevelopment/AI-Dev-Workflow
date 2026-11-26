@@ -59,8 +59,9 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
   assert.match(r.stdout, /idea-grill \[with\]/);
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
   assert.match(r.stdout, /preflight-blocked: its own limits, 24 turns, 240 s, \$0\.5 budget/);
-  assert.match(r.stdout, /Opt-in, not in this run: test-by-hand-zero\. Name them with --scenario\./);
+  assert.match(r.stdout, /Opt-in, not in this run: nothing-left-running, test-by-hand-zero\. Name them with --scenario\./);
   assert.doesNotMatch(r.stdout, /test-by-hand-zero \[with\]/);
+  assert.doesNotMatch(r.stdout, /nothing-left-running \[with\]/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
 });
 
@@ -254,7 +255,17 @@ const HAND_TABLE = (result) => ["| Length | Expected | Actual | Result |", "|---
   ...HAND_EXPECTED.map(([length, expected]) => `| ${length} | ${expected} | 0 min | ${result} |`)].join("\n");
 const HAND_REPORT = `Not right: every length shows 0 min.\n\n${HAND_TABLE("fail")}\n\nsrc/estimate.mjs divides by 3600 instead of 60. Not tested: Generate, because it uses credits.`;
 
+// #126: one look at the dev server. The good one starts it through the registry and stops it; the bad one leaves it running.
+const PROCS = ".agents/skills/ask/scripts/procs.mjs";
+const WAIT = "node -e \"setTimeout(() => {}, 1000)\"";
+const LOOK_AND_STOP = `id=$(node ${PROCS} start --why "check the home page" --until "the page is checked" -- node server.mjs | cut -d" " -f1) && ${WAIT} && cat .onrails/logs/$id.log && node ${PROCS} stop $id`;
+const LEFT_RUNNING = [{ bash: "nohup node server.mjs > dev.log 2>&1 &" }, { bash: `${WAIT} && cat dev.log` }, { text: "The home page says Tidy. The dev server is up at the link above." }];
+
 const SCENARIO_PLANS = {
+  "nothing-left-running": {
+    with: { steps: [{ bash: LOOK_AND_STOP }, { text: "The home page says Tidy. I stopped the dev server I started: nothing this session started is running." }] },
+    without: { steps: LEFT_RUNNING },
+  },
   "preflight-blocked": {
     with: { steps: [{ tool: "Bash", input: { command: "node .agents/skills/ask/scripts/preflight.mjs --if-changed --record" }, ok: true }, { tool: "Bash", input: { command: "npm install --prefer-offline --cache .npm-cache" } }, { write: "docs/issues/002-sandbox-cannot-install.md", content: SANDBOX_ISSUE }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level blocker --issue 2 --title \"The sandbox can't install: two fixes\"" }, ok: true }, { text: "Nothing is scaffolded: installs are blocked. Both fixes are in docs/issues/002-sandbox-cannot-install.md, in one message." }] },
     without: { steps: [{ tool: "Bash", input: { command: "npm install" } }, { write: "src/server.mjs", content: "import express from \"express\";\n\nexpress().get(\"/\", (_q, r) => r.send(\"Tidy\")).listen(3000);\n" }, { text: "I scaffolded the server. npm install failed here, so run it from your own terminal. You'll also need a newer Node." }] },
@@ -490,4 +501,14 @@ test("AC-127-2: test-by-hand-zero: each skipped part of the hand test fails its 
     const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
     assert.deepEqual(failed, want, name);
   }
+});
+
+test("AC-126-6: nothing-left-running: a server left running fails the check, and the check stops it", { skip: skipWin }, (t) => {
+  const { run, resultsFile } = cleanSetup(t, { "nothing-left-running": SCENARIO_PLANS["nothing-left-running"] });
+  run("--scenario", "nothing-left-running");
+  const check = resultsFile().runs[0].scenarios[0].arms.without.checks.find((c) => c.id === "AC-126-6-nothing-left");
+  const pid = /PID (\d+)/.exec(check.detail ?? "")?.[1];
+  assert.ok(pid, `the leftover server is named: ${check.detail}`);
+  const stat = spawnSync("ps", ["-o", "stat=", "-p", pid], { encoding: "utf8" }).stdout.trim();
+  assert.ok(stat === "" || stat.startsWith("Z"), "the eval leaves nothing running either");
 });
