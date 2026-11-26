@@ -7,7 +7,10 @@
 // the registry its records. Its folder and logs folder must be this user's too, and nobody else may write them
 // (only ~/.onrails may be group-writable). The file is checked and read through one open file, so what is read
 // is what passed, and so is the index. A repo registry must also be its repo's own, in a repo this user owns
-// whose root only this user can write (docs/decisions.md row 69).
+// whose root only this user can write (docs/decisions.md row 69). On Windows the owner and who may write come from
+// the ACL. Its records count only when the file holds its own inode, which update() writes into it: a patch, an
+// unpacked archive or a copy is a new file, so its records read as none (#174, row 106). Inode numbers are reused, so
+// the mark is a filter, not a proof: each record still needs a live process with the same start time.
 // No dependencies. The master copy is scripts/procs-store.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { randomBytes } from "node:crypto";
 import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -29,18 +32,20 @@ export function homeDir(home = homedir()) {
 export const homeRegistry = (sys) => join(homeDir(sys.home), "procs.json");
 const indexPath = (sys) => join(homeDir(sys.home), "procs-index.json");
 
-// Each git answer once per command: the session-end hook has 3 seconds for every registry in the index.
-// The watcher runs for hours, so it forgets them before each pass: a branch checked out since may track the registry.
+// Each git answer, and each Windows ACL (a PowerShell start), once per command: the session-end hook has 3 seconds
+// for every registry in the index. The watcher runs for hours, so it forgets them before each pass: a branch
+// checked out since may track the registry.
 const answers = new WeakMap();
-/** Forgets git's answers, so the next check asks git again. procs.mjs calls it once per command, the watcher once per pass. */
-export const askGitAgain = (sys) => void answers.delete(sys.git);
-function git(sys, dir, args) {
-  const memo = answers.get(sys.git) ?? new Map();
-  answers.set(sys.git, memo);
-  const key = [dir, ...args].join("\0");
-  if (!memo.has(key)) memo.set(key, sys.git(dir, args));
+/** Forgets git's and the ACL reader's answers, so the next check asks again. procs.mjs calls it once per command, the watcher once per pass. */
+export const askAgain = (sys) => { for (const fn of [sys.git, sys.winAcl]) if (fn) answers.delete(fn); };
+function remembered(fn, key, ask) {
+  const memo = answers.get(fn) ?? new Map();
+  answers.set(fn, memo);
+  if (!memo.has(key)) memo.set(key, ask());
   return memo.get(key);
 }
+const git = (sys, dir, args) => remembered(sys.git, [dir, ...args].join("\0"), () => sys.git(dir, args));
+const winAcl = (sys, path) => (sys.winAcl ? remembered(sys.winAcl, path, () => sys.winAcl(path)) : null);
 
 /** The registry for a folder: its repo's main checkout, so worktrees share one, else the home one. */
 export function registryPath(sys, dir) {
@@ -62,13 +67,23 @@ function kind(path) {
 }
 
 // Why a file or folder's stat s can't be trusted, or null: another user's, or it has one of the write bits
-// (the group's and others' by default), which chmod clears. Only on Linux and macOS: Windows has no POSIX owner or mode bits.
+// (the group's and others' by default), which chmod clears. Windows has no POSIX owner or mode bits: its ACL is read.
 function ownerProblem(sys, s, path, chmod, bits = 0o022) {
-  if (sys.platform === "win32") return null;
+  if (sys.platform === "win32") return aclProblem(sys, path);
   if (!Number.isInteger(sys.uid)) return "this user's id can't be read, so the registry's owner can't be checked";
   if (s.uid !== sys.uid) return `${path} belongs to another user`;
   if (s.mode & bits) return `${path} can be written by other users: run chmod ${chmod} ${path}, which keeps what's in it`;
   return null;
+}
+
+// On Windows: owned by this user (or SYSTEM or Administrators), and no other account may write it. A folder made
+// directly under C:\ lets every signed-in user write, and what is made inside it inherits that (#174).
+function aclProblem(sys, path) {
+  const acl = winAcl(sys, path);
+  if (!acl) return `who can write ${path} can't be read, so its owner can't be checked`;
+  if (!acl.owned) return `${path} belongs to another account`;
+  if (!acl.writers.length) return null;
+  return `${path} can be written by other accounts (${acl.writers.join(", ")}): keep the repo in your user folder, or take their write access away`;
 }
 
 // A folder the registry reads from or writes into: missing, or a real folder of this user's, right where its
@@ -84,9 +99,9 @@ function folderProblem(sys, dir, shared = false) {
 
 // The repo root holds the name .onrails, so whoever can write it can put any folder there. Others never; the group
 // only with the sticky bit, or when it is this user's own group with no one else in it and the root has no ACL:
-// with one, the group bits are its mask, so a named user may write too (docs/decisions.md row 69).
+// with one, the group bits are its mask, so a named user may write too (docs/decisions.md row 69). On Windows, its ACL.
 function rootProblem(sys, root) {
-  if (sys.platform === "win32") return null;
+  if (sys.platform === "win32") return aclProblem(sys, root);
   const s = lstatSync(root);
   if (s.uid !== sys.uid) return `the repo at ${root} belongs to another user`;
   if (s.mode & 0o002) return `others can write the repo at ${root}: run chmod o-w ${root}`;
@@ -127,8 +142,8 @@ function gitProblem(sys, path) {
 
 // Opens a file once, checks what was opened (a regular file of this user's that nobody else can write, and not
 // huge) and reads that same file. The name is never opened twice: it could point somewhere else by the second time.
-// { text } (null when it is missing) or { why }. groupOk: a file only the group can write is still read, and its
-// text comes with the why.
+// { text, inode } (text null when it is missing) or { why }. groupOk: a file only the group can write is still read,
+// and its text comes with the why.
 function readChecked(sys, path, groupOk = false) {
   let fd;
   try { fd = openSync(path, READ); } catch (error) {
@@ -140,7 +155,7 @@ function readChecked(sys, path, groupOk = false) {
     if (shape) return { why: shape };
     const why = ownerProblem(sys, s, path, "600");
     const read = !why || (groupOk && !ownerProblem(sys, s, path, "600", 0o002));
-    return read ? { why, text: readFileSync(fd, "utf8") } : { why };
+    return read ? { why, text: readFileSync(fd, "utf8"), inode: String(fstatSync(fd, { bigint: true }).ino) } : { why };
   } finally { closeSync(fd); }
 }
 
@@ -167,32 +182,38 @@ export const registries = (sys, dir) => candidates(sys, dir).filter((p) => !untr
 export const fixable = (sys, dir) => [...new Set([...candidates(sys, dir).map((p) => untrusted(sys, p)), readIndex(sys).why])]
   .filter((why) => why?.includes("run chmod"));
 
-function parse(text) {
+// Only the records of a file whose mark is its own inode: update() writes it into the file. A patch, an unpacked
+// archive or a copy makes a new file, so its records read as none, and the next write replaces them; moving the
+// folder keeps the inode. A new file can get a freed inode number back, and then its mark matches: the start time
+// check is what still stands (#174, docs/decisions.md row 106).
+function parse(text, inode) {
   try {
-    const procs = JSON.parse(text).procs;
-    return Array.isArray(procs) ? procs.filter((r) => r && typeof r === "object") : [];
+    const data = JSON.parse(text);
+    if (data?.inode !== inode) return [];
+    return Array.isArray(data.procs) ? data.procs.filter((r) => r && typeof r === "object") : [];
   } catch { return []; } // a broken file reads as empty; the next write replaces it
 }
 
 function read(sys, path) {
-  const { text, why } = readChecked(sys, path);
-  return why ? { why } : { procs: text === null ? [] : parse(text) };
+  const { text, why, inode } = readChecked(sys, path);
+  return why ? { why } : { procs: text === null ? [] : parse(text, inode) };
 }
 
 /** The registry's records: [] when it is missing, broken or can't be trusted. sys says who reads (by default, this process). */
 export const load = (path, sys = { platform: process.platform, uid: process.getuid?.() ?? null }) => read(sys, path).procs ?? [];
 
 // Writes a file that must not exist yet, so a planted symlink is never followed. Owner-only, whatever the
-// umask, or untrusted() would refuse it on the next read.
-function writeNew(path, text) {
+// umask, or untrusted() would refuse it on the next read. make(inode) gives the text: the new file's own inode.
+function writeNew(path, make) {
   rmSync(path, { force: true }); // removes a link itself, never its target
-  writeFileSync(path, text, { flag: "wx", mode: 0o600 });
+  const fd = openSync(path, "wx", 0o600);
+  try { writeFileSync(fd, make(String(fstatSync(fd, { bigint: true }).ino))); } finally { closeSync(fd); }
 }
 
-// A new file beside it, then a rename, which replaces the name itself, even a link planted there.
-function replace(path, text) {
+// A new file beside it, then a rename, which replaces the name itself, even a link planted there, and keeps the inode.
+function replace(path, make) {
   const tmp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
-  writeNew(tmp, text);
+  writeNew(tmp, make);
   renameSync(tmp, path);
 }
 
@@ -204,7 +225,7 @@ function folder(sys, path) {
   mkdirSync(join(dirname(path), "logs"), { recursive: true, mode: 0o700 });
   refuse(folders(sys, path)); // what is there now, made by this call or not
   const ignore = join(dirname(path), ".gitignore");
-  if (path !== homeRegistry(sys) && readText(ignore) !== IGNORE) writeNew(ignore, IGNORE);
+  if (path !== homeRegistry(sys) && readText(ignore) !== IGNORE) writeNew(ignore, () => IGNORE);
   return dirname(path);
 }
 
@@ -233,7 +254,7 @@ export function update(sys, path, fn) {
     refuse(why);
     const next = fn(procs);
     refuse(folders(sys, path)); // the folder the new file goes into, checked again right before it is written
-    replace(path, JSON.stringify({ version: 1, procs: next }, null, 2) + "\n");
+    replace(path, (inode) => JSON.stringify({ version: 1, inode, procs: next }, null, 2) + "\n");
     if (path !== homeRegistry(sys)) remember(sys, path);
     return next;
   });
@@ -246,6 +267,6 @@ function remember(sys, path) {
     if (list.includes(path) && !why) return;
     mkdirSync(dirname(indexPath(sys)), { recursive: true, mode: 0o700 });
     const next = [...new Set([...list, path])];
-    if (!folderProblem(sys, dirname(indexPath(sys)), true)) replace(indexPath(sys), JSON.stringify({ registries: next }, null, 2) + "\n");
+    if (!folderProblem(sys, dirname(indexPath(sys)), true)) replace(indexPath(sys), () => JSON.stringify({ registries: next }, null, 2) + "\n");
   } catch { /* the home folder may be read-only in a sandbox */ }
 }

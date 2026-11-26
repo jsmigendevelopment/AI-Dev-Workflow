@@ -1,6 +1,6 @@
 // The fake machine the process registry's tests run on (procs*.test.mjs): ps, kill and spawn without
 // touching a real process. Every signal it is asked to send is recorded, so a test can prove none was.
-import { chmodSync, readFileSync } from "node:fs";
+import { chmodSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { main } from "../src/procs.mjs";
@@ -16,8 +16,9 @@ export const repoFile = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, 
 // A fake machine. procs: { pid: { args, parent, group, start, onTerm: "exit" | "stay" } }. Every signal is recorded.
 // hidden: what it spawns exits at once, so ps never sees it. privateGroup: what it answers when asked whether this
 // user is the only member of a group (true, false, or null for "can't tell"). acl: what it answers when asked
-// whether a folder has a POSIX ACL (true, false for none, or null for "can't tell").
-export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "", hidden = false, privateGroup = false, acl = false } = {}) {
+// whether a folder has a POSIX ACL (true, false for none, or null for "can't tell"). winAcl(path): the fake Windows
+// ACL reader, { owned, writers } or null; by default every path is this user's and no other account can write it.
+export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "", hidden = false, privateGroup = false, acl = false, winAcl = () => ({ owned: true, writers: [] }) } = {}) {
   let clock = NOW, next = 7000;
   const live = new Map();
   const put1 = (pid, p) => live.set(pid, { parent: 1, group: pid, start: `start-${pid}`, args: "node x", cpu: "0.0% CPU", mem: 2048, onTerm: "exit", ...p });
@@ -29,6 +30,7 @@ export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s
     platform, env, home: tmp("procs-home-"), cwd: tmp("procs-cwd-"), parentPid: 900, selfPid: 999, uid: process.getuid?.() ?? null, gid: process.getgid?.() ?? null, calls, live,
     privateGroup: () => privateGroup,
     acl: () => acl,
+    winAcl: (path) => winAcl(path),
     now: () => clock, advance: (ms) => { clock += ms; },
     git: (dir, args) => git(dir, args),
     info: (pids) => new Map(pids.filter((p) => live.has(p)).map((p) => [p, live.get(p)])),
@@ -72,4 +74,14 @@ export function seed(sys, rec) {
     startedAt: new Date(NOW - 3 * 24 * 60 * MIN).toISOString(), session: "s-old", agent: { pid: 600, start: "start-600" }, ...rec,
   }] }));
   chmodSync(join(sys.home, ".onrails", "procs.json"), 0o600);
+  stamp(join(sys.home, ".onrails", "procs.json"));
+}
+
+/**
+ * Marks a registry a test wrote by hand as one a session wrote, the way update() writes it: the file's own inode
+ * inside it (#174). Rewritten in place, so the inode and the mode stay.
+ */
+export function stamp(path) {
+  const data = JSON.parse(readFileSync(path, "utf8"));
+  writeFileSync(path, JSON.stringify({ ...data, inode: String(statSync(path, { bigint: true }).ino) }));
 }

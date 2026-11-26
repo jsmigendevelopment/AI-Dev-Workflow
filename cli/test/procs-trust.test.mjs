@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { safeEnv, tmp } from "./helpers.mjs";
 import { soleMember } from "../src/procs-sys.mjs";
-import { NOW, fakeSys, inRepo, run, seed, signals, startDev } from "./procs-fake.mjs";
+import { NOW, fakeSys, inRepo, run, seed, signals, stamp, startDev } from "./procs-fake.mjs";
 
 const posix = { skip: process.platform === "win32" ? "Windows has no POSIX owner, mode, symlink or FIFO" : false };
 const STALE = { id: "pbad", kind: "process", pid: 4000, start: "start-4000", group: true, command: "x", why: "w", until: "u",
@@ -21,6 +21,7 @@ const STOPS = [["stop", "stale"], ["stop", "all", "--yes"], ["stop", "pbad", "--
 function folderWithStale(dir, mode = 0o755, fileMode = 0o644) {
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "procs.json"), REGISTRY);
+  stamp(join(dir, "procs.json")); // marked as a session marks it: only the check under test may refuse it
   chmodSync(join(dir, "procs.json"), fileMode);
   chmodSync(dir, mode);
 }
