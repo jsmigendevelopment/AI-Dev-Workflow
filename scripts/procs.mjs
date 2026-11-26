@@ -21,11 +21,11 @@
 // Exit 0: done. 1: something was refused or can't be read. 2: a bad flag.
 // The master copy is scripts/procs.mjs in the kit; sync-skills.mjs copies it into the ask skill and the CLI.
 import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureWatcher, readGuard, reap, sessionEnd, sessionStart, watch } from "./procs-hooks.mjs";
 import { MINUTE, SCRIPT, age, iso, newId, newRecord, survey, whoAmI } from "./procs-records.mjs";
-import { askAgain, fixable, homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
+import { FIX, askAgain, fixable, homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
 import { GRACE_S, NO_LIST, floor, forget, guarded, stopRecords } from "./procs-stop.mjs";
 import { realSys } from "./procs-sys.mjs";
 
@@ -67,14 +67,21 @@ function list(sys, log, { dir, me, mine, json, hint }) {
   return 0;
 }
 
+// What start says after a refusal. A chmod on this user's own registry keeps its records and their processes. A
+// reason with its own fix says it (FIX, as list, ps and doctor use). Only a reason about the registry's own folder
+// says to delete one, and names it: never the home folder, the repo or a folder above it (#231).
+function afterRefusal(why, dir) {
+  if (why.includes("chmod")) return "Then start it again.";
+  if (FIX.test(why)) return "Do what it says, or ask the person.";
+  return why.includes(dir) ? `Delete ${dir} or ask the person.` : "Ask the person.";
+}
+
 function start(sys, log, { path, me, flags, command }) {
   if (!flags.why || !flags.until) return fail(log, "Give every background process a reason and a stop condition: --why \"...\" --until \"...\"");
   if (flags.for !== undefined && !(Number(flags.for) > 0)) return fail(log, "--for takes minutes, more than 0");
   if (!command.length) return fail(log, "Name the command after --: start --why ... --until ... -- pnpm dev");
   const why = untrusted(sys, path);
-  // A mode problem on this user's own registry is fixed with chmod, which keeps its records and their processes.
-  const next = why && (why.includes("chmod") ? "Then start it again." : "Delete that folder or ask the person.");
-  if (why) return fail(log, `Nothing started: the registry can't be used (${why}). ${next}`, 1);
+  if (why) return fail(log, `Nothing started: the registry can't be used (${why}). ${afterRefusal(why, dirname(path))}`, 1);
   const id = newId(sys, path);
   const logFile = logFor(sys, path, id);
   const pid = sys.spawn(command, { cwd: sys.cwd, log: logFile });
