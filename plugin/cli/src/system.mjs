@@ -1,7 +1,7 @@
 // The outside world doctor talks to, in one object so tests can swap in fakes:
 //   platform, isRoot, home, env, cwd
 //   has(name)                 is a command on PATH? (a file lookup, no shell)
-//   probe(cmd, args, {cwd})   run a read-only check: { ok, out (first line), all } or null
+//   probe(cmd, args, {cwd})   run a read-only check: { ok, out (first line), all, stdout } or null
 //   exec(argv, {cwd})         run a fix the person said yes to, output shown live: true/false
 //   spawnInteractive(argv, {cwd})  hand the terminal to an agent session: its exit code
 import { execFileSync, spawnSync } from "node:child_process";
@@ -54,7 +54,7 @@ export function realSystem() {
       const r = spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: 15000, shell: platform === "win32" });
       if (r.error || r.status === null) return null;
       const all = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
-      return { ok: r.status === 0, out: all.split(/\r?\n/)[0] ?? "", all };
+      return { ok: r.status === 0, out: all.split(/\r?\n/)[0] ?? "", all, stdout: (r.stdout ?? "").trim() };
     },
     // Hand the terminal to an interactive program (an agent session) and wait for it to end.
     spawnInteractive(argv, { cwd } = {}) {
