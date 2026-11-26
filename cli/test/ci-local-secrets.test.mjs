@@ -1,68 +1,11 @@
 // #139: on ci = "local" (docs/stack.md) nothing reads GitHub's environments or secrets, so
-// push-secrets and setup-github write none of them. Fake `gh` and `npx` on PATH log every call.
+// push-secrets and setup-github write none of them. The fakes in secrets-fakes.mjs log every call.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { tmp } from "./helpers.mjs";
-
-const script = (path) => fileURLToPath(new URL(`../../.agents/skills/${path}`, import.meta.url));
-const PUSH = script("secrets/scripts/push-secrets.mjs");
-const SETUP = script("name/scripts/setup-github.mjs");
-const TEST_VALUE = "test-DO_NOT_PRINT-1";
-const LIVE_VALUE = "live-DO_NOT_PRINT-2";
-
-const FAKE = `#!/usr/bin/env node
-const fs = require("fs");
-const argv = process.argv.slice(2);
-let stdin = "";
-try { stdin = fs.readFileSync(0, "utf8"); } catch { /* no stdin to read (closed, or a terminal that would block): the call had no input */ }
-const cmd = require("path").basename(process.argv[1]);
-fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ cmd, argv, stdin }) + "\\n");
-const say = (text) => { process.stdout.write(text); process.exit(0); };
-if (argv[0] === "api" && argv[1] === "user") say(JSON.stringify({ login: "me", id: 1 }));
-if (argv.some((a) => a.endsWith("/commits/HEAD"))) say("abc123\\n");
-if (argv[0] === "api" && argv.includes("--jq")) say("private\\n");
-if (argv[0] === "api" && argv.some((a) => a.endsWith("/rulesets"))) say("[]");
-`;
-
-/** A repo whose docs/stack.md says `ci`, with a fake gh and npx, and test and production values. */
-function repo(ci = "local", stack = `## CI\n\nci = "${ci}"\n`, { git = true } = {}) {
-  const dir = tmp("onrails-ci-local-");
-  mkdirSync(join(dir, "bin"));
-  for (const name of ["gh", "npx"]) {
-    writeFileSync(join(dir, "bin", name), FAKE);
-    chmodSync(join(dir, "bin", name), 0o755);
-  }
-  if (git) {
-    execFileSync("git", ["init", "-q", dir]);
-    execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"]);
-  }
-  mkdirSync(join(dir, "docs"));
-  writeFileSync(join(dir, "docs", "stack.md"), stack);
-  writeFileSync(join(dir, ".env.example"), "# scope: test,production\nAPI_TOKEN=\n# scope: production, secret: no\nSITE_URL=\n");
-  writeFileSync(join(dir, ".env.test.local"), `API_TOKEN=${TEST_VALUE}\n`);
-  writeFileSync(join(dir, ".env.production.local"), `API_TOKEN=${LIVE_VALUE}\nSITE_URL=https://example.com\n`);
-  return dir;
-}
-
-/** Runs `file` in `dir`, with the fakes and their call log from `base` (the repo() folder). */
-function run(file, dir, args, base = dir) {
-  const log = join(base, "calls.jsonl");
-  const r = spawnSync(process.execPath, [file, ...args], {
-    cwd: dir,
-    encoding: "utf8",
-    input: "",
-    env: { ...process.env, PATH: `${join(base, "bin")}:${process.env.PATH}`, FAKE_LOG: log, HOME: base },
-  });
-  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").map((l) => JSON.parse(l)) : [];
-  return { ...r, calls };
-}
-// The fakes are shebang scripts, which Windows can't run.
-const UNIX = { skip: process.platform === "win32" };
-const gh = (calls) => calls.filter((c) => c.cmd === "gh");
+import { gh, LIVE_VALUE, PUSH, repo, run, script, SETUP, TEST_VALUE, UNIX } from "./secrets-fakes.mjs";
 
 test("#139: push-secrets on ci = local writes nothing to GitHub, and says where values go instead", UNIX, () => {
   const dir = repo();
