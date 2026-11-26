@@ -84,10 +84,13 @@ export function pathWith(...cmds) {
   return bin;
 }
 
-/** Runs the real script in dir with env, or with only this PATH. Returns the parsed report with --json, else the run. */
+/**
+ * Runs the real script in dir with env, or with only this PATH, from dir as the current folder, as an agent runs it
+ * (#182: a relative PATH entry is then the repo). Returns the parsed report with --json, else the run.
+ */
 export function runScript(dir, env, ...flags) {
   const vars = { HOME: temp("onrails-read-home-"), ...(typeof env === "string" ? { PATH: env } : env) };
-  const r = spawnSync(process.execPath, [SCRIPT, dir, ...flags], { encoding: "utf8", env: vars, timeout: 60000 });
+  const r = spawnSync(process.execPath, [SCRIPT, dir, ...flags], { cwd: dir, encoding: "utf8", env: vars, timeout: 60000 });
   return flags.includes("--json") ? JSON.parse(r.stdout) : r;
 }
 

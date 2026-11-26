@@ -74,15 +74,17 @@ function stopTree(child, platform, env) {
 
 /** Runs one command with a timeout. Resolves { ok, out }, or null when it isn't installed. Nothing it started outlives it. */
 function runCommand(cmd, args, { cwd, timeout = 15000, config = [], env: extra = {} }, { platform, env, start }) {
+  // The command is looked up on the PATH it is given (#182), so a PATH without the repo's folders holds for the lookup too.
+  const given = { ...env, ...extra };
   // Git settings from the command line outrank the repo's own .git/config.
-  const how = commandFor(cmd, cmd === "git" ? [...config.flatMap((c) => ["-c", c]), ...args] : args, { platform, env });
+  const how = commandFor(cmd, cmd === "git" ? [...config.flatMap((c) => ["-c", c]), ...args] : args, { platform, env: given });
   if (!how) return Promise.resolve(null);
   const win = platform === "win32";
   return new Promise((done) => {
     let out = "";
     let settled = false;
     const finish = (result) => { if (!settled) { settled = true; clearTimeout(timer); done(result); } };
-    const child = start(how.file, how.args, { cwd, env: spawnEnv(platform, { ...env, ...extra }), shell: false, windowsVerbatimArguments: how.verbatim,
+    const child = start(how.file, how.args, { cwd, env: spawnEnv(platform, given), shell: false, windowsVerbatimArguments: how.verbatim,
       windowsHide: true, detached: !win, stdio: ["ignore", "pipe", "pipe"] });
     const timer = setTimeout(() => {
       // A version probe can start a self-install that outlives it: the whole tree goes, and the run ends now.
@@ -102,7 +104,7 @@ function runCommand(cmd, args, { cwd, timeout = 15000, config = [], env: extra =
 export function realSys({ platform = process.platform, env = process.env, start = spawn } = {}) {
   return {
     env, node: process.versions.node, hostname: hostname(), platform, now: () => Date.now(),
-    has: (cmd) => Boolean(onPath(cmd, platform, env)),
+    has: (cmd, extra = {}) => Boolean(onPath(cmd, platform, { ...env, ...extra })),
     run: (cmd, args = [], opts = {}) => runCommand(cmd, args, opts, { platform, env, start }),
     loopback: () => new Promise((done) => {
       const server = createServer((socket) => socket.end());
@@ -120,8 +122,9 @@ export function realSys({ platform = process.platform, env = process.env, start 
 }
 
 // The read marker (#169). docs/state.md can ship with a repo, so it can't say the person's session has read it.
-// The marker lives in the repo's shared .git folder, which git clone never copies. It names that folder's path and
+// The marker lives in the repo's .git folder, which git clone never copies. It names that folder's path and
 // its device and inode numbers, so a .git folder unpacked from an archive with a marker in it still reads as not read.
+// A linked worktree is marked by itself (#182), in its own admin folder, and its marker names its checkout folder too.
 const MARKER = "onrails-read";
 
 /** A small regular file's text, or "". */
@@ -145,7 +148,7 @@ function kindOf(path) {
 // A .git file can name any folder, and a .git symlink can point at any repo's .git. So a .git file counts only for
 // a linked worktree git made: its admin folder sits in <shared .git>/worktrees/, that shared .git is a real folder
 // named .git (not a symlink), and the admin folder names this .git file back.
-/** A linked worktree's shared .git folder, as a real path, or null. */
+/** A linked worktree's shared .git folder and its admin folder, as real paths ({ git, admin }), or null. */
 function linkedGitDir(file) {
   const own = /^gitdir: (.+)$/m.exec(small(file))?.[1]?.trim();
   if (!own) return null;
@@ -156,15 +159,16 @@ function linkedGitDir(file) {
   const shared = resolve(admin, common);
   if (basename(shared) !== ".git" || kindOf(shared) !== "dir") return null;
   const real = realpathSync(shared);
-  return dirname(realpathSync(admin)) === join(real, "worktrees") && same(resolve(admin, back), file) ? real : null;
+  const home = realpathSync(admin);
+  return dirname(home) === join(real, "worktrees") && same(resolve(admin, back), file) ? { git: real, admin: home } : null;
 }
 
-/** The shared .git folder for the .git entry in the real folder at, or null. A .git symlink never counts. */
+/** For the .git entry in the real folder at: { git, admin }, admin only for a linked worktree; or null. A .git symlink never counts. */
 function ownGitDir(at) {
   const dot = join(at, ".git");
   const kind = kindOf(dot);
   // at is a real path and dot is no symlink, so dot is its own real path.
-  if (kind === "dir") return dot;
+  if (kind === "dir") return { git: dot };
   return kind === "file" ? linkedGitDir(dot) : null;
 }
 
@@ -180,26 +184,37 @@ export function repoTop(dir) {
 /** The repo's shared .git folder for dir, found without running git, or null. */
 export function gitDir(dir) {
   const top = repoTop(dir);
-  return top ? ownGitDir(top) : null;
+  return (top && ownGitDir(top)?.git) ?? null;
 }
 
-const stamp = (git) => {
-  const { dev, ino } = statSync(git, { bigint: true });
-  return `onrails read ${createHash("sha256").update(`${git}\n${dev}:${ino}`).digest("hex").slice(0, 24)}\n`;
-};
+// A deleted worktree's admin folder stays until `git worktree prune`, still naming the old path. A new folder at
+// that path is another folder, with its own inode number, so the old mark doesn't fit it (#182).
+/** The marker file for the checkout in the real folder top, and the text it must hold: { file, text }, or null. */
+function marker(top) {
+  const own = ownGitDir(top);
+  if (!own) return null;
+  const at = own.admin ?? own.git;
+  const ids = (own.admin ? [at, top] : [at]).map((path) => {
+    const { dev, ino } = statSync(path, { bigint: true });
+    return `${path}\n${dev}:${ino}`;
+  });
+  return { file: join(at, MARKER), text: `onrails read ${createHash("sha256").update(ids.join("\n")).digest("hex").slice(0, 24)}\n` };
+}
 
-/** True when the person's own session marked this repo read on this machine. */
+/** True when the person's own session marked this checkout read on this machine. */
 export function isRead(dir) {
-  const git = gitDir(dir);
-  return Boolean(git) && small(join(git, MARKER)) === stamp(git);
+  const top = repoTop(dir);
+  const mark = top && marker(top);
+  return Boolean(mark) && small(mark.file) === mark.text;
 }
 
-/** Writes the marker in the .git next to dir, never one above it. Returns the folder whose .git it marked, or null. */
+/** Writes the marker for the checkout whose .git is next to dir, never one above it. Returns the folder it marked, or null. */
 export function markRead(dir) {
-  const git = existsSync(dir) ? ownGitDir(realpathSync(dir)) : null;
-  if (!git) return null;
-  writeFileSync(join(git, MARKER), stamp(git));
-  return dirname(git);
+  const top = existsSync(dir) ? realpathSync(dir) : null;
+  const mark = top && marker(top);
+  if (!mark) return null;
+  writeFileSync(mark.file, mark.text);
+  return top;
 }
 
 /** True when path's real path is top or inside it. */
@@ -208,13 +223,36 @@ function within(path, top) {
   return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 }
 
+/** The folder that counts as the repo for dir: its top folder, or dir itself before `git init`. */
+const topOf = (dir) => repoTop(dir) ?? (existsSync(dir) ? realpathSync(dir) : resolve(dir));
+
+// npx puts the repo's node_modules/.bin first on PATH, and a PATH can name any folder in the repo (#182).
+/**
+ * The PATH for every probe before the read, as { [its key in env]: value }: only full paths of folders that exist
+ * with a real path outside the repo's top folder. The commands get it too, so nothing they start comes from the repo.
+ */
+export function pathOutside(dir, platform, env) {
+  const top = topOf(dir);
+  const split = platform === "win32" ? ";" : ":";
+  const outside = (entry) => {
+    try {
+      return isAbsolute(entry) && existsSync(entry) && !within(entry, top);
+    } catch {
+      // A folder whose real path can't be read can't be shown to be outside the repo: left out.
+      return false;
+    }
+  };
+  const keys = Object.keys(env).filter((key) => key.toUpperCase() === "PATH");
+  return Object.fromEntries(keys.map((key) => [key, String(env[key]).split(split).filter(outside).join(split)]));
+}
+
 // The session's TMPDIR can point into the repo, and git or npm run from a folder inside it read the repo's settings.
 /**
  * Empty temp folders for the probes. hooks: an empty hooks folder. away: how to run a command outside the repo, from
  * an empty folder whose real path is outside the repo's top folder, with a git that searches no folder above it; or null.
  */
 export function tempFolders(dir, platform = process.platform) {
-  const top = repoTop(dir) ?? (existsSync(dir) ? realpathSync(dir) : resolve(dir));
+  const top = topOf(dir);
   const hooks = mkdtempSync(join(tmpdir(), "onrails-preflight-"));
   let outside = within(hooks, top) ? null : hooks;
   // Then the system's own temp folder, then the home folder.

@@ -13,12 +13,13 @@
 // outside the repo and a local port are made and removed.
 // Exit 0: nothing to fix. 1: something to fix or blocked. 2: a bad flag. No dependencies.
 // The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs; sync-skills.mjs copies
-// both into the ask skill and the CLI (npx onrails preflight).
+// both into the ask skill and the CLI. Before the read, never start it through npx (#182): npx puts the repo's
+// node_modules/.bin first on PATH, and runs an onrails the repo ships in place of the kit's.
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isRead, markRead, realSys, tempFolders } from "./preflight-sys.mjs";
+import { isRead, markRead, pathOutside, realSys, tempFolders } from "./preflight-sys.mjs";
 
 /** The checks, in the order the table prints them. */
 export const CHECKS = ["repo", "git", "registry", "github", "loopback", "browser", "versions", "model"];
@@ -261,7 +262,7 @@ function ownYarnVersion(dir) {
 /** The manager's version: { version, unread }. unread marks a manager found on PATH but not run, as the repo isn't read yet. */
 async function managerVersion(dir, sys, pm, safe) {
   if (!safe.read) {
-    if (!sys.has(pm)) return { version: null };
+    if (!sys.has(pm, safe.path)) return { version: null };
     return { version: pm === "yarn" ? ownYarnVersion(dir) : null, unread: true };
   }
   const have = await sys.run(pm, ["--version"], { cwd: dir });
@@ -319,8 +320,11 @@ export async function probe(dir, sys = realSys(), given = {}) {
   const pm = manager?.name ?? Object.entries(LOCKS).find(([file]) => existsSync(join(dir, file)))?.[1] ?? "npm";
   const read = isRead(dir);
   const temps = tempFolders(dir, sys.platform);
+  // Before the read, every command is found on, and given, a PATH with no folder inside the repo (#182).
+  const path = read ? {} : pathOutside(dir, sys.platform, sys.env);
+  const away = temps.away && { ...temps.away, env: { ...temps.away.env, ...path } };
   // An empty hooks folder: no hook the repo ships, or names in its config, runs on the temp branch.
-  const safe = { read, away: temps.away, git: read ? {} : { config: [`core.hooksPath=${temps.hooks}`] } };
+  const safe = { read, away, path, git: read ? {} : { config: [`core.hooksPath=${temps.hooks}`], env: path } };
   try {
     const loop = await sys.loopback();
     const found = {

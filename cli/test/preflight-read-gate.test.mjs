@@ -58,7 +58,8 @@ test("AC-169-5: a .git file counts only when the folder it names points back at 
   const marked = markedRepo();
   const tree = join(temp("onrails-read-tree-"), "wt");
   sh(marked, "worktree", "add", "--quiet", "--detach", tree);
-  // The control: the real worktree shares the marked repo's mark.
+  // The control: the real worktree, once marked itself (#182), counts as read.
+  assert.equal(markRead(tree), tree);
   assert.equal(isRead(tree), true);
   const admin = join(marked, ".git", "worktrees", "wt");
   assert.equal(readFileSync(join(admin, "gitdir"), "utf8").trim(), join(tree, ".git"));
@@ -73,10 +74,16 @@ test("AC-169-3: WHEN PATH has entries that aren't full paths THEN preflight star
   const dir = gitRepo("", { git: fake, "tools/git": fake, gh: fake, npm: fake });
   for (const name of ["git", "tools/git", "gh", "npm"]) chmodSync(join(dir, name), 0o755);
   const bin = pathWith("git");
-  for (const path of [`:${bin}`, `.:${bin}`, `tools:${bin}`, `${bin}::`]) {
-    const report = runScript(dir, path, "--json");
-    assert.equal(existsSync(mark), false, `PATH ${path.replace(bin, "<bin>")}: a program the repo ships ran`);
-    assert.equal(status(report, "git"), "ok", "the real git, found after the relative entries, did the probe");
+  // runScript starts it from the repo, so a relative entry is the repo (#182). Once the repo is read, PATH is no
+  // longer cut to the folders outside it, so the lookup's own skip is all that keeps the repo's git from running.
+  for (const marked of [false, true]) {
+    if (marked) assert.ok(markRead(dir));
+    for (const path of [`:${bin}`, `.:${bin}`, `tools:${bin}`, `${bin}::`]) {
+      const report = runScript(dir, path, "--json");
+      assert.equal(report.read, marked);
+      assert.equal(existsSync(mark), false, `PATH ${path.replace(bin, "<bin>")}: a program the repo ships ran`);
+      assert.equal(status(report, "git"), "ok", "the real git, found after the relative entries, did the probe");
+    }
   }
   // The full path from PATH is what starts, on POSIX as on Windows. A file without its run bit is passed over.
   const plain = temp("onrails-read-plain-");
