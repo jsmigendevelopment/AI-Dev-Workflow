@@ -57,7 +57,7 @@ The owner's rules. Lint catches some. `build` follows them all and `pr-review` c
 - App shape (state, errors, loading, UI layers, API versions, money, time, the database, logs, events, env, access) is in `docs/architecture.md`. Reasons: `guide/app-conventions.md` in the kit.
 - Money in integer minor units with its currency, instants in UTC, logs only through the logger, events only through `track()`, access only through `check()`.
 - Error and empty states are designed: icon, title, specific message, next action, reference ID. A bare "Error" or a grey-box skeleton fails review.
-- Need the person to do something outside the repo? Use the `ask` skill's "Setup step for you" format. Secret values only through the `secrets` checklist, never chat.
+- Need the person to do something outside the repo? Do every step you can first, and hand over only what is theirs: for a key, that is signing in and one paste (`secrets`, "Keys on Full"). Write it in the `ask` skill's "Setup step for you" format. Secret values only through the `secrets` checklist, never chat.
 
 ## Needs you
 

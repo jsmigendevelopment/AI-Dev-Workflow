@@ -43,6 +43,18 @@ How: the docs site was blocked here, so these were read from Cloudflare's public
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page and fill in what the row says. The button that makes or shows a secret value, and any code after it, are the person's. `[V]` = checked against Cloudflare's docs on 2026-11-26. Every token is shown once.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `CLOUDFLARE_API_TOKEN` | https://dash.cloudflare.com/profile/api-tokens | Only on `ci = "actions"`. **Create Token**, then **Use template** next to **Edit Cloudflare Workers**. Add `Account · D1 · Edit` (and `Account · Queues · Edit` with the jobs add-on). **Account Resources:** this account only. **Zone Resources:** the app's domain, or none. **Token expiration:** about 1 year. Name: `<app> deploy`. **Continue to summary**. Stop there: the person presses **Create Token**. `[V]` steps, `[U]` the summary's button name. |
+| `CLOUDFLARE_ZONE_TOKEN` | https://dash.cloudflare.com/profile/api-tokens | Only with your own domain. **Create Token**, **Create Custom Token**. `Zone · Zone · Read`, `Zone · Zone Settings · Edit`, `Zone · Zone WAF · Edit`, `Zone · Bot Management · Edit`. **Zone Resources:** the app's domain only. An expiry. Name: `<app> zone`. **Continue to summary**. Stop there: the person presses **Create Token**. `[V]` permission names, `[U]` button names. |
+| `CLOUDFLARE_ACCESS_TOKEN` | https://dash.cloudflare.com/profile/api-tokens | Only for Cloudflare Access, after Zero Trust is on (step 4: its Free plan asks for payment details, so that's a 🛑 for the person). **Create Custom Token**. `Account · Access: Apps and Policies · Edit`, `Account · Access: Service Tokens · Edit`, `Account · Access: Organizations, Identity Providers, and Groups · Edit`, `Account · Workers Scripts · Read`. **Account Resources:** this account only. An expiry. Name: `<app> access`. **Continue to summary**. Stop there: the person presses **Create Token**. `[V]` permission names, `[U]` button names. |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | https://dash.cloudflare.com/?to=/:account/turnstile | Test and production only: local dev uses the test keys in step 5. **Add widget**. **Widget name:** the app name. **Region:** Rest of World (it can't change later). **Hostname management:** the test host and the production domain. **Widget mode:** Managed. Stop there: the person presses **Create**. The sitekey is public; the secret key is secret. `[V]` |
+| `VITE_CF_BEACON_TOKEN` | https://dash.cloudflare.com/?to=/:account/web-analytics | **Add a site**, type the hostname, pick it, **Done**. The `token` value is in **Manage site**'s JS snippet. Public. `[V]` |
+
 ## 1. Account and login · about 3 minutes
 
 1. Sign up (skip if you have an account): https://dash.cloudflare.com/sign-up. Enter **Email** and **Password**, click **Create Account**, then click the link in the email. `[V]`
