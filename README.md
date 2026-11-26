@@ -259,7 +259,7 @@ The [`secrets`](.agents/skills/secrets/SKILL.md) skill lists each variable and w
 |---|---|
 | **No force pushes, no pushes to main** | Blocked in the tool: `.claude/settings.json` for Claude Code, `.codex/rules/git-safety.rules` for Codex. Codex rules match only the start of a command, so a `--force` typed after the branch name is left to rule 12 in `AGENTS.md`. |
 | **No silent waiting** | A rate-limited or blocked agent tells you what's blocked and when it resets, then keeps doing other work. |
-| **A few things at a time** | The loop keeps three issues in flight (one on Hands-on), counting claimed work that waits on you, and finishes one before it starts another. `flow.mjs` prints how many merged, how long one took and the longest gap with no merge. |
+| **A few things at a time** | The loop keeps three issues in flight (one on Hands-on), and finishes one before it starts another. Below Full, claimed work that waits on you counts. On Full it doesn't, so the loop keeps building; if everything left waits on you, you get one list of what each item unblocks. `flow.mjs` prints how many merged, how long one took and the longest gap with no merge. |
 | **Every session starts informed** | A hook gives the session the branch, the last commit and `docs/state.md` before you type. Local files only. |
 | **Pings at three levels** | 🛑 Blocker: now. ⏳ Decision: batched. ℹ️ FYI: never interrupts. A desktop notification, or your phone if you set `NTFY_TOPIC`. |
 
