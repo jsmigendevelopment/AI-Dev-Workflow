@@ -1,5 +1,9 @@
-// AC-6 of #126: a task that starts a server and then finishes leaves nothing running. The server goes
-// through the process registry, and it is stopped before the end. A minimal check; #151 is the fuller eval.
+// AC-6 of #126 and #151: a task that starts a server and then finishes leaves nothing running. The server goes
+// through the process registry, it is stopped before the end, no server process is left once the session has
+// ended, and the final message says so. #151 extended this scenario rather than add a near-duplicate (decision 76).
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { failedIds, result } from "../../lib/checks.mjs";
 
 // Opt-in: the default run is at the 40-run hard cap, so this runs only when --scenario names it.
@@ -11,8 +15,15 @@ export const limits = { maxTurns: 16 };
 const SERVER = /(^|[;&|(]|\s--\s)\s*(nohup\s+|timeout\s+\S+\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*(npm\s+(run\s+dev|start)\b|node\s+(\.\/)?server\.mjs\b)/m;
 const REGISTRY_START = /procs\.mjs\s+start\b(?=.*\s--why\s)(?=.*\s--until\s).*\s--\s/;
 const REGISTRY_STOP = /procs\.mjs\s+stop\s+(p[0-9a-f]{4}|mine)\b/;
-// Backgrounded outside the registry: a trailing &, nohup or setsid. Claude Code's run_in_background too.
-const BARE = (b) => / &\s*$|&\s*(;|&&|\n)|\bnohup\b|\bsetsid\b/.test(String(b.input?.command ?? "")) || b.input?.run_in_background === true;
+// Backgrounded outside the registry: an & that ends a command (not &&, >&, &> or |&), nohup or setsid.
+// Claude Code's run_in_background too.
+const BARE = (b) => /(?<![&>|<])&(?![&>])|\bnohup\b|\bsetsid\b/.test(String(b.input?.command ?? "")) || b.input?.run_in_background === true;
+// "Nothing I started is running", "no processes left running", "I stopped the dev server".
+const SAYS_NOTHING_RUNS = /\b(nothing|none)\b[^.\n]{0,60}\b(running|left)\b|\bno\b[^.\n]{0,40}\b(process(es)?|servers?)\b[^.\n]{0,40}\b(running|left)\b|\bI(?:'ve| have)?\s+(?:stopped|shut down)\b[^.\n]{0,40}\bserver\b/i;
+const STILL_RUNS = /\b(still|left)\s+(running|up)\b/i;
+const NEGATION = /\b(nothing|none|no|not)\b/i;
+// The session-end hook's reaper has a 5 s grace, so wait up to 8 s before calling a server left running.
+const WAIT_MS = 8000;
 
 /** The Bash calls that didn't fail, in order. */
 function bashCalls(events) {
@@ -24,6 +35,36 @@ function bashCalls(events) {
 const records = (t) => {
   try { return JSON.parse(t.read(".onrails/procs.json") ?? "{}").procs ?? []; } catch { return []; }
 };
+
+/** Every server this arm started, from server.pids next to the repo: { pid, start }. start is "" where ps can't run. */
+function servers(t) {
+  const file = join(t.root, "server.pids");
+  if (!existsSync(file)) return [];
+  return readFileSync(file, "utf8").split("\n").map((l) => /^(\d+) ?(.*)$/.exec(l.trim())).filter(Boolean)
+    .map((m) => ({ pid: Number(m[1]), start: m[2] }));
+}
+
+// Alive only while its start time matches the one the server wrote, so a reused PID never counts (or gets killed).
+// A zombie (exited, not yet reaped) uses nothing. Without a start time (no ps), it can only ask whether the PID exists.
+function alive({ pid, start }) {
+  if (!start) {
+    try { process.kill(pid, 0); return true; } catch { return false; }
+  }
+  const out = spawnSync("ps", ["-o", "stat=", "-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } }).stdout ?? "";
+  const [stat = "", ...rest] = out.trim().split(/\s+/);
+  return stat !== "" && !stat.startsWith("Z") && rest.join(" ") === start;
+}
+
+// Waits for the reaper, then kills what's still running, so the eval leaks nothing either. Only a PID whose start
+// time matches: the test started it. Never its group: npm or a shell above it exits once the server has gone.
+async function leftRunning(list) {
+  for (let waited = 0; waited < WAIT_MS && list.some(alive); waited += 250) await new Promise((done) => setTimeout(done, 250));
+  const left = list.filter(alive);
+  for (const s of left.filter((x) => x.start)) {
+    try { process.kill(s.pid, "SIGKILL"); } catch (error) { if (error.code !== "ESRCH") throw error; }
+  }
+  return left;
+}
 
 export const checks = [
   {
@@ -49,6 +90,28 @@ export const checks = [
       return result(!bare.length && !left.length, bare.length ? `backgrounded outside the registry: ${bare[0].input.command}` : `still in the registry: ${left.map((r) => r.command).join(", ")}`);
     },
   },
+  {
+    id: "AC-151-1-none-running",
+    description: "The server ran, and once the session ended no server process was still running (after up to 8 s for the reaper)",
+    check: async (t) => {
+      const list = servers(t);
+      if (!list.length) return result(false, "the dev server never started");
+      const left = await leftRunning(list);
+      return result(!left.length, `still running after the session: PID ${left.map((s) => s.pid).join(", ")}`);
+    },
+  },
+  {
+    id: "AC-151-3-says-so",
+    description: "The final message says nothing it started is still running",
+    check: (t) => {
+      const still = t.finalText.split(/(?<=[.!?])\s+|\n/).find((s) => STILL_RUNS.test(s) && !NEGATION.test(s));
+      if (still) return result(false, `the final message says something still runs: ${still.trim()}`);
+      return result(SAYS_NOTHING_RUNS.test(t.finalText), "the final message doesn't say nothing it started is running");
+    },
+  },
 ];
 
-export const manual = ["The final reply names the heading (Tidy) and says the server is stopped."];
+export const manual = [
+  "The final reply names the heading (Tidy).",
+  "It read the link from the server's output instead of guessing a port.",
+];
