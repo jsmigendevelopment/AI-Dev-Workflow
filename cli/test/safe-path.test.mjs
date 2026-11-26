@@ -54,6 +54,18 @@ test("#191: the runtime guard reads every casing of the PATH key, and lets only 
   assert.throws(() => checkPath({ PATH: ".." }, join(other, "x")), /isn't one of this test's fakes/, "a relative entry too");
 });
 
+test("#197: the runtime guard never skips an empty PATH item, which a child reads as its own working folder", () => {
+  const a = tmp(), b = tmp(), other = tmp();
+  put(other, "claude", "#!/bin/sh\necho real claude\n");
+  for (const PATH of ["", `${a}${delimiter}`, `${delimiter}${a}`, [a, "", b].join(delimiter)]) {
+    assert.throws(() => checkPath({ PATH }), /an empty item/, `${JSON.stringify(PATH)} with no working folder named`);
+    assert.throws(() => checkPath({ PATH }, other), /isn't one of this test's fakes/, `${JSON.stringify(PATH)} run in a folder with a claude`);
+    assert.deepEqual(checkPath({ PATH }, b), { PATH }, `${JSON.stringify(PATH)} run in a folder with none`);
+  }
+  assert.throws(() => checkPath({ PATH: a, path: `${b}${delimiter}` }), /an empty item/, "on any casing of the key");
+  assert.deepEqual(checkPath({ PATH: [a, b].join(delimiter) }), { PATH: [a, b].join(delimiter) });
+});
+
 // The forms that give a child the shell's PATH. Each pattern is written so it can't match its own source.
 const READS_PATH = /process\.env\s*(?:\??\.\s*path\b|\[\s*["'`]path["'`]\s*\])(?!\s*=[^=])/i;
 const WHOLE_ENV = /process\.env\b(?!\s*(?:\??\.|\[))/;
@@ -180,6 +192,28 @@ test("AC-197-2: WHEN the runtime guard throws at import THEN no node copy is lef
     const r = spawnSync(process.execPath, [...flags, "--test", join(dir, "loads.test.mjs")], { cwd: CLI, encoding: "utf8", env, timeout: 120_000 });
     assert.match(r.stdout + r.stderr, /isn't one of this test's fakes/, `${how}: the guard threw`);
     assert.deepEqual(readdirSync(temp), [], `${how}: a node copy or temp folder was left behind`);
+  }
+});
+
+test("#197: WHEN ONRAILS_TEST_SYSTEM_DIRS holds an empty or relative entry THEN the preload throws before any test runs", unixOnly, () => {
+  // The test file runs a claude by name in a folder that holds one. An empty or relative PATH item finds it there.
+  const dir = tmp(), log = join(tmp(), "calls.log");
+  fake(dir, "claude", `#!/bin/sh\necho "claude $*" >> '${log}'\n`);
+  const S = "spawn" + "Sync";
+  put(dir, "runs.test.mjs", [
+    `import { test } from "node:test";`,
+    `import { ${S} } from "node:child_process";`,
+    `test("runs claude by name", () => { ${S}("claude", ["--version"], { cwd: ${JSON.stringify(dir)} }); });`,
+  ].join("\n"));
+  for (const system of ["", ["/usr/bin", "", "/bin"].join(delimiter), ".", "bin"]) {
+    const temp = tmp();
+    const r = npmTest([join(dir, "runs.test.mjs")], { extra: { ONRAILS_TEST_SYSTEM_DIRS: system, TMPDIR: temp } });
+    const how = `ONRAILS_TEST_SYSTEM_DIRS=${JSON.stringify(system)}`;
+    assert.notEqual(r.status, 0, `${how}: the run passed`);
+    assert.match(r.stderr, /ONRAILS_TEST_SYSTEM_DIRS takes only absolute folders/, how);
+    assert.doesNotMatch(r.stdout, /^# (?:pass|fail) [1-9]/m, `${how}: a test ran`);
+    assert.equal(existsSync(log) ? readFileSync(log, "utf8") : "", "", `${how}: the claude in the test's working folder ran`);
+    assert.deepEqual(readdirSync(temp), [], `${how}: a node copy was left behind`);
   }
 });
 
