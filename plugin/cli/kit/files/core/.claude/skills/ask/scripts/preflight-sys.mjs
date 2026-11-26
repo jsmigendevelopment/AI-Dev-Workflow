@@ -226,7 +226,7 @@ function within(path, top) {
 /** The folder that counts as the repo for dir: its top folder, or dir itself before `git init`. */
 const topOf = (dir) => repoTop(dir) ?? (existsSync(dir) ? realpathSync(dir) : resolve(dir));
 
-// npx puts the repo's node_modules/.bin first on PATH, and a PATH can name any folder in the repo (#182).
+// A PATH can name folders inside the repo, and the way preflight was started can add some (#182).
 /**
  * The PATH for every probe before the read, as { [its key in env]: value }: only full paths of folders that exist
  * with a real path outside the repo's top folder. The commands get it too, so nothing they start comes from the repo.

@@ -21,7 +21,7 @@ test("AC-182-1: WHEN the docs and skills that run preflight before the read are 
   // The reference and the CLI page say why, and name the safe routes.
   for (const doc of [".agents/skills/ask/references/preflight.md", "cli/CLI.md"]) {
     assert.match(read(doc), /never through `npx`/, doc);
-    assert.match(read(doc), /`node_modules\/\.bin`/, doc);
+    assert.match(read(doc), /`PATH`/, doc);
     assert.match(read(doc), /by its absolute path/, doc);
   }
 });
@@ -39,7 +39,7 @@ const ran = (mark) => readdirSync(mark).sort();
 test("AC-182-2: WHEN a PATH entry's real path is inside the repo and the repo isn't read THEN preflight runs no command from it", posixOnly, () => {
   const mark = temp("onrails-path-mark-");
   const dir = gitRepo("", PLAYWRIGHT);
-  // What npx puts first on PATH, and a folder outside the repo that is a symlink to it.
+  // A folder inside the repo first on PATH, and a folder outside the repo that is a symlink to it.
   const bin = join(dir, "node_modules", ".bin");
   fakes(bin, ["git", "gh", "npm", "pnpm"], mark);
   const link = join(temp("onrails-path-link-"), "bin");

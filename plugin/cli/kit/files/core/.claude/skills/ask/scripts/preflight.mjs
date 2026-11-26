@@ -13,8 +13,8 @@
 // outside the repo and a local port are made and removed.
 // Exit 0: nothing to fix. 1: something to fix or blocked. 2: a bad flag. No dependencies.
 // The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs; sync-skills.mjs copies
-// both into the ask skill and the CLI. Before the read, never start it through npx (#182): npx puts the repo's
-// node_modules/.bin first on PATH, and runs an onrails the repo ships in place of the kit's.
+// both into the ask skill and the CLI. Before the read, never start it through npx (#182): npx changes PATH
+// and which onrails runs, in ways the repo can steer.
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
