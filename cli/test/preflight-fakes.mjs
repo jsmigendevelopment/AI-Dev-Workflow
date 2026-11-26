@@ -2,7 +2,7 @@
 // so no test needs a network. The real-run helpers at the end run the real script in throwaway repos (#169).
 import { after } from "node:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { markRead } from "../src/preflight-sys.mjs";
@@ -112,3 +112,14 @@ export const PLAYWRIGHT = {
   "node_modules/playwright/index.js": "require('fs').writeFileSync(require('path').join(__dirname, '..', '..', 'loaded'), 'x');\n"
     + "module.exports = { chromium: { launch: async () => ({ close: async () => {} }) } };\n",
 };
+
+/** Fakes that each write the PATH they were given to a file named after them in mark, then fail (#182). */
+export function fakes(dir, names, mark) {
+  mkdirSync(dir, { recursive: true });
+  for (const name of names) {
+    put(dir, name, `#!/bin/sh\necho "$PATH" > '${join(mark, name)}'\nexit 1\n`);
+    chmodSync(join(dir, name), 0o755);
+  }
+}
+/** The names of the fakes that ran. */
+export const ran = (mark) => readdirSync(mark).sort();

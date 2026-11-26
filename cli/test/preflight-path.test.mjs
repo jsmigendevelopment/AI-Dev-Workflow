@@ -4,12 +4,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync } from "node:fs";
+import fs, { copyFileSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync,
+  unlinkSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRead, markRead, realSys } from "../src/preflight-sys.mjs";
 import { put } from "./helpers.mjs";
-import { gitRepo, pathWith, PLAYWRIGHT, project, runScript, sh, status, temp } from "./preflight-fakes.mjs";
+import { fakes, gitRepo, pathWith, PLAYWRIGHT, project, ran, runScript, sh, status, temp } from "./preflight-fakes.mjs";
 
 const posixOnly = { skip: process.platform === "win32" ? "the fakes are POSIX shell scripts and symlinks" : false };
 const native = (path) => realpathSync.native(path);
@@ -27,16 +29,6 @@ test("AC-182-1: WHEN the docs and skills that run preflight before the read are 
     assert.match(read(doc), /by its absolute path/, doc);
   }
 });
-
-/** Fakes that each write the PATH they were given to a file named after them in mark, then fail. */
-function fakes(dir, names, mark) {
-  mkdirSync(dir, { recursive: true });
-  for (const name of names) {
-    put(dir, name, `#!/bin/sh\necho "$PATH" > '${join(mark, name)}'\nexit 1\n`);
-    chmodSync(join(dir, name), 0o755);
-  }
-}
-const ran = (mark) => readdirSync(mark).sort();
 
 test("AC-182-2: WHEN a PATH entry's real path is inside the repo and the repo isn't read THEN preflight runs no command from it", posixOnly, () => {
   const mark = temp("onrails-path-mark-");
@@ -186,6 +178,48 @@ test("AC-182-3: WHEN the worktree folder is deleted and a new one is made at onc
     assert.equal(report.read, false);
     assert.equal(existsSync(join(tree, "loaded")), false, `${how}: the folder's own Playwright was loaded`);
   }
+});
+
+/** Runs fn with statSync reporting no birth time, as Node does where the system has none: birth time equals change time. */
+function noBirthTime(fn) {
+  const real = fs.statSync;
+  fs.statSync = (path, opts) => {
+    const stats = real(path, opts);
+    if (opts?.bigint && stats) stats.birthtimeNs = stats.ctimeNs;
+    return stats;
+  };
+  syncBuiltinESMExports();
+  try {
+    return fn();
+  } finally {
+    fs.statSync = real;
+    syncBuiltinESMExports();
+  }
+}
+
+test("AC-182-3: WHEN the system reports no birth time and a worktree folder keeps its inode numbers but its .git file is linked back in THEN the .git file's change time alone keeps it not read", posixOnly, () => {
+  const { tree } = markedTree();
+  const dot = join(tree, ".git");
+  noBirthTime(() => {
+    assert.equal(markRead(tree), tree);
+    assert.equal(isRead(tree), true, "the control: the worktree itself was marked");
+    const folder = statSync(tree).ino;
+    const before = statSync(dot, { bigint: true });
+    // A clock tick, so a file system with coarse timestamps still gives the relinked file a new change time.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30);
+    // Everything in the folder but .git goes, and the .git file comes back by a new link: the same inode numbers.
+    for (const name of readdirSync(tree)) if (name !== ".git") rmSync(join(tree, name), { recursive: true, force: true });
+    const aside = join(dirname(tree), "git-aside");
+    linkSync(dot, aside);
+    unlinkSync(dot);
+    linkSync(aside, dot);
+    unlinkSync(aside);
+    const now = statSync(dot, { bigint: true });
+    assert.equal(statSync(tree).ino, folder, "the folder changed, so the test proves nothing about the change time");
+    assert.equal(now.ino, before.ino, "the .git file changed, so the test proves nothing about the change time");
+    assert.notEqual(now.ctimeNs, before.ctimeNs, "the change time didn't move, so the test proves nothing");
+    assert.equal(isRead(tree), false, "only the .git file's change time differs, and it was missed");
+  });
 });
 
 test("#182: a linked worktree counts as read only once it has been marked itself; marking it marks only it", posixOnly, () => {

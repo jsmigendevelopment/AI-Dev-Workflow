@@ -3,7 +3,7 @@
 // The master copy is scripts/preflight-sys.mjs in the kit; sync-skills.mjs copies it next to each preflight.mjs.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { accessSync, constants, existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { accessSync, constants, existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { connect, createServer } from "node:net";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -227,41 +227,79 @@ export function markRead(dir) {
 
 // Node's realpathSync folds ".." as text before it follows symlinks; the OS follows a symlink first. So every check
 // that a path is outside the repo resolves it the OS's way, with realpathSync.native (#182).
-/** True when path's real path is top or inside it, or one of its folders is top itself (a bind mount of the repo). */
-function within(path, top) {
+/** True when path's real path is one of tops or inside one, or one of its folders is a top itself (a bind mount of it). */
+function within(path, tops) {
   const real = realpathSync.native(path);
-  const rel = relative(top, real);
-  if (rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))) return true;
-  const { dev, ino } = statSync(top, { bigint: true });
+  const under = (top) => { const rel = relative(top, real); return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)); };
+  if (tops.some(under)) return true;
   // A file system with no inode numbers reports 0 for every folder: then only the path counts.
-  if (ino === 0n) return false;
-  for (let at = real; ; at = dirname(at)) {
-    const folder = statSync(at, { bigint: true });
-    if (folder.dev === dev && folder.ino === ino) return true;
+  const ids = tops.filter((top) => existsSync(top)).map((top) => statSync(top, { bigint: true })).filter(({ ino }) => ino !== 0n)
+    .map(({ dev, ino }) => `${dev}:${ino}`);
+  for (let at = real; ids.length; at = dirname(at)) {
+    const { dev, ino } = statSync(at, { bigint: true });
+    if (ids.includes(`${dev}:${ino}`)) return true;
     if (dirname(at) === at) return false;
+  }
+  return false;
+}
+
+/** The OS's real path of path, or path itself when it can't be read. */
+function nativePath(path) {
+  try {
+    return existsSync(path) ? realpathSync.native(path) : resolve(path);
+  } catch {
+    // A folder whose real path can't be read: it still counts as inside by the path it was named by.
+    return resolve(path);
   }
 }
 
-/** The folder that counts as the repo for dir, as the OS resolves it: its top folder, or dir itself before `git init`. */
-function topOf(dir) {
-  const top = repoTop(dir) ?? dir;
-  return existsSync(top) ? realpathSync.native(top) : resolve(top);
+/** The checkout folder each <common>/worktrees/<id>/gitdir names: the folder that holds that worktree's .git file. */
+function worktreesOf(common) {
+  return readdirSync(join(common, "worktrees")).flatMap((id) => {
+    const admin = join(common, "worktrees", id);
+    const named = small(join(admin, "gitdir")).trim();
+    return named ? [dirname(resolve(admin, named))] : [];
+  });
+}
+
+// Every checkout of a repository holds its committed files, and none is read before this one is (#182). So the
+// repo is every checkout: this one, the main checkout that holds the common .git folder (its parent, even for a
+// bare repository, whose bare flag is the repo's own config), and each linked worktree. All found without running git.
+/** The folders that count as the repo for dir, as the OS resolves them: dir's own top folder (dir before `git init`) first. */
+function topsOf(dir) {
+  const top = repoTop(dir);
+  const tops = [top ?? dir];
+  try {
+    const dot = top && join(top, ".git");
+    const kind = dot && kindOf(dot);
+    const own = kind === "file" ? /^gitdir: (.+)$/m.exec(small(dot))?.[1]?.trim() : kind && dot;
+    const git = own && resolve(top, own);
+    if (git && existsSync(git)) {
+      const named = small(join(git, "commondir")).trim();
+      const common = named ? resolve(git, named) : git;
+      tops.push(dirname(common));
+      tops.push(...worktreesOf(common));
+    }
+  } catch {
+    // The common folder can't be read: this checkout and the common folder's parent still count, nothing less.
+  }
+  return [...new Set(tops.map(nativePath))];
 }
 
 // A PATH can name folders inside the repo, and the way preflight was started can add some (#182).
 /**
  * The PATH for every probe before the read, as { [its key in env]: value }: the OS's real path of each full-path entry
- * that exists outside the repo's top folder. The commands get it too, so nothing they start comes from the repo, and
+ * that exists outside every checkout of the repo. The commands get it too, so nothing they start comes from the repo, and
  * they get the resolved paths, never the raw entries, so nothing can read an entry another way.
  */
 export function pathOutside(dir, platform, env) {
-  const top = topOf(dir);
+  const tops = topsOf(dir);
   const split = platform === "win32" ? ";" : ":";
   const outside = (entry) => {
     try {
       if (!isAbsolute(entry) || !existsSync(entry)) return [];
       const real = realpathSync.native(entry);
-      return within(real, top) ? [] : [real];
+      return within(real, tops) ? [] : [real];
     } catch {
       // A folder whose real path can't be read can't be shown to be outside the repo: left out.
       return [];
@@ -274,12 +312,12 @@ export function pathOutside(dir, platform, env) {
 // The session's TMPDIR can point into the repo, and git or npm run from a folder inside it read the repo's settings.
 /**
  * Empty temp folders for the probes. hooks: an empty hooks folder. away: how to run a command outside the repo, from
- * an empty folder whose real path is outside the repo's top folder, with a git that searches no folder above it; or null.
+ * an empty folder whose real path is outside every checkout of the repo, with a git that searches no folder above it; or null.
  */
 export function tempFolders(dir, platform = process.platform) {
-  const top = topOf(dir);
+  const tops = topsOf(dir);
   const hooks = mkdtempSync(join(tmpdir(), "onrails-preflight-"));
-  let outside = within(hooks, top) ? null : hooks;
+  let outside = within(hooks, tops) ? null : hooks;
   // Then the system's own temp folder, then the home folder.
   for (const base of [platform === "win32" ? null : "/tmp", homedir()]) {
     if (outside || !base || !existsSync(base)) continue;
@@ -290,7 +328,7 @@ export function tempFolders(dir, platform = process.platform) {
       // A folder this sandbox can't write: the next one, or none, and those rows wait for the read.
       continue;
     }
-    if (within(made, top)) rmSync(made, { recursive: true, force: true });
+    if (within(made, tops)) rmSync(made, { recursive: true, force: true });
     else outside = made;
   }
   const away = outside && { cwd: outside, env: { GIT_CEILING_DIRECTORIES: dirname(realpathSync.native(outside)) } };
