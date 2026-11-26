@@ -23,6 +23,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 ### Fixed
 
 - **New apps pass their own lint (#146).** The TanStack Start pack's ESLint and Prettier, and the monorepo pack's root ESLint config, now ignore the kit's `.agents/`, `.claude/` and `.codex/` folders, and Prettier also ignores the kit's `AGENTS.md`, `CLAUDE.md`, `.github/ISSUE_TEMPLATE/slice.md` and `.onrails.json`: `init` plus `add tanstack-start` went from 468 lint errors to 0, and a new test, `lint-ignores.test.mjs`, checks every kit file against both packs' ignore lists.
+- **New apps keep passing Prettier once `/idea` writes `docs/` (#152).** The TanStack Start pack's `.prettierignore` now lists `docs`: the kit's templates use unpadded tables, so all 13 Markdown files failed `prettier --check` in a fresh app, and every agent edit to `decisions.md` or `state.md` would have needed `pnpm format`. The monorepo pack runs Prettier only inside its workspaces, so its root `docs/` was never checked. A new test in `lint-ignores.test.mjs` installs the kit and the pack, copies every `idea` template into `docs/` and checks the pack's ignore list covers them (`docs/decisions.md` row 27).
 
 ## [0.7.0] - 2026-11-24
 

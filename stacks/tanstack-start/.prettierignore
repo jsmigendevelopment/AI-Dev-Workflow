@@ -18,3 +18,7 @@ AGENTS.md
 CLAUDE.md
 .github/ISSUE_TEMPLATE/slice.md
 .onrails.json
+
+# The app's docs (#152). Agents write them from the kit's templates, tables unpadded; formatting them
+# would make every edit to decisions.md or state.md a noisy diff that also needs `pnpm format`.
+docs
