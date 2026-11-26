@@ -11,9 +11,15 @@ node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <you
 - It takes about 10 seconds and prints **one table**: repo write, `.git` write, the package registry, GitHub, loopback, a browser (only when the project's tests need one), Node and the package manager, model and effort.
 - `npx onrails preflight` is the same script. Wrong tool guessed in the heading? Add `--tool claude`, `claude-cloud`, `codex` or `other`.
 - **When:** the first step of `/idea`, `/join`, `/back` and `build`.
-- **Once `docs/state.md` exists,** add `--if-changed --record`. It writes the result to the `Environment:` line there. When that line says ok and the sandbox hasn't changed (same machine, tool, Node and install settings), it skips every probe.
+- **Once `docs/state.md` exists,** add `--if-changed --record`. It writes the result to the `Environment:` line there. When that line says ok and the sandbox hasn't changed (same machine, tool, Node, install settings and read mark), it skips every probe.
 - `–` rows are fine. GitHub at `–` means the loop runs in local mode (`../../coordinate/references/local-mode.md`).
-- **Before `/join` has read a repo** (no `docs/state.md` yet), preflight runs no `<pm> --version` at all: a package manager can run files or a release the repo chose, even on `--version`. It finds the manager on PATH without running it, reads a yarn version from a plain `yarnPath` file name where there is one, and shows a `–` row: "version checked after the repo is read". Run preflight again once `docs/state.md` exists. Every command it runs has `COREPACK_ENV_FILE=0`.
+- **Until the repo is marked read, preflight runs no code the repo chose.** The mark is a file inside `.git/` that `/join` or `/back` writes with `preflight.mjs --mark-read` once your session has read the repo. Run it in the repo's top folder: it marks only the `.git` there, never a parent's, and prints the folder it marked. `git clone` never copies the mark, and a copy that came with the repo doesn't count, nor does a `.git` symlink or a `.git` file that isn't a linked worktree git made, so a `docs/state.md` the repo ships doesn't make it read. `--if-changed` says so too when it skips. Until then:
+  - no `<pm> --version`: it finds the manager on PATH without running it, and reads a yarn version from a plain `yarnPath` file name where there is one;
+  - no Playwright launch, which loads the project's own files;
+  - npm, `gh` and `git ls-remote` run from a temp folder whose real path is outside the repo, against the remote's URL and the `.npmrc` registry only when they are plain;
+  - git runs with the repo's hooks turned off.
+
+  Those rows show `–` and say "after the repo is read", and one line under the table says the repo isn't marked yet. Run preflight again after `--mark-read`. Every command starts by the full path preflight found on `PATH` (relative entries skipped), with `COREPACK_ENV_FILE=0`; on Windows, every command also has `NoDefaultCurrentDirectoryInExePath=1`, so the current folder is never searched for a program. A probe that runs past its time is stopped with everything it started.
 
 **Done when** the table is printed and every `✗` row has been through the steps below.
 
