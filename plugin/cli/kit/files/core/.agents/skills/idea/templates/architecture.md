@@ -1,6 +1,6 @@
 # Architecture
 
-Every agent follows this. If the code needs to break a rule here, stop and ask first.
+Every agent follows this. If the code needs to break a rule here, below Full, stop and ask first. On Full, break it only with a comment that gives the reason and an issue number, record it as "AI pick, not reviewed" and put it in the FYI.
 
 ## Shape
 

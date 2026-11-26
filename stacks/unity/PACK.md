@@ -104,7 +104,7 @@ Where e2e is weaker than web: PlayMode tests check behaviour, not how the game l
 
 ## Auth and backend
 
-Most games need no account. Ask first.
+Most games need no account. Below Full, ask first. On Full, add one only when the MVP needs it, record it as "AI pick, not reviewed" and put it in the FYI.
 
 If the game needs one (cloud saves, leaderboards, purchases), it's a client of the web pack's `/api/v1` routes (being added to the web pack), with a Clerk session token as `Authorization: Bearer <token>`.
 
