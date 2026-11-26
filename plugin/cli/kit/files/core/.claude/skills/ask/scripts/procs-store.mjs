@@ -9,7 +9,7 @@
 // is what passed, and so is the index. A repo registry must also be its repo's own, in a repo this user owns
 // whose root only this user can write (docs/decisions.md row 69). On Windows the owner and who may write come from
 // the ACL. Its records count only when the file holds its own inode, which update() writes into it: a patch, an
-// unpacked archive or a copy is a new file, so its records read as none (#174, row 103). Inode numbers are reused, so
+// unpacked archive or a copy is a new file, so its records read as none (#174, row 104). Inode numbers are reused, so
 // the mark is a filter, not a proof: each record still needs a live process with the same start time.
 // No dependencies. The master copy is scripts/procs-store.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { randomBytes } from "node:crypto";
@@ -185,7 +185,7 @@ export const fixable = (sys, dir) => [...new Set([...candidates(sys, dir).map((p
 // Only the records of a file whose mark is its own inode: update() writes it into the file. A patch, an unpacked
 // archive or a copy makes a new file, so its records read as none, and the next write replaces them; moving the
 // folder keeps the inode. A new file can get a freed inode number back, and then its mark matches: the start time
-// check is what still stands (#174, docs/decisions.md row 103).
+// check is what still stands (#174, docs/decisions.md row 104).
 function parse(text, inode) {
   try {
     const data = JSON.parse(text);

@@ -16,8 +16,8 @@
 // variable SECRETS_MODE to "repository", and this pushes repository secrets and variables named
 // TEST_<name> and PRODUCTION_<name> instead: the names the pack's workflows read in that mode.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
@@ -43,6 +43,50 @@ function ci() {
     if (existsSync(file)) return CI_ACTIONS.test(readFileSync(file, "utf8")) ? "actions" : "local";
     if (dir === top || dirname(dir) === dir) return "local";
   }
+}
+
+// A folder's real path, or null when it doesn't exist (then it holds no tool).
+function realDir(dir) {
+  try {
+    return realpathSync(dir);
+  } catch {
+    return null;
+  }
+}
+// True when dir is root or inside it. Only a ".." path segment leaves root.
+function within(dir, root) {
+  const rel = relative(root, dir);
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+// How a command starts, with no shell: { file, args, env, verbatim } or { why } (#237). The rule of launch and
+// toolPath in the CLI's system.mjs, which this script can't import: the full path on PATH (PATHEXT on Windows),
+// never from a relative entry or a folder inside the repo, because Windows looks a bare name up in the current
+// folder first. A Windows .cmd shim (npx.cmd) starts only through cmd.exe, by ComSpec's full path, with plain words.
+function commandFor(cmd, cmdArgs, { platform = process.platform, env = process.env } = {}) {
+  const win = platform === "win32";
+  const top = realDir(repoRoot(process.cwd()) ?? process.cwd());
+  const exts = win ? (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter((ext) => /^\.(com|exe|bat|cmd)$/i.test(ext)) : [""];
+  const isFile = (file) => existsSync(file) && statSync(file).isFile();
+  let found = null;
+  let skipped = false;
+  for (const entry of (env.PATH || env.Path || "").split(win ? ";" : ":").filter(Boolean)) {
+    const file = exts.map((ext) => join(entry, cmd + ext)).find(isFile);
+    if (!file) continue;
+    const dir = isAbsolute(entry) && realDir(entry);
+    if (dir && !(top && within(dir, top))) { found = file; break; }
+    skipped = true;
+  }
+  if (!found) return { why: skipped ? `${cmd} found only inside this repo, not run` : `${cmd} isn't on your PATH` };
+  if (!win) return { file: found, args: cmdArgs, env };
+  // A .cmd shim starts a bare `node`: this stops cmd.exe, and what it starts, looking in the current folder first.
+  const winEnv = { ...env, NoDefaultCurrentDirectoryInExePath: "1" };
+  if (!/\.(cmd|bat)$/i.test(found)) return { file: found, args: cmdArgs, env: winEnv };
+  if (!cmdArgs.every((arg) => /^[\w.:=/@$+,-]+$/.test(arg))) return { why: `only plain words go to cmd.exe, not: ${cmdArgs.join(" ")}` };
+  // cmd.exe expands %NAME% even inside quotes. /s drops the line's outer quotes, so a path with a space stays one word.
+  if (found.includes("%")) return { why: `cmd.exe would expand the % in ${found}` };
+  const cmdExe = env.ComSpec || join(env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
+  return { file: cmdExe, args: ["/d", "/s", "/c", `""${found}" ${cmdArgs.join(" ")}"`], env: winEnv, verbatim: true };
 }
 
 // "repository" only when the repository variable says so. A read that fails keeps environments.
@@ -131,8 +175,18 @@ for (const env of envs) {
     for (const [cmd, cmdArgs] of targets) {
       const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})` : "Cloudflare secret";
       if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); stored = true; continue; }
+      // npx only for now: gh still starts by its bare name until #238.
+      const how = cmd === "npx" ? commandFor(cmd, cmdArgs) : { file: cmd, args: cmdArgs };
+      if (how.why) {
+        failed++;
+        missed = true;
+        console.log(`${env}: FAILED ${name} as a ${where}: ${how.why}`);
+        continue;
+      }
       try {
-        execFileSync(cmd, cmdArgs, { input: m.secret ? value : undefined, stdio: ["pipe", "ignore", "pipe"] });
+        execFileSync(how.file, how.args, {
+          input: m.secret ? value : undefined, stdio: ["pipe", "ignore", "pipe"], env: how.env, windowsVerbatimArguments: how.verbatim,
+        });
         console.log(`${env}: set ${name} as a ${where}`);
         stored = true;
       } catch (e) {
