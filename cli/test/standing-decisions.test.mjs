@@ -171,13 +171,13 @@ test("#159 nice 4: coordinate's human gate says no row lifts an always-stop item
 test("#159 round 3 must 2: an always-stop item with a naming row is one 🛑 that pings once, the same in every place; no place calls it a ⏳", () => {
   const changelog = read("CHANGELOG.md").split("\n").find((l) => l.includes("(#143).**")) ?? "";
   const places = { "ask step 0": step0(), "coordinate step 6.5": humanGate(), "full.md": read(".agents/skills/automation/references/full.md"),
-    "row 41": row("Rule 16"), "row 42": row("What a person's row lifts"), "the CHANGELOG line": changelog };
+    "row 44": row("Rule 16"), "row 45": row("What a person's row lifts"), "the CHANGELOG line": changelog };
   for (const file of AGENTS) places[`${file}: rule 16`] = rule16(read(file));
   for (const [name, text] of Object.entries(places)) {
     assert.ok(text.length > 0, `${name} found`);
     assert.doesNotMatch(text, /wait-free|⏳ record|not a 🛑|naming row[^.]*⏳|names (?:it|one|the item)[^.]*lifts only the wait\b/, `${name}: a naming row is a 🛑, never a ⏳`);
   }
-  for (const name of ["ask step 0", "coordinate step 6.5", "full.md", "row 42", "the CHANGELOG line"]) assert.match(places[name], /one 🛑 that cites (?:the row|it) and pings once/, name);
+  for (const name of ["ask step 0", "coordinate step 6.5", "full.md", "row 45", "the CHANGELOG line"]) assert.match(places[name], /one 🛑 that cites (?:the row|it) and pings once/, name);
   // The harm rule holds as written: an always-stop 🛑 always pings, whatever the rows say.
   for (const file of AGENTS) assert.ok(rule16(read(file)).includes(HARM), file);
   assert.ok(step0().includes(HARM), "ask step 0");
@@ -243,12 +243,12 @@ test("#159 round 3 must 1: pr-review's item 8 and the Expo device check keep the
   assert.match(read("stacks/monorepo-expo/README.md"), /Below Full, the agent asks the person to try it on a device before merge\. On Full, it runs the Maestro flows itself where a simulator is available; with none, it records the gap on the pull request, merges on the reviews and adds a "try it on a device" line to its FYI\./);
 });
 
-test("#159 round 3 nice 2 and 3: row 40 keeps the owner's exact words and says #104 carries the review-cap change", () => {
-  const r40 = read("docs/decisions.md").split("\n").find((l) => l.includes("Full automation means full automation.")) ?? "";
-  assert.ok(r40.includes('"full automation means full automation. i don\'t want to go afk and come back to a stopped ai with issues remaining for any reason"'), "first quote, exact");
-  assert.ok(r40.includes('"there is no such thing as a human approved label, we are in full automation. nothing needs human approval"'), "second quote, exact");
-  assert.match(r40, /This change records the rule\. #104, in the Now milestone, carries the review-cap change in `coordinate` step 6\./);
-  assert.match(r40, /\| person \|$/);
+test("#159 round 3 nice 2 and 3: row 43 keeps the owner's exact words and says #104 carries the review-cap change", () => {
+  const r43 = read("docs/decisions.md").split("\n").find((l) => l.includes("Full automation means full automation.")) ?? "";
+  assert.ok(r43.includes('"full automation means full automation. i don\'t want to go afk and come back to a stopped ai with issues remaining for any reason"'), "first quote, exact");
+  assert.ok(r43.includes('"there is no such thing as a human approved label, we are in full automation. nothing needs human approval"'), "second quote, exact");
+  assert.match(r43, /This change records the rule\. #104, in the Now milestone, carries the review-cap change in `coordinate` step 6\./);
+  assert.match(r43, /\| person \|$/);
 });
 
 test("#159 round 3 must 1 and nice 1: the scan catches every phrasing the review listed, one sentence at a time", () => {

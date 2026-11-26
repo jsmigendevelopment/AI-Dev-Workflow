@@ -17,7 +17,7 @@ const FAKE_GH = `#!/usr/bin/env node
 const fs = require("fs");
 const argv = process.argv.slice(2);
 let stdin = "";
-try { stdin = fs.readFileSync(0, "utf8"); } catch {}
+try { stdin = fs.readFileSync(0, "utf8"); } catch { /* no stdin to read (closed, or a terminal that would block): the call had no input */ }
 fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ argv, stdin }) + "\\n");
 const say = (text) => { process.stdout.write(text); process.exit(0); };
 if (argv[0] === "variable" && argv[1] === "get") {
@@ -55,7 +55,9 @@ function run(file, dir, args, env = {}) {
   let calls = [];
   try {
     calls = readFileSync(join(dir, "calls.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
-  } catch {}
+  } catch {
+    // No calls.jsonl: the fake gh was never run, so there are no calls.
+  }
   return { ...r, calls };
 }
 // The fake gh is a shebang script, which Windows can't run.
