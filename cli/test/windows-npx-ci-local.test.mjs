@@ -58,8 +58,8 @@ test("AC-237-1: WHEN push-secrets.mjs runs on a fake win32 with npx.cmd THEN it 
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const line = (env) => `""${join(npm, "npx.cmd")}" wrangler secret put API_TOKEN --env ${env}"`;
   assert.deepEqual(r.starts, [
-    { file: ComSpec, args: ["/d", "/s", "/c", line("test")], input: TEST_VALUE, verbatim: true, noCurrentFolder: "1" },
-    { file: ComSpec, args: ["/d", "/s", "/c", line("production")], input: LIVE_VALUE, verbatim: true, noCurrentFolder: "1" },
+    { file: ComSpec, args: ["/d", "/v:off", "/s", "/c", line("test")], input: TEST_VALUE, verbatim: true, noCurrentFolder: "1" },
+    { file: ComSpec, args: ["/d", "/v:off", "/s", "/c", line("production")], input: LIVE_VALUE, verbatim: true, noCurrentFolder: "1" },
   ]);
   assert.match(r.stdout, /test: set API_TOKEN as a Cloudflare secret/);
   assert.match(r.stdout, /production: set API_TOKEN as a Cloudflare secret/);
