@@ -119,12 +119,13 @@ if (Array.isArray(answer?.sequence)) {
   answer = answer.sequence[Math.min(seen, answer.sequence.length) - 1];
 }
 if (answer?.ghError) { process.stderr.write(answer.ghError + "\\n"); process.exit(1); }
+if (typeof answer?.raw === "string") { process.stdout.write(answer.raw); process.exit(0); }
 process.stdout.write(JSON.stringify(argv.includes("--slurp") ? [answer] : answer));
 `;
 export const unixOnly = { skip: process.platform === "win32" ? "the fake gh is a shebang script" : false };
 
 // Puts the fake gh in dir/bin. `api` maps an API path to its answer; `{ ghError: "<stderr>" }` makes gh fail with
-// that text, the way a refused or broken call does. `{ sequence: [a, b] }` answers a on the first call to that
+// that text, the way a refused or broken call does. `{ raw: "<text>" }` prints the text as is, like a raw file read. `{ sequence: [a, b] }` answers a on the first call to that
 // path, b on the second, and the last one from then on. The env to spawn with drops the shell's
 // REPO and HEAD_SHA, so a test never depends on them; `env` adds variables. `calls()` is the log so far.
 export function fakeGh(dir, api, env = {}) {
