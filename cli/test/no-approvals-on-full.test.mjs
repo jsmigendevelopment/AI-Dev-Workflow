@@ -31,12 +31,18 @@ test("#173 round 1 nice 2: the scan catches each phrasing the review listed", ()
 });
 
 test("#173 round 1 nice 2: the lines the wider scan found say what happens on Full", () => {
-  const handoff = "Could the owner's words (not the summary) mean something else? Below Full, ask the owner before starting (`ask`). On Full, take the likeliest reading, record it as \"AI pick, not reviewed\" and put it in the FYI.";
+  const handoff = "Could the owner's words (not the summary) mean something else? Below Full, ask the owner before starting (`ask`). On Full, start on the reading you recommend, record it as \"AI pick, not reviewed\" and put the other readings in the FYI.";
   for (const file of AGENTS) assert.ok(read(file).includes(handoff), `${file}: the Handoffs line`);
   assert.match(read(".agents/skills/ask/references/handoffs.md"), /Below Full, ask the owner before you start\. It's a ⏳ decision through `ask`: quote the words, give each reading, and recommend one\. Start nothing on it until they answer\. Other work keeps going\. On Full, start on the reading you recommend, record it as "AI pick, not reviewed" and put the other readings in the FYI\./);
   assert.match(read(".agents/skills/stack-tanstack-start/SKILL.md"), /run `node scripts\/setup-cloudflare\.mjs --dry-run`, show the person the output\. Below Full, run it without `--dry-run` only after a yes \(see Environments and deploys\)\./);
   assert.match(read(".agents/skills/pyramid/SKILL.md"), /Below Full, say in one line what it does \(labels, Dependabot, secret scanning, rules on main; on `ci = "actions"` only, a production environment that waits for them\) and ask: \*"Set this up now\?"\*/);
   assert.deepEqual(scan(["AGENTS.md", ".agents/skills/ask/references/handoffs.md", ".agents/skills/stack-tanstack-start/SKILL.md", ".agents/skills/pyramid/SKILL.md"]).found, []);
+});
+
+test("#173 round 2 nice 1: AGENTS.md and handoffs.md say the same thing on Full", () => {
+  const onFull = "On Full, start on the reading you recommend, record it as \"AI pick, not reviewed\" and put the other readings in the FYI.";
+  for (const file of [...AGENTS, ".agents/skills/ask/references/handoffs.md"]) assert.ok(read(file).includes(onFull), `${file}: the On Full handoff line`);
+  assert.deepEqual(new Set(AGENTS.map(read)).size, 1, "the three AGENTS.md copies are identical");
 });
 
 test("#173 round 1 nice 4: pyramid's gh auth login line parks the sign-in on Full and goes on", () => {
