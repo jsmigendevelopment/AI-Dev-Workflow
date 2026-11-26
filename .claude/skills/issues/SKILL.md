@@ -47,7 +47,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - `status:ready` once nothing blocks it: no `[NEEDS CLARIFICATION]` left, complexity 7 or under;
    - `status:in-progress` and `needs-human`, which `coordinate` sets later;
    - `blocker`, added next to `needs-human` when nothing can move until the person answers (see `ask`);
-   - `human-approved`, which only the person adds, to a pull request that changes the agents' rules;
+   - `human-approved`, which only the person adds, to a pull request that changes the agents' rules (or the coordinator, citing the person's decision row that lifts that gate: `coordinate`, Rules);
    - `no-issue`, the only way a pull request skips the issue link. Dependabot gets it.
 9. **Dependencies both ways:** "Depends on #N" here, and "Blocks #M" on the other one.
 10. **Modules touched,** and whether the issue is **decoupled.** That's how `coordinate` knows what can run in parallel.

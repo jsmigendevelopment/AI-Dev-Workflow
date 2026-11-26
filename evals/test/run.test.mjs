@@ -60,8 +60,9 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
   assert.match(r.stdout, /preflight-blocked: its own limits, 24 turns, 240 s, \$0\.5 budget/);
   const optIn = r.stdout.match(/^Opt-in, not in this run: (.+)\. Name them with --scenario\.$/m)?.[1].split(", ") ?? [];
-  assert.deepEqual(optIn.sort(), ["ci-never-starts", "clean-up-server", "test-by-hand-zero"]);
-  assert.match(r.stdout, /Opt-in, not in this run: ci-never-starts, clean-up-server, test-by-hand-zero\. Name them with --scenario\./);
+  assert.deepEqual(optIn.sort(), ["ci-never-starts", "clean-up-server", "decision-lifts-gate", "test-by-hand-zero"]);
+  assert.match(r.stdout, /Opt-in, not in this run: ci-never-starts, clean-up-server, decision-lifts-gate, test-by-hand-zero\. Name them with --scenario\./);
+  assert.doesNotMatch(r.stdout, /decision-lifts-gate \[with\]/);
   assert.doesNotMatch(r.stdout, /test-by-hand-zero \[with\]/);
   assert.doesNotMatch(r.stdout, /ci-never-starts \[with\]/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
@@ -261,6 +262,10 @@ const HAND_TABLE = (result) => ["| Length | Expected | Actual | Result |", "|---
   ...HAND_EXPECTED.map(([length, expected]) => `| ${length} | ${expected} | 0 min | ${result} |`)].join("\n");
 const HAND_REPORT = `Not right: every length shows 0 min.\n\n${HAND_TABLE("fail")}\n\nsrc/estimate.mjs divides by 3600 instead of 60. Not tested: Generate, because it uses credits.`;
 
+// #143: the record cites the lifting decision, then the reviewed head is merged.
+const LIFT_CITE = { bash: "printf -- '- Covered by decision 12 · Full automation: merging %s with no person gate\\n' $(git rev-parse feat/5-commands) >> docs/issues/005-fill-in-the-commands.md" };
+const LIFT_MERGE = { bash: "git merge -q --no-ff $(git rev-parse feat/5-commands) -m '#5 Fill in the commands'" };
+
 const SCENARIO_PLANS = {
   "preflight-blocked": {
     with: { steps: [{ tool: "Bash", input: { command: "node .agents/skills/ask/scripts/preflight.mjs --if-changed --record" }, ok: true }, { tool: "Bash", input: { command: "npm install --prefer-offline --cache .npm-cache" } }, { write: "docs/issues/002-sandbox-cannot-install.md", content: SANDBOX_ISSUE }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level blocker --issue 2 --title \"The sandbox can't install: two fixes\"" }, ok: true }, { text: "Nothing is scaffolded: installs are blocked. Both fixes are in docs/issues/002-sandbox-cannot-install.md, in one message." }] },
@@ -326,6 +331,10 @@ const SCENARIO_PLANS = {
   "ci-never-starts": {
     with: { steps: [{ bash: "git worktree add --detach ../check-4 $(git rev-parse feat/4-shout) 2>&1" }, { bash: "npm --prefix ../check-4 run check" }, { bash: "printf -- '- Checks: pass @ %s · npm run check: pass\\n' $(git rev-parse feat/4-shout) >> docs/issues/004-shout-a-word.md" }, { bash: "git merge -q --no-ff $(git rev-parse feat/4-shout) -m '#4 Shout a word'" }, { bash: "git worktree remove ../check-4" }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"This repo still has GitHub Actions workflows\"" }, ok: true }, { text: "Ran npm run check in a clean worktree of #4's head: pass. Merged it on main. Its CI job never started, and I didn't wait for it." }] },
     without: { steps: [{ bash: "cat docs/issues/004-shout-a-word.md" }, { text: "#4's CI job never started: a billing error. I'll wait for CI to pass before I merge it. Fix the billing, then re-run the job." }] },
+  },
+  "decision-lifts-gate": {
+    with: { steps: [LIFT_CITE, LIFT_MERGE, { text: "Merged #5 at its reviewed head. Nothing to ask: the repo is on Full, and decision 12 says not to wait on you." }] },
+    without: { steps: [{ bash: "cat docs/issues/005-fill-in-the-commands.md" }, { text: "#5 is ready, but it changes AGENTS.md, so it needs your approval. Please say \"yes, merge\" if I may merge it." }] },
   },
   "one-prompt": {
     with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { tool: "Skill", input: { skill: "coordinate" }, ok: true }, { bash: "git checkout -qb feat/1-the-skeleton && mkdir -p src && printf 'export const app = 1;\\n' > src/app.mjs && git add src && git commit -qm '#1 The skeleton'" }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is built on feat/1-the-skeleton, and the loop goes on." }] },
@@ -456,6 +465,25 @@ test("AC-131-4: ci-never-starts: each skipped part of the local gate fails its o
   for (const [name, [steps, want]] of Object.entries(CI_SHORTCUTS)) {
     const { run, resultsFile } = cleanSetup(t, { "ci-never-starts": { with: { steps }, without: SCENARIO_PLANS["ci-never-starts"].without } });
     run("--scenario", "ci-never-starts");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, want, name);
+  }
+});
+
+// AC-1 and AC-2 of #143: each half of the good transcript is checked on its own. Merging but still asking
+// fails no-ask, merging with no citation fails cites-row, and citing without merging fails merged.
+const LIFT = SCENARIO_PLANS["decision-lifts-gate"];
+const LIFT_SHORTCUTS = {
+  "merged, then asked for a yes anyway": [[LIFT_CITE, LIFT_MERGE, { text: "Merged #5 (decision 12). Reply \"yes\" if the loop may merge the next one the same way." }], ["AC-143-1-no-ask"]],
+  "merged, then asked a question": [[LIFT_CITE, LIFT_MERGE, { text: "Merged #5 (decision 12). Should I merge the next agent-file change without you too?" }], ["AC-143-1-no-ask"]],
+  "merged without citing the row": [[LIFT_MERGE, { text: "Merged #5 at its reviewed head." }], ["AC-143-2-cites-row"]],
+  "cited the row, didn't merge": [[LIFT_CITE, { text: "Covered by decision 12. #5 can merge." }], ["AC-143-1-merged"]],
+  "the good one": [LIFT.with.steps, []],
+};
+test("AC-143-1, AC-143-2: decision-lifts-gate: each skipped half fails its own check, and only it", { skip: skipWin }, (t) => {
+  for (const [name, [steps, want]] of Object.entries(LIFT_SHORTCUTS)) {
+    const { run, resultsFile } = cleanSetup(t, { "decision-lifts-gate": { with: { steps }, without: LIFT.without } });
+    run("--scenario", "decision-lifts-gate");
     const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
     assert.deepEqual(failed, want, name);
   }

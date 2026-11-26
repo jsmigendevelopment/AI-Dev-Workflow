@@ -31,6 +31,7 @@ Rate-limited ends at the later of the two `reset` times in `gh api rate_limit`. 
 ## No remote
 
 5. **Merge the reviewed commit,** through one queue: `git switch main && git merge --no-ff <sha> -m "#<n> <title>"`. Never merge by branch name: the branch may have moved since the review.
+   - **It changes agent files** (`coordinate`, Rules)? `agent-files.mjs gate` needs the API, so the issue file is its record. On Full, or under a decision row that lifts the gate, merge on a `Weakening review: pass @ <sha>` line there and write the reason next to it (`Covered by decision <n>`, or `Full automation`). A `Weakening review: fail` line, or neither case: don't merge; label it `needs-human`.
 6. **Smoke-test main** in place of the test site (step 8): run `check`, restart your dev server on main, then a fresh agent with "**Use the `qa` skill, smoke mode,**" against that server, access probes included. Red? `git revert -m 1 HEAD`, and open a bug issue file.
 7. **Record it:** `Status: done` in the issue file, a "To try" line in `docs/state.md` with the local link, and a board event. Commit those on main: `#<n> loop: done`. Then `git worktree remove` the builder's worktree.
 8. **A remote appears?** Leave this case. The first push of main to the new, empty repo is the `name` skill's setup step. Then move the open issue files to GitHub (`issues`, "No GitHub yet?"), and every later change goes through a pull request.

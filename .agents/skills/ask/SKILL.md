@@ -9,7 +9,7 @@ An interruption costs the person their focus. Silence costs the project hours. T
 
 ## Don't ask at all when
 
-- the answer is in the repo, `docs/`, the issue or the profile;
+- the answer is in the repo, `docs/`, the issue or the profile, a standing answer in `docs/decisions.md` or `docs/stack.md` included (step 0);
 - you'd be asking permission to do what the issue already says;
 - it's a small call you can make yourself. Make it, and write it to `docs/decisions.md`.
 
@@ -128,6 +128,11 @@ Stuck? <the one most likely problem and its fix>.
 
 Steps 2 and 3 happen in the same turn you find the problem. A blocker said only in chat is lost: nobody hears of it again.
 
+0. **Is it already answered?** Rule 16 in `AGENTS.md`: the person's recorded decisions outrank a skill's default gate. Search both files for the gate's subject, for example `grep -n -i -E "merge|wait|approv|needs-human" docs/decisions.md docs/stack.md`, plus the gate's own words.
+   - **A row the person made** (not "AI pick, not reviewed"), or a switch, covers it? Don't ask. Write `Covered by decision <n>: "<the row's words>"` (or `Covered by docs/stack.md: <the switch>`) in the record: the issue or pull request comment that the ask would have gone on. Then do what it says and go on.
+   - **An item on the always-stop list** is covered only by a row that names it ("deploy to production after the checks pass"). "Don't wait for me" alone doesn't lift it.
+
+   **Done when** a row is cited in the record, or both files were searched and nothing covers it.
 1. **Pick the level** from the table. A blocker? Climb "Try before you block" first.
 2. **Comment the message** on the issue or pull request. No issue to comment on? Open one. For a blocker or a decision, add the `needs-human` label. For a blocker, add `blocker` too, and the "Setup step for you" when the person must act outside the repo.
 3. **Ping and record it:**
@@ -167,7 +172,7 @@ Steps 2 and 3 happen in the same turn you find the problem. A blocker said only 
 
 ## Handoffs
 
-Work passed to another session or account is a handoff. It is written down with the owner's exact words, gets a one-line receipt, and has a follow-up check. The format and both sides' steps are in `references/handoffs.md`.
+Work passed to another session or account is a handoff. It is written down with the owner's exact words, gets a one-line receipt, and has a follow-up check. A brief that starts or hands on the loop also quotes the automation level and every decision row that lifts a gate, word for word. The format and both sides' steps are in `references/handoffs.md`.
 
 ## References
 

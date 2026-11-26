@@ -56,7 +56,7 @@ Read each sentence and ask: if I delete it, does the agent act any differently? 
 `.agents/skills/<name>/` is the master. `.claude/skills/` is a copy. Never edit the copy.
 
 - **In the kit repo:** run `node scripts/sync-skills.mjs`, then `cd cli && npm run bundle && npm test`. Commit both copies and `plugin/`. CI runs `node scripts/sync-skills.mjs --check`. `CONTRIBUTING.md` has the rest.
-- **In an app:** copy `.agents/skills` over `.claude/skills`. `npx onrails doctor` checks that they match, and `doctor --fix` copies them. A change to `AGENTS.md`, `.agents/` or `.claude/` is `needs-human` (see `coordinate`).
+- **In an app:** copy `.agents/skills` over `.claude/skills`. `npx onrails doctor` checks that they match, and `doctor --fix` copies them. A change to `AGENTS.md`, `.agents/` or `.claude/` gets the weakening review, and the person only below Full with no decision that lifts it (`coordinate`, Rules).
 - **Fixed a kit skill inside an app?** The kit should get the fix too. Draft an issue for the kit (see "Retro" in `back`).
 - **A new skill in the kit:** add it to the skills list in `AGENTS.md`, the skill count and table in `README.md`, the cheat sheet if a person might type it, and a `CHANGELOG.md` line.
 

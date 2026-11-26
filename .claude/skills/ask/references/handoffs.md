@@ -18,10 +18,18 @@ A handoff is work one session passes to another: a builder brief, a prompt for a
    - Copy the owner's words. Never paraphrase them. Your summary goes next to them, never in their place.
    - No owner's words (the loop picked a ready issue)? The issue is the record. Write `Owner's words: the issue body`.
    - The coordinator's `Claimed by` comment is the record for a builder brief (`coordinate`, step 4).
+   - **Starting or handing on the loop** (a coordinator in another thread, a sub-agent, another account)? The brief and the record add the standing answers, copied word for word, so the receiver never asks what they settle (rule 16 in `AGENTS.md`):
+
+     ```text
+     Automation level: <the "Automation level" section's Level line from docs/stack.md, and each switch that differs from the level's default>
+     Standing decisions: <every row in docs/decisions.md that lifts a gate or says not to wait, copied whole with its number>
+     ```
+
+     None? Write `Standing decisions: none`. A summary like "on Full, don't wait" doesn't count: the receiver can't check it against the files.
 2. **Schedule the follow-up check** for the "check by" time. Use the session's scheduling tool where one exists (in a Claude Code cloud session, `send_later`). Otherwise the coordinator's sweep checks it (`coordinate`, step 10). Say which in the record: `Follow-up: send_later` or `Follow-up: coordinator sweep`.
 3. **At the follow-up,** read the record. Done, or blocked and recorded as `needs-human`? Close it out. Anything else (no receipt, no result, no record) is a ⏳ decision through `ask`: tell the person what was handed off, to whom, and what's missing.
 
-**Done when** the record exists with the owner's exact words and the follow-up is scheduled.
+**Done when** the record exists with the owner's exact words (and, for the loop, the level and the standing decisions) and the follow-up is scheduled.
 
 ## The receiver
 

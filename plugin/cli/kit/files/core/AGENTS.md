@@ -35,6 +35,7 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
     - **Pause** ("pause", "hold on", "brb") means back soon: stop your work, loops, timers and polling now. Keep only the dev server: `procs.mjs stop <id>` for the rest, then `procs.mjs pause` marks it paused.
     - **Stop** ("stop", "shut it down", "kill it", "go to sleep", "I'm done for the day") means stop everything this session owns now, timers and scheduled tasks too (`procs.mjs stop mine`).
     - Both cover strongest-tier runs, write a resume note in `docs/state.md`, and end with `procs.mjs list --mine`. After a stop it's empty. Unsure which? Pause, and say stop frees the rest (`ask`, "Pause and stop").
+16. **The person's recorded decisions outrank a skill's default gate.** A row the person made in `docs/decisions.md` (not an "AI pick"), or a switch in `docs/stack.md`, beats any gate a skill sets by default. Before any ⏳ or 🛑 ask, search both for a standing answer (`ask`, step 0). One covers it? Don't ask: act on it, and write `Covered by decision <n>` in the record. Only an item on the always-stop list needs a decision that names it.
 
 ## Code
 
@@ -63,7 +64,7 @@ How and when to get the person's attention. The `ask` skill has the full convent
 - **Never interrupt** for what the repo, the docs or the profile can answer, or to ask permission for what the issue already says.
 - **Ping** with `node .claude/hooks/notify.mjs --level <level> --title "<what>" ...`. It honours presence, quiet hours and the batch window. While the person is away, only critical blockers ping.
 - **Record it** with the `needs-human` label, a comment on the issue or pull request, and the "Waiting on you" list in `docs/state.md`.
-- **Handoffs** carry the owner's exact words and a follow-up check. The receiver first replies `Got it` with its reading in one line. Could the owner's words (not the summary) mean something else? Ask the owner before starting (`ask`).
+- **Handoffs** carry the owner's exact words and a follow-up check. The receiver first replies `Got it` with its reading in one line. Could the owner's words (not the summary) mean something else? Ask the owner before starting (`ask`). A brief that hands on the loop also quotes the automation level and every decision row that lifts a gate, word for word.
 
 ## Full automation
 
