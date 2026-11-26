@@ -6,13 +6,15 @@
 // A protected site's smoke test reads TEST_CF_ACCESS_CLIENT_ID and TEST_CF_ACCESS_CLIENT_SECRET
 // (or TEST_SITE_PASSWORD), and PRODUCTION_ ones for production, from the shell or
 // .env.cloudflare.local (git-ignored). They go only to the child that runs the smoke test. The
-// deploy output is masked: every secret value the script can see prints as ***.
+// deploy output is masked: every secret value the script can see prints as ***. One deploy of each
+// kind runs at a time, and only with the pnpm package.json pins.
 // The logic and its tests are in scripts/deploy/.
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 
 import { localEntries, localValue } from './cloudflare/local-env.ts'
 import type { ChildEnv, DeployDeps } from './deploy/deps.ts'
+import { alive, create, readPlain } from './deploy/lock-files.ts'
 import { deployPreview } from './deploy/preview.ts'
 import { deployProduction } from './deploy/production.ts'
 import { Stop } from './deploy/shared.ts'
@@ -46,8 +48,12 @@ const deps: DeployDeps = {
   local: (name) => localValue(name),
   known: () => [...Object.entries(process.env), ...localEntries()],
   readText: (path) => readFileSync(path, 'utf8'),
+  readPlain,
   exists: existsSync,
   remove: (path) => rmSync(path, { force: true }),
+  create,
+  alive,
+  pid: process.pid,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log: (line) => console.log(line),
 }

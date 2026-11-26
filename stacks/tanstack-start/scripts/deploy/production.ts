@@ -3,13 +3,15 @@
 // what it would do. Order: install from the lockfile, build (with SITE_URL), a D1 Time Travel
 // bookmark (the restore point), migrate, deploy, smoke test. A failed migration or deploy step prints
 // the command that would restore the data. Any failure after the deploy (no URL, a failed smoke test,
-// a crash) also puts the previous version back. Restoring data is never automatic: it is the
-// person's call. The deploy output is masked.
+// a crash) also puts the previous version back, as does a failed deploy step that made the new
+// version live anyway (release.ts). One production deploy at a time (lock.ts). Restoring data is
+// never automatic: it is the person's call. The deploy output is masked.
 // Until the person says go live, env.production.vars.LAUNCHED is "false" and the smoke test checks
 // the Coming soon page; once it is "true", the real app.
 import type { DeployDeps } from './deps.ts'
+import { oneAtATime } from './lock.ts'
+import { deployAndVerify } from './release.ts'
 import {
-  afterDeploy,
   clearRedirect,
   environment,
   failure,
@@ -38,7 +40,8 @@ const PLAN = [
   'deploy the production Worker',
   'smoke test it on workers.dev: the Coming soon page until LAUNCHED is "true", then the app',
   'on a failed migration or deploy: print the restore command (data is the person’s call)',
-  'on any failure after the deploy: also roll the code back',
+  'on a failed deploy: check whether this run’s version went live anyway, and smoke-test it if so',
+  'on any failure after the new version is live: also roll the code back',
 ]
 
 const restore = (bookmark: string) =>
@@ -61,28 +64,17 @@ const restoreText = (bookmark: string) =>
 /** What a stop after the deploy ends with: the rollback never touches data, and how to restore it. */
 const afterText = (bookmark: string) => `A rollback puts back code, never data. ${restoreText(bookmark)}`
 
-/**
- * Migrates, then deploys. A stop or crash in either also prints the restore command: a half-applied
- * migration is when it matters most.
- */
-async function migrateAndDeploy(deps: DeployDeps, bookmark: string, sha: string) {
+/** Migrates. A stop or crash also prints the restore command: a half-applied migration needs it most. */
+async function migrate(deps: DeployDeps, bookmark: string) {
   try {
-    const migrate = ['d1', 'migrations', 'apply', 'DB', '--remote', '-c', 'wrangler.jsonc']
-    await step(deps, 'apply the D1 migrations to production', deps.wrangler(migrate, PRODUCTION))
-    const command = ['deploy', '--message', `production ${sha}`]
-    return await step(deps, 'deploy the production Worker', deps.wrangler(command, PRODUCTION))
+    const command = ['d1', 'migrations', 'apply', 'DB', '--remote', '-c', 'wrangler.jsonc']
+    await step(deps, 'apply the D1 migrations to production', deps.wrangler(command, PRODUCTION))
   } catch (error) {
-    throw new Stop(`${failure(error, 'before the deploy finished')}\n\n${restoreText(bookmark)}`)
+    throw new Stop(`${failure(error, 'before the deploy')}\n\n${restoreText(bookmark)}`)
   }
 }
 
-async function deploy(deps: DeployDeps, confirm: string | undefined) {
-  if (confirm !== CONFIRM) {
-    deps.log(['Would deploy main to production:', ...PLAN.map((line) => `  - ${line}`)].join('\n'))
-    throw new Stop(
-      `production is the person's call (the always-stop list). After their yes: pnpm deploy:production --confirm "${CONFIRM}". Nothing was changed.`,
-    )
-  }
+async function deploy(deps: DeployDeps) {
   await onCleanMain(deps)
   const production = environment(deps, 'production')
   const gate = gateEnv(deps, 'production', production.vars)
@@ -104,9 +96,16 @@ async function deploy(deps: DeployDeps, confirm: string | undefined) {
     if (!bookmark)
       throw new Stop('no bookmark: refusing to migrate without a restore point. Nothing was changed.')
     deps.log(`  restore point: ${bookmark}`)
-    const out = await migrateAndDeploy(deps, bookmark, sha)
-    const at = { env: PRODUCTION, worker: production.worker, sha, after: afterText(bookmark) }
-    await afterDeploy(deps, at, async () => {
+    await migrate(deps, bookmark)
+    const at = {
+      env: PRODUCTION,
+      worker: production.worker,
+      sha,
+      message: `production ${sha}`,
+      what: 'deploy the production Worker',
+      after: afterText(bookmark),
+    }
+    await deployAndVerify(deps, at, async (out) => {
       // workers.dev first: it is outside the zone, so Bot Fight Mode never challenges the smoke test.
       const url = workersDevUrl(out) ?? deps.local('PRODUCTION_APP_URL')
       if (!url)
@@ -125,5 +124,14 @@ async function deploy(deps: DeployDeps, confirm: string | undefined) {
   }
 }
 
-export const deployProduction = (deps: DeployDeps, confirm: string | undefined) =>
-  masking(deps, (masked) => deploy(masked, confirm))
+export async function deployProduction(deps: DeployDeps, confirm: string | undefined) {
+  if (confirm !== CONFIRM) {
+    deps.log(['Would deploy main to production:', ...PLAN.map((line) => `  - ${line}`)].join('\n'))
+    throw new Stop(
+      `production is the person's call (the always-stop list). After their yes: pnpm deploy:production --confirm "${CONFIRM}". Nothing was changed.`,
+    )
+  }
+  return masking(deps, (masked) =>
+    oneAtATime(masked, 'production', 'pnpm deploy:production', () => deploy(masked)),
+  )
+}

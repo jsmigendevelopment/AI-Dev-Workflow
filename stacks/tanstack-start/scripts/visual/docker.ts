@@ -27,7 +27,17 @@ const inside = (path: string) => posix.join('/work', path)
 export function dockerArgs(run: DockerRun): string[] {
   const folders = [...new Set(['', run.app, ...run.packages])]
   const volumes = folders.flatMap((folder) => ['-v', inside(posix.join(folder, 'node_modules'))])
-  const script = `npm install -g ${PNPM} && pnpm --dir /work install --frozen-lockfile && pnpm ${run.command.map(quote).join(' ')}`
+  const tests = `npm install -g ${PNPM} && pnpm --dir /work install --frozen-lockfile && pnpm ${run.command.map(quote).join(' ')}`
+  // The container runs as root, so dist/, .wrangler/, test-results/ and new baselines would be
+  // root's on a Linux host, and the next build there couldn't clean them. So what root wrote goes
+  // to the mounted folder's owner, as the container sees it. Under rootless Docker or Podman the
+  // host user is the container's root, so that owner is 0:0 and nothing is changed: a chown there
+  // would hand the whole checkout to a uid the user can't write. The same for a root host user.
+  // Keep the tests' status.
+  const giveBack =
+    `owner=$(stat -c %u:%g /work); if [ -n "$owner" ] && [ "$owner" != 0:0 ]; then ` +
+    `find /work \\( -path '*/node_modules' -o -path /work/.git \\) -prune -o -user 0 -exec chown -h "$owner" {} +; fi`
+  const script = `${tests}; status=$?; ${giveBack}; exit $status`
   return [
     'run',
     '--rm',

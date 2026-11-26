@@ -1,5 +1,6 @@
-// The deploys' safety rules: nothing new stays live without a passing smoke test, only GitHub's main
-// deploys, and no secret value reaches the output.
+// The deploys' safety rules: a version this run made live doesn't stay without a passing smoke test
+// (a part-way `wrangler deploy` is in follow-ups.test.ts), only GitHub's main deploys, and no secret
+// value reaches the output.
 import { describe, expect, it } from 'vitest'
 
 import type { DeployDeps } from './deps'

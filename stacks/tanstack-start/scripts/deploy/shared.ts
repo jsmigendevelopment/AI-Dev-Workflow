@@ -3,6 +3,7 @@
 import type { CommandResult } from '../cloudflare/deps.ts'
 import { LOCAL_FILE } from '../cloudflare/local-env.ts'
 import { type EnvName, type EnvResources, readResources } from '../cloudflare/wrangler-config.ts'
+import { pnpmProblem } from '../pnpm-pin.ts'
 import type { ChildEnv, DeployDeps } from './deps.ts'
 
 /** A deploy stopped on purpose. The message says what happened and what to do next. */
@@ -18,16 +19,29 @@ export const targetEnv = (target: EnvName): ChildEnv => ({ CLOUDFLARE_ENV: targe
 const SECRET_NAME =
   /(^|[_-])(token|authtoken|secret|password|passwd|pass|pat|key|apikey|auth|client_id|credentials?|cookie)([_-]|$)/i
 
+/** The protection headers' values, by the names `e2e/gate.ts` reads. */
+const GATE = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'SITE_PASSWORD'] as const
+
+/** Every value the protection headers can carry, whatever other name it also sits under. */
+const gateValues = (deps: DeployDeps) =>
+  GATE.flatMap((name) => ['TEST_', 'PRODUCTION_', ''].map((prefix) => deps.local(`${prefix}${name}`)))
+
 /**
- * Runs a deploy with its output masked: every secret value in the shell or .env.cloudflare.local
- * (by name, which covers the protection's client ID, secret and password) is replaced by *** in each
- * log line and in the stop message. Commands still get the real values, and parsing reads raw output.
+ * Runs a deploy with its output masked: every secret value in the shell or .env.cloudflare.local is
+ * replaced by *** in each log line and in the stop message. Secret by name (a token, a password), and
+ * the protection's client ID, secret and password by value too. Commands still get the real values,
+ * and parsing reads raw output.
  */
 export async function masking(deps: DeployDeps, work: (deps: DeployDeps) => Promise<void>) {
-  const values = deps
-    .known()
-    .filter(([name, value]) => value && SECRET_NAME.test(name))
-    .flatMap(([, value]) => [value!, encodeURIComponent(value!)])
+  const values = [
+    ...deps
+      .known()
+      .filter(([name]) => SECRET_NAME.test(name))
+      .map(([, value]) => value),
+    ...gateValues(deps),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .flatMap((value) => [value, encodeURIComponent(value)])
   const hidden = [...new Set(values)].sort((a, b) => b.length - a.length)
   const mask = (text: string) => hidden.reduce((out, value) => out.replaceAll(value, '***'), text)
   try {
@@ -108,8 +122,6 @@ export async function onCleanMain(deps: DeployDeps) {
 
 export const workersDevUrl = (out: string) => /https:\/\/[a-z0-9.-]+\.workers\.dev/.exec(out)?.[0]
 
-const GATE = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'SITE_PASSWORD'] as const
-
 /**
  * The protection headers' values for the smoke test, by the names `e2e/gate.ts` reads. Test and
  * previews read `TEST_<name>`, then `<name>`; production reads only `PRODUCTION_<name>`, so a
@@ -138,11 +150,21 @@ export function gateEnv(deps: DeployDeps, target: EnvName, vars: Record<string, 
 }
 
 /**
- * The lockfile's dependencies, before anything runs from node_modules. An older pnpm doesn't install
- * on its own before a run, so a merged dependency bump could otherwise ship without being installed.
+ * The lockfile's dependencies, before anything runs from node_modules, with the pnpm package.json
+ * pins. An older pnpm doesn't install on its own before a run, so a merged dependency bump could
+ * otherwise ship without being installed.
  */
-export const installDependencies = (deps: DeployDeps) =>
-  step(deps, 'install dependencies from the lockfile', deps.run('pnpm', ['install', '--frozen-lockfile']))
+export async function installDependencies(deps: DeployDeps) {
+  const version = await deps.run('pnpm', ['--version'])
+  const pin = deps.exists('package.json') ? deps.readText('package.json') : undefined
+  const problem = pnpmProblem(pin, version.status === 0 ? version.stdout : '')
+  if (problem) throw new Stop(`${problem} Nothing was changed.`)
+  await step(
+    deps,
+    'install dependencies from the lockfile',
+    deps.run('pnpm', ['install', '--frozen-lockfile']),
+  )
+}
 
 /** The smoke test's browser, before anything is written: a failed install then changes nothing. */
 export const installChromium = (deps: DeployDeps) =>
@@ -173,21 +195,31 @@ export const failure = (error: unknown, when: string) =>
     ? error.message
     : `the deploy script crashed ${when}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
 
+/** What to do with a Worker's first version when it can't be rolled back: there is none before it. */
+export const noEarlierVersion = (worker: string) =>
+  `there is no earlier version to roll back to: this was the first deploy of ${worker}. ` +
+  `Keep the site on its Coming soon page (LAUNCHED "false") until a deploy passes its smoke test, ` +
+  `or delete the Worker after the person's yes: pnpm exec wrangler delete --name ${worker}`
+
 /**
  * Runs what follows a successful `wrangler deploy` (finding the URL, the smoke test). Any failure in
  * it, a stop or a crash, rolls the code back, so a version that never passed its smoke test doesn't
- * stay live. `after` ends the stop message: what the rollback didn't undo, and what to do next.
+ * stay live. A Worker's `first` deploy has nothing to roll back to, so the stop says so instead.
+ * `after` ends the stop message: what the rollback didn't undo, and what to do next.
  */
 export async function afterDeploy(
   deps: DeployDeps,
-  at: { env: ChildEnv; worker: string; sha: string; after: string },
+  at: { env: ChildEnv; worker: string; sha: string; after: string; first?: boolean },
   verify: () => Promise<void>,
 ) {
   try {
     await verify()
   } catch (error) {
     const why = failure(error, 'after the deploy')
-    throw new Stop(`${why}\n\n${await rollBack(deps, at.env, at.worker, at.sha)}\n${at.after}`)
+    const back = at.first
+      ? `The new version (${at.sha}) is live on ${at.worker} and failed its check, and ${noEarlierVersion(at.worker)}.`
+      : await rollBack(deps, at.env, at.worker, at.sha)
+    throw new Stop(`${why}\n\n${back}\n${at.after}`)
   }
 }
 

@@ -18,7 +18,7 @@ const FAKE = `#!/usr/bin/env node
 const fs = require("fs");
 const argv = process.argv.slice(2);
 let stdin = "";
-try { stdin = fs.readFileSync(0, "utf8"); } catch {}
+try { stdin = fs.readFileSync(0, "utf8"); } catch { /* no stdin to read (closed, or a terminal that would block): the call had no input */ }
 const cmd = require("path").basename(process.argv[1]);
 fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ cmd, argv, stdin }) + "\\n");
 const say = (text) => { process.stdout.write(text); process.exit(0); };

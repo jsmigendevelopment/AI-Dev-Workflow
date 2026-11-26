@@ -17,8 +17,16 @@ export interface DeployDeps {
   /** Every name and value in the shell and in .env.cloudflare.local, only to mask the secret ones. */
   known(): [string, string | undefined][]
   readText(path: string): string
+  /** A plain file's text, never through a symlink; undefined when it is missing, a link or not a file. */
+  readPlain(path: string): string | undefined
   exists(path: string): boolean
   remove(path: string): void
+  /** Creates a file only if it doesn't exist yet (its folder too). False when it already exists. */
+  create(path: string, text: string): boolean
+  /** Whether a process with this PID is still running on this machine. */
+  alive(pid: number): boolean
+  /** This process's PID. */
+  pid: number
   sleep(ms: number): Promise<void>
   log(line: string): void
 }
