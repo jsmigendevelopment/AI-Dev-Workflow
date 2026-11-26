@@ -5,6 +5,8 @@
   <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/banner.svg" alt="onRails: put your AI on rails. A train passes Pitch, Grill, Slice and Ship at golden hour. By Jay Smigen, JS Dev." width="960">
 </picture>
 
+[![Status: beta](https://img.shields.io/badge/status-beta-b45309?style=flat-square)](https://github.com/jsmigendevelopment/onRails/blob/main/CHANGELOG.md) Early and actively changing. Expect rough edges, especially on first setup.
+
 **onRails** helps AI agents plan, build, review and ship your app within rules you set.
 
 ## ⚡ Install
@@ -34,7 +36,7 @@ The other 26 skills run for you. To run one step yourself, see the [cheat sheet]
 [![Works with Codex](https://img.shields.io/badge/works%20with-Codex-2563eb?style=flat-square)](#codex)
 [![MIT licence](https://img.shields.io/badge/licence-MIT-55566b?style=flat-square)](https://github.com/jsmigendevelopment/onRails/blob/main/LICENSE)
 
-[Install](#-install) · [Commands](#-the-four-commands) · [A run](#-what-a-run-looks-like) · [Guardrails](#-guardrails) · [Stacks](#-stacks-and-add-ons) · [Existing repo](#-add-it-to-a-repo-you-already-have) · [Cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md)
+[Install](#-install) · [Commands](#-the-four-commands) · [Defaults](#-opinionated-defaults) · [A run](#-what-a-run-looks-like) · [Guardrails](#-guardrails) · [Stacks](#-stacks-and-add-ons) · [Existing repo](#-add-it-to-a-repo-you-already-have) · [Cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md)
 
 ## More install options
 
@@ -97,6 +99,30 @@ AI agents follow your instructions. Where you leave a gap, they guess. They can 
 - **Nobody checks their own work.** One fresh agent builds an issue. Other fresh agents review it and test it.
 
 See the [principles](https://github.com/jsmigendevelopment/onRails/blob/main/guide/principles.md) and [evidence](https://github.com/jsmigendevelopment/onRails/blob/main/guide/evidence.md) behind the kit.
+
+## 🧰 Opinionated defaults
+
+onRails ships its maker's own preferences. They are a starting point, not the only right way.
+
+- **The stack:** TanStack Start on Cloudflare, Clerk for sign-in, shadcn/ui, Drizzle and pnpm. See [Stacks](#-stacks-and-add-ons).
+- **The writing rules:** plain words, short sentences, about an 8th-grade reading level.
+- **The model routing:** which model and effort runs each job. See [Model routing](#-model-routing).
+- **The review steps:** nobody checks their own work, a fresh reviewer reads the diff, and a new commit needs a new review.
+
+**What you can change today: your profile.** Make it with `npx onrails profile init`. It lives at `~/.onrails/profile.toml`, and each new project gets a copy as `docs/profile.toml`. The skills read it as your defaults. The sections that matter most:
+
+| Section | What it sets |
+|---|---|
+| `[web]` | The framework, UI kit, database, sign-in, hosting, and tools never to suggest |
+| `[defaults]` | The package manager, risk dial, automation level, grill mode, repo visibility and licence |
+| `[design]` | The look and feel, light or dark, roomy or dense, and how your app's text sounds |
+| `[routing]` | Your model for each tier, and whether to ask before the strongest one |
+
+The grill still shows each pick for you to confirm. What you say in the session beats the profile. Only two stack packs are ready: TanStack Start, and TanStack Start with an Expo mobile app. For another stack, the agent sets up the same parts by hand. The risk dial and the automation level change who merges, but the review steps stay.
+
+**What the profile can't change yet:** the rules in `AGENTS.md` and the skills, such as the writing rules and the review steps. Today you edit those files in your project. `update` keeps your edits and puts the kit's new copy next to yours to compare. Layered settings and personal rules, with no kit files to edit, are planned in [#124](https://github.com/jsmigendevelopment/onRails/issues/124). They haven't shipped yet.
+
+**This is not a guarantee.** Agents can still be wrong, even with these rules and checks. You own what you ship.
 
 ## 🔁 What a run looks like
 
