@@ -37,7 +37,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - **tiny:** copy, styling or config with no logic. Build, CI, review, merge.
    - **normal:** anything else. Build, CI, review, `qa` on the preview, merge.
    - **risky:** any flag ticked. Normal, plus `pr-security`, plus the human gate in `docs/stack.md` (none on Full).
-   - **Who merges:** after the lane, write `merged by: agents` or `merged by: the person`. Take it from the "Automation level" switches in `docs/stack.md`, and the risk dial. The more careful one wins. On Full it's always `merged by: agents`: the dial adds reviews there, never the person (#103).
+   - **Who merges:** after the lane, write `merged by: agents` or `merged by: the person`. Take it from the "Automation level" switches in `docs/stack.md`, and the risk dial. Below Full, the more careful one wins. On Full it's always `merged by: agents`: the dial adds reviews there, never the person (#103).
 8. **Labels.** Create any that are missing first (`gh label create "<name>" --force`):
    - `priority:p0` to `priority:p3`;
    - `pass:<n>`, one per pass in the outline;
@@ -47,7 +47,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - `status:ready` once nothing blocks it: no `[NEEDS CLARIFICATION]` left, complexity 7 or under;
    - `status:in-progress` and `needs-human`, which `coordinate` sets later;
    - `blocker`, added next to `needs-human` when nothing can move until the person answers (see `ask`);
-   - `human-approved`, which only the person adds, to a pull request that changes the agents' rules;
+   - `human-approved`, below Full only, which only the person adds, to a pull request that changes the agents' rules. On Full the label doesn't exist: never ask for it (`automation`'s `references/full.md`);
    - `no-issue`, the only way a pull request skips the issue link. Dependabot gets it.
 9. **Dependencies both ways:** "Depends on #N" here, and "Blocks #M" on the other one.
 10. **Modules touched,** and whether the issue is **decoupled.** That's how `coordinate` knows what can run in parallel.

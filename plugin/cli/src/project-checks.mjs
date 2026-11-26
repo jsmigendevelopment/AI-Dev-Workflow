@@ -1,9 +1,10 @@
-// The checks about this project: the kit, the skills mirror, stale research, stale background processes, .env files, Playwright, wrangler.
+// The checks about this project: the kit (and Full automation on an old one), the skills mirror, stale research, stale background processes, .env files, Playwright, wrangler.
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { staleDossiers } from "./check-research.mjs";
 import { envChecks } from "./envfiles.mjs";
 import { readJson, toNative, walk } from "./files.mjs";
+import { fullOnOldKit } from "./full-kit.mjs";
 import { OLD_PROJECT_MANIFEST, PROJECT_MANIFEST, loadKit } from "./kit.mjs";
 import { projectManifestName, readProjectManifest } from "./sync.mjs";
 import { MARKS } from "./marks.mjs";
@@ -31,6 +32,8 @@ export function projectChecks(projectDir, { kitDir, sys }) {
     add(FAIL, `Kit v${manifest.kitVersion} installed, this CLI has v${cliKit}`, "Run: npx onrails@latest update", false,
       { print: ["npx onrails@latest update"] });
   } else add(OK, `Kit v${manifest.kitVersion} installed`);
+  const oldFull = manifest && fullOnOldKit(projectDir, manifest.kitVersion);
+  if (oldFull) add(FAIL, oldFull, "Run: npx onrails@latest update", false, { print: ["npx onrails@latest update"] });
   if (projectManifestName(projectDir) === OLD_PROJECT_MANIFEST) {
     add(INFO, `The kit's record still has its old name, ${OLD_PROJECT_MANIFEST} (it works). npx onrails update offers to rename it ${PROJECT_MANIFEST}`);
   }

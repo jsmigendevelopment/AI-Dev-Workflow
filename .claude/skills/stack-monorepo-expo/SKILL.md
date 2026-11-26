@@ -89,6 +89,7 @@ A module never imports another module, and never imports `@clerk/*`. Auth is `us
 
 An agent can run lint, types, Jest, `expo export` and both boundary checks; none of them puts the app on a screen. Layout, dark mode, the keyboard, safe areas, the hosted sign-in browser and its return to the app, deep links and permission prompts need a device. The Maestro flows need a simulator or emulator and were written from docs, not run. So:
 
-- In the pull request, say what you could not check and ask the person to open it in Expo Go or a preview build (the `qa` skill's browser steps don't apply to mobile).
-- For a change to sign-in, navigation or native config, ask the person to run the Maestro flows on a simulator (the README's "Mobile e2e") or to check it on a device before merge.
+- In the pull request, say what you could not check. Below Full, ask the person to open it in Expo Go or a preview build (the `qa` skill's browser steps don't apply to mobile).
+- For a change to sign-in, navigation or native config, below Full, ask the person to run the Maestro flows on a simulator (the README's "Mobile e2e") or to check it on a device before merge.
+- **On Full,** run the Maestro flows yourself where a simulator or emulator is available. None? Record the gap on the pull request (what no device checked) as "AI pick, not reviewed", merge on the reviews, and add a "try it on a device" line to the FYI.
 - `eas build`, `eas submit`, `eas update`, store listings, signing and Clerk dashboard changes cost money or touch production: stop and ask the person.

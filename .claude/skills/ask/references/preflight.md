@@ -13,6 +13,7 @@ node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <you
 - **When:** the first step of `/idea`, `/join`, `/back` and `build`.
 - **Once `docs/state.md` exists,** add `--if-changed --record`. It writes the result to the `Environment:` line there. When that line says ok and the sandbox hasn't changed (same machine, tool, Node and install settings), it skips every probe.
 - `–` rows are fine. GitHub at `–` means the loop runs in local mode (`../../coordinate/references/local-mode.md`).
+- **Before `/join` has read a repo** (no `docs/state.md` yet), preflight runs no `<pm> --version` at all: a package manager can run files or a release the repo chose, even on `--version`. It finds the manager on PATH without running it, reads a yarn version from a plain `yarnPath` file name where there is one, and shows a `–` row: "version checked after the repo is read". Run preflight again once `docs/state.md` exists. Every command it runs has `COREPACK_ENV_FILE=0`.
 
 **Done when** the table is printed and every `✗` row has been through the steps below.
 
@@ -20,7 +21,7 @@ node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <you
 
 Asking the person is the last rung, not the first move. For each `✗` row, work down its ladder in the order printed:
 
-1. **Fix it yourself, or work around it in the sandbox.** `git init`. Playwright's bundled browser. A project-local npm cache or `--prefer-offline`. Another port. `--webpack` in place of Turbopack. The server and its tests in the same process.
+1. **Fix it yourself, or work around it in the sandbox.** `git init`. Playwright's bundled browser. The package manager's own project-local cache, as rung 1 names it. Another port. `--webpack` in place of Turbopack. The server and its tests in the same process.
 2. **One command outside the sandbox,** with your tool's own permission request. Codex: `approval_policy = "on-request"` lets you ask to run one command, such as the install. Claude Code: run it as one plain command, so the prompt covers only it.
 3. **The environment tools you may use:** the cloud environment's settings, a connected browser, the setup docs. This is "Try before you block" in `ask`.
 4. **Only then the person, in ONE message.** Never one message per problem, and never dripped out as you hit them.

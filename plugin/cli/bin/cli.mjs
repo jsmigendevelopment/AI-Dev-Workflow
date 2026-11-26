@@ -36,6 +36,7 @@ Usage:
   npx onrails doctor [dir] --fix [--yes] [--dry-run]
                                           offer a fix for each problem, run it after a yes
   npx onrails preflight [dir] [--record] [--if-changed] [--json] [--model <id>] [--effort <level>]
+                        [--tool <name>]
                                           for agents: probe this session's sandbox (repo, .git, the
                                           registry, GitHub, loopback, a browser, Node) and print one
                                           table with the fix ladder for each failure

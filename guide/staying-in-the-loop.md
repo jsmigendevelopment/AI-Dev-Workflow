@@ -118,7 +118,7 @@ You pick this first, in `/idea` or `/join`. Change it any time with `/automation
 
 - **The automation level** is how much agents do without you.
 - **The risk dial** is how careful each merge is.
-- When the two disagree, the more careful one wins.
+- Below Full, when the two disagree, the more careful one wins. On Full, a careful dial adds reviews, never you (#103).
 - Got real users? Move from Full to Recommended.
 
 <p align="center"><sub><a href="../README.md">← Back to the README</a> · <a href="cheat-sheet.md">Cheat sheet</a></sub></p>
