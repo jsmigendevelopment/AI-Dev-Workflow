@@ -1,0 +1,37 @@
+// #173 review round 1: the "no approvals on Full" scan reads each clause for its own condition and catches more ways
+// to ask the person, and the lines it now finds say what happens on Full. AC-173-1 to AC-173-5 are in
+// standing-decisions.test.mjs.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { read, scan, unconditionalAsks } from "./approval-scan.mjs";
+
+const AGENTS = ["AGENTS.md", "cli/kit/files/core/AGENTS.md", "plugin/cli/kit/files/core/AGENTS.md"];
+
+test("#173 round 1 nice 1: a bold label doesn't cover a clause that names Full, and \"(on Full too)\" counts against its clause", () => {
+  for (const s of ["- **Below Full:** nothing changes; on Full the person merges it.", "Below Full, the person merges it (on Full too).",
+    "Below Full, the person approves every merge (on Full as well)."]) assert.deepEqual(unconditionalAsks(s), [s], s);
+  // A label still covers the clauses that go on with its own level.
+  for (const s of ["- **Below Full:** it is `needs-human`, and only the person adds `human-approved`.", "- **Below Full:** the person merges it; nothing else waits."]) {
+    assert.deepEqual(unconditionalAsks(s), [], s);
+  }
+});
+
+test("#173 round 1 nice 2: the scan catches each phrasing the review listed", () => {
+  const phrasings = ["Await the person's yes.", "Check with the owner first.", "Ask the person before you continue.", "Ask the person, then wait.",
+    "Ping the person and wait.", "Wait for the person.", "Run it only after a yes.", "Ask the owner before starting (`ask`)."];
+  for (const s of phrasings) assert.deepEqual(unconditionalAsks(s), [s], s);
+  for (const s of ["Below Full, await the person's yes.", "Below Full, run it only after a yes.", "Wait for the build to finish."]) assert.deepEqual(unconditionalAsks(s), [], s);
+});
+
+test("#173 round 1 nice 2: the lines the wider scan found say what happens on Full", () => {
+  const handoff = "Could the owner's words (not the summary) mean something else? Below Full, ask the owner before starting (`ask`). On Full, take the likeliest reading, record it as \"AI pick, not reviewed\" and put it in the FYI.";
+  for (const file of AGENTS) assert.ok(read(file).includes(handoff), `${file}: the Handoffs line`);
+  assert.match(read(".agents/skills/ask/references/handoffs.md"), /Below Full, ask the owner before you start\. It's a ⏳ decision through `ask`: quote the words, give each reading, and recommend one\. Start nothing on it until they answer\. Other work keeps going\. On Full, start on the reading you recommend, record it as "AI pick, not reviewed" and put the other readings in the FYI\./);
+  assert.match(read(".agents/skills/stack-tanstack-start/SKILL.md"), /run `node scripts\/setup-cloudflare\.mjs --dry-run`, show the person the output\. Below Full, run it without `--dry-run` only after a yes \(see Environments and deploys\)\./);
+  assert.match(read(".agents/skills/pyramid/SKILL.md"), /Below Full, say in one line what it does \(labels, Dependabot, secret scanning, rules on main; on `ci = "actions"` only, a production environment that waits for them\) and ask: \*"Set this up now\?"\*/);
+  assert.deepEqual(scan(["AGENTS.md", ".agents/skills/ask/references/handoffs.md", ".agents/skills/stack-tanstack-start/SKILL.md", ".agents/skills/pyramid/SKILL.md"]).found, []);
+});
+
+test("#173 round 1 nice 4: pyramid's gh auth login line parks the sign-in on Full and goes on", () => {
+  assert.ok(read(".agents/skills/pyramid/SKILL.md").includes("If `gh auth status` fails, ask them to run `gh auth login` and wait. On Full, park it in the FYI and keep doing what doesn't need GitHub."));
+});

@@ -69,7 +69,7 @@ How and when to get the person's attention. The `ask` skill has the full convent
 - **Never interrupt** for what the repo, the docs or the profile can answer, or to ask permission for what the issue already says.
 - **Ping** with `node .claude/hooks/notify.mjs --level <level> --title "<what>" ...`. It honours presence, quiet hours and the batch window. While the person is away, only critical blockers ping.
 - **Record it** with the `needs-human` label, a comment on the issue or pull request, and the "Waiting on you" list in `docs/state.md`.
-- **Handoffs** carry the owner's exact words and a follow-up check. The receiver first replies `Got it` with its reading in one line. Could the owner's words (not the summary) mean something else? Ask the owner before starting (`ask`). A brief that hands on the loop also quotes the automation level and every decision row that lifts a gate, word for word.
+- **Handoffs** carry the owner's exact words and a follow-up check. The receiver first replies `Got it` with its reading in one line. Could the owner's words (not the summary) mean something else? Below Full, ask the owner before starting (`ask`). On Full, take the likeliest reading, record it as "AI pick, not reviewed" and put it in the FYI. A brief that hands on the loop also quotes the automation level and every decision row that lifts a gate, word for word.
 
 ## Full automation
 

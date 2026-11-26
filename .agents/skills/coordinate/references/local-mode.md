@@ -5,7 +5,7 @@ The loop runs the same steps. Only where it reads and writes changes. Pick the c
 | Case | When | Issues | Merges |
 |---|---|---|---|
 | **No remote** | `git remote` prints nothing | files in `docs/issues/` | locally, on main |
-| **Push, no API: another host** | a remote that isn't GitHub | files in `docs/issues/` | wait for the person |
+| **Push, no API: another host** | a remote that isn't GitHub | files in `docs/issues/` | queued for the person to merge on that host (step 8); the loop keeps building |
 | **Push, no API: rate-limited** | GitHub's `resources.core` or `resources.graphql` `remaining` is 0, or a `gh` call failed with a rate-limit 403 or 429 | on GitHub, from the sweep cache | queued, replayed after the limit |
 
 Rate-limited ends at the later of the two `reset` times in `gh api rate_limit`. A secondary limit (a 403 or 429 with a `retry-after` header) has no `reset`: it ends `retry-after` seconds after the failed call. Say the case once in your report: *"Local mode: no remote."* or *"Local mode until 14:05 UTC: GitHub's API limit."*

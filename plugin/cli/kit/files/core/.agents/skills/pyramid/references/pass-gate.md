@@ -27,7 +27,7 @@ Then finish the pass's Gate record row in `docs/pyramid.md`: date, feedback issu
 ## Who does what
 
 - **The coordinator** starts step 1 and step 2 the moment the pass is done, sends the person the try list, and keeps building gate work (`coordinate`, "End of a pass"). It sends the ask once, and starts the audit once per gate.
-- **Under `/afk`,** the same. When the gate work runs out, it stops: steps 3 and 4 wait for the person. On Full automation they don't (above).
+- **Under `/afk`,** the same. Below Full, when the gate work runs out, it stops: steps 3 and 4 wait for the person. On Full automation they don't (above).
 - **Hands-on** automation has no loop: the person starts each step, and each builder. In flight is 1 there: one builder the person started, until its pull request merges.
 
 ## After the MVP's last pass
