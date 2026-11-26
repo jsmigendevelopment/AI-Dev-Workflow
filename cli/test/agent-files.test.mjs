@@ -105,6 +105,81 @@ test("#103: a .gitmodules change and any submodule entry are protected", () => {
   assert.equal(decide({ changed: ["src/app.ts"], modules: [], stack: RECOMMENDED }).pass, true);
 });
 
+// #162: .mcp.json, the lint, format, type and test config, and the budget and check scripts are check code too.
+const LINT_AND_TYPES = ["eslint.config.js", "apps/mobile/eslint.config.js", "eslint.workspace.config.js", "eslint-rules.js", ".prettierrc.json", "knip.jsonc",
+  ".jscpd.json", "lefthook.yml", "tsconfig.app.json", "vitest.config.ts", "jest.config.js", "playwright.config.ts"];
+const BUDGETS = ["lighthouserc.cjs", "scripts/budgets/check-budgets.ts", "scripts/check-merge.ts", "scripts/pr/rules.ts", "scripts/checks/merge-checks.ts"];
+
+test("AC-162-1: WHEN a pull request changes .mcp.json or apps/web/.mcp.json on Recommended with no label THEN decide fails and names the file", () => {
+  for (const path of [".mcp.json", "apps/web/.mcp.json"]) {
+    const r = decide({ changed: [path, "src/app.ts"], stack: RECOMMENDED });
+    assert.equal(r.pass, false, path);
+    assert.match(r.why, new RegExp(path.replace(/[./]/g, "\\$&")), path);
+    assert.doesNotMatch(r.why, /src\/app\.ts/);
+  }
+});
+
+test("AC-162-1: the script: a files list with only .mcp.json on Recommended exits 1 and names it", () => {
+  const dir = tmp("onrails-agent-files-mcp-");
+  writeFileSync(join(dir, "files.json"), JSON.stringify([{ filename: ".mcp.json" }]));
+  writeFileSync(join(dir, "stack.md"), RECOMMENDED);
+  const r = spawnSync(process.execPath, [SCRIPT, "--files", join(dir, "files.json"), "--stack", join(dir, "stack.md")], { encoding: "utf8", env: safeEnv() });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /\.mcp\.json/);
+});
+
+test("AC-162-2: WHEN it changes any one lint, format, type or test-runner config THEN decide fails on Recommended with no label", () => {
+  for (const path of LINT_AND_TYPES) {
+    const r = decide({ changed: [path], stack: RECOMMENDED });
+    assert.equal(r.pass, false, path);
+    assert.ok(r.why.includes(path), `${path}: ${r.why}`);
+  }
+});
+
+test("AC-162-3: WHEN it changes any one budget or check script THEN decide fails on Recommended with no label", () => {
+  for (const path of BUDGETS) {
+    const r = decide({ changed: [path], stack: RECOMMENDED });
+    assert.equal(r.pass, false, path);
+    assert.ok(r.why.includes(path), `${path}: ${r.why}`);
+  }
+});
+
+test("AC-162-4: WHEN the level is Full and one of those files changes THEN a writer's pass at the head passes and a writer's fail at the head fails", () => {
+  for (const path of [".mcp.json", ...LINT_AND_TYPES, ...BUDGETS]) {
+    const go = (comments) => decide({ changed: [path], stack: FULL, comments, head: HEAD, trusted: WRITERS });
+    assert.equal(go([]).pass, false, `${path}: no review`);
+    assert.equal(go([PASS()]).pass, true, `${path}: a pass`);
+    assert.equal(go([FAIL()]).pass, false, `${path}: a fail`);
+  }
+});
+
+test("AC-162-5: WHEN it changes only near misses THEN decide passes", () => {
+  const near = ["src/eslint-helpers.ts", "docs/tsconfig-notes.md", "vite.config.ts", "wrangler.jsonc", "scripts/deploy.ts", "src/budget.ts"];
+  for (const path of near) assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, true, path);
+  assert.equal(decide({ changed: near, stack: RECOMMENDED }).pass, true);
+});
+
+test("#162: the issue's other protected names count at any depth and in any case; the other pack scripts don't", () => {
+  for (const path of [".eslintrc.cjs", "web/.eslintignore", "eslint.base.config.mjs", "PRETTIER.config.js", ".prettierignore", "knip.json", "knip.config.ts",
+    "lefthook.yaml", ".semgrep.yml", ".semgrep/rules.yml", "apps/web/.semgrep/x.yml", "TSConfig.json", "packages/a/tsconfig.base.json", "vitest.workspace.ts",
+    "apps/mobile/jest.config.ts", "apps/web/playwright.config.ts", "apps/web/lighthouserc.json", "scripts/lint/lint-rules.test.ts", "scripts/migrations/rules.ts",
+    "scripts/check-licenses.ts", "scripts/check-workspace-deps.js", "apps/web/scripts/budgets/bundle-graph.ts", "Scripts/PR/check.ts"]) {
+    assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, false, path);
+  }
+  for (const path of ["scripts/cloudflare/setup.ts", "scripts/connect/run.ts", "scripts/generate/new-route.ts", "scripts/deploy/lock.ts", "src/scripts/budgets.ts",
+    "src/pr/rules.ts", "docs/knip.md", "src/lint/rules.ts", "src/check-input.ts", "vite.config.ts"]) {
+    assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, true, path);
+  }
+});
+
+test("AC-162-6: full.md's weakening review names the guard's new paths", () => {
+  const doc = read(".agents/skills/automation/references/full.md").split("## The weakening review")[1];
+  for (const name of ["`.mcp.json`", "`eslint.config.*`", "`.prettierrc*`", "`knip.jsonc`", "`tsconfig*.json`", "`vitest.config.*`", "`playwright.config.*`",
+    "`lighthouserc.*`", "`budgets/`", "`check-*`"]) {
+    assert.ok(doc.includes(name), name);
+  }
+});
+
 test("the script: a submodule in --files fails without a label", () => {
   const dir = tmp("onrails-agent-files-sub-");
   writeFileSync(join(dir, "files.json"), JSON.stringify([{ filename: "vendor/kit", patch: "+Subproject commit " + "d".repeat(40) }]));
