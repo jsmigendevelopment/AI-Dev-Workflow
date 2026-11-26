@@ -1,11 +1,24 @@
 // Test helpers: temp folders, captured output and small fake kits for update tests.
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, existsSync, writeFileSync } from "node:fs";
+import { after } from "node:test";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { hash, toNative, writeFile } from "../src/files.mjs";
 import { storedName } from "../src/kit.mjs";
 
-export const tmp = (prefix = "onrails-") => mkdtempSync(join(tmpdir(), prefix));
+// Every folder tmp() makes is removed when the test file ends, so a run leaves nothing in TMPDIR (#142).
+// Retries, because a child a test started may still be closing a file in it.
+const made = [];
+after(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+});
+
+/** A new empty temp folder, removed when the test file ends. */
+export function tmp(prefix = "onrails-") {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  made.push(dir);
+  return dir;
+}
 
 export function logger() {
   const lines = [];

@@ -1,6 +1,6 @@
 // Harness tests: a fake `claude` on PATH prints canned stream-json, so nothing calls a model.
 // Needs the bundled kit for the "with" arm: run `cd cli && npm run bundle` first.
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -19,9 +19,16 @@ const FAKE = fileURLToPath(new URL("./fake-claude.mjs", import.meta.url));
 const TEST_SCENARIOS = fileURLToPath(new URL("./scenarios", import.meta.url));
 const skipWin = process.platform === "win32" ? "the fake claude is a shebang script" : false;
 
+// Every folder setup() makes is removed when this file ends, so a run leaves nothing in TMPDIR (#142).
+const made = [];
+after(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+});
+
 // A temp bin folder holding the fake as `claude`, plus its plan. Returns a runner.
 function setup(plan) {
   const root = mkdtempSync(join(tmpdir(), "evals-test-"));
+  made.push(root);
   const bin = join(root, "bin");
   mkdirSync(bin);
   copyFileSync(FAKE, join(bin, "claude"));
@@ -41,7 +48,7 @@ function setup(plan) {
   return { root, run, results, resultsFile, calls };
 }
 
-// setup, with its temp folder removed when the test ends. The #100 tests use it.
+// setup, with its temp folder removed as soon as the test ends, not the file. The tests that loop over many runs use it.
 function cleanSetup(t, plan) {
   const s = setup(plan);
   t.after(() => rmSync(s.root, { recursive: true, force: true }));
