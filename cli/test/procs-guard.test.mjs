@@ -144,7 +144,7 @@ test("AC-156-2: WHEN one registry holds a PID above 2147483647 THEN the other re
   assert.ok(!sys.live.has(4000));
 });
 
-test("AC-156-1:WHEN a group record's group holds this script, its parent or the agent THEN no signal is sent", async () => {
+test("AC-156-1: WHEN a group record's group holds this script, its parent or the agent THEN no signal is sent", async () => {
   const me = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
   for (const [name, pid, args] of [["this script", 999, "node procs.mjs"], ["its parent", 900, "bash"], ["the agent", AGENT, "/opt/claude-code/bin/claude"]]) {
     const sys = fakeSys({ procs: { 4000: { args: "pnpm dev" }, [pid]: { args, parent: 4000, group: 4000 } }, stdin: '{"session_id":"s-1"}' });
@@ -155,5 +155,18 @@ test("AC-156-1:WHEN a group record's group holds this script, its parent or the 
     if (reaper) await run(sys, reaper.split(" ").slice(3));
     assert.deepEqual(signals(sys), [], name);
     assert.ok(sys.live.has(pid) && sys.live.has(4000), name);
+  }
+});
+
+test("AC-156-1: WHEN the agent joins a record's group after the TERM THEN no KILL is sent, with the leader still running or only members left", async () => {
+  const me = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
+  for (const leader of ["stay", "exit"]) {
+    const sys = fakeSys({ procs: { 4000: { onTerm: leader }, 4001: { parent: 4000, group: 4000, onTerm: "stay" } } });
+    seed(sys, { id: "pgroup", pid: 4000, start: "start-4000", command: "pnpm dev", ...me });
+    const send = sys.signal;
+    sys.signal = (pid, sig) => { const hit = send(pid, sig); sys.live.get(AGENT).group = 4000; return hit; };
+    await run(sys, ["stop", "pgroup"]);
+    assert.deepEqual(signals(sys), ["kill -4000 SIGTERM"], `leader ${leader}`);
+    assert.ok(sys.live.has(4001) && sys.live.has(AGENT), `leader ${leader}`);
   }
 });

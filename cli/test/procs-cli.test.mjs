@@ -12,17 +12,51 @@ import { tmp } from "./helpers.mjs";
 import { SCRIPT, fakeSys, repoFile, seed } from "./procs-fake.mjs";
 
 const TESTS = fileURLToPath(new URL(".", import.meta.url));
-const BEFORE = 31; // tests in procs.test.mjs on main before #156 split it
+// The 31 tests in procs.test.mjs on main before #156 split it, by title: each must still be there.
+const BEFORE = [
+  "AC-1: WHEN an agent starts a dev server THEN it's in the registry, with its owner and a stop condition",
+  "AC-1: starting one without a reason or a stop condition isn't allowed, and nothing starts",
+  "AC-1: in a repo the registry is the main checkout's .onrails/procs.json, shared by worktrees, and it ignores itself",
+  "AC-1: --for sets a deadline and starts the watcher, which stops it once the time has passed",
+  "AC-2: WHEN the person says stop THEN stop mine ends this session's processes and the list it shows is empty",
+  "AC-2b: WHEN the person says pause THEN this session's processes stay, marked paused, and stop once the pause limit passes",
+  "AC-2b: the pause limit comes from [workflow] pause_hours, and resume clears the pause",
+  "AC-3: WHEN a session ends THEN the hook stops its processes and orphans, TERM then KILL, and a later session finds no orphans",
+  "AC-4: WHEN onrails ps finds a process whose owner session is gone THEN it's flagged stale, and --stop stale stops it",
+  "AC-4: the session-start hook warns about orphans and names the command that stops them",
+  "AC-5: WHEN a process wasn't registered by onRails THEN ps --stop asks before touching it",
+  "a recorded PID that now belongs to another process is never signalled",
+  "a record with no start time is never alive and never signalled, by stop, the watcher or the session-end hook",
+  "start doesn't record a process whose start time can't be read: it stops it through its own handle and says so",
+  "refusal: PID 1, 0, negatives, non-integers, ours, a missing or changed start time and a group it doesn't lead are all refused",
+  "a registry record {pid: 1, group: true, start: null} with a dead agent gets no signal from session-end, stop stale or ps",
+  "stop <pid> after a yes still never signals PID 1, this script, its parent or the agent",
+  "AC-5: off the CLI, stop all or stop <id> of another live session is refused without --yes",
+  "a registry git tracks came with a branch: it is never read, signalled from or written",
+  "symlinks: a linked registry folder, file or logs folder is refused, and a linked .gitignore is replaced, never followed",
+  "a group whose leader exits on TERM still gets KILL while a member is left",
+  "list, ps and doctor write nothing; stop drops the records of processes that have exited",
+  "the session-end hook stops the watcher too, the registry's only timer",
+  "AC-2 and AC-2b: ask's Pause and stop names the resume note, timer.mjs status and the list; qa starts its server through the registry",
+  "a process that doesn't lead its own group: TERM goes to it and each of its children",
+  "Windows: stop runs taskkill /T for the tree, then /T /F after the grace",
+  "the agent is the claude or codex program, never a path in a shell's command line",
+  "doctor warns about stale processes, with the command that stops them",
+  "both tools' session hooks run the registry: Claude Code and Codex end, and the start hook reads it",
+  "npx onrails ps through the binary: --help lists it, an empty registry says so, and a PID it didn't start is refused",
+  "the one real process: start a harmless child, see it listed, stop it, and nothing of it is left",
+];
 
-test("AC-156-5: WHEN the tests run THEN no test file of procs is over 300 lines and the test count is not lower", () => {
+test("AC-156-5: WHEN the tests run THEN no test file of procs is over 300 lines and every test from before the split is still there", () => {
   const files = readdirSync(TESTS).filter((f) => /^procs.*\.test\.mjs$/.test(f));
-  let count = 0;
+  const titles = [];
   for (const f of files) {
     const text = readFileSync(`${TESTS}/${f}`, "utf8");
     assert.ok(text.split("\n").length <= 300, `${f} is over 300 lines`);
-    count += (text.match(/^test\(/gm) ?? []).length;
+    titles.push(...[...text.matchAll(/^test\("((?:[^"\\]|\\.)*)"/gm)].map((m) => JSON.parse(`"${m[1]}"`)));
   }
-  assert.ok(count > BEFORE, `${count} tests; there were ${BEFORE}, plus this one`);
+  assert.equal(BEFORE.length, 31);
+  for (const title of BEFORE) assert.equal(titles.filter((t) => t === title).length, 1, `missing or doubled: ${title}`);
 });
 
 test("AC-2 and AC-2b: ask's Pause and stop names the resume note, timer.mjs status and the list; qa starts its server through the registry", () => {

@@ -13,10 +13,10 @@ const WATCH_HOURS = 24;
 // The watcher stops paused and timed records when their time is up, even if the session sits open for days.
 // It is a record too, so stop and session end stop it, and it ends itself when no timed record is left.
 export function ensureWatcher(sys, path, me) {
-  const watchers = load(path).filter((r) => r.kind === "watcher");
+  const watchers = load(path, sys).filter((r) => r.kind === "watcher");
   const live = sys.info(livePids(watchers)) ?? new Map();
   if (watchers.some((r) => sameStart(r.start, live.get(r.pid)))) return;
-  const id = newId(path);
+  const id = newId(sys, path);
   const pid = sys.spawn([process.execPath, PROCS, "watch", "--registry", path], { cwd: dirname(path), log: logFor(sys, path, "watch") });
   if (!pid) return;
   const start = sys.info([pid])?.get(pid)?.start;
@@ -28,7 +28,7 @@ export function ensureWatcher(sys, path, me) {
 
 /** One pass of the watcher: stops what's past its time or pause. Returns how many timed records are left. */
 export async function expire(sys, path) {
-  const recs = load(path).filter((r) => r.kind !== "watcher");
+  const recs = load(path, sys).filter((r) => r.kind !== "watcher");
   const live = sys.info(livePids(recs));
   if (!live) return 0;
   const seen = inspect(recs, live, {}, sys.now());
@@ -74,7 +74,7 @@ export async function sessionEnd(sys, log, { dir, me }) {
 }
 
 export async function reap(sys, path, ids, grace) {
-  const recs = load(path).filter((r) => ids.includes(r.id));
+  const recs = load(path, sys).filter((r) => ids.includes(r.id));
   await stopRecords(sys, recs, { grace });
   update(sys, path, (procs) => procs.filter((r) => !ids.includes(r.id)));
   return 0;

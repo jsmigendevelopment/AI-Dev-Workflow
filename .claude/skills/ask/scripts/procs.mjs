@@ -68,8 +68,10 @@ function start(sys, log, { path, me, flags, command }) {
   if (flags.for !== undefined && !(Number(flags.for) > 0)) return fail(log, "--for takes minutes, more than 0");
   if (!command.length) return fail(log, "Name the command after --: start --why ... --until ... -- pnpm dev");
   const why = untrusted(sys, path);
-  if (why) return fail(log, `Nothing started: the registry can't be used (${why}). Delete that folder or ask the person.`, 1);
-  const id = newId(path);
+  // A mode problem on this user's own registry is fixed with chmod, which keeps its records and their processes.
+  const next = why && (why.includes("chmod") ? "Then start it again." : "Delete that folder or ask the person.");
+  if (why) return fail(log, `Nothing started: the registry can't be used (${why}). ${next}`, 1);
+  const id = newId(sys, path);
   const logFile = logFor(sys, path, id);
   const pid = sys.spawn(command, { cwd: sys.cwd, log: logFile });
   if (!pid) return fail(log, `Couldn't start ${command[0]}. Is it installed and on PATH?`, 1);
@@ -80,7 +82,10 @@ function start(sys, log, { path, me, flags, command }) {
     return fail(log, `${command[0]} exited at once, or its start time can't be read, so it isn't recorded and was stopped. Its output: ${logFile}`, 1);
   }
   const fields = { id, pid, group: sys.platform !== "win32", start: begun, command: command.join(" "), log: logFile };
-  update(sys, path, (procs) => [...procs, newRecord(sys, me, flags, fields)]);
+  try { update(sys, path, (procs) => [...procs, newRecord(sys, me, flags, fields)]); } catch (error) {
+    sys.killSpawned(pid); // through its own handle: nothing it can't record is left running
+    return fail(log, `${command[0]} was stopped: ${error.message}.`, 1);
+  }
   if (flags.for) ensureWatcher(sys, path, me);
   log(`${id} · pid ${pid} · output: ${logFile}`);
   return 0;
