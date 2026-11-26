@@ -29,7 +29,7 @@ Start a new Claude Code session. For other setups, see [Codex](#codex) or [npm](
 | [`/back`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/back/SKILL.md) · `$back` | Start or resume work | See what changed, who's working and what to do first. |
 | [`/afk`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/afk/SKILL.md) · `$afk` | Step away | Set a time, check usage and safety, then keep building until a hard stop. |
 
-The other 26 skills run for you. To run one step yourself, see the [cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself).
+To get the latest onRails, type `/update` (`$update`). The other 26 skills run for you. To run one step yourself, see the [cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself).
 
 [![npm package version](https://img.shields.io/npm/v/onrails?style=flat-square&color=a63407)](https://www.npmjs.com/package/onrails)
 [![Works with Claude Code](https://img.shields.io/badge/works%20with-Claude%20Code-7c3aed?style=flat-square)](#-install)
@@ -59,7 +59,7 @@ codex plugin add or@onrails
 
 Then type `$idea` or `$join`.
 
-- **Update the plugin by hand.** Run `claude plugin marketplace update onrails`, then `claude plugin update core@onrails`. In Codex, run `codex plugin marketplace upgrade onrails`.
+- **Update the plugin, and the rest of onRails.** Type `/update` (Codex: `$update`), or run `npx onrails@latest update --all` in a terminal. It updates the plugin, your global entry skills and the project's kit, then runs `doctor`. Then run `/reload-plugins`. By hand, it's `claude plugin marketplace update onrails`, then `claude plugin update core@onrails`; in Codex, `codex plugin marketplace upgrade onrails`.
 - **Marketplace 'onrails' not found?** The marketplace was added in a project. Run both install commands again for your account.
 - **The project's copy wins.** Once you install the kit in a folder, commands use that project's skills. Cloud sessions also use the repo's skills since they don't load personal plugins.
 - **The plugin works without npm.** Its CLI includes the rules and skills. Stack packs come from a clone or from GitHub at slice 0.
@@ -78,6 +78,7 @@ It installs the rules and skills, keeps your files and offers to open Claude Cod
 |---|---|
 | `init [dir]` | Installs the kit, keeps your files and offers to start a session there. |
 | `update [dir] --dry-run` | Updates the kit and keeps files you changed. `--dry-run` shows the plan first. |
+| `update --all` | Brings everything to the latest: the plugin, your global entry skills and the project's kit, then `doctor`. The `/update` command runs it for you. |
 | `doctor --fix` | Checks tools, sign-ins and env var names. Runs each offered fix after you type `y`. |
 | `profile init` | Saves things like your GitHub owner, naming style and models in your profile. |
 | `add <pack>` · `add <pack>/<add-on>` | Copies a stack pack or add-on into your project. `add --list` shows the packs. |
@@ -91,7 +92,7 @@ AI agents follow your instructions. Where you leave a gap, they guess. They can 
 | Part | What it is | When it applies |
 |---|---|---|
 | [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blob/main/AGENTS.md) | 13 standing rules, the code rules and a stop-and-ask list | Every session |
-| 30 skills | Step-by-step instructions, one job each | When a request names the skill |
+| 31 skills | Step-by-step instructions, one job each | When a request names the skill |
 | Guardrails | CI checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
 
 - **Rules and conventions keep it on track.** It asks instead of guessing. Lint and CI fail the build when the code breaks a rule.
@@ -397,7 +398,7 @@ The strongest model at high effort takes more time and usage. The cheapest model
 ```
 AGENTS.md                  ← rules every agent follows, every session (Codex + Claude)
 CLAUDE.md                  ← one line: @AGENTS.md
-.agents/skills/            ← the 30 skills, master copy (Codex reads this)
+.agents/skills/            ← the 31 skills, master copy (Codex reads this)
 .claude/skills/            ← the same skills (Claude Code reads this)
 .claude/settings.json      ← Claude Code: blocked git commands and hooks
 .claude/hooks/             ← the session-start and notify hooks
@@ -405,7 +406,7 @@ CLAUDE.md                  ← one line: @AGENTS.md
 .github/ISSUE_TEMPLATE/    ← the slice issue template
 stacks/                    ← 5 stack packs and 7 add-ons
 cli/                       ← the onrails CLI
-plugin/                    ← the plugin: the four entry skills and a copy of the CLI (generated)
+plugin/                    ← the plugin: the four entry skills, `update` and a copy of the CLI (generated)
 .claude-plugin/            ← the plugin marketplace (Codex: .agents/plugins/)
 guide/                     ← the guides above
 research/                  ← the research and plans behind the kit (never copied into a project), indexed with provenance
@@ -416,7 +417,7 @@ scripts/check-research.mjs ← checks a research folder: index, provenance, labe
 
 | Skills | |
 |---|---|
-| **You type** (4) | `idea` · `join` · `back` · `afk` |
+| **You type** (5) | `idea` · `join` · `back` · `afk` · `update` |
 | **Planning** (9) | `grill` · `wireframes` · `name` · `stack` · `secrets` · `research` · `pyramid` · `issues` · `routing` |
 | **The loop** (9) | `coordinate` · `build` · `diagnose` · `pr-review` · `pr-security` · `qa` · `test-by-hand-as-the-user` · `ask` · `automation` |
 | **Know-how**, named in issues (6) | `web-performance` · `web-security` · `seo` · `a11y` · `dependencies` · `writing-for-agents` |
@@ -484,6 +485,7 @@ At the end it asks: **Start Claude Code here now with /idea? (Y/n)**. Say yes an
 | `npx onrails init [dir]` | Installs the kit: `AGENTS.md`, `CLAUDE.md`, `.agents/skills/`, `.claude/`, `.codex/` and `.github/ISSUE_TEMPLATE/`. Writes `.onrails.json`, a record of what it installed. Then offers to start a session (`--start`, `--no-start`). |
 | `npx onrails init --global` | Copies only the four entry skills (`idea`, `join`, `back`, `afk`) to `~/.claude/skills` (Claude Code) and `~/.agents/skills` (Codex), so `/idea` works in any folder before the kit is there. Never overwrites: a file you changed keeps yours, and the kit's copy goes next to it as `.onrails-new`. In Claude Code your personal copy runs instead of a project's copy with the same name, so keep them in step. The [plugin](https://github.com/jsmigendevelopment/onRails#install-as-a-plugin) is the recommended way now; use one or the other. |
 | `npx onrails@latest update [--dry-run] [--yes]` | Updates to the newest kit. Files you haven't touched are replaced, files you changed are kept, new kit files are added, and files dropped from the kit are deleted if you never changed them. `--dry-run` shows the plan and writes nothing. A repo on Full automation coming from a kit before 0.7.0 is told so. `--yes` renames a kit record that still has its old name (see [Moving from ai-dev-workflow](#moving-from-ai-dev-workflow)). |
+| `npx onrails@latest update [dir] --all [--dry-run] [--yes]` | Brings everything to the latest, in order: (1) the onRails plugin, with `claude plugin marketplace update onrails` then `claude plugin update core@onrails` for Claude Code and `codex plugin marketplace upgrade onrails` for Codex, only for a tool whose plugin is installed, each run by the full path found on `PATH` with no shell (on Windows a `.cmd` shim, such as an npm-installed `claude`, runs through `cmd.exe` by its full path). The `PATH` search skips relative entries, entries whose real path is inside the project or the current folder, and every `node_modules/.bin` (npx puts the project's first), so a `claude` the project ships never runs. The project is the nearest folder at or above `dir` that has `.onrails.json`, so a run from a subfolder works the same: the project kit step and `doctor` use it. The nearest such folder at or above the current folder only has its tools skipped; its kit is not updated. A filesystem root never counts as the project or the current folder, and neither do the home folder and a folder that holds it (`/home`) unless it has `.onrails.json`, so `~/.local/bin` is searched when you run it from `~`. A project that holds `HOME` is still a project, so its tools are skipped; when `~` itself is an onRails project, every tool folder under it is skipped. A tool found only in a skipped entry is named as that (`claude found only inside this project, not run`). When `~` is the project, the message adds its path and the commands to run by hand if it is yours; anywhere else it says a project can ship its own, with no command. On Windows a `.cmd` path that holds `%` is refused, since `cmd.exe` expands it even inside quotes. On Windows `NoDefaultCurrentDirectoryInExePath=1` is set for every command `update --all`, `doctor --fix` and `init --start` start, so the agent session `init --start` opens, and what it runs, inherit it; (2) the global entry skills, when `init --global` was used, the same way `init --global` copies them; (3) this project's kit, as `update` does, when the folder is in an onRails project (else it says it skipped it); (4) `doctor`. Then a summary of each part's version before and after, and what's left, such as `/reload-plugins` in Claude Code. A failed plugin command is shown and ends that tool's steps; the rest still run, and the exit code is 1. `--dry-run` prints the plan and runs nothing. It never bumps, tags or publishes a version. In Claude Code or Codex, the [`/update`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/update/SKILL.md) command (`$update`) runs `npx onrails@latest update --all` for you, from a temp folder outside the project, with the project's path. A part that fails is shown as FAILED; `doctor` and the summary still run, and the exit code is 1. Plain `update` still updates only the project. |
 | `npx onrails doctor` | Checks Node, git, `gh` and its sign-in, pnpm, Claude Code or Codex, the kit and its version (a repo on Full automation with a kit before 0.7.0 gets an ✗: those kits still stop for gates that Full and your decisions lift), `AGENTS.md`, that `.agents/skills` and `.claude/skills` match, `docs/state.md`, that `.env.example` names every variable in `.env.local`, the Playwright Chromium (when the project uses `@playwright/test`) and wrangler and its sign-in (when there's a `wrangler.jsonc`), that your global entry skills (from `init --global`) match this CLI's kit, and whether the onRails plugin is installed (Claude Code or Codex) and matches the project's kit version, and that each account's config folder in the profile's `[accounts]` exists. It reads local install records only, and never looks inside an account's folder. Each problem gets a one-line fix. |
 | `npx onrails preflight [dir] [--record] [--if-changed] [--json] [--model <id>] [--effort <level>] [--tool <name>]` | For agents. `doctor` checks your terminal; this checks the agent's own sandbox, which has other permissions. It probes repo write, `.git` write, the package registry, GitHub, loopback, a browser (when the tests use Playwright), Node and the package manager, and prints one table. Each failure gets a ladder: a workaround in the sandbox, one command outside it, the environment tools, and you last, in one message. `--record` writes the result to `docs/state.md`; `--if-changed` skips the probes when nothing changed. It changes nothing but temp files. The kit ships the same script: `node .agents/skills/ask/scripts/preflight.mjs`. |
 | `npx onrails ps [dir] [--json]` | Lists every background process an agent started through the process registry: its id, age, owner session and whether that session is still alive, CPU, memory, why it runs and when it should stop. Stale ones (their session is gone, or they're past their time or their pause) are marked. It reads the project's `.onrails/procs.json` (shared by its worktrees and ignored by git), `~/.onrails/procs.json` and every project registry listed in `~/.onrails/procs-index.json`. The kit ships the same script for agents and the session hooks: `node .agents/skills/ask/scripts/procs.mjs`. |

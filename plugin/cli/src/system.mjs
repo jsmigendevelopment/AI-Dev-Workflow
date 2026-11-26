@@ -7,7 +7,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, join } from "node:path";
+import { delimiter, join, win32 } from "node:path";
 
 export function findCommand(name, { env = process.env, platform = process.platform } = {}) {
   const exts = platform === "win32" ? ["", ...(env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";")] : [""];
@@ -21,12 +21,24 @@ export function findCommand(name, { env = process.env, platform = process.platfo
   return null;
 }
 
-// Windows .cmd/.bat shims (npm, pnpm, corepack) only start through cmd.exe. Fix commands are
-// fixed strings from this CLI, never user input, so passing them to cmd.exe is safe.
-function windowsArgv(argv) {
-  const found = findCommand(argv[0]);
-  if (found && /\.(cmd|bat)$/i.test(found)) return ["cmd.exe", ["/d", "/s", "/c", found, ...argv.slice(1)]];
-  return [found ?? argv[0], argv.slice(1)];
+// How exec and spawnInteractive start argv, with no shell: { file, args, env, verbatim? }.
+// Windows .cmd/.bat shims (npm, pnpm, corepack, an npm-installed claude) only start through cmd.exe. Fix commands
+// are fixed strings from this CLI, never user input, and only plain words reach cmd.exe. A full path (update --all
+// finds each tool itself) is used as it is. As in preflight's commandFor (decision 63), cmd.exe goes by its full
+// path, since a bare name is looked up in the current folder first, and gets one verbatim line with the path quoted:
+// /s drops the line's outer quotes, so a path with a space stays one word. NoDefaultCurrentDirectoryInExePath stops
+// the current-folder lookup for the bare `node` a shim starts, and for everything the started program runs.
+export function launch(argv, { platform = process.platform, env = process.env } = {}) {
+  if (platform !== "win32") return { file: argv[0], args: argv.slice(1), env };
+  const found = win32.isAbsolute(argv[0]) ? argv[0] : findCommand(argv[0], { env, platform });
+  const winEnv = { ...env, NoDefaultCurrentDirectoryInExePath: "1" };
+  if (!found || !/\.(cmd|bat)$/i.test(found)) return { file: found ?? argv[0], args: argv.slice(1), env: winEnv };
+  const args = argv.slice(1);
+  if (args.some((a) => !/^[\w.:=/@$+,-]+$/.test(a))) throw new Error(`only plain words go to cmd.exe, not: ${args.join(" ")}`);
+  // The path comes from the person's PATH, and cmd.exe expands %NAME% even inside quotes.
+  if (found.includes("%")) throw new Error(`cmd.exe would expand the % in ${found}`);
+  const cmdExe = env.ComSpec || win32.join(env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
+  return { file: cmdExe, args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], env: winEnv, verbatim: true };
 }
 
 export function realSystem() {
@@ -46,15 +58,16 @@ export function realSystem() {
     },
     // Hand the terminal to an interactive program (an agent session) and wait for it to end.
     spawnInteractive(argv, { cwd } = {}) {
-      const [cmd, args] = platform === "win32" ? windowsArgv(argv) : [argv[0], argv.slice(1)];
-      const r = spawnSync(cmd, args, { cwd, stdio: "inherit" });
+      const { file, args, env, verbatim } = launch(argv);
+      const r = spawnSync(file, args, { cwd, env, stdio: "inherit", windowsVerbatimArguments: verbatim });
       if (r.error) throw new Error(`Could not start ${argv[0]}: ${r.error.message}`);
       return r.status ?? 1;
     },
     exec(argv, { cwd } = {}) {
-      const [cmd, args] = platform === "win32" ? windowsArgv(argv) : [argv[0], argv.slice(1)];
       try {
-        execFileSync(cmd, args, { cwd, stdio: "inherit" });
+        // Inside the try: a command launch refuses to hand to cmd.exe is a failed fix, shown as one.
+        const { file, args, env, verbatim } = launch(argv);
+        execFileSync(file, args, { cwd, env, stdio: "inherit", windowsVerbatimArguments: verbatim });
         return true;
       } catch {
         return false;
