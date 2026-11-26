@@ -12,7 +12,7 @@ const lstat = (sys, path) => (sys.lstat ?? lstatSync)(path);
 
 /**
  * What a skip on the way to the home folder leaves: a repo can move, the home folder can't, so the home registry
- * and the index stay off while a repo's own registry still works (docs/decisions.md row 110).
+ * and the index stay off while a repo's own registry still works (docs/decisions.md row 111).
  */
 export const HOME_OFF = "the home registry and the index stay off, while a repo in folders only you can write still tracks its processes";
 
@@ -64,7 +64,7 @@ function fsProblem(sys, dir, home) {
 /**
  * Why the folder that holds .onrails (holder: a repo root, or the home folder when home) can't be trusted on Linux
  * or macOS, or null: a folder on the way to it, or the home folder itself, that another account can write, a link on
- * the way that another user owns, or a folder on a file system whose ACLs don't show (docs/decisions.md row 110).
+ * the way that another user owns, or a folder on a file system whose ACLs don't show (docs/decisions.md row 111).
  * The repo root's own rule is rootProblem's, in procs-store.mjs. group is procs-store.mjs's groupProblem, passed in
  * so the group rule stays in one place.
  */
