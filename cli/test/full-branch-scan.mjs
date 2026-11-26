@@ -9,9 +9,10 @@ const read = (p) => readFileSync(fileURLToPath(new URL(p, ROOT)), "utf8");
 // Words that hand a step to the person. "never asks the person" or "don't ask them" says no ask happens.
 const NOT = "(?<!\\b(?:never|don.t|doesn.t|not|nothing|no one) )";
 export const HANDS_TO_PERSON = new RegExp(`${NOT}(?:${[
-  "\\bthen ask\\b", "\\basks? (?:the person|them|the owner|which)\\b", "\\boffers? (?:three|two|one|to)\\b",
+  "\\bthen ask\\b", "\\basks? (?:the person|them|the owner|which)\\b", "\\boffers? (?:three|two|one|to|once)\\b",
   "\\b(?:the person|they) picks?\\b", "\\bwithout (?:their|the person.s) yes\\b", "\\bneeds? (?:your|their|the person.s) yes\\b",
-  "\\bwaits? (?:for|on) (?:the person|their|a yes|them)\\b",
+  "\\bwaits? (?:for|on) (?:the person|their|a yes|them)\\b", "\\bwaits? (?:\\w+ ){1,2}for (?:the person|them|their)\\b",
+  "\\*\\*[^*]+\\*\\* Ask\\b",
 ].join("|")})`, "i");
 // The step's own branch. "(on Full too)" keeps the person, so it isn't one. Lowercase "full automation" isn't either.
 const ON_FULL = /\b[Oo]n Full\b(?!,? (?:too|as well)\b)/;

@@ -29,6 +29,10 @@ test("AC-254-2: WHEN a skill line asks, waits, offers or says the person picks T
     "Anything that needs the person waits for them.",
     "8. **Triage.** Offer three options. On full automation and the app has real users? Suggest Recommended.",
     "- **Codex:** ask the person to check their usage page (on Full too).",
+    // Missed by the first scan (#261 review, round 1): a word between "wait" and "for", "offer once", a bare "Ask,".
+    "  - write the final state with its findings to `docs/state.md`, and stop. Kit drafts wait there for the person.",
+    "**No sheet yet?** Offer once: *\"Want your board as a Google Sheet?\"* On a yes, create a spreadsheet.",
+    "1. **How long?** Ask, or read it from what the person said (\"going to lunch\" is a short break).",
   ];
   for (const s of asks) assert.equal(unbranched(s).length, 1, s);
   // A branch in the same step passes. A branch in the parent step doesn't cover its child bullet.
@@ -48,7 +52,7 @@ test("AC-254-3: WHEN the level is Recommended THEN /back still offers triage and
   assert.match(step("Below Full, offer to start the dev server too"), /On Full, put the command that starts it in the report\./);
   assert.match(step("4. **Who else is working?**"), /Below Full, then ask: \*"Is anyone else, or any other agent, working on this repo right now\?"\*/);
   assert.match(step("- **A problem in this app**"), /Below Full, don't add `status:ready`: the person picks it\./);
-  assert.match(step("- **A flaw in the kit itself**"), /Below Full, .*Never file it there without their yes\. On a yes: `gh issue create/);
+  assert.match(step("- **A flaw in the kit itself**"), /Below Full, .*\*\*Never file it there without their yes\.\*\* On a yes: `gh issue create/);
   assert.match(step("11. **On Full, start the loop again.**"), /Below Full, the loop starts when the person picks it in step 8\./);
 });
 

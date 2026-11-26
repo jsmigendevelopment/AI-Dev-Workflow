@@ -54,7 +54,7 @@ The presence status is at the top, and each section says when it was last update
 
 When the profile sets `[board] sheet` and you have the Google Sheets connector, the board is also a sheet: one tab per project, plus an "All projects" tab. **This step is untested.** Check the first write by eye.
 
-**No sheet yet?** Offer once: *"Want your board as a Google Sheet so you can see it from your phone and cloud threads can update it?"* On a yes, create a spreadsheet named "onRails board" and put its URL in the home profile under `[board] sheet`. On a no, write `sheet = "off"` there, so nobody asks again.
+**No sheet yet?** On Full, don't offer: put the question in the next ℹ️ FYI, write nothing to the profile, and go on. Below Full, offer once: *"Want your board as a Google Sheet so you can see it from your phone and cloud threads can update it?"* On a yes, create a spreadsheet named "onRails board" and put its URL in the home profile under `[board] sheet`. On a no, write `sheet = "off"` there, so nobody asks again.
 
 **Once per tab** (it isn't there yet), set it up and format it in one call:
 
