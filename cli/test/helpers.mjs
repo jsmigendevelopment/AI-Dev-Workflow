@@ -1,7 +1,7 @@
 // Test helpers: temp folders, captured output, small fake kits for update tests, and a safe PATH for every child.
 // First, so this file's process has the safe PATH before anything else loads (#191, #197).
 import { PATH_KEY, checkPath, fakes, ownNode, safePath } from "./safe-path-preload.mjs";
-import { after } from "node:test";
+import { after, beforeEach } from "node:test";
 import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -13,8 +13,19 @@ export { checkPath, safePath };
 // Every folder tmp() makes is removed when the test file ends, so a run leaves nothing in TMPDIR (#142).
 // Retries, because a child a test started may still be closing a file in it.
 const made = [];
-after(() => {
-  for (const dir of made) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+const removeMade = () => {
+  for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+};
+// Registered when a test file first imports this file, so it runs before that file's own root after() hooks (#180).
+after(removeMade);
+// A file that throws while it loads ends with no after() hook and no exit event, so the throw's monitor removes what
+// tmp() made by then. Once a test starts, a throw fails only the test it hits, so the folders stay (#180).
+let loading = true;
+beforeEach(() => {
+  loading = false;
+});
+process.on("uncaughtExceptionMonitor", () => {
+  if (loading) removeMade();
 });
 
 /** A new empty temp folder, removed when the test file ends. */
