@@ -60,7 +60,10 @@ export function projectChecks(projectDir, { kitDir, sys }) {
   add(state ? OK : INFO, state ? "docs/state.md present" : "No docs/state.md yet: type /idea for a new app or /join for an existing repo");
 
   checks.push(...researchChecks(projectDir));
-  checks.push(...processChecks(projectDir, { sys: { ...realSys(), home: sys.home } }));
+  // The registry's git, ps and powershell.exe run only by the full path doctor's own search finds (#185). A system
+  // without that search (a test's fake) runs none of them.
+  const which = (name) => sys.where?.(name).path ?? null;
+  checks.push(...processChecks(projectDir, { sys: { ...realSys({ which }), home: sys.home } }));
   checks.push(...profileChecks(projectDir));
   checks.push(...envChecks(projectDir, MARKS));
   checks.push(...actionsChecks(projectDir, sys));
@@ -176,10 +179,12 @@ function wranglerChecks(projectDir, deps, sys) {
       fix: "Run: pnpm add -D wrangler", remedy: { print: ["pnpm add -D wrangler   (in this project, not a global install)"] },
     }];
   }
-  const bin = join(projectDir, "node_modules", ".bin", sys.platform === "win32" ? "wrangler.cmd" : "wrangler");
-  if (!existsSync(bin)) return [{ status: INFO, label: "wrangler sign-in not checked (run pnpm install first)" }];
-  const who = sys.probe(bin, ["whoami"], { cwd: projectDir });
-  if (!who) return [{ status: INFO, label: "wrangler sign-in not checked (wrangler whoami did not answer)" }];
+  // Never the project's own node_modules/.bin/wrangler: a cloned repo can ship any file there (#185). A wrangler
+  // installed outside the project shares the sign-in, so it answers for this one.
+  const who = sys.probe("wrangler", ["whoami"], { cwd: projectDir });
+  if (!who) {
+    return [{ status: INFO, label: "wrangler sign-in not checked (doctor runs no wrangler from inside the project). Check it yourself: pnpm exec wrangler whoami" }];
+  }
   const signedIn = who.ok && !/not authenticated|not logged in/i.test(who.all);
   if (signedIn) return [{ status: OK, label: "wrangler is signed in" }];
   return [{
