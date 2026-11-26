@@ -46,7 +46,7 @@
     "pack:check": "node scripts/pack-check.mjs",
     "versions:check": "node scripts/versions.mjs --check",
     "release:bump": "node scripts/versions.mjs",
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --require ./test/safe-path-preload.mjs --test \"test/*.test.mjs\""
   },
   "engines": {
     "node": ">=22"
