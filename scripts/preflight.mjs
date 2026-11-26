@@ -20,6 +20,7 @@ import { hostname } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/** The checks, in the order the table prints them. */
 export const CHECKS = ["repo", "git", "registry", "github", "loopback", "browser", "versions", "model"];
 const LABELS = { repo: "Write the repo", git: "Write .git", registry: "Package registry", github: "GitHub", loopback: "Loopback",
   browser: "A browser", versions: "Node and package manager", model: "Model and effort" };
@@ -31,13 +32,14 @@ const LAUNCH = "const r=require('module').createRequire(process.cwd()+'/package.
 
 // The table, the ladder and the drafted message are read by the agent, and the message is posted. So a value
 // from the repo or the environment is printed only when it matches a safe pattern, and plain words stand in for it otherwise.
-const SAFE = { range: /^[\d.xX*^~<>= |]{1,40}$/, host: /^[a-z0-9.-]+(:\d+)?$/i, version: /^\d+(\.\d+){0,2}(-[0-9A-Za-z.-]{1,40})?$/,
+const SAFE = { range: /^[\d.xX*^~<>= |]{1,40}$/, host: /^[a-z0-9.-]{1,253}(:\d{1,5})?$/i, version: /^\d+(\.\d+){0,2}(-[0-9A-Za-z.-]{1,40})?$/,
   code: /^E[A-Z0-9_]{2,30}$/, model: /^[\w.:@\/[\]-]{1,80}$/, effort: /^[a-z]{1,12}$/i, flag: /^--?[a-z][\w-]{0,30}$/i };
 const shown = (value, kind, instead) => (value != null && SAFE[kind].test(String(value)) ? String(value) : instead);
 // Command output can carry text from the repo too, so only a cause from this list, or an error code, is taken from it.
-const CAUSES = ["Read-only file system", "Permission denied", "Operation not permitted", "No space left on device", "Executable doesn't exist", "Host system is missing dependencies"];
+const CAUSES = ["Read-only file system", "Permission denied", "Operation not permitted", "No space left on device", "Executable doesn't exist",
+  "Host system is missing dependencies", "not a git repository", "dubious ownership"];
 const cause = (out = "", instead = "an error preflight doesn't print") =>
-  CAUSES.find((c) => out.toLowerCase().includes(c.toLowerCase())) ?? /\b(E[A-Z_]{4,}|E\d{3})\b/.exec(out)?.[1] ?? instead;
+  CAUSES.find((c) => out.toLowerCase().includes(c.toLowerCase())) ?? shown(/\b(E[A-Z_]{4,30}|E\d{3})\b/.exec(out)?.[1], "code", instead);
 
 /** Which tool this session runs in, from what it sets in the environment. --tool overrides a wrong guess. */
 export function detectTool(env = {}) {
@@ -46,7 +48,7 @@ export function detectTool(env = {}) {
   return "other";
 }
 
-/** True when a version fits a simple range (>=22, ^22, 22.x, "22.x || 24.x"). A range it can't read never blocks. */
+/** True when a version fits a simple range (>=22, ^22, 22.x, "22.x || >= 24"). Range syntax it can't read never blocks. */
 export function satisfies(version, range) {
   const v = String(version).split(".").map(Number);
   const cmp = (want) => { for (let i = 0; i < 3; i++) { const d = (v[i] ?? 0) - (want[i] ?? 0); if (d) return d; } return 0; };
@@ -64,14 +66,12 @@ export function satisfies(version, range) {
     if (op === "~") return v[0] === want[0] && (b === undefined || v[1] === b) && cmp(want) >= 0;
     return v[0] === want[0] && (b === undefined || v[1] === b) && (c === undefined || v[2] === c);
   };
-  let readable = false;
-  const fits = String(range).split("||").some((part) => {
-    const results = part.trim().split(/\s+/).filter(Boolean).map(one);
-    if (!results.length || results.includes(null)) return false;
-    readable = true;
-    return results.every(Boolean);
-  });
-  return readable ? fits : true;
+  const parts = String(range).split("||").map((part) => part.trim().replace(/(>=|<=|>|<|=|\^|~)\s+/g, "$1"))
+    .filter((part) => /^[\w.*^~<>=+ -]+$/.test(part)).map((part) => part.split(" ").filter(Boolean).map(one));
+  // A part with characters no range uses was dropped above. Range syntax this small reader can't follow
+  // (a hyphen range, a prerelease) may still fit Node, so it never blocks. Nor does a range with nothing left.
+  if (!parts.length || parts.some((results) => results.includes(null))) return true;
+  return parts.some((results) => results.every(Boolean));
 }
 
 // Rung 2: the tool's own way to run one command outside the sandbox.
@@ -90,14 +90,19 @@ const ENV_TOOLS = {
 };
 const CODEX_TRUST = "Trust this project so `.codex/config.toml` loads (it sets `network_access = true`), then restart Codex.";
 
+// Rung 1's project-local cache, in each manager's own words. yarn 2+ has no --prefer-offline, and yarn and bun have no --cache.
+const CACHE = { npm: "`npm install --prefer-offline --cache .npm-cache`", pnpm: "`pnpm install --prefer-offline --store-dir .pnpm-store`",
+  yarn: "`YARN_CACHE_FOLDER=.yarn-cache yarn install` (yarn 1 and 2+ both read it)", bun: "`bun install --cache-dir .bun-cache`" };
+
 /** The four rungs for a blocked check: 1 workarounds, 2 one command outside the sandbox, 3 environment tools, 4 the person. */
-function ladder(id, tool, { host = "the registry", install = "npm install", want = "" } = {}) {
+function ladder(id, tool, { host = "the registry", pm = "npm", want = "" } = {}) {
+  const install = `${pm} install`;
   const by = {
     repo: ["Work in a folder you can write: a temp folder, or a fresh clone under your home folder.", "touch a file here",
       { any: "Make this folder writable for the agent, or open the session in a folder that is." }],
     git: ["`git init` in a writable place and commit there (`git init --separate-git-dir <a writable folder>`), or keep working and commit at the end.",
       "git commit", { any: "Run the git command in your own terminal in this folder, or let the agent's git run outside the sandbox when it asks." }],
-    registry: [`A project-local cache: \`${install} --prefer-offline --cache .npm-cache\` (pnpm: \`--prefer-offline --store-dir .pnpm-store\`). Check \`.npmrc\` names the registry you mean.`,
+    registry: [`A project-local cache: ${CACHE[pm]}. Check \`.npmrc\` names the registry you mean.`,
       install, { codex: CODEX_TRUST, claude: `Allow network access to ${host} for this project, or run \`${install}\` in your own terminal in this folder.`,
         "claude-cloud": `Allow ${host} in the cloud environment's network settings.`, other: `Give the agent's sandbox network access to ${host}, or run \`${install}\` in your own terminal in this folder.` }],
     loopback: ["Try another port. Run the server and the tests in the same process (no listening port). Next.js: `--webpack` in place of Turbopack.",
@@ -135,6 +140,10 @@ function checkRepo(dir, tool) {
 function checkGit(dir, tool, sys) {
   const top = sys.run("git", ["rev-parse", "--show-toplevel"], { cwd: dir });
   if (!top) return { status: "blocked", detail: "git isn't installed", ladder: ladder("git", tool) };
+  if (!top.ok && existsSync(join(dir, ".git"))) {
+    return { status: "fix", detail: `a .git is here, but git can't read it: ${cause(top.out, "git's error isn't printed")}`,
+      ladder: selfFix("run `git status` and fix what it says (a `.git` file that points nowhere, or `safe.directory` for dubious ownership), then run preflight again.") };
+  }
   if (!top.ok) return { status: "fix", detail: "no git repo here yet", ladder: selfFix("`git init`, then run preflight again.") };
   const name = `onrails-preflight-${randomBytes(4).toString("hex")}`;
   // A temp branch proves refs can be written. A repo with no commit yet has nothing to branch from, so a temp config key stands in.
@@ -146,16 +155,17 @@ function checkGit(dir, tool, sys) {
   return { status: "ok", detail: hasCommit ? "made and deleted a temp branch" : "wrote and removed a temp config key (no commit yet)" };
 }
 
-function checkRegistry(dir, tool, sys, install) {
+function checkRegistry(dir, tool, sys, pm) {
   const url = sys.run("npm", ["config", "get", "registry"], { cwd: dir });
   if (!url) return { status: "blocked", detail: "npm isn't installed", ladder: ladder("versions", tool) };
-  let host = "the registry in .npmrc";
-  try { host = shown(new URL(url.out.trim()).host, "host", host); } catch { /* not a URL: keep the plain words */ }
+  // Node before 18.17 has no URL.canParse: then plain words, and the versions row says Node is too old.
+  const raw = url.out.trim();
+  const host = shown(URL.canParse?.(raw) ? new URL(raw).host : null, "host", "the registry in .npmrc");
   // The metadata of one package, fresh from the registry the project's .npmrc names. npm honours the session's proxy.
   const meta = sys.run("npm", ["view", "npm", "dist-tags.latest", "--prefer-online", "--fetch-retries=0", "--fetch-timeout=10000"], { cwd: dir, timeout: 30000 });
   if (meta?.ok) return { status: "ok", detail: `${host} answered` };
   const code = cause(meta?.out, "no answer");
-  return { status: "blocked", detail: `${host} didn't answer (${code})`, ladder: ladder("registry", tool, { host, install }) };
+  return { status: "blocked", detail: `${host} didn't answer (${code})`, ladder: ladder("registry", tool, { host, pm }) };
 }
 
 function checkGithub(dir, sys) {
@@ -195,6 +205,22 @@ function readManager(pkg) {
   return known ? { name, version } : { name: null };
 }
 
+// yarn follows a yarnPath in the repo's config, and so runs the repo's own yarn release. Until the repo has been read
+// (/join writes docs/state.md), preflight runs no yarn there: it reads that release's version from its file name.
+function ownYarn(dir) {
+  const rc = [[".yarnrc.yml", /^yarnPath:[ \t]*["']?([^"'\n#]+)/m], [".yarnrc", /^yarn-path[ \t]+["']?([^"'\n#]+)/m]]
+    .map(([file, re]) => existsSync(join(dir, file)) && re.exec(readFileSync(join(dir, file), "utf8"))?.[1]).find(Boolean);
+  return rc ? { version: shown(/yarn-([^/\\]+?)\.c?js\s*$/.exec(rc)?.[1], "version", null) } : null;
+}
+
+/** The manager's version: { version, installed, own }. own marks a yarnPath release read from its file name, not run. */
+function managerVersion(dir, sys, pm) {
+  const own = pm === "yarn" && !existsSync(join(dir, "docs", "state.md")) ? ownYarn(dir) : null;
+  if (own) return sys.has(pm) ? { version: own.version, installed: true, own: true } : { version: null, installed: false };
+  const have = sys.run(pm, ["--version"], { cwd: dir });
+  return { version: have?.ok ? shown(firstLine(have.out), "version", "(version not shown)") : null, installed: Boolean(have?.ok) };
+}
+
 function checkVersions(dir, tool, sys, pkg, manager) {
   const range = pkg?.engines?.node ?? ">=22";
   const want = shown(range, "range", "the range in package.json's engines.node");
@@ -206,11 +232,13 @@ function checkVersions(dir, tool, sys, pkg, manager) {
     return { status: "limited", detail: `Node ${node} (needs ${want}); unrecognised packageManager in package.json, so none ran. Preflight runs only npm, pnpm, yarn or bun, with a plain or prerelease version` };
   }
   const { name: pm, version: pin } = manager;
-  const have = sys.run(pm, ["--version"], { cwd: dir });
-  const version = have?.ok ? shown(firstLine(have.out), "version", "(version not shown)") : null;
+  const { version, installed, own } = managerVersion(dir, sys, pm);
+  if (own && installed && !version) {
+    return { status: "limited", detail: `Node ${node} (needs ${want}); the repo's yarnPath runs its own yarn, and preflight runs none before the repo is read` };
+  }
   // A prerelease pin (4.0.0-rc.42) keeps the name and its probe. Only a plain pin's major is compared.
   const compared = pin !== undefined && /^\d+(\.\d+){0,2}$/.test(pin);
-  const note = pin !== undefined && !compared ? ` (pins ${pin}, a prerelease: not compared)` : "";
+  const note = (pin !== undefined && !compared ? ` (pins ${pin}, a prerelease: not compared)` : "") + (own ? " (the repo's own release, not run before the repo is read)" : "");
   if (version && (!compared || version.split(".")[0] === pin.split(".")[0])) return { status: "ok", detail: `Node ${node} (needs ${want}), ${pm} ${version}${note}` };
   return { status: "fix", detail: version ? `${pm} ${version}, the project pins ${pin}` : `${pm} isn't installed`,
     ladder: selfFix(`\`corepack enable && corepack prepare ${pm}@${pin ?? "latest"} --activate\`, then run preflight again.`) };
@@ -243,7 +271,7 @@ export async function probe(dir, sys = realSys(), given = {}) {
   const found = {
     repo: checkRepo(dir, tool),
     git: checkGit(dir, tool, sys),
-    registry: checkRegistry(dir, tool, sys, `${pm} install`),
+    registry: checkRegistry(dir, tool, sys, pm),
     github: checkGithub(dir, sys),
     loopback: loop.ok ? { status: "ok", detail: loop.detail } : { status: "blocked", detail: `can't listen on 127.0.0.1: ${loop.detail}`, ladder: ladder("loopback", tool) },
     browser: checkBrowser(dir, tool, sys, pkg, pm),
@@ -303,6 +331,14 @@ function recordLine(report) {
   return `- **Environment:** ${open.length ? `open: ${open.join(", ")}` : "ok"} · checked ${report.checkedAt} · ${report.tool} · fp ${report.fingerprint}${ran}`;
 }
 
+/** The file a command name starts, found on PATH (with PATHEXT on Windows), or undefined. Nothing is run. */
+function onPath(cmd, platform, env) {
+  const win = platform === "win32";
+  const exts = win ? (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").toLowerCase().split(";").filter((e) => /^\.(com|exe|bat|cmd)$/.test(e)) : [""];
+  return (env.PATH || env.Path || "").split(win ? ";" : ":").filter(Boolean)
+    .flatMap((dir) => exts.map((ext) => join(dir, cmd + ext))).find((f) => existsSync(f) && statSync(f).isFile());
+}
+
 // No shell, ever: on Windows a shell joins the arguments into one unquoted cmd.exe line. So a command
 // is found on PATH, and only a .cmd or .bat shim (npm, pnpm, yarn) goes to cmd.exe, with plain words:
 // the same route as windowsArgv in the CLI's system.mjs.
@@ -310,9 +346,7 @@ function recordLine(report) {
 export function commandFor(cmd, args, { platform = process.platform, env = process.env, execPath = process.execPath } = {}) {
   if (cmd === "node") return { file: execPath, args };
   if (platform !== "win32") return { file: cmd, args };
-  const exts = (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").toLowerCase().split(";").filter((e) => /^\.(com|exe|bat|cmd)$/.test(e));
-  const found = (env.PATH || env.Path || "").split(";").filter(Boolean)
-    .flatMap((dir) => exts.map((ext) => join(dir, cmd + ext))).find((f) => existsSync(f) && statSync(f).isFile());
+  const found = onPath(cmd, platform, env);
   if (!found) return null;
   if (!/\.(bat|cmd)$/i.test(found)) return { file: found, args };
   if (args.some((a) => !/^[\w.:=/-]+$/.test(a))) throw new Error(`preflight passes only plain words to cmd.exe, not: ${args.join(" ")}`);
@@ -320,10 +354,11 @@ export function commandFor(cmd, args, { platform = process.platform, env = proce
   return { file: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], verbatim: true };
 }
 
-/** The real session: commands with a timeout, and a round trip on 127.0.0.1. */
+/** The real session: commands with a timeout, a PATH lookup that runs nothing, and a round trip on 127.0.0.1. */
 export function realSys() {
   return {
     env: process.env, node: process.versions.node, hostname: hostname(), platform: process.platform, now: () => Date.now(),
+    has: (cmd) => Boolean(onPath(cmd, process.platform, process.env)),
     run(cmd, args = [], { cwd, timeout = 15000 } = {}) {
       const how = commandFor(cmd, args);
       if (!how) return null;
@@ -348,6 +383,7 @@ export function realSys() {
 
 const USAGE = `preflight [dir] [--record] [--if-changed] [--json] [--model <id>] [--effort <level>] [--tool claude|claude-cloud|codex|other]`;
 
+/** The command line: reads the flags, runs or skips the probes, prints, records. Returns the exit code. */
 export async function main(argv, { sys = realSys(), log = console.log } = {}) {
   const given = {};
   const flags = new Set();
@@ -369,7 +405,8 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
     const tool = given.tool ?? detectTool(sys.env);
     const record = readRecord(state ?? "");
     if (record?.ok && record.fingerprint === sandboxPrint(dir, tool, sys, readJson(join(dir, "package.json")))) {
-      return log("Environment: ok on record, and nothing changed. Skipped the probes. Run without --if-changed to check again."), 0;
+      const detail = "Environment: ok on record, and nothing changed. Skipped the probes. Run without --if-changed to check again.";
+      return log(flags.has("--json") ? JSON.stringify({ ok: true, skipped: true, fingerprint: record.fingerprint, detail }, null, 2) : detail), 0;
     }
   }
   const report = await probe(dir, sys, given);

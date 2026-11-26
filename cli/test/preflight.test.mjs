@@ -1,70 +1,19 @@
 // Tests for preflight (#100): one table from probes of the agent's own session, a fix ladder
 // for every failure, one batched message for the person, and a record that lets /back skip
 // the slow probes. The probes run against a fake system, so nothing here needs a network.
-import { after, test } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CHECKS, commandFor, detectTool, fingerprint, main, probe, readRecord, render, satisfies, withRecord } from "../src/preflight.mjs";
-import { logger, put, tmp } from "./helpers.mjs";
+import { logger, put } from "./helpers.mjs";
+import { BLOCKED, fakeSys, HEALTHY, project, status, temp } from "./preflight-fakes.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/ask/scripts/preflight.mjs", import.meta.url));
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
-const NOW = Date.parse("2026-11-25T22:10:00Z");
-
-// A fake session. `answers` maps the start of a command line to { ok, out }; anything else
-// answers ok with no output. `missing` commands aren't installed. Every call is recorded.
-function fakeSys({ env = {}, answers = {}, missing = [], loopback = { ok: true, detail: "127.0.0.1:40001" }, node = "22.23.5", hostname = "box-1" } = {}) {
-  const calls = [];
-  return {
-    env, node, hostname, platform: "linux", now: () => NOW, calls,
-    loopback: async () => loopback,
-    run(cmd, args = []) {
-      const line = [cmd, ...args].join(" ");
-      calls.push(line);
-      if (missing.includes(cmd)) return null;
-      const key = Object.keys(answers).filter((k) => line.startsWith(k)).sort((a, b) => b.length - a.length)[0];
-      return key ? { ok: answers[key].ok, out: answers[key].out ?? "" } : { ok: true, out: "" };
-    },
-  };
-}
-
-// A healthy repo: git works, the registry answers, GitHub answers, pnpm is there.
-const HEALTHY = {
-  "git rev-parse --show-toplevel": { ok: true, out: "/repo" },
-  "git rev-parse --verify HEAD": { ok: true, out: "abc" },
-  "npm config get registry": { ok: true, out: "https://registry.npmjs.org/" },
-  "npm view": { ok: true, out: "12.0.0" },
-  "git remote get-url origin": { ok: true, out: "https://github.com/acme/app.git" },
-  "git ls-remote": { ok: true, out: "abc\trefs/heads/main" },
-  "gh api rate_limit": { ok: true, out: "{}" },
-  "pnpm --version": { ok: true, out: "10.28.0" },
-};
-const BLOCKED = {
-  ...HEALTHY,
-  "git branch": { ok: false, out: "fatal: cannot lock ref: Read-only file system" },
-  "git config": { ok: false, out: "error: could not lock config file .git/config: Read-only file system" },
-  "npm view": { ok: false, out: "npm error code ENOTFOUND\nnpm error network request to https://registry.npmjs.org/npm failed" },
-};
-
-// Every temp folder these tests make is removed when the file is done.
-const made = [];
-after(() => { for (const dir of made) rmSync(dir, { recursive: true, force: true }); });
-function temp(prefix) {
-  const dir = tmp(prefix);
-  made.push(dir);
-  return dir;
-}
-
-function project(files = {}) {
-  const dir = temp("onrails-preflight-");
-  for (const [path, text] of Object.entries(files)) put(dir, path, text);
-  return dir;
-}
-const status = (report, id) => report.results.find((r) => r.id === id).status;
 
 test("AC-100-1: preflight prints one table with a row for every check, and exits 0 when all pass", async () => {
   const dir = project({ "package.json": JSON.stringify({ engines: { node: ">=22" }, packageManager: "pnpm@10.28.0" }) });
@@ -256,7 +205,7 @@ test("a known package manager with a prerelease version keeps its name: its prob
   assert.equal(row.status, "ok", "a prerelease pin isn't compared");
   assert.match(row.detail, /yarn 3\.8\.7 \(pins 4\.0\.0-rc\.42, a prerelease: not compared\)/);
   const text = render(report);
-  assert.match(text, /`yarn install --prefer-offline/);
+  assert.match(text, /`YARN_CACHE_FOLDER=\.yarn-cache yarn install`/);
   assert.doesNotMatch(text, /\bnpm install\b/, "a yarn project is never told to run npm");
   const missing = await probe(project({ "package.json": pkg }), fakeSys({ answers: HEALTHY, missing: ["yarn"] }));
   assert.match(missing.results.find((r) => r.id === "versions").ladder[0].text, /corepack prepare yarn@4\.0\.0-rc\.42 --activate/);
@@ -265,7 +214,7 @@ test("a known package manager with a prerelease version keeps its name: its prob
   const locked = fakeSys({ answers: BLOCKED });
   const odd = await probe(project({ "package.json": JSON.stringify({ packageManager: "yarn@4;x" }), "yarn.lock": "" }), locked);
   assert.ok(!locked.calls.some((c) => c.startsWith("yarn")), `ran: ${locked.calls.join(" | ")}`);
-  assert.match(render(odd), /`yarn install --prefer-offline/);
+  assert.match(render(odd), /`YARN_CACHE_FOLDER=\.yarn-cache yarn install`/);
   assert.doesNotMatch(render(odd), /\bnpm install\b/);
 });
 
