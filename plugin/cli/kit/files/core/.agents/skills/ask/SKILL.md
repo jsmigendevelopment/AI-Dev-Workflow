@@ -47,6 +47,7 @@ Stopping a run throws away the work it already paid for. Restarting pays for it 
 - **A strongest-tier run** (the Strongest row in `routing`, or the profile's `strongest`, for example Fable or GPT-6.2 Astra): never stop, cancel or restart it on your own call, or because a message might mean stop. Everyday-tier runs and below may be stopped or restarted when that makes sense.
 - **"Don't start", "not yet", "just document it"** are about new work only. A run already going keeps going. Say what you will and won't do: "The Astra wireframe run keeps running. I'll write the plan and start nothing new."
 - **A clear stop from the person, aimed at that run** ("pause it", "stop it", "kill it", "cancel it", "stop the Astra run"): stop it now, on any tier, with no question. Then say what stopped and where its partial output is. A "stop" inside a not-yet sentence ("stop, we're not doing Astra yet") isn't clear: that's the next case.
+- **A pause or stop aimed at everything** ("pause", "stop everything", "go to sleep"): it covers this run too. Follow "Pause and stop" below.
 - **Could the message mean stop a strongest-tier run?** Touch nothing. Ask, as a ⏳ decision, and recommend letting it finish:
 
   ```text
@@ -63,6 +64,25 @@ Stopping a run throws away the work it already paid for. Restarting pays for it 
 - **Before a restart,** look for output you can reuse: the transcript, its files, its branch, a partial result. Say what the restart costs and what it reuses. Restarting a strongest-tier run is the person's call.
 
 **Done when** no strongest-tier run was stopped or restarted without the person's words, and your reply says what keeps running.
+
+## Pause and stop
+
+The person's two words do different things. `P` is `node .agents/skills/ask/scripts/procs.mjs`, the process registry. Neither word waits for the current step to finish.
+
+| They say | It means | Right away |
+|---|---|---|
+| "pause", "hold on", "brb", "pause all" | Back soon | Stop agent work, runs, loops, polling and timers, and start nothing new. Keep only what makes coming back instant, like the session and the dev server: `P stop <id>` for the rest, then `P pause` marks what's left paused. They stop on their own after `[workflow] pause_hours` (2) or at session end. |
+| "stop", "stop everything", "shut it down", "kill it", "go to sleep", "I'm done for the day" | Go to sleep | Stop everything this session owns: `P stop mine`, then cancel the sweep timer (`coordinate`, "Start", step 1) and every loop, monitor and scheduled task you made, with the tool that made it. Nothing of yours may use CPU, memory or network. |
+
+Unclear which? Take the lighter one, pause, and say that "stop" also frees the resources.
+
+Then, for both:
+
+1. Write the resume note in `docs/state.md`: what was in flight and the next step, so `/back` can pick up from the repo alone.
+2. Show the proof: `P list --mine`, and `timer.mjs status` if you armed a timer. After a stop: `Nothing this session started is running.` and `none`.
+3. Touch only what this session started. Another thread's processes, other projects and the person's own servers stay. To stop one, ask first: `P stop all`, another live session's id and a PID the registry didn't record are refused without `--yes`, which you add only after the person's yes.
+
+Back from a pause: `P resume`. **Done when** the proof shows only paused items (pause) or nothing (stop), and the resume note is written.
 
 ## The message
 

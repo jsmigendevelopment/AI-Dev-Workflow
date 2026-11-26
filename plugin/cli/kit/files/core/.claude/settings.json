@@ -47,6 +47,14 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.agents/skills/afk/scripts/worklog.mjs\" log session-end"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.agents/skills/ask/scripts/procs.mjs\" session-end"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [

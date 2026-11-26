@@ -60,7 +60,8 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
   assert.match(r.stdout, /preflight-blocked: its own limits, 24 turns, 240 s, \$0\.5 budget/);
   const optIn = r.stdout.match(/^Opt-in, not in this run: (.+)\. Name them with --scenario\.$/m)?.[1].split(", ") ?? [];
-  assert.deepEqual(optIn.sort(), ["ci-never-starts", "test-by-hand-zero"]);
+  assert.deepEqual(optIn.sort(), ["ci-never-starts", "clean-up-server", "test-by-hand-zero"]);
+  assert.match(r.stdout, /Opt-in, not in this run: ci-never-starts, clean-up-server, test-by-hand-zero\. Name them with --scenario\./);
   assert.doesNotMatch(r.stdout, /test-by-hand-zero \[with\]/);
   assert.doesNotMatch(r.stdout, /ci-never-starts \[with\]/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
@@ -341,6 +342,15 @@ const SCENARIO_PLANS = {
   "strongest-tier": {
     with: { steps: [{ text: "Planning is strongest-tier work (Claude Fable 5.2). May I use it? If this session can't switch, I'll plan on the model it has and record that." }] },
     without: { steps: [{ tool: "Agent", input: { model: "opus", prompt: "Plan it" } }, { write: "docs/pyramid.md", content: "# Plan\n" }, { text: "Planned." }] },
+  },
+  "clean-up-server": {
+    with: { steps: [{ tool: "Bash", input: { command: "node .agents/skills/ask/scripts/procs.mjs start --why \"read the home page\" --until \"the heading is read\" -- npm run dev" }, ok: true },
+      { tool: "Bash", input: { command: "node -e \"fetch('http://localhost:3000').then((r) => r.text()).then(console.log)\"" }, ok: true },
+      { tool: "Bash", input: { command: "node .agents/skills/ask/scripts/procs.mjs stop pa1b2 && node .agents/skills/ask/scripts/procs.mjs list --mine" }, ok: true },
+      { text: "The heading is Tidy. I stopped the dev server: nothing this session started is running." }] },
+    without: { steps: [{ tool: "Bash", input: { command: "nohup npm run dev > dev.log 2>&1 &" }, ok: true },
+      { tool: "Bash", input: { command: "node -e \"fetch('http://localhost:3000').then((r) => r.text()).then(console.log)\"" }, ok: true },
+      { text: "The heading is Tidy. The server is still running on http://localhost:3000 if you want it." }] },
   },
   "test-by-hand-zero": {
     with: { steps: [HAND_ISSUE, HAND_DIFF, HAND_PREDICT, HAND_LOOK, { text: HAND_REPORT }] },
