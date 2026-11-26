@@ -79,4 +79,8 @@ test("#171: the owner's words are a decision row with originator person", () => 
   const row = kit("docs/decisions.md").split("\n").find((l) => l.includes("(#171)") && l.includes("never the person's to fix")) ?? "";
   assert.ok(row.includes('"instead of just running less processes or waiting it paused to ask me...... like....."'), "the owner's words, exact");
   assert.match(row, /\| person \|$/);
+  // Merged after #166's rows 51 to 53, so the #171 rows follow them: every number once, in order.
+  const numbers = kit("docs/decisions.md").split("\n").map((l) => l.match(/^\| (\d+) \|/)?.[1]).filter(Boolean).map(Number);
+  assert.deepEqual(numbers, numbers.map((_, i) => i + 1), "rows 1 to N, each once");
+  assert.match(row, /^\| 54 \|/);
 });
