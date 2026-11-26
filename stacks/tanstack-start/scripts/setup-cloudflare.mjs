@@ -23,7 +23,8 @@
 // What it makes for the smoke tests (the Access service token, the test site's password) goes in
 // .env.cloudflare.local as TEST_<name> or PRODUCTION_<name>, owner-only (mode 600), never printed.
 // It makes one only when that file is git-ignored and writable, saves the password there before
-// the Worker gets it, and deletes a new token again when its secret couldn't be saved.
+// the Worker gets it, and deletes a new token again when its secret couldn't be saved. A failed
+// `wrangler secret put` of the password stops it with exit 1: rerun with --new-password.
 // GitHub environments and secrets get them too only when docs/stack.md says ci = "actions".
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'

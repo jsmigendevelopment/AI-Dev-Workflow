@@ -42,10 +42,12 @@ export async function protectWithPassword(
     )
   const put = await deps.wrangler(['secret', 'put', 'SITE_PASSWORD', '--env', 'test'], password)
   if (put.status !== 0) {
-    log(
-      `  could not set SITE_PASSWORD on the test Worker: ${(put.stderr || put.stdout).trim().split('\n').at(-1)}`,
+    // The file keeps the new password: after a failed put nobody knows what the Worker holds, and
+    // only another --new-password run makes the two match for sure (#160). Never the value.
+    const why = (put.stderr || put.stdout).trim().split('\n').at(-1)?.replaceAll(password, '<hidden>')
+    throw new Error(
+      `could not set SITE_PASSWORD on the test Worker (${why}). TEST_SITE_PASSWORD in ${LOCAL_FILE} is now a new password the test Worker may not have. Run this again with --protect password --new-password so the two match.`,
     )
-    return false
   }
   log('  set SITE_PASSWORD on the test Worker (previews use it too)')
   if (github.gh) await ghSecret(deps, log, 'SITE_PASSWORD', password, ['test', 'preview'])

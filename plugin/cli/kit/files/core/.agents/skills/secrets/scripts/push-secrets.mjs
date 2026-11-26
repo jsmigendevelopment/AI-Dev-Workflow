@@ -8,8 +8,10 @@
 // On ci = "local" (every repo, unless the person turned Actions on) nothing reads GitHub's copies,
 // so nothing goes to GitHub: secrets go to the Cloudflare Workers with --wrangler, and plain
 // variables belong in wrangler.jsonc vars.
-// Its last line names, by name only, every value it stored nowhere ("Stored nowhere: ... Keep ..."),
-// or says "Every value is stored somewhere." Only then may .env.production.local go.
+// Its last line names, by name only, every value it stored nowhere ("Stored nowhere: ...") and
+// every value a destination failed for ("Not stored everywhere ..."), then "Keep ...". Only when
+// nothing failed does it say "Every value is stored somewhere." and exit 0; only then may
+// .env.production.local go.
 // GitHub Free has no environments on a private repo. There setup-github sets the repository
 // variable SECRETS_MODE to "repository", and this pushes repository secrets and variables named
 // TEST_<name> and PRODUCTION_<name> instead: the names the pack's workflows read in that mode.
@@ -23,8 +25,9 @@ const WRANGLER = args.includes("--wrangler");
 const only = args.includes("--env") ? args[args.indexOf("--env") + 1] : null;
 
 // "actions" only for a `ci = "actions"` line (a trailing # comment allowed) in the nearest
-// docs/stack.md, up to the repository root, or only in this folder before `git init`. The same
-// rule as setup-github.mjs and the TanStack pack's ci-mode.ts; one test runs the same cases on all.
+// docs/stack.md from this folder up to the repository root, or only in this folder before
+// `git init`. The same rule and lookup as setup-github.mjs, connect and the TanStack pack's
+// ci-mode.ts; cli/test/deploy-keys-followups runs the same fixtures on all four (#160).
 const CI_ACTIONS = /^ci[ \t]*=[ \t]*"actions"[ \t]*(?:#.*)?\r?$/m;
 function repoRoot(start) {
   for (let dir = start; ; dir = dirname(dir)) {
@@ -104,6 +107,8 @@ let failed = 0;
 let found = 0;
 // Every value no destination took, as `NAME (env)`: its .env.<env>.local is its only copy.
 const nowhere = [];
+// Every value some destination took and another failed for (GitHub yes, the Worker no, #160).
+const partly = [];
 for (const env of envs) {
   const file = `.env.${env}.local`;
   if (!existsSync(file)) { console.log(`${env}: no ${file}, skipped`); continue; }
@@ -122,6 +127,7 @@ for (const env of envs) {
       console.log(`${env}: ${name} ${DRY ? "would be" : "is"} stored nowhere (${why})`);
     }
     let stored = false;
+    let missed = false;
     for (const [cmd, cmdArgs] of targets) {
       const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})` : "Cloudflare secret";
       if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); stored = true; continue; }
@@ -131,16 +137,23 @@ for (const env of envs) {
         stored = true;
       } catch (e) {
         failed++;
+        missed = true;
         console.log(`${env}: FAILED ${name} as a ${where}: ${String(e.stderr || "").split("\n")[0]}`);
       }
     }
     if (!stored) nowhere.push(`${name} (${env})`);
+    else if (missed) partly.push(`${name} (${env})`);
   }
 }
-// The secrets skill offers to delete .env.production.local only after "Every value is stored somewhere."
+// The secrets skill offers to delete .env.production.local only after "Every value is stored
+// somewhere." and exit 0. A failure anywhere keeps that line from printing.
+const unstored = [...nowhere, ...partly];
 if (!found) console.log("No values found to store.");
-else if (nowhere.length) {
-  const keep = envs.filter((env) => nowhere.some((n) => n.endsWith(`(${env})`))).map((env) => `.env.${env}.local`);
-  console.log(`${DRY ? "Would store nowhere" : "Stored nowhere"}: ${nowhere.join(", ")}. Keep ${keep.join(" and ")} until each one is stored.`);
+else if (unstored.length) {
+  const said = [];
+  if (nowhere.length) said.push(`${DRY ? "Would store nowhere" : "Stored nowhere"}: ${nowhere.join(", ")}.`);
+  if (partly.length) said.push(`Not stored everywhere (a destination FAILED above): ${partly.join(", ")}.`);
+  const keep = envs.filter((env) => unstored.some((n) => n.endsWith(`(${env})`))).map((env) => `.env.${env}.local`);
+  console.log(`${said.join(" ")} Keep ${keep.join(" and ")} until each one is stored.`);
 } else console.log(DRY ? "Every value would be stored somewhere." : "Every value is stored somewhere.");
 process.exit(failed ? 1 : 0);
