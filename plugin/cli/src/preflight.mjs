@@ -374,7 +374,7 @@ export function render(report) {
   const out = [`Preflight · ${TOOLS[report.tool]} · ${report.checkedAt}`, "", "| Check | Result | Detail |", "|---|---|---|"];
   for (const r of report.results) out.push(`| ${r.label} | ${MARK[r.status]} | ${r.detail.replace(/\s+/g, " ").replaceAll("|", "\\|")} |`);
   out.push(...unreadNote(report), ...warningLines(report.warnings));
-  const open =report.results.filter((r) => r.status === "fix" || r.status === "blocked");
+  const open = report.results.filter((r) => r.status === "fix" || r.status === "blocked");
   const blocked = open.filter((r) => r.status === "blocked");
   if (!open.length) return [...out, "", "Environment: ok."].join("\n");
   out.push("", `${open.length} to fix. Work down each ladder in order, then run preflight again. Ask only for what's left, in ONE message.`);

@@ -73,7 +73,7 @@ Write one table per account to `[accounts]` in `docs/profile.toml`, and in `~/.o
 - An account owns a job when the project is in its `projects` (or it lists `"*"`) and the job is in its `jobs` (or it lists `"*"`).
 - A project named outright beats `"*"`.
 - Nothing matches: the account this session runs on.
-- Two match equally: ask the person (a ⏳ decision). Never pick by usage.
+- Two match equally: below Full, ask the person (a ⏳ decision). On Full, take the one listed first in `[accounts]`, record it as "AI pick, not reviewed" and put it in the FYI. Never pick by usage.
 - **This session's account:** the one whose `config_dir` matches `CLAUDE_CONFIG_DIR` or `CODEX_HOME` (unset means `~/.claude` or `~/.codex`). A cloud session runs on the account named in its brief. Not sure? Ask once.
 
 ## A job for another account

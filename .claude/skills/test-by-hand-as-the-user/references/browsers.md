@@ -23,7 +23,7 @@ Both act as the person. Their sign-ins are the person's: never sign out, change 
 
 ## Stop and say so
 
-- **A site waits for the person's permission?** Tell them and wait. Declined? Skip it and list it as not tested. Never work around it.
+- **A site waits for the person's permission?** Below Full, tell them and wait. On Full, skip it, list it as not tested and put it in the FYI. Declined? Skip it and list it as not tested. Never work around it.
 - **Alerts and confirm boxes freeze the extension.** Don't click what raises one, such as Delete. A test needs it? Warn the person first. Stuck on one? Ask them to close it in Chrome.
 - **Not connected, or no answer?** Say so once. Don't retry in a loop.
 - **The same action fails 2 or 3 times?** Stop, say what you tried, and ask how to go on.

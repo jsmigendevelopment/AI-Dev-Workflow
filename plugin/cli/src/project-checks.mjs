@@ -117,7 +117,7 @@ function actionsChecks(projectDir, sys) {
   const repo = remote?.ok ? githubRepo(remote.out) : null;
   if (!repo) return checks;
   const perms = sys.probe("gh", ["api", `repos/${repo}/actions/permissions`], { cwd: projectDir });
-  const on = perms?.ok ? actionsOn(perms.all) : null;
+  const on = perms?.ok ? actionsOn(perms.stdout) : null; // stdout alone: gh prints notices on stderr (#200)
   if (on) checks.push({ status: FAIL, label: `GitHub Actions is on for ${repo} (ci = "local")`, ...fix });
   else if (on === null) checks.push({ status: INFO, label: `GitHub Actions setting for ${repo} not checked (gh didn't answer: sign in with gh auth login)` });
   else if (!files.length) checks.push({ status: OK, label: `No GitHub Actions: no workflow files, and Actions is off for ${repo}` });

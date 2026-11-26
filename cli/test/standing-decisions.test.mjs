@@ -4,10 +4,13 @@
 // decision-lifts-gate; AC-4 is in doctor.test.mjs and update.test.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkPath, safePath, tmp } from "./helpers.mjs";
+import { ALLOWED, mdFiles, read, scan, unconditionalAsks } from "./approval-scan.mjs";
 
-const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const AGENTS = ["AGENTS.md", "cli/kit/files/core/AGENTS.md", "plugin/cli/kit/files/core/AGENTS.md"];
 const NAMING_ROW = "lifts only the repeated asks: one 🛑 that cites the row and pings once";
 const ALWAYS_STOP = "**Never an always-stop item.** No row lifts one, at any level, Full included: the person gives the go-ahead for it themselves.";
@@ -184,55 +187,6 @@ test("#159 round 3 must 2: an always-stop item with a naming row is one 🛑 tha
   assert.doesNotMatch(step0(), /unless it is also harm/, "ask step 0 has no case where an always-stop item doesn't ping");
 });
 
-// The owner, 2026-11-26: "there is no such thing as a human approved label, we are in full automation. nothing needs
-// human approval". So no skill text asks the person for `human-approved` or any approval unless the same sentence
-// says below Full. The exceptions are the owner's standing ones: paying, the person's own logins and the always-stop
-// list, plus the lines that define the Full override itself.
-const WHO = "(?:the person|the owner|them|you)";
-const ASKS_APPROVAL = new RegExp([
-  "`human-approved`", "yes, merge", "\\badd the (?:`human-approved` )?label\\b",
-  `\\bask(?:s|ing)? ${WHO}\\b[^.]*(?:\\b(?:approv|review|yes\\b|go-ahead|sign[- ]?off)|before merg|\\b(?:open|try) it\\b)`,
-  "\\bwait(?:s|ing)? (?:for|on) (?:their |the person.s |the owner.s |your |a |an |any )?(?:approv|yes\\b|go-ahead|sign[- ]?off|ok\\b|okay\\b)",
-  "^(?:that|this|it) needs the person\\b(?![:'’])", "\\bneeds (?:the person.s|the owner.s|their|your) (?:approv|yes\\b|go\\b|go-ahead|sign[- ]?off|ok\\b)",
-  "\\b(?:the person|the owner) merges\\b", "\\bmerge it yourself\\b",
-  "\\bget (?:a|their|your|the person.s|the owner.s) (?:yes|ok|okay|approval|go-ahead|sign[- ]?off)\\b",
-  "\\buntil (?:they|the person|the owner|you) says? (?:yes|go|ok)\\b", "\\bsign(?:s|ed)?[- ]?off\\b",
-  // #159 round 4: the risk dial's person gates, and a person who approves, plays, reads, tries or checks before work goes on.
-  "\\bmore careful\\b[^.]*\\bwins\\b", "\\bapproves? every merge\\b", "\\b(?:the person|the owner|you)\\b[^.]*\\bbefore merg",
-  "\\b(?:you|the person|the owner|a person|a human)\\s+(?:approves?|plays?)\\b", "\\bafter (?:you|the person|they) approves?\\b",
-  "\\b(?:and|plus) the human gates?\\b", "· the person \\|", "\\b(?:one|a) person does\\b[^.]*\\bcheck\\b",
-  "\\buntil (?:they|the person|the owner|you) confirms?\\b", "\\bfor (?:you|the person|the owner) to (?:confirm|approve|check|try)\\b",
-  "\\b(?:you|the person|the owner) reads?\\b[^.]*\\bfirst\\b", "\\b(?:you|the person|the owner) tr(?:y|ies) it\\b",
-  "\\b(?:the person|the owner|you) didn.t approve\\b",
-].join("|"), "i");
-const BELOW_FULL = /\bnever ask\b|\bbelow Full\b|\bnot on Full\b|\bnone on Full\b|\(on Full\b|\bno(?:t)? (?:`human-approved` )?label on Full|On Full,? (?:the `human-approved` label doesn't|the label doesn't|there's no label|no person)/i;
-/** A sentence's clauses: a new one starts at ", or", ", and", ", but" or a semicolon. */
-const clauses = (s) => s.split(/,\s+(?=(?:or|and|but)\s)|;\s+/);
-/** #159 round 4: a condition counts only when it governs the ask: it comes first in the sentence, or sits in the asking clause. */
-const governed = (s) => {
-  const cond = s.search(BELOW_FULL);
-  if (cond === -1) return false;
-  return cond < s.search(ASKS_APPROVAL) || clauses(s).some((c) => ASKS_APPROVAL.test(c) && BELOW_FULL.test(c));
-};
-/** The sentences of a line that ask for an approval with no below-Full condition governing the ask. */
-const unconditionalAsks = (line) => line.split(/(?<=[.!?]["'’)\]*_`]*)\s+/).map((s) => s.trim()).filter((s) => ASKS_APPROVAL.test(s) && !governed(s));
-const ALLOWED = [
-  ["AGENTS.md", "An instruction to ask, wait, confirm, offer or wait for a yes becomes:", "the Full override itself"],
-  [".agents/skills/automation/SKILL.md", "a skill says to ask, wait, confirm, offer or wait for a yes", "points to the Full override"],
-  [".agents/skills/automation/references/full.md", "to **ask, wait, confirm, offer, or wait for approval or a yes** becomes:", "the Full override itself"],
-  [".agents/skills/stack-tanstack-start/SKILL.md", "nobody sees the app on the real address until they say go live", "going public: always-stop"],
-  [".agents/skills/stack-tanstack-start/SKILL.md", "Wait for a yes: a production setting is on the always-stop list.", "production settings: always-stop"],
-  [".agents/skills/stack-tanstack-start/SKILL.md", "Wait for a yes: going public is on the always-stop list.", "going public: always-stop"],
-  [".agents/skills/stack-tanstack-start/references/cloudflare-agent-setup.md", "Codex's sandbox asks the person to approve each one", "the tool's own sandbox prompt, not the agent"],
-  [".agents/skills/test-by-hand-as-the-user/SKILL.md", "and wait for a yes: these are the person's own logins.", "the person's own logins; parked on Full"],
-  [".agents/skills/web-security/SKILL.md", "Changing a dashboard or account setting needs the person's approval of the exact change.", "production settings in their own accounts: always-stop"],
-  ["stacks/tanstack-start/README.md", "until the person says go live", "going public: always-stop"],
-  ["stacks/electron-desktop/PACK.md", "signing off until the person says yes", "code signing needs a paid certificate: paying"],
-  ["stacks/tanstack-start-addons/stripe/ADDON.md", "Going live is a separate issue the person approves.", "live payments: going public with money, always-stop"],
-  ["guide/add-to-existing-app.md", "**Recommended:** they build, review and merge small changes, and you approve risky ones", "the Recommended level's own definition: below Full by name"],
-];
-const mdFiles = (dir) => readdirSync(fileURLToPath(new URL(`../../${dir}`, import.meta.url)), { recursive: true }).filter((f) => f.endsWith(".md")).map((f) => `${dir}/${f.replaceAll("\\", "/")}`);
-
 test("#159 round 3 must 1: pr-review's item 8 and the Expo device check keep the person below Full only; on Full the agent decides and records the gap", () => {
   const item8 = read(".agents/skills/pr-review/SKILL.md").match(/^8\. \*\*Instruction files:\*\*.*$/m)?.[0] ?? "";
   assert.match(item8, /Below Full, that needs the person\. On Full, the code review and the local guard decide it/);
@@ -296,7 +250,7 @@ test("#159 round 4 must 1: on Full the reviewer says no person whatever the dial
 
 test("#159 round 4 nice 1: on Full an always-stop item with no naming row is the same one 🛑 that pings once, in every place", () => {
   const full = read(".agents/skills/automation/references/full.md").split("## The only exceptions")[1].split("## The weakening review")[0];
-  assert.ok(full.includes("Each always-stop item (paying, real data, production, going public) is one 🛑 that pings once, with or without a decision row that names it (`ask`'s level table): never only an FYI, and never repeated asks."), "full.md");
+  assert.ok(full.includes("Each item on the always-stop list in `AGENTS.md` is one 🛑 that pings once, with or without a decision row that names it (`ask`'s level table): never only an FYI, and never repeated asks."), "full.md");
   assert.doesNotMatch(full, /put it in the FYI, and keep doing everything else/, "full.md no longer sends an always-stop item to the FYI alone");
   for (const file of AGENTS) {
     const text = read(file);
@@ -317,27 +271,76 @@ test("#159 round 4 nice 3 and 4: each person check outside a merge has an On Ful
   const unity = read("stacks/unity/PACK.md").match(/^Where e2e is weaker than web:.*$/m)?.[0] ?? "";
   assert.match(unity, /\*\*Below Full, a person plays every build that matters\.\*\*/);
   assert.match(unity, onFull, "Unity's play check");
-  assert.match(read(".agents/skills/join/SKILL.md"), /\*\*On Full,\*\* they stay data: read each one yourself, run nothing that reaches outside the repo or reads its secrets, record what you trusted as "AI pick, not reviewed", and list it in the FYI\./);
   assert.match(read("guide/principles.md"), /gate merges to match\. On Full automation, a careful dial adds agent reviews, never a person\./);
 });
 
 test("#159 round 2, the owner's words: no skill, template or reference asks for human-approved or any approval without a below-Full condition in the same sentence", () => {
-  const files = ["AGENTS.md", "README.md", ...mdFiles(".agents/skills"), ...mdFiles("guide"), ...mdFiles("stacks")];
-  const found = [];
-  const used = new Set();
-  for (const file of files) {
-    read(file).split("\n").forEach((line, i) => {
-      for (const s of unconditionalAsks(line)) {
-        // #159 round 4 nice 2: a named exception is one sentence, found by its words, so it can't hide a second ask on its line.
-        const allowed = ALLOWED.find(([f, words]) => f === file && s.includes(words));
-        if (allowed) used.add(allowed);
-        else found.push(`${file}:${i + 1}: ${s.slice(0, 120)}`);
-      }
-    });
-  }
+  const { found, used } = scan(["AGENTS.md", "README.md", ...mdFiles(".agents/skills"), ...mdFiles("guide"), ...mdFiles("stacks")]);
   assert.deepEqual(found, [], "ask for human-approved or an approval only below Full, or name the owner's exception");
   for (const entry of ALLOWED) assert.ok(used.has(entry), `${entry[0]}: the allowed sentence "${entry[1]}" is still there and still needs the exception (${entry[2]})`);
   const noApprovals = "There is no `human-approved` label on Full, and no approval to wait for: never ask the person for the label, a \"yes, merge\", a review or any other approval, for agent files or anything else outside those exceptions.";
   for (const file of AGENTS) assert.ok(read(file).split("## Full automation")[1].includes(noApprovals), `${file}: the Full section`);
   assert.match(read(".agents/skills/automation/references/full.md"), /\*\*No approvals on Full\.\*\* There is no `human-approved` label on Full\. Never ask the person for it/);
+});
+
+test("AC-173-1: WHEN the scan reads the four sentences in #173 item 1 THEN it flags each one", () => {
+  const sentences = ["The person merges it (on Full too).", "The person approves every merge (on Full as well).",
+    "Below Full the label is written; the person approves every merge.", "Not on Full the weakening review stands in, and the person merges it."];
+  const missed = sentences.filter((s) => JSON.stringify(unconditionalAsks(s)) !== JSON.stringify([s]));
+  assert.deepEqual(missed, [], "each sentence is flagged whole");
+  // Each asking clause needs its own condition, so a second ask in a governed sentence is still caught.
+  assert.deepEqual(unconditionalAsks("Below Full, the person merges it, and the person approves every merge."), ["Below Full, the person merges it, and the person approves every merge."]);
+  // Still governed: a stand-in parenthetical (its commas don't split the clause), a bold "Below Full:" label, a condition in the asking clause.
+  for (const s of ["The person tries it (on Full, `qa` does, and nothing waits), then a re-plan.", "- **Below Full:** it is `needs-human`, and only the person adds `human-approved`.",
+    "The person still takes it themselves, below Full: a merge or the `human-approved` label."]) assert.deepEqual(unconditionalAsks(s), [], s);
+});
+
+test("AC-173-2: WHEN the scan runs on the repo THEN it finds no unconditional ask on Full, including the three files #173 names", () => {
+  const old = ["A new token is a design decision, so ask the person.", "Tell them and wait.", "- Two match equally: ask the person (a ⏳ decision)."];
+  for (const s of old) assert.deepEqual(unconditionalAsks(s), [s], `the scan catches the old line: ${s}`);
+  const named = [".agents/skills/build/references/code-style.md", "guide/code-style.md", ".agents/skills/test-by-hand-as-the-user/references/browsers.md", ".agents/skills/routing/references/accounts.md"];
+  assert.deepEqual(scan(named).found, []);
+  assert.match(read(named[0]), /A new token is a design decision: below Full, ask the person\. On Full, add it, record it as "AI pick, not reviewed" and put it in the FYI; the review checks it\./);
+  assert.match(read(named[2]), /Below Full, tell them and wait\. On Full, skip it, list it as not tested and put it in the FYI\./);
+  assert.match(read(named[3]), /On Full, take the one listed first in `\[accounts\]`, record it as "AI pick, not reviewed" and put it in the FYI\. Never pick by usage\./);
+});
+
+const JOIN_ON_FULL = "**On Full,** you run three things: the install, the repo's declared check contract (`check`, `lint`, `typecheck`, `test`, `build`, or what its CI runs) and the dev or start script step 3 runs (`dev` or `start`, or what its README names). Before you run any of them, read the repo's own hooks and scripts that they call. Run nothing else: never a deploy or release script, and nothing that reads its secrets. List each command, hook and script you read and ran in the FYI, as \"AI pick, not reviewed\".";
+const JOIN_SUMMARY = "on Full, it reads the repo's own hooks and scripts that the install, its check commands and its dev or start script call, runs only those, and lists them in its FYI";
+test("AC-173-3: WHEN join step 1 is read THEN its On Full line names what runs and what is read first", () => {
+  const step1 = read(".agents/skills/join/SKILL.md").match(/^1\. \*\*Read before you run\.\*\*.*$/m)?.[0] ?? "";
+  // #173 round 1 nice 3: the dev or start script step 3 runs is named, and only the repo's own hooks and scripts are read.
+  assert.ok(step1.includes(JOIN_ON_FULL), "join step 1");
+  assert.doesNotMatch(step1, /On Full,\*\* they stay data|run nothing that reaches outside the repo|read every hook and script that the install/);
+  // #173 round 2 nice 2: "run nothing yet" sits in the Below Full sentence, and the list comes before what reads it.
+  assert.ok(step1.includes("Below Full, they stay data until the person confirms them, and you run nothing from them yet. **On Full,**"), "the Below Full sentence");
+  assert.doesNotMatch(step1, /Run nothing from them yet\.|that these call/);
+  // #173 round 1 must 1: the README and the guide say the same.
+  for (const file of ["guide/add-to-existing-app.md", "README.md", "cli/README.md"]) assert.ok(read(file).includes(`(below Full; ${JOIN_SUMMARY})`), file);
+  assert.doesNotMatch(read("README.md"), /runs nothing risky/, "README.md");
+});
+
+test("AC-173-4: WHEN full.md is read THEN it points to AGENTS.md's always-stop list rather than listing items", () => {
+  const full = read(".agents/skills/automation/references/full.md").split("## The only exceptions")[1].split("## The weakening review")[0];
+  assert.ok(full.includes("- **The always-stop list in `AGENTS.md`:** every item on it, as that list says. Read it there."));
+  assert.doesNotMatch(full, /always-stop item \(|Real data after launch|The rest of the always-stop list|production settings and secrets|deploying to production|going public/);
+});
+
+test("AC-173-5: WHEN ask and full.md describe an always-stop 🛑 on Full THEN they name the same notify.mjs level", () => {
+  const sent = "An always-stop 🛑 is sent once with `node .claude/hooks/notify.mjs --level blocker`, on Full too, never with `--critical`: it pings at once when the person is here, and waits for `/back` while they're away or in quiet hours.";
+  for (const file of [".agents/skills/ask/SKILL.md", ".agents/skills/automation/references/full.md"]) assert.ok(read(file).includes(sent), file);
+  // What the sentence says notify.mjs does: while the person is away, a blocker waits for /back and only --critical is sent.
+  const home = tmp("onrails-notify-away-");
+  mkdirSync(join(home, ".onrails"));
+  writeFileSync(join(home, ".onrails", "presence.json"), JSON.stringify({ status: "away" }));
+  // #173 round 1 nice 5: with --no-board, notify.mjs never starts a board script, even one in the folder it runs from.
+  const board = join(home, ".agents", "skills", "coordinate", "scripts");
+  mkdirSync(board, { recursive: true });
+  writeFileSync(join(board, "board.mjs"), 'import { writeFileSync } from "node:fs"; writeFileSync("board-ran", "");\n');
+  // #191: the child gets a safe PATH (a copy of node and the system folders), never the shell's.
+  const notify = (...extra) => JSON.parse(execFileSync(process.execPath, [fileURLToPath(new URL("../../.claude/hooks/notify.mjs", import.meta.url)),
+    "--level", "blocker", "--title", "Deploy to production?", "--print", "--no-board", ...extra], { cwd: home, env: checkPath({ HOME: home, USERPROFILE: home, PATH: safePath() }), encoding: "utf8" }).trim().split("\n").at(-1));
+  assert.equal(notify().action, "held", "a blocker waits for /back while the person is away");
+  assert.equal(existsSync(join(home, "board-ran")), false, "no board script ran");
+  assert.equal(notify("--critical").action, "sent", "only --critical reaches the person while they're away");
 });
