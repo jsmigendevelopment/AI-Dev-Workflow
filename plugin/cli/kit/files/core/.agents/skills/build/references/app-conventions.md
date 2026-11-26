@@ -38,7 +38,7 @@ No prop drilling past two levels. If a value goes through more than two componen
 - The pull request body says `Closes #<n>`. The merge closes the issue.
 - The only exception is the `no-issue` label. Dependabot gets it. A person can add it for a one-off chore.
 
-**A check enforces it.** The stack pack ships `pr:rules`, which the session runs before merge: it fails a pull request when the branch name has no issue number, or the body has no `Closes #<n>`, unless it has the `no-issue` label. A stack without `pr:rules` gets the same rules from the kit's `pr-rules.mjs`, which the local gate runs instead (`coordinate` step 6.1).
+**A check enforces it.** Before merge, the local gate (`coordinate` step 6.1) runs the kit's `pr-rules.mjs` from its checkout of main, on every stack: it fails a pull request when the branch name has no issue number, or the body has no `Closes #<n>`, unless it has the `no-issue` label. The web pack's `pr:rules` runs them by hand.
 
 **Why:** the issue holds the acceptance checks and the fence. A pull request without one has nothing to review against, and work without an issue is work nobody asked for. The link also lets anyone go from a line of code to the reason it exists.
 
