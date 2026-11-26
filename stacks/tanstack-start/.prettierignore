@@ -21,4 +21,5 @@ CLAUDE.md
 
 # The app's docs (#152). Agents write them from the kit's templates, tables unpadded; formatting them
 # would make every edit to decisions.md or state.md a noisy diff that also needs `pnpm format`.
-docs
+# The leading slash keeps it to the root: a plain `docs` would also hide src/routes/docs/ and the like.
+/docs
