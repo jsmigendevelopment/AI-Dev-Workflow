@@ -86,3 +86,20 @@ test("update without an install says to run init", async () => {
   assert.equal(await update(tmp(), { kitDir: makeKit("0.2.0", v2), log }), 1);
   assert.match(log.text(), /init/);
 });
+
+// #143 item 5: update flags a repo on Full that's on a kit from before the Full override, and says this
+// update brings it in.
+test("AC-143-4: update says a repo on Full with a kit older than 0.7.0 needs this update", async () => {
+  const dir = tmp();
+  init(dir, { kitDir: makeKit("0.5.3", v1), log: logger() });
+  put(dir, "docs/stack.md", "## Automation level\n\n- **Level:** full\n");
+  const log = logger();
+  assert.equal(await update(dir, { kitDir: makeKit("0.7.0", v2), dryRun: true, log }), 0);
+  assert.match(log.text(), /Full automation on kit v0\.5\.3: kits before v0\.7\.0 still stop for gates that Full and your decisions lift\. This update brings v0\.7\.0\./);
+
+  const recommended = tmp();
+  init(recommended, { kitDir: makeKit("0.5.3", v1), log: logger() });
+  const quiet = logger();
+  await update(recommended, { kitDir: makeKit("0.7.0", v2), dryRun: true, log: quiet });
+  assert.doesNotMatch(quiet.text(), /Full automation on kit/);
+});

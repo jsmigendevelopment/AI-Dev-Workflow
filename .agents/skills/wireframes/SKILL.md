@@ -47,7 +47,7 @@ One file, `docs/wireframes/index.html`. Stage 1 starts it; stage 2 details it.
    - **Empty:** an icon, one line on why it's empty, and the first action.
    - **Error:** an icon, a title, a specific message, a next action and a reference ID.
    - **Loading:** a skeleton the shape of the real content, not a grey box.
-5. **Revise until they say yes** to the full set. Change the sketches and the prototype together. A "yes" with changes is not a yes yet.
+5. **Below Full, revise until they say yes** to the full set. Change the sketches and the prototype together. A "yes" with changes is not a yes yet.
 6. **Record it.** Run `git hash-object docs/wireframes/index.html` (it works without a repo). Add a row to `decisions.md`: `Wireframes approved: <date>, <hash>`, with the screens covered. Commit both files if there's a repo.
 
 **On Full automation,** skip step 5's wait. Once the set is detailed, step 6's row reads `Wireframes: AI pick, not reviewed: <date>, <hash>`. Add the prototype's path to the review's FYI, or send one. A later change from the person is a changed screen (see "Rules").

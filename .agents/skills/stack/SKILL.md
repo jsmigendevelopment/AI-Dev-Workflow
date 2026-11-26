@@ -50,7 +50,7 @@ The platform comes first, because everything else depends on it.
     - **Ask these two outright:**
       - *"Support many languages from day one, or English only for now?"* Recommend English only unless the users need more. Yes: `i18next` with `react-i18next` (until research confirms), keys per module. No: text per module in `copy.ts`.
       - *"Will people share things, have teams, or have roles?"* No: owner-only checks in the repository. Yes: relationship-based access (tuples behind one `check(user, action, object)` port), with the kit's built-in engine by default (until research confirms). Write the answer in `docs/security-policy.md`.
-12. **Repo, risk dial and automation level:** confirm visibility and licence, pick the risk dial, and copy in the automation level asked at the start (the `automation` skill). Explain both in one sentence each: the risk dial is how careful each merge is; the automation level is how much agents do without the person. When they disagree, the more careful one wins.
+12. **Repo, risk dial and automation level:** confirm visibility and licence, pick the risk dial, and copy in the automation level asked at the start (the `automation` skill). Explain both in one sentence each: the risk dial is how careful each merge is; the automation level is how much agents do without the person. Below Full, when they disagree, the more careful one wins. On Full, a careful dial adds reviews, never a person (#103).
 
 ## Default picks for a web app
 

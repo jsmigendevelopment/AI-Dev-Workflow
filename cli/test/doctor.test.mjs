@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { doctor } from "../src/doctor.mjs";
 import { init } from "../src/init.mjs";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { logger, put, tmp } from "./helpers.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -50,4 +51,31 @@ test("doctor lists stale research dossiers by name, and stays quiet without docs
   const fresh = logger();
   doctor(dir, { log: fresh });
   assert.match(fresh.text(), /✓ No stale research dossiers/);
+});
+
+// #143 item 5: a repo on Full automation that still runs a kit from before the Full override stops for
+// gates that Full and the person's decisions lift. doctor says to update.
+const FULL = "# Stack\n\n## Automation level\n\n- **Level:** full  <!-- recommended | full | hands-on | custom -->\n";
+const RECOMMENDED = "# Stack\n\n## Automation level\n\n- **Level:** recommended\n";
+function onKit(kitVersion, stack) {
+  const dir = tmp();
+  init(dir, { log: logger() });
+  const manifest = JSON.parse(readFileSync(join(dir, ".onrails.json"), "utf8"));
+  put(dir, ".onrails.json", JSON.stringify({ ...manifest, kitVersion }));
+  put(dir, "docs/stack.md", stack);
+  const log = logger();
+  doctor(dir, { log });
+  return log.text();
+}
+
+test("AC-143-4: WHEN doctor runs in a repo on Full with a kit older than 0.7.0 THEN it says to update", () => {
+  const text = onKit("0.5.3", FULL);
+  assert.match(text, /✗ Full automation on kit v0\.5\.3: kits before v0\.7\.0 still stop for gates that Full and your decisions lift/);
+  assert.match(text, /fix: Run: npx onrails@latest update/);
+});
+
+test("AC-143-4: doctor stays quiet about it on Recommended, or on Full with kit 0.7.0 or newer", () => {
+  assert.doesNotMatch(onKit("0.5.3", RECOMMENDED), /Full automation on kit/);
+  assert.doesNotMatch(onKit("0.7.0", FULL), /Full automation on kit/);
+  assert.doesNotMatch(onKit("0.10.0", FULL), /Full automation on kit/);
 });

@@ -11,7 +11,7 @@ The failure this stops: the page renders, and the number on it is wrong. An agen
 
 ## Before you start
 
-1. **In the person's own browser or accounts, ask first.** Name the site, the account and what you'll click, and wait for a yes. A work or live account gets "read and look only" unless the person says otherwise. On Full automation the person's own logins are parked (`AGENTS.md`): test on the preview or in a browser you drive, and put the look in their browser in the FYI.
+1. **In the person's own browser or accounts, ask first.** Name the site, the account and what you'll click, and wait for a yes: these are the person's own logins. A work or live account gets "read and look only" unless the person says otherwise. On Full automation the person's own logins are parked (`AGENTS.md`): test on the preview or in a browser you drive, and put the look in their browser in the FYI.
 2. **Never click what costs money, sends something or can't be undone:** generate, publish, pay, send, invite, delete. A test needs one? Use a test account or the preview, or stop and ask.
 3. **Predict before you look.** Write down every input you'll try and the output you expect for each. Take the values from the issue, the diff and plain arithmetic, never from the screen. Lengths of 30 seconds, 1, 2, 3 and 5 minutes should give estimates of about 30 seconds, 1, 2, 3 and 5 minutes. **Done when** the predictions are in your message or notes before the first page load. No prediction, no test.
 

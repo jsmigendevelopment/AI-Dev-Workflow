@@ -8,7 +8,7 @@ Subscriptions with Stripe: hosted Checkout, the hosted customer portal, and a si
 | **Alternatives** | Lemon Squeezy or Paddle (merchant of record: they handle VAT and sales tax for you, for a higher fee); Stripe Payment Links (no code, no webhook, nothing in the app knows who paid) |
 | **Env vars** | `STRIPE_SECRET_KEY` (secret), `STRIPE_WEBHOOK_SECRET` (secret), `STRIPE_PRICE_ID`, `STRIPE_ALLOW_LIVE` (only the person sets it, only in production) |
 | **Packages** | `stripe@23.1.0` |
-| **Issue** | `Skills: build, web-security` · lane `risky` (money, a public webhook, a new data processor). `pr-security` and the human gate apply. Going live is a separate issue the person approves. |
+| **Issue** | `Skills: build, web-security` · lane `risky` (money, a public webhook, a new data processor). `pr-security` applies, and the human gate below Full (on Full, an extra review instead). Going live is a separate issue the person approves. |
 | **Vendor setup** | Stripe's CLI, agent plugin and implementation planner, the kit's way: `.agents/skills/secrets/setup/stripe.md`. Keys: `.agents/skills/secrets/providers/stripe.md` |
 
 ## What it adds
