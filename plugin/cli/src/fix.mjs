@@ -8,7 +8,7 @@ import { FAIL } from "./marks.mjs";
 import { confirm } from "./prompt.mjs";
 import { realSystem, showCommand } from "./system.mjs";
 
-export async function doctorFix(dir = ".", { kitDir, sys = realSystem(), ask, yes = false, dryRun = false, log = console.log } = {}) {
+export async function doctorFix(dir = ".", { kitDir, sys = realSystem({ projectDir: resolve(dir) }), ask, yes = false, dryRun = false, log = console.log } = {}) {
   const checks = runChecks(resolve(dir), { kitDir, sys });
   printChecks(checks, log);
   const todo = checks.filter((ch) => ch.status === FAIL && ch.remedy);
