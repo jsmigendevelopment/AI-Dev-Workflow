@@ -13,6 +13,14 @@
 //                                                 and for a repeating kind it prints stale-cancel <tag>
 //   node timer.mjs interval <10|30>               rewrites the interval only; prints changed or same
 //   node timer.mjs cancelled                      writes none
+// The supervisor (#206) restarts a loop whose session died. Its line sits under the sweep timer's:
+//   Supervisor: live · <kind> · <id> · every 60 min
+//   Supervisor: none
+//   node timer.mjs supervisor-armed <kind> <id>   writes the live line; 1 and the live id when one is already live
+//   node timer.mjs supervisor-cancelled           writes none, once
+//   node timer.mjs supervise                      0 restart: supervisor live, sweep timer none or dead;
+//                                                 1 alive: sweep timer live; 1 stopped: no live supervisor
+// Only those two forms are the script's own. Any other line that starts with "Supervisor:" is the person's: left alone.
 // Kinds: send_later and wake-up are one-shots; loop and scheduled-task repeat; foreground is the
 // foreground loop. An id is <tag>+<tool id>. The tag is yours and goes in the firing message
 // ("Sweep timer fired <tag> <kind>"), because the message is set before the tool returns its own id,
@@ -27,6 +35,10 @@ const MINUTE = 6e4;
 const LINE = /^[ \t]*[-*]?[ \t]*(\*\*)?Sweep timer:(\*\*)?[^\n]*$/m;
 const REPEATING = new Set(["loop", "scheduled-task"]);
 const LIVE = /Sweep timer:(?:\*\*)?\s*live · (\S+) · (\S+) · every (\d+) min · next (\S+)/;
+// "live", alone or with fields, or "none": a garbled own line is still replaced; "Supervisor: ask about the logo" isn't.
+const SUP_LINE = /^[ \t]*[-*]?[ \t]*(?:\*\*)?Supervisor:(?:\*\*)?[ \t]*(?:live(?:[ \t]*·[^\n]*)?|none[ \t]*)\r?$/m;
+const SUP_LINES = new RegExp(`${SUP_LINE.source}\\n?`, "gm");
+const SUP_LIVE = /Supervisor:(?:\*\*)?\s*live · \S+ · (\S+) · every \d+ min/;
 
 /** The timer in a state file's text: { kind, id, interval, next } or null. */
 export function parse(text) {
@@ -40,7 +52,26 @@ export const format = (t) => (t ? `Sweep timer: live · ${t.kind} · ${t.id} · 
 /** The text with its Sweep timer line replaced, or added after the "## Loop" or first heading, never at the end. */
 export function withLine(text, timer) {
   const line = format(timer);
-  if (LINE.test(text)) return text.replace(LINE, line);
+  if (!LINE.test(text) && SUP_LINE.test(text)) return text.replace(SUP_LINE, (sup) => `${line}\n${sup}`);
+  return place(text, LINE, line);
+}
+
+/** The ids on the state file's live Supervisor lines. More than one means duplicates: any live one counts. */
+const supervisors = (text) => [...text.matchAll(SUP_LINES)].map((m) => SUP_LIVE.exec(m[0])?.[1]).filter(Boolean);
+
+/** The text with its Supervisor line replaced, or added right under the Sweep timer line, or where that line would go. */
+function withSupervisor(text, sup) {
+  const line = sup ? `Supervisor: live · ${sup.kind} · ${sup.id} · every 60 min` : "Supervisor: none";
+  if (!SUP_LINE.test(text) && LINE.test(text)) return text.replace(LINE, (sweep) => `${sweep}\n${line}`);
+  let seen = false;
+  // Keeps the first own line and drops later duplicates, so two live lines can't appear.
+  const once = text.replace(SUP_LINES, (m) => (seen ? "" : ((seen = true), m)));
+  return place(once, SUP_LINE, line);
+}
+
+/** The text with the line that matches pattern replaced, or added after the "## Loop" or first heading. */
+function place(text, pattern, line) {
+  if (pattern.test(text)) return text.replace(pattern, line);
   const heading = /^## Loop\b[^\n]*$/m.exec(text) ?? /^#[^\n]*$/m.exec(text);
   if (!heading) return `${line}\n\n${text}`;
   const end = heading.index + heading[0].length;
@@ -101,8 +132,21 @@ export function run(args, text, now) {
     }
     case "cancelled":
       return { code: 0, out: "Sweep timer: none", text: withLine(text, null) };
+    case "supervisor-armed": {
+      const [kind, id] = rest;
+      if (!kind || !id || !SAFE.test(kind) || !SAFE.test(id)) return usage("supervisor-armed <kind> <id>");
+      const live = supervisors(text);
+      if (live.length) return { code: 1, out: `live ${live.join(" ")}: a supervisor is already live. Arm nothing, or cancel it first (supervisor-cancelled).` };
+      const next = withSupervisor(text, { kind, id });
+      return { code: 0, out: next.match(SUP_LINE)[0], text: next };
+    }
+    case "supervisor-cancelled":
+      return { code: 0, out: "Supervisor: none", text: withSupervisor(text, null) };
+    case "supervise":
+      if (!supervisors(text).length) return { code: 1, out: "stopped" };
+      return shouldArm(timer, now) ? { code: 0, out: "restart" } : { code: 1, out: "alive" };
     default:
-      return usage("status | should-arm | dead-id | armed <kind> <id> <interval-min> | fired <tag> [kind] | interval <10|30> | cancelled");
+      return usage("status | should-arm | dead-id | armed <kind> <id> <interval-min> | fired <tag> [kind] | interval <10|30> | cancelled | supervisor-armed <kind> <id> | supervisor-cancelled | supervise");
   }
 }
 
