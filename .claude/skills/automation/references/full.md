@@ -27,7 +27,11 @@ A decision row that names one of these doesn't lift it: the row lifts only the r
 
 ## The weakening review (#103)
 
-A pull request that changes the agents' rules, check code or the level (`AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `CLAUDE.local.md`, `GEMINI.md`, `.agents/`, `.claude/`, `.codex/` and `.gitmodules` at any depth, `.github/` and `docs/stack.md` at the root, and any submodule, in any case) gets no `needs-human` label on Full. It gets one more fresh review instead.
+A pull request that changes the agents' rules, check code or the level gets no `needs-human` label on Full. It gets one more fresh review instead. The guard (`agent-files.mjs`) protects these paths, in any case:
+
+- **Agent rules, at any depth:** `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `CLAUDE.local.md`, `GEMINI.md`, `.agents/`, `.claude/`, `.codex/`, `.gitmodules`, and any submodule.
+- **At the root only:** `.github/` and `docs/stack.md`.
+- **Check code, at any depth (#162):** `.mcp.json`; lint and format config (`eslint.config.*`, `eslint.*.config.*`, `.eslintrc*`, `.eslintignore`, `eslint-rules.*`, `.prettierrc*`, `prettier.config.*`, `.prettierignore`); other checks (`knip.json`, `knip.jsonc`, `knip.config.*`, `.jscpd.json`, `lefthook.yml`, `lefthook.yaml`, `.semgrep.yml`, `.semgrep/`); type and test-runner config (`tsconfig*.json`, `vitest.config.*`, `vitest.workspace.*`, `jest.config.*`, `playwright.config.*`); budgets (`lighthouserc.*`); and under any `scripts/` folder, its `budgets/`, `checks/`, `lint/`, `pr/` and `migrations/` folders directly below it (not `scripts/x/budgets/`) and files named `check-*` at any depth below it. Not `vite.config.*`, `wrangler.jsonc`, the other pack scripts or other code under `src/` (a check name under `src/` still counts).
 
 1. Start a fresh agent: *"Use the `pr-review` skill as the weakening review of pull request <n> at <sha>."* It reads only the diff and the issue, and answers one question: **does this weaken, skip or delete any check or rule?** For example, a removed or loosened test, a raised budget, a lint rule turned off, a hook removed, or an `eslint-disable` or `skip` with no issue number.
 2. **No:** it comments exactly `Weakening review: pass @ <full head sha>` on the pull request. That comment is all the guard needs: it runs from the session in step 5, not as a workflow.
