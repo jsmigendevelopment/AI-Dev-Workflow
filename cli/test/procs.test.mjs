@@ -101,7 +101,7 @@ test("AC-2b: the pause limit comes from [workflow] pause_hours, and resume clear
 test("AC-3: WHEN a session ends THEN the hook stops its processes and orphans, TERM then KILL, and a later session finds no orphans", async () => {
   const sys = fakeSys({ procs: { 601: { args: "claude" }, 4000: { onTerm: "stay" }, 4100: {} }, stdin: '{"session_id":"s-1","reason":"other"}' });
   await startDev(sys);
-  seed(sys, { id: "porphan", pid: 4000, start: "start-4000", command: "vite --watch" });
+  seed(sys, { id: "pc0de", pid: 4000, start: "start-4000", command: "vite --watch" });
   seed(sys, { id: "plive", pid: 4100, start: "start-4100", command: "astro dev", session: "s-2", agent: { pid: 601, start: "start-601" } });
   const end = await run(sys, ["session-end"]);
   assert.match(end.out, /Stopping 2 background process/);

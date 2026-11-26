@@ -8,7 +8,7 @@ import { chmodSync, chownSync, existsSync, lstatSync, mkdirSync, readFileSync, s
 import { dirname, join } from "node:path";
 import { tmp } from "./helpers.mjs";
 import { homeRegistry, logFor, update } from "../src/procs-store.mjs";
-import { MIN, NOW, fakeSys, inRepo, run, seed, signals, startDev } from "./procs-fake.mjs";
+import { MIN, NOW, fakeSys, inRepo, run, seed, signals, stamp, startDev } from "./procs-fake.mjs";
 
 const posix = { skip: process.platform === "win32" ? "Windows has no POSIX mode or symlink" : false };
 const iso = (ms) => new Date(ms).toISOString();
@@ -21,6 +21,7 @@ test("AC-156-4: WHEN git starts tracking the registry while the watcher runs THE
   const path = join(sys.cwd, ".onrails", "procs.json");
   mkdirSync(dirname(path), { mode: 0o700 });
   writeFileSync(path, JSON.stringify({ version: 1, procs: [rec(4000, { deadline: iso(NOW + 30 * MIN) })] }), { mode: 0o600 });
+  stamp(path); // a session wrote it
   // What a branch brings: a record past its time, as a checkout writes it.
   const branch = JSON.stringify({ version: 1, procs: [rec(4001, { deadline: iso(NOW - MIN), session: "s-old" })] });
   const sleep = sys.sleep;
@@ -96,6 +97,7 @@ test("AC-156-4: WHEN git starts tracking the registry between two commands on on
   const path = join(sys.cwd, ".onrails", "procs.json");
   mkdirSync(dirname(path), { mode: 0o700 });
   writeFileSync(path, JSON.stringify({ version: 1, procs: [rec(4000, { session: "s-old", agent: { pid: 600, start: "start-600" } })] }), { mode: 0o600 });
+  stamp(path); // a session wrote it
   assert.match((await run(sys, ["list"])).out, /p4000 · STALE/, "the first command reads it");
   tracked = ".onrails/procs.json";
   await run(sys, ["stop", "stale"]);
