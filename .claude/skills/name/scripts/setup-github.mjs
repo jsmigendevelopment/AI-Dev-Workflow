@@ -30,14 +30,21 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
+import { commandFor } from "./command-for.mjs";
 import { LOCAL_CHECK, PROBE_CHECK, localChecks, requiredChecks } from "./required-checks.mjs";
 
 const PLANS = ["free", "team", "enterprise"];
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
 
-const run = (cmd, input) =>
-  execFileSync("gh", cmd, { encoding: "utf8", input, stdio: [input ? "pipe" : "ignore", "pipe", "pipe"] });
+// gh by its full path, never a copy the repo ships (#238). One that may not run throws its reason, like a failed call.
+function run(cmd, input) {
+  const how = commandFor("gh", cmd);
+  if (how.why) throw Object.assign(new Error(how.why), { why: how.why });
+  return execFileSync(how.file, how.args, {
+    encoding: "utf8", input, stdio: [input ? "pipe" : "ignore", "pipe", "pipe"], env: how.env, windowsVerbatimArguments: how.verbatim,
+  });
+}
 const api = (method, path, body) =>
   run(["api", "-X", method, path, ...(body ? ["--input", "-"] : [])], body ? JSON.stringify(body) : undefined);
 const git = (cmd) => execFileSync("git", cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
@@ -90,8 +97,9 @@ try {
   repo = url.replace(/\/+$/, "").replace(/\.git$/, "").match(/github\.com[:/]([^/]+\/[^/]+)$/)[1];
   visibility = run(["api", `repos/${repo}`, "--jq", ".visibility"]).trim();
   me = JSON.parse(run(["api", "user"]));
-} catch {
-  console.error("Couldn't read the GitHub repo. Run this inside the repo, with a github.com `origin` remote, after `gh auth login`.");
+} catch (e) {
+  if (e.why) console.error(`Couldn't run gh: ${e.why}. Install it outside this repo, then run this again.`);
+  else console.error("Couldn't read the GitHub repo. Run this inside the repo, with a github.com `origin` remote, after `gh auth login`.");
   process.exit(1);
 }
 const PUBLIC = visibility === "public";

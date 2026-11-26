@@ -34,6 +34,8 @@ const COPIES = [
   [LIBRARY, join("cli", "src", "research-library.mjs")],
   ...PREFLIGHT.flatMap((name) => [[join("scripts", name), join(SRC, "ask", "scripts", name)], [join("scripts", name), join("cli", "src", name)]]),
   ...PROCS.flatMap((name) => [[join("scripts", name), join(SRC, "ask", "scripts", name)], [join("scripts", name), join("cli", "src", name)]]),
+  // push-secrets' rule for starting gh and npx, also for setup-github's gh (#238): skill scripts can't import each other.
+  [join(SRC, "secrets", "scripts", "command-for.mjs"), join(SRC, "name", "scripts", "command-for.mjs")],
   [CHECKER, join(TEMPLATE, "scripts", "check-research.mjs")],
   [LIBRARY, join(TEMPLATE, "scripts", "research-library.mjs")],
   ...["provenance.schema.json", "library.schema.json"].map((name) => [join(SRC, "research", "references", name), join(TEMPLATE, "schemas", name)]),

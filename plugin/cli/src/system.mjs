@@ -114,8 +114,11 @@ export function launch(argv, { platform = process.platform, env = process.env } 
   if (args.some((a) => !/^[\w.:=/@$+,-]+$/.test(a))) throw new Error(`only plain words go to cmd.exe, not: ${args.join(" ")}`);
   // The path comes from the person's PATH, and cmd.exe expands %NAME% even inside quotes.
   if (found.includes("%")) throw new Error(`cmd.exe would expand the % in ${found}`);
-  const cmdExe = env.ComSpec || win32.join(env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
-  return { file: cmdExe, args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], env: winEnv, verbatim: true };
+  // ComSpec and SystemRoot only as full paths: a bare or relative one is looked up from the current folder (#238).
+  const full = (path) => (path && win32.isAbsolute(path) ? path : null);
+  const cmdExe = full(env.ComSpec) || win32.join(full(env.SystemRoot) || "C:\\Windows", "System32", "cmd.exe");
+  // /v:off: a ! in the shim's path is never expanded, even where the registry turns delayed expansion on.
+  return { file: cmdExe, args: ["/d", "/v:off", "/s", "/c", `""${found}" ${args.join(" ")}"`], env: winEnv, verbatim: true };
 }
 
 // projectDir is the project doctor checks: toolPath skips PATH entries inside it, and inside the current folder.
