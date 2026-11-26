@@ -42,7 +42,8 @@ test("AC-204-1: WHEN the test reads coordinate step 6's review-cap paragraph THE
   assert.match(onFull, /link the old branch and every open finding from each new issue/);
   assert.match(onFull, /The old issue closes as split\./);
   // #209 round 1, nice 2: an issue too small to split gets one new issue on the next tier up, not the same split again.
-  assert.match(onFull, /Can't be cut smaller\? Then `issues` files one new issue with every open finding as its checklist, and a fresh builder builds it on the next tier up from the last round \(the profile's own limits win\), instead of a split at the same size\./);
+  // #209 round 2, nice 4: with no tier above, the same tier, so the coordinator never stops to work it out.
+  assert.match(onFull, /Can't be cut smaller\? Then `issues` files one new issue with every open finding as its checklist, and a fresh builder builds it on the next tier up from the last round, or the same tier when none is above \(the profile's own limits win\), instead of a split at the same size\./);
   assert.ok(onFull.indexOf("Split it.") < onFull.indexOf("Can't be cut smaller?"), "the small-issue clause follows the split");
   assert.match(onFull, /"AI pick, not reviewed".*a `failed` board event.*the next batched ℹ️ FYI/);
   assert.ok(onFull.indexOf("next tier up") < onFull.indexOf("Split it."), "the escalation round comes before the split");
@@ -71,12 +72,18 @@ test("AC-204-3: WHEN the test reads coordinate step 7's red-main bullet THEN On 
   const onFull = bullet.slice(at);
   assert.match(below, /Below Full, if it's still red after one fix round and nothing else can merge, it's a 🛑 blocker\./, "below Full is unchanged");
   assert.match(onFull, /^On Full, after one fix round a fresh agent runs `diagnose` on the next tier up before anyone pings the person\./);
-  assert.match(onFull, /Merges stay stopped until main is green, and builders keep building on their branches\./);
+  assert.match(onFull, /Merges that don't fix main stay stopped until it is green, and builders keep building on their branches\./);
   // #209 round 1, must 1: a failed diagnose round never ends on the person. Revert the merge to blame, or keep going.
-  assert.match(onFull, /Still red after that round\? Revert the merge that turned main red through a revert pull request \(one code review, like any change; never a push to main\), and send its issue back to a fresh builder for a fix round\./);
-  assert.match(onFull, /The revert is the one merge allowed while main is red\./);
+  // #209 round 2, nice 1 and 2: the revert gets its lane's usual step 6, and the closed issue is reopened.
+  assert.match(onFull, /Still red after that round\? Revert the merge that turned main red through a revert pull request \(the usual step 6 for its lane; never a push to main\), then reopen its issue \(or file a new one that links it\) and send it to a fresh builder for a fix round\./);
+  assert.match(onFull, /A merge that added a database migration gets a forward fix instead of a revert: migrations only go forward\./);
+  // #209 round 2, must 1: the fixes that turn main green can merge, not only the revert.
+  assert.match(onFull, /While main is red, only a pull request that fixes it merges: a fix round's, a `diagnose` round's, or this revert\./);
+  assert.doesNotMatch(onFull, /one merge allowed|one code review/, "no line that stops the fix rounds from merging, and no lane-blind review");
   assert.match(onFull, /No merge to blame\? Run another fresh `diagnose` round, or split the fix through `issues`\./);
-  assert.match(onFull, /It's a 🛑 blocker only for an always-stop cause \(production, real data, secrets, paying\), never because the rounds keep failing\./);
+  // #209 round 2, nice 3: point to the whole always-stop list, never a partial one.
+  assert.match(onFull, /It's a 🛑 blocker only for a cause on `AGENTS\.md`'s always-stop list or the person's own login, never because the rounds keep failing\./);
+  assert.doesNotMatch(onFull, /\(production, real data, secrets, paying\)/, "no partial always-stop list");
   assert.doesNotMatch(onFull, /nothing else can (?:move|merge)/, "a full queue never turns a red main into a 🛑 on Full");
   assert.equal(onFull.split("🛑").length - 1, 1, "one 🛑, for an always-stop cause only");
   const order = ["`diagnose`", "Revert the merge", "No merge to blame?", "🛑"].map((m) => onFull.indexOf(m));
@@ -100,7 +107,8 @@ test("AC-204-4: WHEN the test reads afk's unattended rules and its watchdog THEN
   }
   assert.match(lines["Main goes red"], /`coordinate` step 7/);
   assert.match(lines["Main goes red"], /`diagnose` on the next tier up before anyone pings the person/);
-  assert.match(lines["Main goes red"], /revert the merge that turned main red through a pull request and send its issue back for a fix round/i);
+  // #209 round 2, nice 1: the merge closed the issue, so it's reopened; a migration only goes forward.
+  assert.match(lines["Main goes red"], /revert the merge that turned main red through a pull request and reopen its issue for a fix round \(a merge that added a migration gets a forward fix instead\)/i);
   assert.match(lines["Main goes red"], /another `diagnose` round or a split through `issues`/);
   assert.match(lines["Main goes red"], /A 🛑 only for an always-stop cause\./);
   assert.doesNotMatch(lines["Main goes red"], /nothing else can (?:move|merge)/);
