@@ -26,6 +26,7 @@ Always run the CLI from a new temp folder outside the project, and pass the proj
    - No plugin installed? There's no fallback: it's a 🛑 blocker, with this one command for the person to run where npx works: `npx --yes onrails@latest update "<project root>" --all`.
 3. **Go ahead.** **On Full,** ask nothing: go to step 4 and put the plan in your report. **Below Full,** show the plan and ask once: "Run it?" A no ends it here.
 4. **Run it:** the same command without `--dry-run` (or the same fallback). Show the person what it printed: the summary of each part, before and after, and every "Left for you" line.
+   - A tool was skipped with a by-hand command? That command is for the person. Show it, and never run it yourself: only the person knows the tool is theirs and not one the project ships.
    - A plugin command failed? Show the command and its error, then run that one command again once. Still failing? Record it as a 🛑 blocker through `ask`, with the command as the "Setup step for you".
    - The project kit changed? Its files aren't committed. They reach main through a pull request, like any change (`AGENTS.md`, rule 12). A changed `AGENTS.md`, `.agents/` or `.claude/` gets the weakening review (`coordinate`, Rules).
    - Kept files (`.onrails-new`)? List them. `/join` merges the project's; the global ones are compared by hand.

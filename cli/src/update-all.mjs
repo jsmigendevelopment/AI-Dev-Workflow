@@ -2,13 +2,13 @@
 // In order: the Claude Code and Codex plugins (only where the tool and its plugin are both there), the global
 // entry skills (only when init --global was used), the project's kit (only inside an onRails project),
 // then doctor and a summary of each part before and after. It only consumes a release: no bump, tag or publish.
-import { existsSync, realpathSync } from "node:fs";
-import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { realpathSync } from "node:fs";
+import { delimiter, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { doctor } from "./doctor.mjs";
 import { globalSkillChecks, initGlobal } from "./global.mjs";
 import { PROJECT_MANIFEST, loadKit } from "./kit.mjs";
 import { pluginVersions } from "./plugin.mjs";
-import { readProjectManifest } from "./sync.mjs";
+import { projectManifestName, readProjectManifest } from "./sync.mjs";
 import { findCommand, realSystem, showCommand } from "./system.mjs";
 import { update } from "./update.mjs";
 
@@ -29,40 +29,50 @@ const within = (dir, root) => {
 
 const BIN = /(^|[\\/])node_modules[\\/]\.bin[\\/]*$/i;
 
-// The project and the current folder, by real path. A filesystem root is never one, and neither is the home folder
-// or a folder that holds it (/home) unless it is an onRails project: a terminal opens in ~, and ~/.local/bin or an
-// nvm folder there is where claude and codex live. A project that holds HOME (a sandbox or CI job can set HOME inside
-// it) stays a root, so its own claude never runs. That includes ~ itself as a project: its tools are skipped too.
+// The nearest folder at or above dir that is an onRails project, by real path, or null. A filesystem root never is.
+function nearestProject(dir) {
+  for (let at = realDir(dir) ?? resolve(dir); dirname(at) !== at; at = dirname(at)) if (projectManifestName(at)) return at;
+  return null;
+}
+
+// The project, the current folder and the nearest project at or above each, by real path: a terminal is often in
+// a subfolder. A filesystem root is never one, and neither is the home folder or a folder that holds it (/home)
+// unless it is an onRails project: a terminal opens in ~, and ~/.local/bin or an nvm folder there is where claude and
+// codex live. A project that holds HOME (a sandbox or CI job can set HOME inside it) stays a root, so its own claude
+// never runs. That includes ~ itself as a project: its tools are skipped too.
 function projectRoots(projectDir, home) {
   const realHome = realDir(home) ?? resolve(home);
-  const dropped = (dir) => dirname(dir) === dir || (within(realHome, dir) && !existsSync(join(dir, PROJECT_MANIFEST)));
-  return [[projectDir, "this project"], [process.cwd(), "the current folder"]]
-    .map(([dir, label]) => ({ dir: realDir(dir), label }))
+  const dropped = (dir) => dirname(dir) === dir || (within(realHome, dir) && !projectManifestName(dir));
+  const roots = [[projectDir, "this project"], [process.cwd(), "the current folder"]]
+    .flatMap(([dir, label]) => [{ dir: realDir(dir), label }, { dir: nearestProject(dir), label: "this project" }])
     .filter(({ dir }) => dir && !dropped(dir));
+  return { roots, home: realHome };
 }
 
-// Why a PATH entry is skipped, or null to search it. The node_modules/.bin test runs on the real path too,
-// so ".bin/." and "./.bin" are caught: npx puts the current folder's and each ancestor's first.
-function skipped(entry, roots) {
-  if (!isAbsolute(entry)) return "in a relative PATH entry";
+// Why a PATH entry is skipped ({ why, mine }), or null to search it. The node_modules/.bin test runs on the real path
+// too, so ".bin/." and "./.bin" are caught: npx puts the current folder's and each ancestor's first. mine: every root
+// that holds it is ~ as a project, where ~/.local/bin may be the person's own. Anywhere else a project can ship it.
+function skipped(entry, { roots, home }) {
+  if (!isAbsolute(entry)) return { why: "in a relative PATH entry" };
   const dir = realDir(entry);
-  if (!dir) return "missing";
-  if (BIN.test(entry) || BIN.test(dir)) return "in a node_modules/.bin";
-  const root = roots.find((r) => within(dir, r.dir));
-  return root ? `inside ${root.label}` : null;
+  if (!dir) return { why: "missing" };
+  if (BIN.test(entry) || BIN.test(dir)) return { why: "in a node_modules/.bin" };
+  const inside = roots.filter((r) => within(dir, r.dir));
+  return inside.length ? { why: `inside ${inside[0].label}`, mine: inside.every((r) => r.dir === home) } : null;
 }
 
-// The tool's full path on PATH, never a copy a project ships: { path } or { why }, plus { found } when only a
+// The tool's full path on PATH, never a copy a project ships: { path } or { why }, plus { found, mine } when only a
 // skipped entry has it.
 function toolPath(name, sys, projectDir) {
   const roots = projectRoots(projectDir, sys.home);
   const look = (PATH) => findCommand(name, { env: { PATH, PATHEXT: sys.env.PATHEXT }, platform: sys.platform });
   const entries = (sys.env.PATH || sys.env.Path || "").split(delimiter).filter(Boolean)
-    .map((entry) => ({ entry, why: skipped(entry, roots) }));
-  const path = look(entries.filter((e) => !e.why).map((e) => e.entry).join(delimiter));
+    .map((entry) => ({ entry, skip: skipped(entry, roots) }));
+  const path = look(entries.filter((e) => !e.skip).map((e) => e.entry).join(delimiter));
   if (path) return { path };
-  const hit = entries.find((e) => e.why && e.why !== "missing" && look(e.entry));
-  return hit ? { why: `${name} found only ${hit.why}, not run`, found: look(hit.entry) } : { why: `${name} isn't on your PATH` };
+  const hit = entries.find((e) => e.skip && e.skip.why !== "missing" && look(e.entry));
+  if (!hit) return { why: `${name} isn't on your PATH` };
+  return { why: `${name} found only ${hit.skip.why}, not run`, found: look(hit.entry), mine: hit.skip.mine };
 }
 
 // Step 1. Each command runs with no shell, by full path, and a failed one ends that tool's steps.
@@ -75,10 +85,12 @@ function plugins(sys, projectDir, dryRun, log) {
       log(`   ${p.label} plugin: not installed, skipped`);
       continue;
     }
-    const { path, why: reason, found } = toolPath(p.tool, sys, projectDir);
+    const { path, why: reason, found, mine } = toolPath(p.tool, sys, projectDir);
     if (!path) {
-      // The person can tell their own tool (~ as a project) from one the project ships; this CLI can't.
-      const why = found ? `${reason}. If ${found} is yours, run it by hand: ${p.commands.map((c) => showCommand([found, ...c])).join(", then ")}` : reason;
+      // Only under ~ as a project can it be the person's own, and only they can tell. Anywhere else no command is
+      // shown, so nobody runs a copy the project ships.
+      const hint = mine ? `. If ${found} is yours, run it by hand: ${p.commands.map((c) => showCommand([found, ...c])).join(", then ")}` : `, because a project can ship its own ${p.tool}`;
+      const why = found ? `${reason}${hint}` : reason;
       log(`   ${name} v${p.version}: skipped, ${why}`);
       rows.push({ tool: p.tool, part: name, before: `v${p.version}`, note: `skipped: ${why}` });
       continue;
@@ -123,13 +135,13 @@ function globalSkills({ kitDir, sys, dryRun, version, log }) {
 }
 
 // Step 3: the project's kit, as plain update does it.
-async function projectKit(projectDir, { kitDir, dryRun, ask, yes, log }) {
+async function projectKit(projectDir, given, { kitDir, dryRun, ask, yes, log }) {
   const old = readProjectManifest(projectDir);
   if (!old) {
     log(`3. Project kit: skipped, this folder isn't an onRails project (no ${PROJECT_MANIFEST})`);
     return [];
   }
-  log("3. Project kit");
+  log(projectDir === given ? "3. Project kit" : `3. Project kit: ${projectDir}, the nearest folder above with ${PROJECT_MANIFEST}`);
   const code = await update(projectDir, { dryRun, kitDir, ask, yes, log });
   const now = readProjectManifest(projectDir);
   return [{ part: "Project kit", before: `v${old.kitVersion}`, after: `v${now?.kitVersion}`, failed: code !== 0, note: code !== 0 && "FAILED: see above" }];
@@ -159,13 +171,15 @@ async function part(name, run, log) {
 
 /** Runs all four parts, each on its own; exit 1 when any part, plugin command or the project update failed. */
 export async function updateAll(dir = ".", { dryRun = false, kitDir, ask, yes = false, sys = realSystem(), log = console.log } = {}) {
-  const projectDir = resolve(dir);
+  // The project is the given folder, or the nearest one above it with a kit record: a terminal is often in a subfolder.
+  const given = resolve(dir);
+  const projectDir = projectManifestName(given) ? given : nearestProject(given) ?? given;
   const { version } = loadKit(kitDir);
   log(dryRun ? `Plan for kit v${version} (dry run: nothing runs, nothing is written)` : `Bringing onRails to kit v${version}, the one in this CLI`);
   const rows = [
     ...(await part("Plugins", () => plugins(sys, projectDir, dryRun, log), log)),
     ...(await part("Global entry skills", () => globalSkills({ kitDir, sys, dryRun, version, log }), log)),
-    ...(await part("Project kit", () => projectKit(projectDir, { kitDir, dryRun, ask, yes, log }), log)),
+    ...(await part("Project kit", () => projectKit(projectDir, given, { kitDir, dryRun, ask, yes, log }), log)),
   ];
   const code = () => (rows.some((r) => r.failed) ? 1 : 0);
   if (dryRun) {
