@@ -2,7 +2,7 @@
 
 **Stub pack. Not built yet. Researched 2026-11-22 (fact-checked). Re-check versions before building.**
 
-**Confidence: medium** that assembly-definition modules are the right shape. **Low to medium** that GameCI's `unityci/editor` Docker images, run from the session or on a build machine, carry the checks: the research assumed GameCI on GitHub Actions, which onRails no longer uses (#98), so this way is untested. **Low** that agents can build much beyond game logic alone. Tell the person this before they choose it.
+**Confidence: medium** that assembly-definition modules are the right shape. **Low to medium** that GameCI's `unityci/editor` Docker images, run from the session or on a build machine, carry the checks. This way is untested: the research assumed GameCI's actions, and onRails runs no GitHub Actions (#98). **Low** that agents can build much beyond game logic alone. Tell the person this before they choose it.
 
 Source: `research/platform-packs.md`, section 4, and fact-check rows 50 to 64. Marks: [V] verified, [S] secondary, [I] inferred, as in the dossier.
 
@@ -38,7 +38,7 @@ Keep a Unity project in its **own repository**, not in the kit's monorepo: diffe
 Version notes:
 
 - **Not Unity 6.6.** It's an update release, supported only until 6.7 arrives [S]. **6.7 LTS** is in beta since 2026-11-19 [S]. Build on 6.3 LTS; upgrade once 6.7 LTS has a few patch releases.
-- **Not used: GameCI's GitHub Actions** (`unity-test-runner`, `unity-builder`), since onRails runs no GitHub Actions (#98). The `scripts/` recipes call the Editor in the same `unityci/editor` images those actions use, with `docker run` from the session [I].
+- **GameCI's GitHub Actions are not used** (`unity-test-runner`, `unity-builder`), since onRails runs no GitHub Actions (#98). The `scripts/` recipes call the Editor in the same `unityci/editor` images those actions use, with `docker run` from the session [I].
 - Pin the editor in `ProjectSettings/ProjectVersion.txt`. The `scripts/` recipes read it to pick the image tag [I].
 
 ## Folder structure
@@ -130,8 +130,8 @@ UNITY_SERIAL=
 
 How the checks run (from the session: `coordinate`'s local gate):
 
-- **Every pull request:** `lint` (no Editor), then EditMode tests, in the `unityci/editor` image with `docker run`, or on the build machine. Results go to an `artifacts` folder, and the gate's `Checks:` comment names them.
-- **Main, or a `build` label:** typecheck, PlayMode tests and a build for Linux or WebGL.
+- **Every pull request:** the gate's `check` (`lint`, then `typecheck`, EditMode tests and a build for Linux or WebGL) and `test:e2e` (PlayMode tests), in the `unityci/editor` image with `docker run`, or on the build machine. Results go to an `artifacts` folder, and the gate's `Checks:` comment names them.
+- **After each merge:** `coordinate` step 8's "Check main" runs the install and `check` again on main's own commit.
 - **Platforms [V for GameCI's images]:** the Linux image builds WebGL, Android, Linux and Windows (Mono). Windows IL2CPP needs a Windows machine. macOS and iOS need a Mac.
 - **Keep `Library/`** between runs: on the build machine, or in a Docker volume per target. A warm `Library/` turns a cold 15 to 40 minutes into a few [I].
 

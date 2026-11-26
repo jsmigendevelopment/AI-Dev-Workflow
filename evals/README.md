@@ -67,7 +67,7 @@ The exit code is 0 when every scenario passed. It's 1 when a check failed with t
 | Time per run | 240 s, then the run is killed | `--timeout` |
 | Dollars per run | $0.50, then Claude Code stops | `--max-budget-usd` (Claude Code's own flag). `one-prompt` sets $1.50 for its 60 turns |
 | Runs per invocation | 40, never above 40 | `--max-runs`; the runner refuses to start above it. Twenty scenarios use the default 40 runs (#118 added two, #111 added `one-prompt`, #100 added two). That is the hard cap. A scenario past it is opt-in (`export const optIn = true`): the default run skips it and says so, and `--scenario` runs it (`test-by-hand-zero`, #127; `clean-up-server`, #126; `ci-never-starts`, #131; `decision-lifts-gate`, #143; `short-on-memory`, #171). At about 1 cent a run on Haiku, 38 runs cost about $0.38, plus `one-prompt`'s two longer runs |
-| When they run | by hand, from a session, before a pull request that changes `.agents/skills/`, `AGENTS.md`, `plugin/` or `scripts/` | `npm run evals`; never GitHub Actions (decision 27; #134 removes the kit's own `evals.yml`); no schedule |
+| When they run | the person's own call, by hand, when they choose to (it spends money or plan limits); the loop runs only `npm run test:evals` and `node evals/run.mjs --dry-run` | `npm run evals`; never GitHub Actions (decision 27; #134 removes the kit's own `evals.yml`); no schedule |
 
 **Why Haiku by default:** it's the cheapest current model, $0.10 in and $0.50 out per million tokens, against $2 and $10 for Sonnet 5.5 (Anthropic's price table as cached 2026-11-03). The owner asked for a small model by default. A rule that only a strong model follows is worth knowing about too: run Sonnet or Opus by hand to compare.
 
@@ -101,7 +101,7 @@ The key is never printed: the runner passes it only to `claude`, through its env
    - `fixture.mjs`: `export function build(dir, { root })` builds the repo in `dir` with the helpers in `lib/fixture.mjs`, and returns anything the checks need (shas, a canary). `root` is a scratch folder next to it, for a bare remote. Never put `AGENTS.md` or `.claude/` in a fixture: the kit brings those.
    - `checks.mjs`: `export const checks = [{ id, description, check(t) }]` and `export const manual = ["..."]`. `check` gets the transcript (`finalText`, `asked`, `allText`, `toolUses`, `toolResults`, `bash`, `edits`, `init`, `result`, `events`) and the files (`dir`, `read`, `exists`, `git`, `newFiles`, `meta`), and returns `true`, `false` or `{ pass, detail }`. Add `export const guard = true` only for a scenario that checks the kit doesn't make the agent worse, where no difference is expected. Add `export const optIn = true` when the default run has no room left under the cap: it then runs only when `--scenario` names it. A scenario that needs more room can add `export const limits = { maxTurns, timeoutSec, maxBudgetUsd }` (the budget never above $2 a run); a flag on the command line still wins.
 2. Add a good and a bad transcript for it to `SCENARIO_PLANS` in `test/run.test.mjs`, and run `npm run test:evals`. The good one must pass every check, the bad one fail every check.
-3. Run it for real once: `npm run evals -- --scenario <name>`.
+3. A real run, `npm run evals -- --scenario <name>`, spends money or plan limits, so it is the person's own call. An agent never starts it: it runs `node evals/run.mjs --dry-run` and says in the pull request that the real run is left to the person.
 
 ## How it calls Claude Code
 

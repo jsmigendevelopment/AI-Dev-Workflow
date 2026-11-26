@@ -9,9 +9,11 @@ const DEV = /(^|[;&|(])\s*(nohup\s+|timeout\s+\S+\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\
 const LINK = /(localhost|127\.0\.0\.1):3000/;
 // A file written into .github/workflows: a redirect, tee or cp aimed there. Reads (`ls ... 2>/dev/null`) and mkdir don't count.
 const WORKFLOW_WRITE = />>?\s*["']?\S*\.github\/workflows\/|\btee\s+(-a\s+)?["']?\S*\.github\/workflows\/|\bcp\b[^\n;&|]*\s["']?\S*\.github\/workflows\/?\S*(?=\s*($|[;&|]))/;
-// The local checks set up: `ci = "local"` written to docs/stack.md, by a Write, an Edit or a shell command.
-const LOCAL_LINE = /ci = "local"/;
+// The local checks set up: `ci = "local"` (either quote) written to docs/stack.md, by a Write, an Edit or a shell
+// command that writes the file: a redirect, tee or sed -i aimed there. A read that names both, such as a grep, doesn't count.
+const LOCAL_LINE = /ci\s*=\s*["']local["']/;
 const STACK = /(^|\/)docs\/stack\.md$/;
+const STACK_WRITE = />>?\s*["']?\S*docs\/stack\.md\b|\btee\s+(-a\s+)?["']?\S*docs\/stack\.md\b|\bsed\b[^\n;&|]*\s-i[^\n;&|]*docs\/stack\.md\b/;
 
 /** What happened, in order: "dev" (the server started), "link" (said to the person), "local" (ci = "local" written), "workflow" (a workflow file written). Errored calls don't count. */
 function timeline(events) {
@@ -27,7 +29,7 @@ function timeline(events) {
       const written = String(b.input?.content ?? b.input?.new_string ?? "") + (b.input?.edits ?? []).map((x) => x.new_string ?? "").join("\n");
       if (b.name === "Bash" && DEV.test(command)) out.push("dev");
       if (b.name === "Bash" && WORKFLOW_WRITE.test(command)) out.push("workflow");
-      if (b.name === "Bash" && LOCAL_LINE.test(command) && /docs\/stack\.md/.test(command)) out.push("local");
+      if (b.name === "Bash" && LOCAL_LINE.test(command) && STACK_WRITE.test(command)) out.push("local");
       if (["Write", "Edit", "MultiEdit"].includes(b.name) && path.includes(".github/workflows/")) out.push("workflow");
       if (["Write", "Edit", "MultiEdit"].includes(b.name) && STACK.test(path) && LOCAL_LINE.test(written)) out.push("local");
     }

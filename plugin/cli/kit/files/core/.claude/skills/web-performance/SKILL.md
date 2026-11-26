@@ -5,7 +5,7 @@ description: Use when a page should load or respond faster ("make it fast", "it 
 
 # Web performance: budgets first, then measure
 
-Keep pages fast by setting limits early, enforcing them in the local gate before every merge, and trusting only real measurements.
+Keep pages fast by setting limits early, enforcing them before every merge (the web pack's `pnpm check:merge`, which the local gate runs once #225 lands), and trusting only real measurements.
 
 ## Rules
 

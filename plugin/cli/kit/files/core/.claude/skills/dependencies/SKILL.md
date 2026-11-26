@@ -23,7 +23,7 @@ Use well-kept libraries for solved problems, and check each one before it lands 
 7. **Safe for a product that may be closed-source or sold as a service:** MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Zlib, Unlicense, CC0-1.0, BSL-1.0 (the Boost licence), BlueOak-1.0.0, Python-2.0 and CC-BY-4.0 (the last three come with most JavaScript build toolchains). MPL-2.0 is fine to use, but changes you make to its files must be published.
 8. **Not allowed in shipped code:** AGPL, SSPL, BUSL-1.1 (Business Source), FSL, Elastic, any PolyForm licence, Commons Clause and other "source-available" licences with use limits. GPL is for reading ideas only; never bundle or link it. LGPL only if linked dynamically and unmodified. If nothing allowed fits, build it yourself.
 9. **Read the SPDX id, not the acronym.** BSL-1.0 is permissive Boost; BUSL-1.1 is restricted Business Source. Server parts are often licensed differently from client SDKs, so check the part you actually run.
-10. **Enforce the licence allow-list in the local gate** (`coordinate` step 6.1; `pnpm check:merge` on the web pack). Fail the build on any licence not on the list (for npm, `license-checker-rseidelsohn --onlyAllow "..."`; for pnpm, `pnpm licenses list --json` into a small script). Each exception names the package, a reason and a date.
+10. **Enforce the licence allow-list before every merge** (`pnpm check:merge` on the web pack; the local gate, `coordinate` step 6.1, runs it once #225 lands). Fail the build on any licence not on the list (for npm, `license-checker-rseidelsohn --onlyAllow "..."`; for pnpm, `pnpm licenses list --json` into a small script). Each exception names the package, a reason and a date.
 11. **Pin exact versions in an app.** No `^` or `~` in the manifest (`pnpm add -E`, `npm install -E`), a committed lockfile, and frozen-lockfile installs (`npm ci`, `pnpm install --frozen-lockfile`) in the local gate and the deploys. Upgrades arrive as their own reviewed pull requests.
     - **Young packages (0.x)** can break on any minor release: pin exactly, read the changelog for every bump, and never let Dependabot auto-merge them. TanStack Hotkeys (`@tanstack/react-hotkeys`, 0.27.2 on 2026-11-23) is one: mark it young in the PR and in `docs/stack.md`.
     - **Dependabot keeps running with GitHub Actions off.** GitHub runs it on its own runners, past a repo's or an organisation's Actions setting, and it uses no Actions minutes on standard runners (GitHub's "About Dependabot on GitHub Actions runners", checked 2026-11-26). Its bumps arrive as pull requests from `dependabot[bot]`: they aren't the loop's own branches, so `coordinate` step 6.1 labels them `needs-human` today. #226 plans them through the loop.
@@ -38,7 +38,7 @@ Use well-kept libraries for solved problems, and check each one before it lands 
 - [ ] Each new package was checked on the registry: real, spelled right, with real downloads, maintainers and age.
 - [ ] No new library duplicates one the app already has.
 - [ ] The PR names each new dependency's version, SPDX licence id with the date checked, and size added.
-- [ ] Every new licence is on the allow-list, and the licence check in the local gate passes.
+- [ ] Every new licence is on the allow-list, and the licence check (`pnpm check:merge` on the web pack) passes.
 - [ ] The manifest shows exact versions, and the lockfile is committed.
 - [ ] The audit step shows no new high or critical advisory.
 - [ ] A swap or upgrade PR shows the before and after for its named gain.

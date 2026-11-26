@@ -165,7 +165,7 @@ Data: under Workers, call D1 through the binding in a small repository adapter; 
 **Checks and deploys, from the session** (no GitHub Actions; `coordinate`'s local gate):
 
 - Pull requests: on the exact head in a clean worktree, `uv sync --locked`, then `lint`, `typecheck`, `test`, `build`, `test:e2e`.
-- After a merge: deploy main to **test** from the session with `uv run pywrangler deploy` (Workers, after `wrangler login`) or the container host's CLI.
+- After a merge: deploy main to **test** from the session with `uv run pywrangler deploy` (Workers, after `wrangler login`) or the container host's CLI. Untested from a session [I].
 - Production deploy only when the person says so.
 
 The session's deploys sign in with `wrangler login`. Only on `ci = "actions"`, these names go in GitHub environment secrets:

@@ -1,6 +1,6 @@
 # GitHub environments, secrets and variables
 
-Only on `ci = "actions"` (`docs/stack.md`). Every repo is `ci = "local"` unless the person turned Actions on themselves: then skip this file, since nothing reads GitHub's copies (see "What it's for").
+Only on `ci = "actions"` (`docs/stack.md`), which only the person turns on. On `ci = "local"`, the default for every repo, skip this file: nothing reads GitHub's copies there (see "What it's for").
 
 Last checked: 2026-11-23. Official docs:
 - https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments

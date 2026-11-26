@@ -79,7 +79,7 @@ Per workspace: `cd apps/mobile && pnpm test` works the same way. Packages have n
 | Between workspaces, by declaration | no `package.json` depends on an app; shared packages never depend on React, React Native, Expo or Clerk                                                                                             | `scripts/check-workspace-deps.js`                                       |
 | Undeclared imports                 | a workspace only resolves what its `package.json` lists                                                                                                                                             | pnpm's isolated `node_modules`                                          |
 
-**Why ESLint and not `turbo boundaries` as the gate:** `turbo boundaries` works here (it caught a deliberate `apps/mobile` → `apps/web` import), but Turborepo's docs still mark it experimental (checked 2026-11), and it can't express "a package never imports an app" without tags. `eslint-plugin-boundaries` is what the web pack already uses, so one rule language covers every level. CI runs `turbo boundaries` as a report that can't fail the build. Switch the gate when it leaves experimental.
+**Why ESLint and not `turbo boundaries` as the gate:** `turbo boundaries` works here (it caught a deliberate `apps/mobile` → `apps/web` import), but Turborepo's docs still mark it experimental (checked 2026-11), and it can't express "a package never imports an app" without tags. `eslint-plugin-boundaries` is what the web pack already uses, so one rule language covers every level. `pnpm boundaries:report` runs `turbo boundaries` by hand, as a report that can't fail the build. Nothing else runs it: not `check`, and not the local gate. Switch the gate when it leaves experimental.
 
 ## The API contract
 
@@ -115,7 +115,7 @@ Per workspace: `cd apps/mobile && pnpm test` works the same way. Packages have n
 
 `apps/mobile/e2e/signed-out.yaml` is the smoke flow (fresh install lands on sign-in). `notes.yaml` (tag `signed-in`, skipped by default) signs in with a Clerk test user and adds and deletes a note; its hosted-page labels were not checked on a device.
 
-Maestro needs a running simulator or emulator, so it can't run in an agent's Linux sandbox or in `check`. It runs on a machine that has one, usually the person's: install Maestro 2.12.1, build a release binary without EAS or signing, install it, then run the flows. The build scripts were moved from the old CI jobs and not yet run: expect to adjust the first run.
+Maestro needs a running simulator or emulator, so it can't run in an agent's Linux sandbox or in `check`. It runs on a machine that has one, usually the person's: install Maestro 2.12.1, build a release binary without EAS or signing, install it, then run the flows. The build scripts were moved from CI jobs the pack no longer has, and not yet run: expect to adjust the first run.
 
 | Platform | Build (in `apps/mobile`) | Then |
 | --- | --- | --- |

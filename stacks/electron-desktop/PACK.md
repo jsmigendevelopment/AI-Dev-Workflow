@@ -112,7 +112,7 @@ Since Electron 45, a sandboxed preload can only `require('electron')`, and has n
 
 ## Check contract
 
-Scripts in `package.json`. Each one runs on `ubuntu-latest` with no secrets.
+Scripts in `package.json`. Each check runs from the session on Linux (the local gate, `coordinate` step 6.1), with no secrets.
 
 | Command | Runs | Notes |
 |---|---|---|
@@ -122,7 +122,7 @@ Scripts in `package.json`. Each one runs on `ubuntu-latest` with no secrets.
 | `build` | `electron-forge package && node scripts/verify-fuses.ts && node scripts/smoke.ts` | the **hardened** app folder: release fuses checked, then started once with `--smoke`. No installer, no signing |
 | `test:e2e` | package the **e2e flavour** into its own folder, then `playwright test`; under `xvfb-run -a` on Linux | the e2e flavour differs from `build` in one fuse, and is never released |
 | `check` | `pnpm lint && pnpm typecheck && pnpm test && pnpm build` | |
-| `make`, `release` (not checks) | `electron-forge make`, `electron-forge publish` on a three-system matrix, with signing secrets | release tags only |
+| `make`, `release` (not checks) | `electron-forge make`, `electron-forge publish`, by hand on each system (a Mac, Windows, Linux), with that machine's signing secrets | only for a release, by hand; never in the gate |
 
 **Why two flavours.** Forge's template turns off the `EnableNodeCliInspectArguments` fuse, which is right for a release. Playwright launches Electron with `--inspect=0`, and its docs say launch fails unless that fuse stays on [V]. So `test:e2e` packages a copy with that one fuse on, and `build` ships the hardened one with a smoke start to prove it boots. The cost is packaging twice, a minute or two. The other options are to ship the inspect fuse on, which leaves the app open to a debugger, or to test the dev server, which doesn't test the built app.
 
@@ -212,7 +212,7 @@ AZURE_CLIENT_ID=
 AZURE_CLIENT_SECRET=
 ```
 
-Publishing to GitHub Releases reads `GITHUB_TOKEN` from the release machine's shell: a fine-grained token the person makes with Contents write on this repo only, never a workflow's token.
+Publishing to GitHub Releases reads `GITHUB_TOKEN` from the release machine's shell: a fine-grained token the person makes with Contents write on this repo only, never a workflow's token [I].
 
 Costs: the checks and releases run on the session's machine and the person's own Mac and Windows machines, not GitHub Actions, so they use no GitHub minutes. A signed macOS build needs a Mac.
 

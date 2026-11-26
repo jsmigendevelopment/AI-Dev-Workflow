@@ -38,3 +38,17 @@ const SHORTCUTS = {
 test("AC-141-2: WHEN a run writes a workflow file THEN show-it-early fails it, and only the right checks fail", { skip: skipWin }, (t) => {
   for (const [name, [steps, want]] of Object.entries(SHORTCUTS)) assert.deepEqual(failedWith(t, steps), want, name);
 });
+
+// Only a write of ci = "local" to docs/stack.md counts as the checks set up. A read that names both, such as a grep,
+// isn't one, before or after the app was shown.
+const bash = (command) => ({ tool: "Bash", input: { command }, ok: true });
+const READS_AND_WRITES = {
+  "a grep of ci = local before the app was shown, then the write": [[bash("grep -n 'ci = \"local\"' docs/stack.md"), SHOW_DEV, SHOW_LINK, SHOW_LOCAL], []],
+  "a grep of ci = local after the link, and no write": [[SHOW_DEV, SHOW_LINK, bash("grep -n 'ci = \"local\"' docs/stack.md")], ["AC-5-seen-before-checks"]],
+  "ci = local appended by the shell after the link": [[SHOW_DEV, SHOW_LINK, bash("printf 'ci = \"local\"\\n' >> docs/stack.md")], []],
+  "ci = 'local' set with sed -i after the link": [[SHOW_DEV, SHOW_LINK, bash("sed -i \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
+};
+
+test("AC-141-2: WHEN a command only reads ci = local in docs/stack.md THEN it doesn't count as the checks set up", { skip: skipWin }, (t) => {
+  for (const [name, [steps, want]] of Object.entries(READS_AND_WRITES)) assert.deepEqual(failedWith(t, steps), want, name);
+});
