@@ -35,7 +35,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 
 | Variable | Open | Pick |
 |---|---|---|
-| `ACCESS_YANDEX_CLIENT_ID`, `ACCESS_YANDEX_CLIENT_SECRET` | https://oauth.yandex.com/client/new | App type: for user login on your service (Yandex: the type can't change later). Under **Yandex ID API** (or **Yandex.Passport API**), tick **Access to email address**, **Access to user avatar** and **Access to username, first name and surname, gender**. Platform **Web services**, the callback URL in **Redirect URI** (or **Callback URL #1**). **Create app**. The **ClientID** and **Client secret** are on the app's page. `[V]` steps, `[U]` the deep link. |
+| `ACCESS_YANDEX_CLIENT_ID`, `ACCESS_YANDEX_CLIENT_SECRET` | https://oauth.yandex.com/client/new | App type: for user login on your service (Yandex: the type can't change later). Under **Yandex ID API** (or **Yandex.Passport API**), tick **Access to email address**, **Access to user avatar** and **Access to username, first name and surname, gender**. Platform **Web services**, the callback URL in **Redirect URI** (or **Callback URL #1**). Stop there: the person presses **Create app**. The app's page shows the ClientID and the Client secret. `[V]` steps, `[U]` the deep link. |
 
 ## Walkthrough · about 5 minutes
 

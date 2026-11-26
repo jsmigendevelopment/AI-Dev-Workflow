@@ -35,7 +35,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 
 | Variable | Open | Pick |
 |---|---|---|
-| `ACCESS_GOOGLE_CLIENT_ID`, `ACCESS_GOOGLE_CLIENT_SECRET` | https://console.cloud.google.com/auth/clients | A project and a consent screen first (walkthrough steps 1 and 2). **Create client**, **Application type:** Web application. **Authorized JavaScript origins:** `https://<team>.cloudflareaccess.com`. **Authorized redirect URIs:** `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`. **Create**. No scopes to pick here: Access asks for the email at sign-in. The secret shows when the client is made. `[V]` |
+| `ACCESS_GOOGLE_CLIENT_ID`, `ACCESS_GOOGLE_CLIENT_SECRET` | https://console.cloud.google.com/auth/clients | A project and a consent screen first (walkthrough steps 1 and 2). **Create client**, **Application type:** Web application. **Authorized JavaScript origins:** `https://<team>.cloudflareaccess.com`. **Authorized redirect URIs:** `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`. No scopes to pick here: Access asks for the email at sign-in. Stop there: the person presses **Create**. The secret shows when the client is made. `[V]` |
 
 ## Walkthrough · about 5 minutes
 

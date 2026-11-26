@@ -3,8 +3,11 @@
 // text: the secrets skill, its provider files, ask's "Setup step for you" and every AGENTS.md. AC-1 is `agent`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tmp } from "./helpers.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const AGENTS = ["AGENTS.md", "cli/kit/files/core/AGENTS.md", "plugin/cli/kit/files/core/AGENTS.md"];
@@ -18,6 +21,9 @@ const section = (text, from, to) => {
 const secrets = () => read(".agents/skills/secrets/SKILL.md");
 const keysOnFull = () => section(secrets(), "## Keys on Full", "### No browser");
 const noBrowser = () => section(secrets(), "### No browser", "\n## ");
+
+/** The command on the "<label>: `...`" line of step 4. */
+const terminal = (open, label) => open.match(new RegExp(`${label}: \`([^\`]+)\``))?.[1];
 
 const STEPS = ["Open the page.", "Ask for the sign-in only.", "Make the key.", "Open where it goes.", "Check by name."];
 
@@ -35,7 +41,7 @@ test("AC-168-2: the secrets skill's Full branch lists the five steps, never touc
   assert.match(full, /"Copy the key from the tab and paste it into the prompt\."/);
   assert.match(full, /`pnpm connect --dry-run` shows ✓ by name only/);
   // The browser tools a session may have, in order, and none. Computer use left the order in round 1 (its own test below).
-  assert.match(full, /Claude in Chrome[^.]*, then the built-in browser \(Claude Code\)\./);
+  assert.match(full, /the first the session has: Claude in Chrome \((?![^)]*[Cc]omputer use)[^)]*\), then the built-in browser \(Claude Code\)\. How to drive them/);
   // A production key stays an always-stop item, Full or not.
   assert.match(full, /A production key is on the always-stop list/);
   // The Full line at the top of Steps sends the agent here; the old "skip steps 2 to 5" is gone.
@@ -78,11 +84,108 @@ test("AC-168-2 (round 1): computer use is never used for keys, and the paste spo
   // Computer use is named once, in that line: never as a browser to drive or a way to type a command.
   assert.equal(full.match(/computer use/gi).length, 1, "computer use is named only to rule it out");
   const open = section(full, "4. **Open where it goes", "5. **Check by name.**");
-  assert.match(open, /Your shell runs on the person's machine: open a new terminal window in the app folder, already running `pnpm connect <provider>`\./);
-  assert.match(open, /macOS: `osascript -e 'tell app "Terminal" to do script "cd <app folder> && pnpm connect <provider>"'`/);
-  assert.match(open, /Linux: `x-terminal-emulator -e sh -c 'cd <app folder> && pnpm connect <provider>'`, or the desktop's own terminal/);
-  assert.match(open, /Windows: `start "" cmd \/k "cd \/d <app folder> && pnpm connect <provider>"`/);
+  assert.match(open, /Your shell runs on the person's machine: open a new terminal window in the app folder, already running `pnpm connect <provider>`\. The folder is its own argument, never inside the script text\./);
+  assert.equal(terminal(open, "macOS"), `osascript -e 'on run argv' -e 'tell application "Terminal" to do script "cd " & quoted form of item 1 of argv & " && pnpm connect " & item 2 of argv' -e 'end run' '<app folder>' <provider>`);
+  assert.equal(terminal(open, "Linux"), `x-terminal-emulator -e sh -c 'cd "$1" && pnpm connect <provider>; exec "\${SHELL:-sh}"' sh '<app folder>'`);
+  assert.equal(terminal(open, "Windows, from PowerShell"), `Start-Process -WorkingDirectory '<app folder>' cmd -ArgumentList '/k','pnpm connect <provider>'`);
+  assert.equal(terminal(open, "From Git Bash"), `MSYS_NO_PATHCONV=1 cmd.exe /c start "" /d '<app folder>' cmd /k pnpm connect <provider>`);
   assert.match(open, /Otherwise, give one command for their own terminal: `pnpm connect <provider>`\. It refuses to run without a terminal, so never run it in your shell\./);
+});
+
+// Round 2: the folder reaches the new window as its own argument. A folder with a space, both quotes and a `$`.
+const FOLDER = `My "App's" $HOME dir`;
+/** The folder quoted the way step 4 says for a POSIX shell: single quotes, each `'` as `'\''`. */
+const shQuote = (s) => `'${s.replaceAll("'", `'\\''`)}'`;
+/** A bin folder of fake commands; each writes its name, its working folder and its arguments to `out`, one per line. */
+const fakes = (names) => {
+  const dir = tmp("onrails-keys-");
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  for (const name of names) {
+    writeFileSync(join(bin, name), `#!/bin/sh\n{ echo "${name}"; pwd; printf '%s\\n' "$@"; } >> "$OUT"\n`);
+    chmodSync(join(bin, name), 0o755);
+  }
+  // x-terminal-emulator opens no window here: it runs what follows -e in this process.
+  writeFileSync(join(bin, "x-terminal-emulator"), `#!/bin/sh\n[ "$1" = -e ] && shift\nexec "$@"\n`);
+  chmodSync(join(bin, "x-terminal-emulator"), 0o755);
+  const folder = join(dir, FOLDER);
+  mkdirSync(folder);
+  return { dir, bin, folder, out: join(dir, "out.txt") };
+};
+/** Runs one command line in sh with the fakes first on PATH, and returns what the fakes wrote. */
+const runSh = (line, { bin, dir, out }) => {
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OUT: out, SHELL: "true", HOME: dir };
+  const r = spawnSync("sh", ["-c", line], { cwd: dir, env, encoding: "utf8" });
+  assert.equal(r.status, 0, `${line}\n${r.stderr}`);
+  return readFileSync(out, "utf8").split("\n").slice(0, -1);
+};
+const fill = (command, folder) => command.replace("'<app folder>'", shQuote(folder)).replaceAll("<provider>", "clerk");
+const openStep = () => section(keysOnFull(), "4. **Open where it goes", "5. **Check by name.**");
+
+test("AC-168-2 (round 2): on Linux the new window's sh -c reaches a folder with a space and quotes, runs pnpm connect there and stays open", { skip: process.platform === "win32" }, () => {
+  const linux = terminal(openStep(), "Linux");
+  assert.ok(linux, "a Linux command");
+  const f = fakes(["pnpm"]);
+  // `exec "${SHELL:-sh}"` keeps the window open; SHELL=true here, so the run ends.
+  assert.deepEqual(runSh(fill(linux, f.folder), f), ["pnpm", f.folder, "connect", "clerk"]);
+});
+
+test("AC-168-2 (round 2): on macOS the folder is osascript's own argument, and AppleScript's quoted form reaches it", { skip: process.platform === "win32" }, () => {
+  const mac = terminal(openStep(), "macOS");
+  assert.ok(mac, "a macOS command");
+  const f = fakes(["osascript", "pnpm"]);
+  const script = `tell application "Terminal" to do script "cd " & quoted form of item 1 of argv & " && pnpm connect " & item 2 of argv`;
+  assert.deepEqual(runSh(fill(mac, f.folder), f), ["osascript", f.dir, "-e", "on run argv", "-e", script, "-e", "end run", f.folder, "clerk"]);
+  // No macOS here: build what Terminal runs the way AppleScript does. `quoted form of` wraps in ' and writes each ' as '\''.
+  writeFileSync(f.out, "");
+  assert.deepEqual(runSh(`cd ${shQuote(f.folder)} && pnpm connect clerk`, f), ["pnpm", f.folder, "connect", "clerk"]);
+});
+
+test("AC-168-2 (round 2): on Windows the folder is its own argument from PowerShell and from Git Bash, with no cd or && for cmd", () => {
+  const open = openStep();
+  for (const label of ["Windows, from PowerShell", "From Git Bash"]) {
+    const command = terminal(open, label);
+    assert.ok(command, `a command for ${label}`);
+    assert.doesNotMatch(command, /\bcd\b|&&/, `${label}: the folder isn't inside a script`);
+  }
+  assert.match(open, /in PowerShell, as `''`/);
+  assert.match(open, /with the folder as a Windows path \(`cygpath -w "\$PWD"` gives it\)/);
+  if (process.platform === "win32") return;
+  // Git Bash is a POSIX shell: check the arguments cmd.exe gets. Windows itself wasn't run here.
+  const f = fakes(["cmd.exe"]);
+  const windowsFolder = `C:\\Users\\me\\Jay's App $x`;
+  const line = terminal(open, "From Git Bash").replace("'<app folder>'", shQuote(windowsFolder)).replaceAll("<provider>", "clerk");
+  assert.deepEqual(runSh(line, f).slice(2), ["/c", "start", "", "/d", windowsFolder, "cmd", "/k", "pnpm", "connect", "clerk"]);
+});
+
+test("AC-168-2 (round 2): if no window opens, the agent gives the one command instead", () => {
+  assert.match(openStep(), /No window opens \(a permission prompt, a sandbox, an error\)\? Give the one command in the next bullet instead\./);
+});
+
+test("AC-168-2 (round 2): every row that makes a secret stops on the button the person presses, with nothing for the agent after it", () => {
+  const files = readdirSync(fileURLToPath(new URL(`../../${PROVIDERS}`, import.meta.url))).filter((f) => f.endsWith(".md"));
+  let checked = 0;
+  for (const file of files) {
+    const text = read(`${PROVIDERS}/${file}`);
+    const block = text.match(/```json connect\n([\s\S]*?)\n```/);
+    if (!block) continue;
+    const rows = keyRows(text, file);
+    for (const [name, v] of Object.entries(JSON.parse(block[1]).vars)) {
+      if (!v.secret) continue;
+      const { pick } = rows.get(name);
+      const stop = pick.match(/Stop there: the person presses \*\*[^*]+\*\*[^.]*\.(.*)$/);
+      assert.ok(stop, `${file}: ${name}'s row ends on "Stop there: the person presses **<button>**"`);
+      assert.doesNotMatch(stop[1], /\*\*/, `${file}: ${name}: no button for the agent after the person's press`);
+      checked++;
+    }
+  }
+  assert.ok(checked >= 14, `every secret row is checked (${checked})`);
+  // Entra hides the value once you leave the page: the permissions come first, so the agent never works in that tab after it.
+  const entra = keyRows(read(`${PROVIDERS}/entra.md`), "entra.md").get("ACCESS_ENTRA_CLIENT_SECRET").pick;
+  assert.ok(entra.indexOf("**API permissions**") < entra.indexOf("**New client secret**"), "Entra: API permissions before the secret");
+  assert.match(entra, /Stop there: the person presses \*\*Add\*\*/);
+  const github = keyRows(read(`${PROVIDERS}/github-oauth.md`), "github-oauth.md").get("ACCESS_GITHUB_CLIENT_SECRET").pick;
+  assert.match(github, /\*\*Register application\*\* \(it shows only the client ID\)\. Stop there: the person presses \*\*Generate a new client secret\*\*/);
 });
 
 test("AC-168-2 (round 1): the built-in browser checks its pane, a pack without the script checks by name, and a key waiting on a 🛑 counts as done", () => {

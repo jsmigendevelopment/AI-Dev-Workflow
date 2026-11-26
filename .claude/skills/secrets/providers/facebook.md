@@ -35,7 +35,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 
 | Variable | Open | Pick |
 |---|---|---|
-| `ACCESS_FACEBOOK_CLIENT_ID`, `ACCESS_FACEBOOK_CLIENT_SECRET` | https://developers.facebook.com/apps/creation/ | **App name** and **App contact email**. Use case: **Authenticate and request data from users with Facebook Login**. **Create app**. Then walkthrough steps 4 and 5: **Use Strict Mode for redirect URIs** on, and the callback URL. The **App ID** and **App Secret** are on **App settings** → **Basic**. No scopes to pick: Access asks for the email at sign-in. `[V]` |
+| `ACCESS_FACEBOOK_CLIENT_ID`, `ACCESS_FACEBOOK_CLIENT_SECRET` | https://developers.facebook.com/apps/creation/ | **App name** and **App contact email**. Use case: **Authenticate and request data from users with Facebook Login**. **Create app**. Then walkthrough steps 4 and 5: **Use Strict Mode for redirect URIs** on, and the callback URL. No scopes to pick: Access asks for the email at sign-in. Open **App settings** → **Basic**: the **App ID** shows, the **App Secret** is hidden. Stop there: the person presses **Show** next to it, and enters their password if Facebook asks. `[V]` steps, `[U]` the button name. |
 
 ## Walkthrough · about 10 minutes
 

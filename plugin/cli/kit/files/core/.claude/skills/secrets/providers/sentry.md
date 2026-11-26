@@ -46,7 +46,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 | Variable | Open | Pick |
 |---|---|---|
 | `SENTRY_DSN`, `VITE_SENTRY_DSN` | https://sentry.io/orgredirect/organizations/:orgslug/settings/projects/:projectId/keys/ | The project's **Client Keys (DSN)**: copy the DSN. Nothing to make once the project exists. No project yet? Create one for the JavaScript / Cloudflare platform first (walkthrough step 2). Public. `[V]` |
-| `SENTRY_AUTH_TOKEN` | https://sentry.io/orgredirect/organizations/:orgslug/settings/auth-tokens/ | Only on `ci = "actions"`. An **Organization Token** (**Settings** → **Developer Settings** → **Organization Tokens**). No scopes to pick: Sentry fixes them for CI. Name: `<app> CI`. Shown once. `[V]` |
+| `SENTRY_AUTH_TOKEN` | https://sentry.io/orgredirect/organizations/:orgslug/settings/auth-tokens/ | Only on `ci = "actions"`. An **Organization Token** (**Settings** → **Developer Settings** → **Organization Tokens**). No scopes to pick: Sentry fixes them for CI. **Create New Token**, name: `<app> CI`. Stop there: the person presses **Create Token**. Shown once. `[V]` steps, `[U]` the button names. |
 | `SENTRY_ORG`, `SENTRY_PROJECT` | https://sentry.io/orgredirect/organizations/:orgslug/settings/projects/ | Nothing to make: the org slug and the project slug in the page's URL. Not secret. `[U]` the page. |
 
 ## Sentry's agent guide and CLI (reviewed)

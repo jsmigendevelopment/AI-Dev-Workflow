@@ -36,7 +36,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 
 | Variable | Open | Pick |
 |---|---|---|
-| `ACCESS_GITHUB_CLIENT_ID`, `ACCESS_GITHUB_CLIENT_SECRET` | https://github.com/settings/applications/new | An **OAuth app**. **Application name:** the app's. **Homepage URL:** `https://<team>.cloudflareaccess.com`. **Authorization callback URL:** `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`. Leave **Enable Device Flow** off. **Register application**, then **Generate a new client secret** (shown once). No scopes here: Access asks for orgs, teams and email when the person clicks **Authorize** (walkthrough step 5). `[V]` |
+| `ACCESS_GITHUB_CLIENT_ID`, `ACCESS_GITHUB_CLIENT_SECRET` | https://github.com/settings/applications/new | An **OAuth app**. **Application name:** the app's. **Homepage URL:** `https://<team>.cloudflareaccess.com`. **Authorization callback URL:** `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`. Leave **Enable Device Flow** off. No scopes here: Access asks for orgs, teams and email when the person clicks **Authorize** (walkthrough step 5). **Register application** (it shows only the client ID). Stop there: the person presses **Generate a new client secret** (shown once). `[V]` |
 
 ## Walkthrough · about 3 minutes
 

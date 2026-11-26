@@ -42,7 +42,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 |---|---|---|
 | `EXPO_PUBLIC_API_URL`, `E2E_API_URL` | https://dash.cloudflare.com/?to=/:account/workers-and-pages | The test Worker's address (its `workers.dev` URL, or its custom domain under **Settings** → **Domains & Routes**), with `https://`. `[V]` |
 | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `E2E_CLERK_PUBLISHABLE_KEY` | https://dashboard.clerk.com/~/api-keys | The **Development** instance's publishable key (`pk_test_`), the same as the web app's. `[V]` |
-| `EXPO_TOKEN` | https://expo.dev/settings/access-tokens | Only if CI runs `eas` later. **Create token**, turn on **Limit access**. Shown once. `[V]` page and **Limit access**, `[U]` button name. |
+| `EXPO_TOKEN` | https://expo.dev/settings/access-tokens | Only if CI runs `eas` later. **Create token**, a name (`<app> CI`), turn on **Limit access**. Stop there: the person presses **Create** in the dialog. Shown once. `[V]` page and **Limit access**, `[U]` button names. |
 
 ## Walkthrough · about 10 minutes
 

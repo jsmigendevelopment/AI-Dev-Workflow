@@ -41,7 +41,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 | Variable | Open | Pick |
 |---|---|---|
 | `ACCESS_ENTRA_CLIENT_ID`, `ACCESS_ENTRA_TENANT_ID` | https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade | **New registration**. A **Name**. **Supported account types:** **Single tenant only**. **Redirect URI:** **Web**, `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`. **Register**. Both IDs are on **Overview**, and neither is secret. `[V]` steps, `[U]` the deep link (else **Entra ID** → **App registrations**). |
-| `ACCESS_ENTRA_CLIENT_SECRET` | https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade | The app, then **Certificates & secrets** → **Client secrets** → **New client secret**, an expiry of 12 months or less (Microsoft's advice; 24 at most). Its **Value** shows once. Then **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions**: `email`, `offline_access`, `openid`, `profile`, `User.Read`, **Add permissions**, **Grant admin consent**. `[V]` |
+| `ACCESS_ENTRA_CLIENT_SECRET` | https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade | The app, then **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions**: `email`, `offline_access`, `openid`, `profile`, `User.Read`, **Add permissions**, **Grant admin consent**. Then **Certificates & secrets** → **Client secrets** → **New client secret**, a description and an expiry of 12 months or less (Microsoft's advice; 24 at most). Stop there: the person presses **Add**. The value shows once, and hides once they leave the page. `[V]` |
 
 ## Walkthrough · about 15 minutes
 

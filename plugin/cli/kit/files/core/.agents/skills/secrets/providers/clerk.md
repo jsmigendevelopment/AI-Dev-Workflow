@@ -60,7 +60,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 | Variable | Open | Pick |
 |---|---|---|
 | `VITE_CLERK_PUBLISHABLE_KEY` | https://dashboard.clerk.com/~/api-keys | The app, then the **Development** instance (the menu at the top). The publishable key (`pk_test_`) is in **Quick copy**: nothing to make, and it's public. `[V]` |
-| `CLERK_SECRET_KEY` | https://dashboard.clerk.com/~/api-keys | The **Development** instance. In **Quick copy**, click **Insert a new secret key**. No scopes to pick: a secret key reaches the whole instance. Shown once (`sk_test_`). `[V]` page, `[U]` button name. |
+| `CLERK_SECRET_KEY` | https://dashboard.clerk.com/~/api-keys | The **Development** instance. No scopes to pick: a secret key reaches the whole instance. Stop there: the person presses **Insert a new secret key** in **Quick copy**. Shown once (`sk_test_`). `[V]` page, `[U]` button name. |
 | `CLERK_JWT_KEY` | https://dashboard.clerk.com/~/api-keys | Optional. The **Development** instance's **JWKS Public Key** (PEM). Nothing to make, and it's public. `[V]` |
 
 ## Clerk's CLI, and its agent prompt (reviewed copy)

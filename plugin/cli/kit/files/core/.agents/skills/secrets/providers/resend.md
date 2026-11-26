@@ -36,7 +36,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 
 | Variable | Open | Pick |
 |---|---|---|
-| `RESEND_API_KEY` | https://resend.com/api-keys | **Create API Key**. Name: `<app> test` (production gets its own key, `<app> production`, after the person's go-ahead). Permission: **Sending access**. Domain: the verified sending domain. `[V]` |
+| `RESEND_API_KEY` | https://resend.com/api-keys | **Create API Key**. Name: `<app> test` (production gets its own key, `<app> production`, after the person's go-ahead). Permission: **Sending access**. Domain: the verified sending domain. Stop there: the person presses **Add**. `[V]` steps, `[U]` the button name. |
 | `EMAIL_FROM` | https://resend.com/domains | Nothing to make: a sender on a domain marked verified here, such as `Acme <hello@mail.example.com>`. No verified domain yet? Walkthrough steps 1 and 2 add one (DNS records). Not secret. `[V]` |
 
 ## Walkthrough · about 10 minutes, plus DNS time
