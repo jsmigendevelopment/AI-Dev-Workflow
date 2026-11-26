@@ -54,16 +54,16 @@ describe('the GitHub name for each mode', () => {
     const answer =
       (status: number, stdout: string): Run =>
       () => ({ status, stdout, stderr: '' })
-    expect(readSecretsMode(answer(0, 'repository\n'), 'acme/app')).toBe('repository')
-    expect(readSecretsMode(answer(0, 'environment\n'), 'acme/app')).toBe('environment')
-    expect(readSecretsMode(answer(1, ''), 'acme/app')).toBe('environment')
+    expect(readSecretsMode(answer(0, 'repository\n'), 'acme/app', 'actions')).toBe('repository')
+    expect(readSecretsMode(answer(0, 'environment\n'), 'acme/app', 'actions')).toBe('environment')
+    expect(readSecretsMode(answer(1, ''), 'acme/app', 'actions')).toBe('environment')
     const calls: string[][] = []
     const spy: Run = (cmd, args) => (
       calls.push([cmd, ...args]),
       { status: 0, stdout: 'repository', stderr: '' }
     )
-    expect(readSecretsMode(spy, null)).toBe('environment')
-    expect(readSecretsMode(spy, 'acme/app')).toBe('repository')
+    expect(readSecretsMode(spy, null, 'actions')).toBe('environment')
+    expect(readSecretsMode(spy, 'acme/app', 'actions')).toBe('repository')
     expect(calls).toEqual([['gh', 'variable', 'get', 'SECRETS_MODE', '-R', 'acme/app']])
   })
 })
@@ -114,5 +114,38 @@ describe('pnpm connect in repository mode', () => {
     expect(names.has('TEST_CF_TOKEN')).toBe(false)
     expect(names.has('SECRETS_MODE')).toBe(false)
     expect(names.has('TEST_ONLY')).toBe(true)
+  })
+})
+
+describe('pnpm connect on ci = "local" (#139)', () => {
+  let w: ReturnType<typeof world>
+  beforeEach(() => (w = world({ ci: 'local' })))
+  afterEach(() => w.cleanup())
+
+  it('has no GitHub places, and never asks GitHub for SECRETS_MODE', () => {
+    expect(groupsFor(spec, 'none')).toEqual([])
+    const calls: string[][] = []
+    const spy: Run = (cmd, args) => (
+      calls.push([cmd, ...args]),
+      { status: 0, stdout: 'repository', stderr: '' }
+    )
+    expect(readSecretsMode(spy, 'acme/app', 'local')).toBe('none')
+    expect(calls).toEqual([])
+  })
+
+  it('writes the local file and Cloudflare only, never GitHub, and prints no value', async () => {
+    const dry = await w.run(['--dry-run'])
+    expect(dry.text).toContain('ci = "local" (docs/stack.md): nothing goes to GitHub.')
+    expect(dry.text).toMatch(/DEMO_SECRET_KEY: \.env\.local ✗, Cloudflare test ✗, Cloudflare production ✗\n/)
+    // Open the page?, test value, two saves, production yes, production value, one save, public.
+    const { code, text } = await w.run([], typed('n', SECRET, 'y', 'y', 'y', PROD_SECRET, 'y', ''))
+    expect(code).toBe(0)
+    expect(w.calls().filter((c) => c.cmd === 'gh')).toEqual([])
+    expect(w.writes().map((c) => [c.cmd, c.argv.join(' '), c.stdin])).toEqual([
+      ['wrangler', 'secret put DEMO_SECRET_KEY --env test', SECRET],
+      ['wrangler', 'secret put DEMO_SECRET_KEY --env production', PROD_SECRET],
+    ])
+    expect(text).not.toContain(SECRET)
+    expect(text).not.toContain(PROD_SECRET)
   })
 })

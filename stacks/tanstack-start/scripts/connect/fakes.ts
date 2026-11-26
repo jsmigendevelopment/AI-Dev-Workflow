@@ -108,9 +108,14 @@ function readCalls(dir: string): Call[] {
   }
 }
 
-/** The temp repository: provider files, .env.example, fake tools, and (by default) real git. */
-function repository(options: { git?: boolean; ignore?: string }) {
+/**
+ * The temp repository: provider files, .env.example, fake tools, (by default) real git, and
+ * docs/stack.md with `ci` (by default "actions": most tests here cover the GitHub places).
+ */
+function repository(options: { git?: boolean; ignore?: string; ci?: 'local' | 'actions' }) {
   const dir = mkdtempSync(join(tmpdir(), 'connect-'))
+  mkdirSync(join(dir, 'docs'))
+  writeFileSync(join(dir, 'docs', 'stack.md'), `ci = "${options.ci ?? 'actions'}"\n`)
   const providers = join(dir, '.agents/skills/secrets/providers')
   mkdirSync(providers, { recursive: true })
   writeFileSync(join(providers, 'demo.md'), DEMO)
@@ -130,7 +135,7 @@ function repository(options: { git?: boolean; ignore?: string }) {
   return { dir, providers }
 }
 
-export function world(options: { git?: boolean; ignore?: string } = {}) {
+export function world(options: { git?: boolean; ignore?: string; ci?: 'local' | 'actions' } = {}) {
   const { dir, providers } = repository(options)
   const rawModes: boolean[] = []
 
