@@ -9,7 +9,7 @@ test("#178: on Windows a .cmd shim runs through cmd.exe by its full path, from C
   const argv = [shim, "plugin", "update", "core@onrails"];
   let l = launch(argv, { platform: "win32", env: { ComSpec: "C:\\Windows\\System32\\cmd.exe" } });
   assert.equal(l.file, "C:\\Windows\\System32\\cmd.exe");
-  assert.deepEqual(l.args, ["/d", "/s", "/c", `""${shim}" plugin update core@onrails"`]);
+  assert.deepEqual(l.args, ["/d", "/v:off", "/s", "/c", `""${shim}" plugin update core@onrails"`]);
   assert.equal(l.verbatim, true);
   assert.equal(l.env.NoDefaultCurrentDirectoryInExePath, "1", "the shim's bare `node` is never looked up in the current folder");
   assert.equal(launch(argv, { platform: "win32", env: { SystemRoot: "D:\\Win" } }).file, "D:\\Win\\System32\\cmd.exe");
@@ -25,7 +25,7 @@ test("#178: on Windows a .cmd path with a space reaches cmd.exe as one quoted wo
   const env = { ComSpec: "C:\\Windows\\System32\\cmd.exe" };
   const l = launch([shim, "plugin", "marketplace", "update", "onrails"], { platform: "win32", env });
   // cmd.exe /s drops the first and last quote on the line, which leaves "<path>" quoted.
-  assert.deepEqual([l.file, l.args, l.verbatim], [env.ComSpec, ["/d", "/s", "/c", `""${shim}" plugin marketplace update onrails"`], true]);
+  assert.deepEqual([l.file, l.args, l.verbatim], [env.ComSpec, ["/d", "/v:off", "/s", "/c", `""${shim}" plugin marketplace update onrails"`], true]);
   assert.throws(() => launch([shim, "a&b"], { platform: "win32", env }), /plain words/, "cmd.exe never reads a & or a quote from an argument");
   assert.doesNotMatch(repo("scripts/preflight-sys.mjs"), /windowsArgv/, "preflight's comment no longer names the old route");
 });

@@ -34,7 +34,7 @@ test("#185 round 1: WHEN claude, claude.cmd and claude.ps1 share an npm folder o
   const probe = sys.probe("claude", ["--version"]);
   assert.deepEqual([probe?.ok, probe?.out], [true, "9.9.9"]);
   assert.equal(sys.exec(["claude", "update"]), true);
-  const line = (args) => [ComSpec, "/d", "/s", "/c", `""${join(npm, "claude.cmd")}" ${args}"`];
+  const line = (args) => [ComSpec, "/d", "/v:off", "/s", "/c", `""${join(npm, "claude.cmd")}" ${args}"`];
   assert.deepEqual(calls, [line("--version"), line("update")]);
 });
 
@@ -56,7 +56,7 @@ test("#185 round 1: WHEN update --all runs on Windows with npm's three claude sh
   await updateAll(dir, { sys, log: logger() });
   const shim = join(npm, "claude.cmd");
   for (const args of ["plugin marketplace update onrails", "plugin update core@onrails"]) {
-    assert.ok(calls.some((c) => c.join(" ") === [ComSpec, "/d", "/s", "/c", `""${shim}" ${args}"`].join(" ")), `${args}\n${calls.join("\n")}`);
+    assert.ok(calls.some((c) => c.join(" ") === [ComSpec, "/d", "/v:off", "/s", "/c", `""${shim}" ${args}"`].join(" ")), `${args}\n${calls.join("\n")}`);
   }
   assert.ok(!calls.some((c) => c[0] === join(npm, "claude")), "the extension-less shim never starts");
 });
@@ -70,6 +70,6 @@ test("#215: WHEN git on Windows is only a .cmd shim THEN doctor's process check 
   const env = { PATH: bin, PATHEXT: ".com;.exe;.bat;.cmd", ComSpec };
   projectChecks(dir, { sys: { ...realSystem({ projectDir: dir, platform: "win32", env, run }), home: tmp("onrails-home-") } });
   const line = `""${join(bin, "git.cmd")}" rev-parse --git-common-dir"`;
-  assert.deepEqual(calls.find((c) => c.argv.at(-1) === line), { argv: [ComSpec, "/d", "/s", "/c", line], cwd: dir, verbatim: true }, JSON.stringify(calls));
+  assert.deepEqual(calls.find((c) => c.argv.at(-1) === line), { argv: [ComSpec, "/d", "/v:off", "/s", "/c", line], cwd: dir, verbatim: true }, JSON.stringify(calls));
   assert.ok(!calls.some((c) => [join(bin, "git"), join(bin, "git.cmd")].includes(c.argv[0])), "the shim never starts without cmd.exe");
 });
