@@ -33,6 +33,18 @@ import { fileURLToPath } from "node:url";
 // subfolder loads its own); `.github/` and docs/stack.md only at the root, where GitHub and the guard read
 // them. `.gitmodules` counts too: a submodule can bring in any of these.
 export const RULE_FILES = /(?:^|\/)(?:\.agents|\.claude|\.codex)(?:\/|$)|^\.github(?:\/|$)|^docs\/stack\.md$|(?:^|\/)(?:AGENTS(?:\.override)?|CLAUDE(?:\.local)?|GEMINI)\.md$|(?:^|\/)\.gitmodules$/i;
+/** Check code (#162): `.mcp.json`, lint, format, type and test-runner config, budgets and the packs' check scripts. */
+// Any depth, any case, like the agent folders: a monorepo's apps each have their own. Under a `scripts/` folder only
+// the check folders and `check-*` files; its deploy, connect, cloudflare and generate scripts aren't checks.
+export const CHECK_FILES = new RegExp([
+  String.raw`(?:^|/)(?:\.mcp\.json|eslint(?:\.[^/]+)?\.config\.[^/]+|\.eslintrc[^/]*|\.eslintignore|eslint-rules\.[^/]+|\.prettierrc[^/]*`,
+  String.raw`|prettier\.config\.[^/]+|\.prettierignore|knip\.jsonc?|knip\.config\.[^/]+|\.jscpd\.json|lefthook\.ya?ml|\.semgrep\.yml`,
+  String.raw`|tsconfig[^/]*\.json|(?:vitest\.(?:config|workspace)|jest\.config|playwright\.config)\.[^/]+|lighthouserc\.[^/]+)$`,
+  String.raw`|(?:^|/)\.semgrep(?:/|$)`,
+  String.raw`|(?:^|/)scripts/(?:(?:budgets|checks|lint|pr|migrations)/|(?:[^/]+/)*check-[^/]*$)`,
+].join(""), "i");
+// Every protected path: the agents' rules and level, or check code.
+const isProtected = (path) => RULE_FILES.test(path) || CHECK_FILES.test(path);
 // A submodule entry in the API's file list: its patch is a "Subproject commit <sha>" line.
 const SUBPROJECT = /^[-+]Subproject commit [0-9a-f]{40}/m;
 export const GUARD_WORKFLOW = ".github/workflows/agent-files.yml";
@@ -82,7 +94,7 @@ export function decide({ changed = [], labels = [], stack = "", comments = [], h
   }
   const odd = changed.filter((p) => CONTROL.test(p));
   if (odd.length) return { pass: false, why: `A file name has a control character or a line break: ${odd.map((p) => JSON.stringify(p)).join(", ")}. Rename it.` };
-  const rules = [...new Set([...changed.filter((p) => RULE_FILES.test(p)), ...modules.map((p) => `${p} (a submodule)`)])];
+  const rules = [...new Set([...changed.filter(isProtected), ...modules.map((p) => `${p} (a submodule)`)])];
   if (!rules.length) return { pass: true, why: "no agent rule, check or level files changed" };
   const full = level(stack) === "full";
   const verdict = headVerdict(comments, head, trusted);
@@ -93,7 +105,7 @@ export function decide({ changed = [], labels = [], stack = "", comments = [], h
   if (!full && labels.includes("human-approved")) return { pass: true, why: "the human-approved label" };
   const need = full ? `a "Weakening review: pass @ ${head || "<head sha>"}" comment from someone with write access (Full automation: the label doesn't count)`
     : "the human-approved label";
-  return { pass: false, why: `These files change the agents' rules and need ${need}:\n${rules.join("\n")}` };
+  return { pass: false, why: `These files change the agents' rules or checks and need ${need}:\n${rules.join("\n")}` };
 }
 
 /** Before a merge: the runs are real and green, and the live decision still passes (a fail posted later blocks it). */
@@ -186,7 +198,7 @@ function fromApi(repo, pr, expected, stackText) {
   const changed = changedPaths(files);
   const modules = submodules(files);
   const stack = stackText ?? (existsSync("docs/stack.md") ? readFileSync("docs/stack.md", "utf8") : "");
-  const comments = modules.length || changed.some((p) => RULE_FILES.test(p)) ? pages(`repos/${repo}/issues/${pr}/comments`) : [];
+  const comments = modules.length || changed.some(isProtected) ? pages(`repos/${repo}/issues/${pr}/comments`) : [];
   const labels = pages(`repos/${repo}/issues/${pr}/labels`).map((l) => l.name);
   // writers() throws when a voter's access has no answer, so the guard fails closed (main, below).
   const voters = [...new Set(comments.filter((c) => verdictOf(c.body, head)).map((c) => c.user?.login).filter(Boolean))];
