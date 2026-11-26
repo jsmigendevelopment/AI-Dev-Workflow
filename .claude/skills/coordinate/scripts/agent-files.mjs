@@ -42,6 +42,8 @@ export const MAX_FILES = 3000;
 const PASS_LINE = /^Weakening review: pass @ ([0-9a-f]{40})\s*$/gm;
 const FAIL_LINE = /^Weakening review: fail @ ([0-9a-f]{40})\b/gm;
 const WRITE = new Set(["admin", "maintain", "write"]);
+// GitHub reads "triage" as permission "read"; "none" is a user with no access.
+const READ = new Set(["read", "triage", "none"]);
 // A path with a line break or control character could forge a log command, so it's refused.
 const CONTROL = new RegExp("[\\u0000-\\u001f\\u007f]");
 
@@ -122,19 +124,51 @@ export const gh = (...args) => execFileSync("gh", ["api", ...args], { encoding: 
 /** Every page of an API list, as one array. */
 export const pages = (path) => JSON.parse(gh("--paginate", "--slurp", path)).flat();
 
-/** Logins with write, maintain or admin access. A login whose check fails counts as no access. */
-export function writers(repo, logins) {
-  const out = new Set();
-  for (const login of logins) {
-    try {
-      const p = JSON.parse(gh(`repos/${repo}/collaborators/${login}/permission`));
-      if (WRITE.has(p.permission) || WRITE.has(p.role_name)) out.add(login);
-    } catch {
-      console.error(`Couldn't check ${login}'s access, so their comment doesn't count.`);
-    }
+/** An access check that got no answer: a proxy's 403, a 5xx, a rate limit, the network. Never "no access". */
+export class AccessUnknown extends Error {}
+
+const httpStatus = (error) => Number(String(error.stderr ?? "").match(/\bHTTP (\d{3})\b/)?.[1]) || null;
+const reason = (error) => String(error.stderr || error.message).trim();
+
+// Some proxies refuse the permission path with a 403 but allow `user` and `repos/<repo>` (#131). For the
+// token's own login, the repo's `permissions` answers the same question. Anyone else stays unknown.
+function ownAccess(repo, login, me, refused) {
+  let perms;
+  try {
+    if (me().toLowerCase() === login.toLowerCase()) perms = JSON.parse(gh(`repos/${repo}`)).permissions;
+  } catch (error) {
+    throw new AccessUnknown(`Couldn't check ${login}'s access to ${repo}: ${reason(refused)}; then ${reason(error)}`);
   }
-  return out;
+  if (!perms) throw new AccessUnknown(`Couldn't check ${login}'s access to ${repo}: ${reason(refused)}`);
+  return Boolean(perms.push || perms.maintain || perms.admin);
 }
+
+/** True or false only from a real answer: write or higher, or read, triage, none, or a 404 for the user. */
+function canWrite(repo, login, me) {
+  let p;
+  try {
+    p = JSON.parse(gh(`repos/${repo}/collaborators/${login}/permission`));
+  } catch (error) {
+    if (httpStatus(error) === 404) return false;
+    return ownAccess(repo, login, me, error);
+  }
+  if (WRITE.has(p.permission) || WRITE.has(p.role_name)) return true;
+  if (READ.has(p.permission)) return false;
+  throw new AccessUnknown(`Couldn't check ${login}'s access to ${repo}: GitHub answered permission ${JSON.stringify(p.permission)}`);
+}
+
+/**
+ * Logins with write, maintain or admin access. A check with no answer throws AccessUnknown, so every caller
+ * fails closed: own-branch.mjs exits 2 and checks nothing out, and the guard below fails. Dropping the login
+ * instead would hide a writer's fail verdict, so a pass could win.
+ */
+export function writers(repo, logins) {
+  return new Set(logins.filter((login) => canWrite(repo, login, me)));
+}
+
+// The token's own login, read at most once per run.
+let self;
+const me = () => (self ??= JSON.parse(gh("user")).login);
 
 /** docs/stack.md as it is on the default branch, from the API. */
 function defaultStack(repo) {
@@ -154,6 +188,7 @@ function fromApi(repo, pr, expected, stackText) {
   const stack = stackText ?? (existsSync("docs/stack.md") ? readFileSync("docs/stack.md", "utf8") : "");
   const comments = modules.length || changed.some((p) => RULE_FILES.test(p)) ? pages(`repos/${repo}/issues/${pr}/comments`) : [];
   const labels = pages(`repos/${repo}/issues/${pr}/labels`).map((l) => l.name);
+  // writers() throws when a voter's access has no answer, so the guard fails closed (main, below).
   const voters = [...new Set(comments.filter((c) => verdictOf(c.body, head)).map((c) => c.user?.login).filter(Boolean))];
   return { changed, modules, stack, comments, head, labels, trusted: writers(repo, voters), expected: expected || null, total: pull.changed_files };
 }
@@ -203,6 +238,19 @@ function gate(argv) {
 
 export function main(argv, env = process.env) {
   let r;
+  try {
+    r = run(argv, env);
+  } catch (error) {
+    // A voter's access with no answer fails the guard: it never counts a pass or drops a fail.
+    if (!(error instanceof AccessUnknown)) throw error;
+    r = { pass: false, why: `${error.message}. The guard fails until GitHub answers.` };
+  }
+  (r.pass ? console.log : console.error)(r.why);
+  return r.pass ? 0 : 1;
+}
+
+function run(argv, env) {
+  let r;
   if (argv[0] === "gate") {
     r = gate(argv);
   } else if (argv[0] === "verify-run") {
@@ -220,8 +268,7 @@ export function main(argv, env = process.env) {
     const pr = argv.includes("--pr") ? argv[argv.indexOf("--pr") + 1] : null;
     r = decide(pr ? fromApi(env.REPO, pr, env.HEAD_SHA) : fromFlags(argv));
   }
-  (r.pass ? console.log : console.error)(r.why);
-  return r.pass ? 0 : 1;
+  return r;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));

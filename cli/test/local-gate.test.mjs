@@ -25,7 +25,7 @@ test("AC-131-3: the kit repo's AGENTS.md and the one the kit installs have the n
 });
 
 // #131 item 3: the guard runs from the session before a merge, with no workflow. Item 3 has no AC ID of its own.
-function gate(args, { comments = [PASS()], stack = FULL, local = null, env = {} } = {}) {
+function gate(args, { comments = [PASS()], stack = FULL, local = null, env = {}, api = {} } = {}) {
   const dir = tmp("onrails-gate-");
   if (local) {
     mkdirSync(join(dir, "docs"));
@@ -39,6 +39,7 @@ function gate(args, { comments = [PASS()], stack = FULL, local = null, env = {} 
     [`${p}/issues/7/labels`]: [],
     [`${p}/collaborators/owner/permission`]: { permission: "admin" },
     [`${p}/contents/docs/stack.md`]: { content: Buffer.from(stack).toString("base64") },
+    ...api,
   }, env);
   const r = spawnSync(process.execPath, [SCRIPT, "gate", ...args], { cwd: dir, encoding: "utf8", env: fake.env });
   return { ...r, calls: fake.calls() };
@@ -74,4 +75,17 @@ test("#131 item 3: gate needs the pull request, the repo and the head, even with
       assert.equal(r.calls, "", label);
     }
   }
+});
+
+// Round 3 review, item 1: writers() no longer drops a login it couldn't check, so the guard fails closed.
+test("#131 item 3: an access check with no answer fails the gate, even when it would hide a writer's fail", unixOnly, () => {
+  const refused = { ghError: "gh: Access to this GitHub API path is not permitted through this proxy. (HTTP 403)" };
+  const keeperFail = { ...FAIL(), user: { login: "keeper" } };
+  const r = gate(["7", "--repo", "acme/app", "--head", HEAD], { comments: [PASS(), keeperFail], api: { "repos/acme/app/collaborators/keeper/permission": refused } });
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stderr, /Couldn't check keeper's access to acme\/app: .*not permitted through this proxy\. \(HTTP 403\).*The guard fails/);
+  const own = gate(["7", "--repo", "acme/app", "--head", HEAD], {
+    api: { "repos/acme/app/collaborators/owner/permission": refused, user: { login: "owner" }, "repos/acme/app": { permissions: { push: true } } },
+  });
+  assert.equal(own.status, 0, `the token's own login passes on the repo's permissions: ${own.stderr}`);
 });

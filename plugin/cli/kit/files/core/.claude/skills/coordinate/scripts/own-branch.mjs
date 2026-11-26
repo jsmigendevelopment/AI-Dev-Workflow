@@ -6,10 +6,13 @@
 // the branch is feat/<issue>-<name> or fix/<issue>-<name>; and that issue has a claim from a login with write
 // access or higher, as a whole line in the claim's exact form: "Claimed by <session> at <time> · branch <name>".
 // On a pass it prints the head's full sha. It reads the API only, and runs nothing from the pull request.
-// Exit 0: the loop's own branch. 1: not, so never check it out or run it. 2: a usage or API error.
+// Exit 0: the loop's own branch. 1: not, so never check it out or run it. 2: a usage or API error, including an
+// access check with no answer (a proxy's 403, a 5xx, a rate limit, the network). Only a real read, triage or none,
+// or a 404 for the user, is "no write access". Where a proxy refuses the permission path, the token's own login
+// is checked through the repo's `permissions` instead.
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gh, pages, prArgs, writers } from "./agent-files.mjs";
+import { AccessUnknown, gh, pages, prArgs, writers } from "./agent-files.mjs";
 
 // Plain characters only after the dash, so the name is safe to write into a command or a claim line.
 const BRANCH = /^(?:feat|fix)\/(\d+)-[A-Za-z0-9._-]+$/;
@@ -51,7 +54,9 @@ export function main(argv) {
     const pull = JSON.parse(gh(`repos/${repo}/pulls/${pr}`));
     r = ownBranch(repo, pull, (issue) => pages(`repos/${repo}/issues/${issue}/comments`), (logins) => writers(repo, logins));
   } catch (error) {
-    console.error(`Couldn't read #${pr} from the API, so check nothing out: ${String(error.stderr || error.message).trim()}`);
+    // An access check with no answer is an API error, never "no write access": exit 2, so the next sweep retries.
+    const why = error instanceof AccessUnknown ? error.message : `Couldn't read #${pr} from the API: ${String(error.stderr || error.message).trim()}`;
+    console.error(`${why}. Check nothing out.`);
     return 2;
   }
   (r.pass ? console.log : console.error)(r.why);
