@@ -2,7 +2,8 @@
 // In order: the Claude Code and Codex plugins (only where the tool and its plugin are both there), the global
 // entry skills (only when init --global was used), the project's kit (only inside an onRails project),
 // then doctor and a summary of each part before and after. It only consumes a release: no bump, tag or publish.
-import { delimiter, isAbsolute, resolve } from "node:path";
+import { realpathSync } from "node:fs";
+import { delimiter, isAbsolute, relative, resolve } from "node:path";
 import { doctor } from "./doctor.mjs";
 import { globalSkillChecks, initGlobal } from "./global.mjs";
 import { PROJECT_MANIFEST, loadKit } from "./kit.mjs";
@@ -11,14 +12,37 @@ import { readProjectManifest } from "./sync.mjs";
 import { findCommand, realSystem, showCommand } from "./system.mjs";
 import { update } from "./update.mjs";
 
-// The tool's full path on PATH. Relative entries are skipped, so a project's own `claude` never runs.
-function toolPath(name, sys) {
-  const PATH = (sys.env.PATH || sys.env.Path || "").split(delimiter).filter((d) => d && isAbsolute(d)).join(delimiter);
+// A folder's real path, or null when it doesn't exist (then it holds no tool).
+function realDir(dir) {
+  try {
+    return realpathSync(dir);
+  } catch {
+    return null;
+  }
+}
+
+const within = (dir, root) => {
+  const rel = relative(root, dir);
+  return !rel || (!rel.startsWith("..") && !isAbsolute(rel));
+};
+
+// The tool's full path on PATH, never a copy a project ships. Skipped: relative entries, any entry whose real
+// path is inside the project or the current folder, and every node_modules/.bin, because npx puts the current
+// folder's and each ancestor's first, where a dev dependency or a planted file would win.
+function toolPath(name, sys, projectDir) {
+  const roots = [projectDir, process.cwd()].map(realDir).filter(Boolean);
+  const PATH = (sys.env.PATH || sys.env.Path || "").split(delimiter)
+    .filter((d) => d && isAbsolute(d) && !/(^|[\\/])node_modules[\\/]\.bin[\\/]*$/i.test(d))
+    .filter((d) => {
+      const dir = realDir(d);
+      return dir && !roots.some((root) => within(dir, root));
+    })
+    .join(delimiter);
   return findCommand(name, { env: { PATH, PATHEXT: sys.env.PATHEXT }, platform: sys.platform });
 }
 
 // Step 1. Each command runs with no shell, by full path, and a failed one ends that tool's steps.
-function plugins(sys, dryRun, log) {
+function plugins(sys, projectDir, dryRun, log) {
   log("1. Plugins");
   const rows = [];
   for (const p of pluginVersions({ home: sys.home, env: sys.env })) {
@@ -27,7 +51,7 @@ function plugins(sys, dryRun, log) {
       log(`   ${p.label} plugin: not installed, skipped`);
       continue;
     }
-    const path = toolPath(p.tool, sys);
+    const path = toolPath(p.tool, sys, projectDir);
     if (!path) {
       log(`   ${name} v${p.version}: skipped, ${p.tool} isn't on your PATH`);
       rows.push({ tool: p.tool, part: name, before: `v${p.version}`, note: `skipped: ${p.tool} isn't on your PATH` });
@@ -96,23 +120,35 @@ function summary(rows, log) {
   if (left.length) log(`Left for you:\n${left.map((l) => `  - ${l}`).join("\n")}`);
 }
 
-/** Runs all four parts; exit 1 when a plugin command or the project update failed. */
+// A part that throws (EACCES on ~/.agents/skills, a broken kit record) becomes a FAILED row, so the others still run.
+async function part(name, run, log) {
+  try {
+    return await run();
+  } catch (error) {
+    const why = String(error?.message ?? error).split("\n")[0];
+    log(`   ${name}: FAILED: ${why}`);
+    return [{ part: name, before: `FAILED: ${why}`, failed: true }];
+  }
+}
+
+/** Runs all four parts, each on its own; exit 1 when any part, plugin command or the project update failed. */
 export async function updateAll(dir = ".", { dryRun = false, kitDir, ask, yes = false, sys = realSystem(), log = console.log } = {}) {
   const projectDir = resolve(dir);
   const { version } = loadKit(kitDir);
   log(dryRun ? `Plan for kit v${version} (dry run: nothing runs, nothing is written)` : `Bringing onRails to kit v${version}, the one in this CLI`);
   const rows = [
-    ...plugins(sys, dryRun, log),
-    ...globalSkills({ kitDir, sys, dryRun, version, log }),
-    ...(await projectKit(projectDir, { kitDir, dryRun, ask, yes, log })),
+    ...(await part("Plugins", () => plugins(sys, projectDir, dryRun, log), log)),
+    ...(await part("Global entry skills", () => globalSkills({ kitDir, sys, dryRun, version, log }), log)),
+    ...(await part("Project kit", () => projectKit(projectDir, { kitDir, dryRun, ask, yes, log }), log)),
   ];
+  const code = () => (rows.some((r) => r.failed) ? 1 : 0);
   if (dryRun) {
     log("4. doctor: would run after the updates");
     log("\nNothing ran. To do it: npx onrails@latest update --all");
-    return 0;
+    return code();
   }
   log("4. doctor");
-  doctor(projectDir, { kitDir, sys, log });
+  rows.push(...(await part("doctor", () => (doctor(projectDir, { kitDir, sys, log }), []), log)));
   summary(rows, log);
-  return rows.some((r) => r.failed) ? 1 : 0;
+  return code();
 }

@@ -7,7 +7,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, isAbsolute, join } from "node:path";
+import { delimiter, join, win32 } from "node:path";
 
 export function findCommand(name, { env = process.env, platform = process.platform } = {}) {
   const exts = platform === "win32" ? ["", ...(env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";")] : [""];
@@ -21,13 +21,19 @@ export function findCommand(name, { env = process.env, platform = process.platfo
   return null;
 }
 
-// Windows .cmd/.bat shims (npm, pnpm, corepack) only start through cmd.exe. Fix commands are
-// fixed strings from this CLI, never user input, so passing them to cmd.exe is safe.
-// A full path (update --all finds each tool itself) is used as it is.
-function windowsArgv(argv) {
-  const found = isAbsolute(argv[0]) ? argv[0] : findCommand(argv[0]);
-  if (found && /\.(cmd|bat)$/i.test(found)) return ["cmd.exe", ["/d", "/s", "/c", found, ...argv.slice(1)]];
-  return [found ?? argv[0], argv.slice(1)];
+// How exec and spawnInteractive start argv, with no shell: { file, args, env }.
+// Windows .cmd/.bat shims (npm, pnpm, corepack, an npm-installed claude) only start through cmd.exe. Fix commands
+// are fixed strings from this CLI, never user input, so passing them to cmd.exe is safe. A full path (update --all
+// finds each tool itself) is used as it is. As in preflight (decision 63), cmd.exe goes by its full path, since a
+// bare name is looked up in the current folder first, and NoDefaultCurrentDirectoryInExePath stops the same lookup
+// for the bare `node` a shim starts.
+export function launch(argv, { platform = process.platform, env = process.env } = {}) {
+  if (platform !== "win32") return { file: argv[0], args: argv.slice(1), env };
+  const found = win32.isAbsolute(argv[0]) ? argv[0] : findCommand(argv[0], { env, platform });
+  const winEnv = { ...env, NoDefaultCurrentDirectoryInExePath: "1" };
+  if (!found || !/\.(cmd|bat)$/i.test(found)) return { file: found ?? argv[0], args: argv.slice(1), env: winEnv };
+  const cmdExe = env.ComSpec || win32.join(env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
+  return { file: cmdExe, args: ["/d", "/s", "/c", found, ...argv.slice(1)], env: winEnv };
 }
 
 export function realSystem() {
@@ -47,15 +53,15 @@ export function realSystem() {
     },
     // Hand the terminal to an interactive program (an agent session) and wait for it to end.
     spawnInteractive(argv, { cwd } = {}) {
-      const [cmd, args] = platform === "win32" ? windowsArgv(argv) : [argv[0], argv.slice(1)];
-      const r = spawnSync(cmd, args, { cwd, stdio: "inherit" });
+      const { file, args, env } = launch(argv);
+      const r = spawnSync(file, args, { cwd, env, stdio: "inherit" });
       if (r.error) throw new Error(`Could not start ${argv[0]}: ${r.error.message}`);
       return r.status ?? 1;
     },
     exec(argv, { cwd } = {}) {
-      const [cmd, args] = platform === "win32" ? windowsArgv(argv) : [argv[0], argv.slice(1)];
+      const { file, args, env } = launch(argv);
       try {
-        execFileSync(cmd, args, { cwd, stdio: "inherit" });
+        execFileSync(file, args, { cwd, env, stdio: "inherit" });
         return true;
       } catch {
         return false;

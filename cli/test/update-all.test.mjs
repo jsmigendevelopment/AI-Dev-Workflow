@@ -4,10 +4,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { init } from "../src/init.mjs";
+import { launch } from "../src/system.mjs";
 import { exists, logger, makeKit, put, read, tmp, unixOnly } from "./helpers.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -43,8 +44,8 @@ function machine({ tools = ["claude", "codex"], plugins = tools, global = true }
   const logFile = join(bin, "calls.log");
   // Only these variables: no CLAUDE_CONFIG_DIR, CODEX_HOME or real PATH from the shell running the tests.
   const env = { PATH: [bin, dirname(process.execPath)].join(delimiter), HOME: home, USERPROFILE: home, TMPDIR: dirname(home), FAKE_LOG: logFile, FAKE_NEW: "0.7.9" };
-  const run = (args, extra = {}) => spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", env: { ...env, ...extra } });
-  return { home, bin, run, calls: () => (existsSync(logFile) ? readFileSync(logFile, "utf8") : "") };
+  const run = (args, extra = {}, cwd = undefined) => spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8", env: { ...env, ...extra } });
+  return { home, bin, env, run, calls: () => (existsSync(logFile) ? readFileSync(logFile, "utf8") : "") };
 }
 
 /** A project with an older kit installed. */
@@ -151,4 +152,77 @@ test("AC-178-5: WHEN the README and cli/CLI.md are read THEN they name /update a
   assert.match(byHand, /`\/update`/);
   assert.match(byHand, /npx onrails@latest update --all/);
   assert.match(cli, /\| `npx onrails@latest update \[dir\] --all \[--dry-run\] \[--yes\]` \|/);
+});
+
+// A claude a project could ship: it only records that it ran.
+const PLANTED = `#!/usr/bin/env node
+require("fs").appendFileSync(process.env.FAKE_LOG, "planted " + process.argv.slice(2).join(" ") + "\\n");
+`;
+
+test("#178: update --all never runs a claude from the project, the current folder, a node_modules/.bin or a relative PATH entry", unixOnly, () => {
+  const m = machine({ tools: ["claude"], plugins: ["claude"], global: false });
+  const root = tmp(), dir = join(root, "app"), cwd = join(root, "here", "sub");
+  // npx puts <cwd>/node_modules/.bin and each ancestor's first; the rest are a folder inside the project,
+  // a folder inside the current one, a link into the project, and a relative entry that points outside both.
+  const planted = [join(dir, "node_modules", ".bin"), join(root, "node_modules", ".bin"), join(dir, "tools"), join(cwd, "bin"), join(root, "here", "rel")];
+  for (const d of planted) put(d, "claude", PLANTED), chmodSync(join(d, "claude"), 0o755);
+  symlinkSync(join(dir, "tools"), join(root, "link"));
+  mkdirSync(cwd, { recursive: true });
+  const PATH = [...planted.slice(0, 4), join(root, "link"), join("..", "rel"), m.env.PATH].join(delimiter);
+  const plan = m.run(["update", dir, "--all", "--dry-run"], { PATH }, cwd);
+  assert.match(plan.stdout, new RegExp(`would run\\n\\s+${esc(join(m.bin, "claude"))} plugin marketplace update onrails`));
+  const r = m.run(["update", dir, "--all"], { PATH }, cwd);
+  assert.equal(r.status, 0, r.stderr);
+  const plugin = m.calls().split("\n").filter((l) => / plugin /.test(l));
+  // Only plugin commands: doctor's own `claude --version` probe still uses the bare name (#185).
+  assert.deepEqual(plugin, ["claude plugin marketplace update onrails", "claude plugin update core@onrails"]);
+});
+
+test("#178: on Windows a .cmd shim runs through cmd.exe by its full path, from ComSpec or SystemRoot, never a bare cmd.exe", () => {
+  const shim = "C:\\Users\\me\\AppData\\Roaming\\npm\\claude.cmd";
+  const argv = [shim, "plugin", "update", "core@onrails"];
+  let l = launch(argv, { platform: "win32", env: { ComSpec: "C:\\Windows\\System32\\cmd.exe" } });
+  assert.equal(l.file, "C:\\Windows\\System32\\cmd.exe");
+  assert.deepEqual(l.args, ["/d", "/s", "/c", shim, "plugin", "update", "core@onrails"]);
+  assert.equal(l.env.NoDefaultCurrentDirectoryInExePath, "1", "the shim's bare `node` is never looked up in the current folder");
+  assert.equal(launch(argv, { platform: "win32", env: { SystemRoot: "D:\\Win" } }).file, "D:\\Win\\System32\\cmd.exe");
+  assert.equal(launch(argv, { platform: "win32", env: {} }).file, "C:\\Windows\\System32\\cmd.exe");
+  l = launch(["C:\\tools\\codex.exe", "plugin"], { platform: "win32", env: {} });
+  assert.deepEqual([l.file, l.args], ["C:\\tools\\codex.exe", ["plugin"]], "an .exe starts as it is");
+  l = launch(["/bin/claude", "plugin"], { platform: "linux", env: { A: "1" } });
+  assert.deepEqual(l, { file: "/bin/claude", args: ["plugin"], env: { A: "1" } });
+});
+
+test("#178: a part that throws is a FAILED row; the other parts, doctor and the summary still run, and the exit is 1", unixOnly, () => {
+  // Global skills: ~/.agents is a file, so writing ~/.agents/skills fails.
+  const m = machine({ tools: [], plugins: [] }), dir = project();
+  put(m.home, ".agents", "not a folder\n");
+  let r = m.run(["update", dir, "--all"]);
+  assert.equal(r.status, 1);
+  let summary = r.stdout.slice(r.stdout.lastIndexOf("Summary"));
+  assert.match(summary, /Global entry skills: FAILED: .*(ENOTDIR|EEXIST)/);
+  assert.match(summary, new RegExp(`Project kit: v0\\.1\\.0 -> v${esc(version)}`), "the project kit still updates");
+  assert.ok(r.stdout.indexOf("Summary") > r.stdout.indexOf("4. doctor"), "doctor ran before the summary");
+
+  // Project kit: its record is broken JSON.
+  const broken = tmp();
+  put(broken, ".onrails.json", "{ broken");
+  r = machine({ tools: [], plugins: [], global: false }).run(["update", broken, "--all"]);
+  assert.equal(r.status, 1);
+  summary = r.stdout.slice(r.stdout.lastIndexOf("Summary"));
+  assert.match(summary, /Project kit: FAILED: .*JSON/);
+  assert.match(r.stdout, /4\. doctor/);
+});
+
+test("#178: the /update skill runs the CLI from a temp folder, its fallback is the plugin's install record and never the project, and it works without the kit", () => {
+  const skill = repo(".agents/skills/update/SKILL.md");
+  assert.match(skill, /\(cd "\$\(mktemp -d\)" && npx --yes onrails@latest update "<project root>" --all --dry-run\)/);
+  assert.match(skill, /\(cd "\$\(mktemp -d\)" && node "<plugin folder>\/cli\/bin\/cli\.mjs" update "<project root>" --all --dry-run\)/);
+  assert.match(skill, /`\$\{CLAUDE_PLUGIN_ROOT\}`/);
+  assert.match(skill, /the `installPath` of `core@onrails` in `~\/\.claude\/plugins\/installed_plugins\.json`/);
+  assert.match(skill, /`~\/\.codex\/plugins\/cache\/onrails\/or\/`/);
+  assert.match(skill, /Never use a folder inside the project/);
+  assert.doesNotMatch(skill, /two levels above/, "a project's copy would point into the project");
+  assert.match(skill, /No plugin installed\? There's no fallback: it's a 🛑 blocker, with this one command .*`npx --yes onrails@latest update "<project root>" --all`/);
+  assert.match(skill, /\*\*No kit here\*\* \(no `ask` skill/);
 });
