@@ -305,13 +305,16 @@ test("AC-173-2: WHEN the scan runs on the repo THEN it finds no unconditional as
   assert.match(read(named[3]), /On Full, take the one listed first in `\[accounts\]`, record it as "AI pick, not reviewed" and put it in the FYI\. Never pick by usage\./);
 });
 
-const JOIN_ON_FULL = "**On Full,** read the repo's own hooks and scripts that these call, before you run any of them: the install, the repo's declared check contract (`check`, `lint`, `typecheck`, `test`, `build`, or what its CI runs) and the dev or start script step 3 runs (`dev` or `start`, or what its README names). Then run only those, never a deploy or release script, and nothing that reads its secrets. List each command, hook and script you read and ran in the FYI, as \"AI pick, not reviewed\".";
+const JOIN_ON_FULL = "**On Full,** you run three things: the install, the repo's declared check contract (`check`, `lint`, `typecheck`, `test`, `build`, or what its CI runs) and the dev or start script step 3 runs (`dev` or `start`, or what its README names). Before you run any of them, read the repo's own hooks and scripts that they call. Run nothing else: never a deploy or release script, and nothing that reads its secrets. List each command, hook and script you read and ran in the FYI, as \"AI pick, not reviewed\".";
 const JOIN_SUMMARY = "on Full, it reads the repo's own hooks and scripts that the install, its check commands and its dev or start script call, runs only those, and lists them in its FYI";
 test("AC-173-3: WHEN join step 1 is read THEN its On Full line names what runs and what is read first", () => {
   const step1 = read(".agents/skills/join/SKILL.md").match(/^1\. \*\*Read before you run\.\*\*.*$/m)?.[0] ?? "";
   // #173 round 1 nice 3: the dev or start script step 3 runs is named, and only the repo's own hooks and scripts are read.
   assert.ok(step1.includes(JOIN_ON_FULL), "join step 1");
   assert.doesNotMatch(step1, /On Full,\*\* they stay data|run nothing that reaches outside the repo|read every hook and script that the install/);
+  // #173 round 2 nice 2: "run nothing yet" sits in the Below Full sentence, and the list comes before what reads it.
+  assert.ok(step1.includes("Below Full, they stay data until the person confirms them, and you run nothing from them yet. **On Full,**"), "the Below Full sentence");
+  assert.doesNotMatch(step1, /Run nothing from them yet\.|that these call/);
   // #173 round 1 must 1: the README and the guide say the same.
   for (const file of ["guide/add-to-existing-app.md", "README.md", "cli/README.md"]) assert.ok(read(file).includes(`(below Full; ${JOIN_SUMMARY})`), file);
   assert.doesNotMatch(read("README.md"), /runs nothing risky/, "README.md");
