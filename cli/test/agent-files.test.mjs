@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GUARD_WORKFLOW, changedPaths, decide, level, submodules, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
 import { LOCAL_CHECK, localChecks, requiredChecks } from "../../.agents/skills/name/scripts/required-checks.mjs";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/coordinate/scripts/agent-files.mjs", import.meta.url));
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
@@ -108,7 +108,7 @@ test("#103: a .gitmodules change and any submodule entry are protected", () => {
 test("the script: a submodule in --files fails without a label", () => {
   const dir = tmp("onrails-agent-files-sub-");
   writeFileSync(join(dir, "files.json"), JSON.stringify([{ filename: "vendor/kit", patch: "+Subproject commit " + "d".repeat(40) }]));
-  const r = spawnSync(process.execPath, [SCRIPT, "--files", join(dir, "files.json")], { encoding: "utf8" });
+  const r = spawnSync(process.execPath, [SCRIPT, "--files", join(dir, "files.json")], { encoding: "utf8", env: safeEnv() });
   assert.equal(r.status, 1);
   assert.match(r.stderr, /vendor\/kit \(a submodule\)/);
 });
@@ -172,7 +172,7 @@ test("#103 AC-1: the script: exit 0 on a Full pass, exit 1 on a renamed rule fil
   const files = file("files.json", JSON.stringify([{ filename: "notes.md", previous_filename: "AGENTS.md" }]));
   const args = (comments) => ["--files", files, "--stack", file("stack.md", FULL), "--comments", file("comments.json", JSON.stringify(comments)),
     "--head", HEAD, "--trusted", "owner"];
-  const run = (a) => spawnSync(process.execPath, [SCRIPT, ...a], { encoding: "utf8" });
+  const run = (a) => spawnSync(process.execPath, [SCRIPT, ...a], { encoding: "utf8", env: safeEnv() });
   assert.equal(run(args([PASS()])).status, 0);
   const r = run(args([]));
   assert.equal(r.status, 1);
@@ -240,7 +240,7 @@ test("the script: verify-run exits 0 on a real green run that still passes, 1 on
   const file = (name, data) => (writeFileSync(join(dir, name), typeof data === "string" ? data : JSON.stringify(data)), join(dir, name));
   const live = (comments) => ["--files", file("files.json", [{ filename: "AGENTS.md" }]), "--stack", file("stack.md", FULL),
     "--comments", file("comments.json", comments), "--head", HEAD, "--trusted", "owner"];
-  const go = (runs, comments) => spawnSync(process.execPath, [SCRIPT, "verify-run", "--runs", file("runs.json", runs), ...live(comments)], { encoding: "utf8" }).status;
+  const go = (runs, comments) => spawnSync(process.execPath, [SCRIPT, "verify-run", "--runs", file("runs.json", runs), ...live(comments)], { encoding: "utf8", env: safeEnv() }).status;
   assert.equal(go([run(1)], [PASS()]), 0);
   assert.equal(go([run(1), run(2, { path: ".github/workflows/fake.yml", event: "pull_request" })], [PASS()]), 1);
   assert.equal(go([run(1)], [PASS(), FAIL()]), 1, "a fail posted after the green run");

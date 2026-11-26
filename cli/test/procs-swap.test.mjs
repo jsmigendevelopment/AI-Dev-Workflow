@@ -6,7 +6,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { chmodSync, chownSync, lstatSync, mkdirSync, readFileSync, renameSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 import { homeRegistry, update } from "../src/procs-store.mjs";
 import { NOW, fakeSys, run, signals } from "./procs-fake.mjs";
 
@@ -75,10 +75,10 @@ test("AC-156-4: WHEN the registry's name changes while update holds it THEN noth
 });
 
 test("AC-156-4: WHEN the registry's name turns into a FIFO THEN it is refused at once, never waited on", posix, async (t) => {
-  if (spawnSync("mkfifo", ["--help"]).error) return t.skip("no mkfifo here");
-  const { sys, path } = trading((spare) => spawnSync("mkfifo", ["-m", "600", spare]));
+  if (spawnSync("mkfifo", ["--help"], { env: safeEnv() }).error) return t.skip("no mkfifo here");
+  const { sys, path } = trading((spare) => spawnSync("mkfifo", ["-m", "600", spare], { env: safeEnv() }));
   // A writer that fills the FIFO a second later, so a read that waited on it would get another record.
-  const writer = spawn(process.execPath, ["-e", `setTimeout(() => require("fs").writeFileSync(${JSON.stringify(path)}, ${JSON.stringify(OTHER)}), 1000)`], { timeout: 30_000 });
+  const writer = spawn(process.execPath, ["-e", `setTimeout(() => require("fs").writeFileSync(${JSON.stringify(path)}, ${JSON.stringify(OTHER)}), 1000)`], { timeout: 30_000, env: safeEnv() });
   try {
     const started = Date.now();
     const r = await run(sys, ["stop", "stale"]).catch((error) => ({ out: error.message }));
@@ -87,6 +87,6 @@ test("AC-156-4: WHEN the registry's name turns into a FIFO THEN it is refused at
   } finally {
     if (writer.exitCode === null) { writer.kill(); await once(writer, "exit"); } // the writer this test started, and only it
   }
-  const held = trading((spare) => spawnSync("mkfifo", ["-m", "600", spare]));
+  const held = trading((spare) => spawnSync("mkfifo", ["-m", "600", spare], { env: safeEnv() }));
   assert.throws(() => update(held.sys, held.path, (procs) => procs), /isn't a regular file/, "update writes nothing over it");
 });

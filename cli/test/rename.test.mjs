@@ -13,7 +13,7 @@ import { mergeDeny } from "../src/merge.mjs";
 import { profilePath, profileShow } from "../src/profile.mjs";
 import { readProjectManifest } from "../src/sync.mjs";
 import { update } from "../src/update.mjs";
-import { exists, fakeAsk, fakeSystem, logger, makeKit, put, read, tmp } from "./helpers.mjs";
+import { exists, fakeAsk, fakeSystem, logger, makeKit, put, read, safeEnv, tmp } from "./helpers.mjs";
 
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
@@ -175,7 +175,7 @@ test("doctor reports the old folder and record, and doctor --fix moves the folde
 test("the binary offers the move on a run, keeps the folder on a piped no, and moves it with --yes", () => {
   const home = tmp();
   put(home, ".ai-dev-workflow/profile.toml", 'github_owner = "old"\n');
-  const env = { ...process.env, HOME: home, USERPROFILE: home };
+  const env = safeEnv({ HOME: home, USERPROFILE: home });
   const kept = spawnSync(process.execPath, [CLI, "profile", "show"], { encoding: "utf8", env, input: "n\n" });
   assert.equal(kept.status, 0, kept.stderr);
   assert.match(kept.stdout, /Move it to ~\/\.onrails\? .*\[y\/N\]/);
@@ -193,7 +193,7 @@ test("the binary offers the move on a run, keeps the folder on a piped no, and m
 
 // The scripts the skills and hooks call.
 const script = (path, args, home, extra = {}) =>
-  spawnSync(process.execPath, [`${REPO}${path}`, ...args], { encoding: "utf8", cwd: tmp(), env: { ...process.env, HOME: home, USERPROFILE: home, CLAUDE_PROJECT_DIR: "", ...extra } });
+  spawnSync(process.execPath, [`${REPO}${path}`, ...args], { encoding: "utf8", cwd: tmp(), env: safeEnv({ HOME: home, USERPROFILE: home, CLAUDE_PROJECT_DIR: "", ...extra }) });
 
 test("worklog.mjs and board.mjs use ~/.onrails, or the old folder while only it exists", () => {
   const fresh = tmp();
@@ -222,7 +222,7 @@ test("notify.mjs reads presence from the old folder and still honours ADW_NOTIFY
 
 test("the session-start hook reads .onrails.json, or the old .ai-dev-workflow.json", () => {
   const dir = tmp();
-  const run = () => spawnSync(process.execPath, [`${REPO}.claude/hooks/session-start.mjs`], { encoding: "utf8", env: { ...process.env, CLAUDE_PROJECT_DIR: dir } }).stdout;
+  const run = () => spawnSync(process.execPath, [`${REPO}.claude/hooks/session-start.mjs`], { encoding: "utf8", env: safeEnv({ CLAUDE_PROJECT_DIR: dir }) }).stdout;
   put(dir, ".ai-dev-workflow.json", '{"kitVersion":"0.3.0"}');
   assert.match(run(), /Kit: v0\.3\.0/);
   put(dir, ".onrails.json", '{"kitVersion":"0.4.0"}');

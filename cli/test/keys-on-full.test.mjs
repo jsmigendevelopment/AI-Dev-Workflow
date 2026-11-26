@@ -5,9 +5,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const AGENTS = ["AGENTS.md", "cli/kit/files/core/AGENTS.md", "plugin/cli/kit/files/core/AGENTS.md"];
@@ -114,7 +114,7 @@ const fakes = (names) => {
 };
 /** Runs one command line in sh with the fakes first on PATH, and returns what the fakes wrote. */
 const runSh = (line, { bin, dir, out }) => {
-  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OUT: out, SHELL: "true", HOME: dir };
+  const env = safeEnv({ OUT: out, SHELL: "true", HOME: dir }, { bins: [bin] });
   const r = spawnSync("sh", ["-c", line], { cwd: dir, env, encoding: "utf8" });
   assert.equal(r.status, 0, `${line}\n${r.stderr}`);
   return readFileSync(out, "utf8").split("\n").slice(0, -1);

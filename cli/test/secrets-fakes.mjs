@@ -4,7 +4,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 
 export const script = (path) => fileURLToPath(new URL(`../../.agents/skills/${path}`, import.meta.url));
 export const PUSH = script("secrets/scripts/push-secrets.mjs");
@@ -53,8 +53,8 @@ export function repo(ci = "local", stack = `## CI\n\nci = "${ci}"\n`, { git = tr
   const dir = tmp("onrails-ci-local-");
   fakeBin(dir);
   if (git) {
-    execFileSync("git", ["init", "-q", dir]);
-    execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"]);
+    execFileSync("git", ["init", "-q", dir], { env: safeEnv() });
+    execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"], { env: safeEnv() });
   }
   mkdirSync(join(dir, "docs"));
   writeFileSync(join(dir, "docs", "stack.md"), stack);
@@ -63,13 +63,7 @@ export function repo(ci = "local", stack = `## CI\n\nci = "${ci}"\n`, { git = tr
 }
 
 /** The environment a run gets: the fakes first on PATH, their call log in `base`. */
-export const fakeEnv = (base, more = {}) => ({
-  ...process.env,
-  PATH: `${join(base, "bin")}:${process.env.PATH}`,
-  FAKE_LOG: join(base, "calls.jsonl"),
-  HOME: base,
-  ...more,
-});
+export const fakeEnv = (base, more = {}) => safeEnv({ FAKE_LOG: join(base, "calls.jsonl"), HOME: base, ...more }, { bins: [join(base, "bin")] });
 
 /** Every call the fakes logged in `base`. */
 export function calls(base) {

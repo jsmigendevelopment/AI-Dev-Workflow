@@ -1,12 +1,12 @@
 // Shared by the `update --all` tests (#178). Each test runs the CLI binary with a temp HOME and a PATH of temp
-// folders that hold only fake `claude` and `codex` (they record every call) and a link to Node. Never Node's own
-// folder: an npm-installed claude sits there. run() checks every child's PATH before it starts.
+// folders that hold only fake `claude` and `codex` (they record every call) and a copy of node. Never Node's own
+// folder: an npm-installed claude sits there. run() checks every child's PATH before it starts (#191: helpers.mjs).
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, readFileSync, realpathSync, symlinkSync } from "node:fs";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { init } from "../src/init.mjs";
-import { logger, makeKit, put, tmp } from "./helpers.mjs";
+import { checkPath, fake, logger, makeKit, nodeOnly, put, tmp } from "./helpers.mjs";
 
 export const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
@@ -35,33 +35,6 @@ require("fs").appendFileSync(process.env.FAKE_LOG, "planted " + process.argv.sli
 `;
 const claudeRecord = (v) => JSON.stringify({ version: 2, plugins: { "core@onrails": [{ scope: "user", installPath: "/x", version: v }] } });
 
-// Every fake this test file made, by real path. run() lets a child see no other claude or codex.
-const fakes = new Set();
-
-/** Writes an executable fake tool and records it as one of this test's fakes. */
-export function fake(dir, name, body) {
-  put(dir, name, body);
-  chmodSync(join(dir, name), 0o755);
-  fakes.add(realpathSync(join(dir, name)));
-}
-
-// A text scan of the test files can't see every way Node's folder or the shell's PATH reaches a child, so this
-// checks the PATH itself: a claude or codex that isn't a fake (the real one next to Node) stops the test first.
-function onlyFakes(PATH = "", cwd = process.cwd()) {
-  for (const entry of PATH.split(delimiter).filter(Boolean)) {
-    for (const name of ["claude", "codex", "claude.cmd", "codex.cmd", "claude.exe", "codex.exe"]) {
-      const file = resolve(cwd, entry, name);
-      if (existsSync(file) && !fakes.has(realpathSync(file))) throw new Error(`${file} on the child's PATH isn't one of this test's fakes`);
-    }
-  }
-}
-
-/** A new temp folder that holds only a link to Node, so `#!/usr/bin/env node` fakes start and nothing else is found. */
-export function nodeOnly(dir = tmp("onrails-node-")) {
-  symlinkSync(process.execPath, join(dir, "node"));
-  return dir;
-}
-
 /** A machine: temp HOME, fake tools on PATH, both plugins at 0.6.0 and a stale global idea skill unless told otherwise. */
 export function machine({ tools = ["claude", "codex"], plugins = tools, global = true, home = tmp("onrails-home-") } = {}) {
   const bin = nodeOnly(tmp("onrails-bin-"));
@@ -73,8 +46,7 @@ export function machine({ tools = ["claude", "codex"], plugins = tools, global =
   // Only these variables: no CLAUDE_CONFIG_DIR, CODEX_HOME or real PATH from the shell running the tests.
   const env = { PATH: bin, HOME: home, USERPROFILE: home, TMPDIR: dirname(home), FAKE_LOG: logFile, FAKE_NEW: "0.7.9" };
   const run = (args, extra = {}, cwd = undefined) => {
-    const childEnv = { ...env, ...extra };
-    onlyFakes(childEnv.PATH, cwd);
+    const childEnv = checkPath({ ...env, ...extra }, cwd);
     return spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8", env: childEnv });
   };
   return { home, bin, env, run, calls: () => (existsSync(logFile) ? readFileSync(logFile, "utf8") : "") };

@@ -10,7 +10,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRead, markRead, realSys } from "../src/preflight-sys.mjs";
-import { put } from "./helpers.mjs";
+import { put, safeEnv } from "./helpers.mjs";
 import { fakes, gitRepo, pathWith, PLAYWRIGHT, project, ran, runScript, sh, status, temp } from "./preflight-fakes.mjs";
 
 const posixOnly = { skip: process.platform === "win32" ? "the fakes are POSIX shell scripts and symlinks" : false };
@@ -87,11 +87,11 @@ test("AC-182-2: WHEN a PATH entry names a folder outside the repo by a route the
 });
 
 // The tools to make a bind mount in a namespace of its own, which ends with the process. Linux only.
-const tool = (cmd) => spawnSync("sh", ["-c", `command -v ${cmd}`], { encoding: "utf8" }).stdout.trim();
+const tool = (cmd) => spawnSync("sh", ["-c", `command -v ${cmd}`], { encoding: "utf8", env: safeEnv() }).stdout.trim();
 function canMount() {
   if (process.platform !== "linux" || !tool("unshare") || !tool("mount")) return false;
   const at = temp("onrails-path-probe-");
-  return spawnSync(tool("unshare"), ["-rm", tool("mount"), "--bind", at, at]).status === 0;
+  return spawnSync(tool("unshare"), ["-rm", tool("mount"), "--bind", at, at], { env: safeEnv() }).status === 0;
 }
 const mounts = canMount();
 
@@ -150,9 +150,9 @@ function remake(tree, how) {
     const stage = project();
     for (const [path, text] of Object.entries(files)) put(join(stage, "wt"), path, text);
     const archive = join(temp("onrails-path-tar-"), "wt.tar");
-    assert.equal(spawnSync(tool("tar"), ["cf", archive, "-C", stage, "wt"]).status, 0);
+    assert.equal(spawnSync(tool("tar"), ["cf", archive, "-C", stage, "wt"], { env: safeEnv() }).status, 0);
     rmSync(tree, { recursive: true, force: true });
-    assert.equal(spawnSync(tool("tar"), ["xf", archive, "-C", dirname(tree)]).status, 0);
+    assert.equal(spawnSync(tool("tar"), ["xf", archive, "-C", dirname(tree)], { env: safeEnv() }).status, 0);
     return;
   }
   const saved = join(temp("onrails-path-saved-"), "git");

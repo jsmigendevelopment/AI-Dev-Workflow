@@ -7,7 +7,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 
 const script = (path) => fileURLToPath(new URL(`../../.agents/skills/${path}`, import.meta.url));
 const PUSH = script("secrets/scripts/push-secrets.mjs");
@@ -34,8 +34,8 @@ function repo() {
   mkdirSync(join(dir, "bin"));
   writeFileSync(join(dir, "bin", "gh"), FAKE_GH);
   chmodSync(join(dir, "bin", "gh"), 0o755);
-  execFileSync("git", ["init", "-q", dir]);
-  execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"]);
+  execFileSync("git", ["init", "-q", dir], { env: safeEnv() });
+  execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"], { env: safeEnv() });
   writeFileSync(join(dir, ".env.example"), "# scope: test,production\nAPI_TOKEN=\n# scope: production, secret: no\nSITE_URL=\n");
   writeFileSync(join(dir, ".env.test.local"), "API_TOKEN=test-value-1\n");
   writeFileSync(join(dir, ".env.production.local"), "API_TOKEN=live-value-2\nSITE_URL=https://example.com\n");
@@ -50,7 +50,7 @@ function run(file, dir, args, env = {}) {
     cwd: dir,
     encoding: "utf8",
     input: "",
-    env: { ...process.env, PATH: `${join(dir, "bin")}:${process.env.PATH}`, FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir, ...env },
+    env: safeEnv({ FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir, ...env }, { bins: [join(dir, "bin")] }),
   });
   let calls = [];
   try {

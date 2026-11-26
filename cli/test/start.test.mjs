@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, readFileSync, realpathSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROJECT_MANIFEST } from "../src/kit.mjs";
 import { entryCommand, offerStart } from "../src/start.mjs";
 import { findCommand } from "../src/system.mjs";
-import { exists, fakeAsk, fakeSystem, logger, put, tmp } from "./helpers.mjs";
+import { exists, fake, fakeAsk, fakeSystem, logger, put, safeEnv, tmp } from "./helpers.mjs";
 
 // A fake world where spawnInteractive records what would have started. No agent ever runs.
 function world(commands) {
@@ -110,11 +110,10 @@ const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
 test("init --start through the binary runs the fake claude on PATH in the project folder", { skip: process.platform === "win32" }, () => {
   const bin = tmp();
   const out = join(tmp(), "ran.txt");
-  put(bin, "claude", `#!/bin/sh\nprintf '%s\\n' "$PWD" "$@" > "${out}"\n`);
-  chmodSync(join(bin, "claude"), 0o755);
+  fake(bin, "claude", `#!/bin/sh\nprintf '%s\\n' "$PWD" "$@" > "${out}"\n`);
   const dir = tmp();
   put(dir, "src/main.py", "print(1)\n");
-  const r = spawnSync(process.execPath, [CLI, "init", dir, "--start"], { encoding: "utf8", env: { ...process.env, PATH: bin } });
+  const r = spawnSync(process.execPath, [CLI, "init", dir, "--start"], { encoding: "utf8", env: safeEnv({ PATH: bin }) });
   assert.equal(r.status, 0, r.stderr);
   assert.ok(exists(dir, PROJECT_MANIFEST));
   assert.match(r.stdout, /Starting Claude Code: claude \/join/);
@@ -126,12 +125,11 @@ test("init --start through the binary runs the fake claude on PATH in the projec
 test("init through the binary without a terminal never starts an agent", { skip: process.platform === "win32" }, () => {
   const bin = tmp();
   const out = join(tmp(), "ran.txt");
-  put(bin, "claude", `#!/bin/sh\necho ran > "${out}"\n`);
-  chmodSync(join(bin, "claude"), 0o755);
+  fake(bin, "claude", `#!/bin/sh\necho ran > "${out}"\n`);
   const dir = tmp();
-  const r = spawnSync(process.execPath, [CLI, "init", dir], { encoding: "utf8", env: { ...process.env, PATH: bin } });
+  const r = spawnSync(process.execPath, [CLI, "init", dir], { encoding: "utf8", env: safeEnv({ PATH: bin }) });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /Open this folder there, start a new session and type \/idea/);
   assert.ok(!exists(out, ""), "the fake agent never ran");
-  assert.equal(spawnSync(process.execPath, [CLI, "init", tmp(), "--start", "--no-start"]).status, 2);
+  assert.equal(spawnSync(process.execPath, [CLI, "init", tmp(), "--start", "--no-start"], { env: safeEnv() }).status, 2);
 });

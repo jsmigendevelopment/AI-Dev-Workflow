@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { load } from "../src/procs-store.mjs";
 import { processChecks } from "../src/project-checks.mjs";
-import { tmp } from "./helpers.mjs";
+import { safePath, tmp } from "./helpers.mjs";
 import { SCRIPT, fakeSys, repoFile, seed } from "./procs-fake.mjs";
 
 const TESTS = fileURLToPath(new URL(".", import.meta.url));
@@ -101,7 +101,7 @@ test("both tools' session hooks run the registry: Claude Code and Codex end, and
 test("npx onrails ps through the binary: --help lists it, an empty registry says so, and a PID it didn't start is refused", () => {
   const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
   const home = tmp("procs-cli-home-");
-  const env = { PATH: process.env.PATH, HOME: home, USERPROFILE: home, SystemRoot: process.env.SystemRoot };
+  const env = { PATH: safePath(), HOME: home, USERPROFILE: home, SystemRoot: process.env.SystemRoot };
   const cli = (...args) => spawnSync(process.execPath, [CLI, ...args], { cwd: tmp("procs-cli-cwd-"), env, encoding: "utf8", input: "" });
   assert.match(cli("--help").stdout, /ps \[dir\] --stop <id\|all\|stale\|pid> \[--yes\]/);
   const empty = cli("ps");
@@ -115,7 +115,7 @@ test("npx onrails ps through the binary: --help lists it, an empty registry says
 
 test("the one real process: start a harmless child, see it listed, stop it, and nothing of it is left", () => {
   const home = tmp("procs-real-home-"), cwd = tmp("procs-real-cwd-");
-  const env = { PATH: process.env.PATH, HOME: home, USERPROFILE: home, SystemRoot: process.env.SystemRoot, ONRAILS_THREAD: "real-test" };
+  const env = { PATH: safePath(), HOME: home, USERPROFILE: home, SystemRoot: process.env.SystemRoot, ONRAILS_THREAD: "real-test" };
   const script = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { cwd, env, encoding: "utf8", timeout: 30_000 });
   const started = script("start", "--why", "the real test", "--until", "this test ends", "--", process.execPath, "-e", "setInterval(() => {}, 1000)");
   assert.equal(started.status, 0, started.stdout + started.stderr);
