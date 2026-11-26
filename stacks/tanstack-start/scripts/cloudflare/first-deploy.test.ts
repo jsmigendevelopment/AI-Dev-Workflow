@@ -24,7 +24,7 @@ describe('the first test deploy', () => {
   it('builds, migrates and deploys the test Worker as pnpm deploy:test does, before the secrets, never production', async () => {
     const world = freshWorld()
     const f = files()
-    const { code, calls, output } = await run(world, f)
+    const { code, calls, output } = await run(world, f, { ci: 'actions' })
     expect(code).toBe(0)
     expect(calls.filter(isDeployStep)).toEqual([BUILD, MIGRATE, DEPLOY])
     expect(world.deployed).toEqual(['app-test'])
@@ -60,7 +60,8 @@ describe('the first test deploy', () => {
 
   it('stops at a failed step, names it, and changes nothing after it', async () => {
     const world = { ...freshWorld(), failing: 'deploy' }
-    const failed = await run(world, files())
+    // ci = "actions", so a run that went on past the failure would call `gh secret set`.
+    const failed = await run(world, files(), { ci: 'actions' })
     expect(failed.code).toBe(1)
     expect(failed.output()).toContain('Stopped: the first test deploy failed at "wrangler deploy"')
     expect(failed.output()).toContain('run this again')
