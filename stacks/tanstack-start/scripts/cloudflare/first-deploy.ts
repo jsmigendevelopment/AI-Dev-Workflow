@@ -1,10 +1,10 @@
 // The first test deploy. Pull request previews are versions of the test Worker, so it must exist
-// before the first pull request; deploy-test.yml makes it only after a merge. Same commands as
-// deploy-test.yml, with one change: this first version is the Coming soon page (LAUNCHED=false).
-// The app itself goes live on the test URL with the first merge, through CI and its smoke test,
-// with the protection recorded in wrangler.jsonc. So the app is never live unprotected, and with
-// Access the Worker that Access attaches to (later in the same run) only ever showed Coming soon.
-import type { Deps, Log, Options } from './deps.ts'
+// before the first pull request; `pnpm deploy:test` makes it only after a merge. Same commands as
+// `pnpm deploy:test`, with one change: this first version is the Coming soon page (LAUNCHED=false).
+// The app itself goes live on the test URL with the first merge, through `pnpm deploy:test` and its
+// smoke test, with the protection recorded in wrangler.jsonc. So the app is never live unprotected,
+// and with Access the Worker that Access attaches to (later in the same run) only ever showed Coming soon.
+import type { CommandResult, Deps, Log, Options } from './deps.ts'
 import type { EnvResources } from './wrangler-config.ts'
 
 /** What happened, so the Access step knows whether the test Worker is coming. */
@@ -17,8 +17,11 @@ const NO_SUCH_WORKER = '[code: 10007]'
 const lastLine = (r: { stdout: string; stderr: string }) =>
   (r.stderr || r.stdout).trim().split('\n').at(-1) ?? ''
 
-/** True when the Worker exists; throws when wrangler can't tell. */
-async function workerExists(deps: Deps, worker: string): Promise<boolean> {
+/** True when the Worker exists; throws when wrangler can't tell. The session deploys use it too. */
+export async function workerExists(
+  deps: { wrangler(args: string[]): Promise<CommandResult> },
+  worker: string,
+): Promise<boolean> {
   const listed = await deps.wrangler(['versions', 'list', '--name', worker, '--json'])
   if (listed.status === 0) return true
   if (`${listed.stdout}\n${listed.stderr}`.includes(NO_SUCH_WORKER)) return false
@@ -50,7 +53,7 @@ export async function firstTestDeploy(
     return 'skipped'
   }
   if (await workerExists(deps, test.worker)) {
-    log(`exists  test Worker ${test.worker} (deploy-test.yml deploys every merge to main)`)
+    log(`exists  test Worker ${test.worker} (pnpm deploy:test deploys main after each merge)`)
     return 'exists'
   }
   if (options.dryRun) {

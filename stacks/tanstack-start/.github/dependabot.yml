@@ -1,6 +1,8 @@
-# Dependabot version updates: one grouped pull request per ecosystem per week, so upgrades arrive
-# as small reviewed batches. Security updates are separate and immediate (repo settings).
+# Dependabot version updates: one grouped pull request a week, so upgrades arrive as small
+# reviewed batches. Security updates and alerts are separate and immediate (repo settings).
 # The cooldown skips releases younger than a week, matching pnpm's minimum release age.
+# Nothing merges on its own: each bump is a normal pull request that goes through the build loop's
+# checks and review. The pack ships no GitHub Actions workflows, so there is no Actions ecosystem.
 version: 2
 updates:
   - package-ecosystem: npm # covers pnpm and pnpm-lock.yaml
@@ -29,13 +31,3 @@ updates:
       # TypeScript 7 waits for typescript-eslint support (see the stack skill's gotchas).
       - dependency-name: typescript
         versions: ['>=7']
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-    cooldown:
-      default-days: 7
-    groups:
-      actions:
-        patterns: ['*']

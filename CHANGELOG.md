@@ -8,6 +8,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 - **Releases are cut only when the owner asks.** `RELEASING.md` says so: no version bump, tag or publish after merges on any automation level.
 
+- **The stack packs and templates ship no GitHub Actions workflows (#132, part of #98).** Every job they ran is a script the session runs. The TanStack Start pack: `pnpm deploy:preview <n>` (a preview on the test Worker and its pull request comment), `pnpm deploy:test` (main to test, the smoke test, a rollback on failure), `pnpm deploy:production --confirm "deploy production"` (only after the person's yes), `pnpm check:merge` (what CI added on top of `check`: budgets, migrations match the tables, audit, licences, Clerk files, `docs/research`, gitleaks, Semgrep, screenshots; it skips what the machine can't run and says so), `pnpm pr:rules <n>` and `pnpm test:visual --docker`. The monorepo pack calls them from its root. Dependabot keeps alerts and npm updates, and drops auto-merge and the Actions ecosystem. New repos write `ci = "local"` in `docs/stack.md`. `setup-github.mjs` requires only the `onrails/check` status, and swaps the old workflows' checks for it in the rule it made. The research library template's check runs from the session too. Follow-up for the deploy keys: #139.
+
 ## [0.7.0] - 2026-11-24
 
 ### Changed

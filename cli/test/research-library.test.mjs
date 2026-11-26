@@ -132,9 +132,12 @@ test("research-library init copies the template into a new folder, and the copy 
   const log = logger();
   assert.equal(libraryInit(dir, { log }), 0);
   for (const path of ["research-library.json", "README.md", "CHANGELOG.md", "research/README.md", "briefs/README.md", "schemas/provenance.schema.json",
-    "schemas/library.schema.json", "scripts/check-library.mjs", "scripts/check-research.mjs", "scripts/research-library.mjs", ".github/workflows/check.yml"]) {
+    "schemas/library.schema.json", "scripts/check-library.mjs", "scripts/check-research.mjs", "scripts/research-library.mjs"]) {
     assert.ok(exists(dir, path), path);
   }
+  // #132: no GitHub Actions workflow. The checks it ran are the two scripts, run from the session.
+  assert.ok(!exists(dir, ".github/workflows"));
+  assert.match(read(dir, "README.md"), /node scripts\/research-library\.mjs private/);
   assert.match(log.text(), /gh repo create <owner>\/<name> --private/);
   const r = spawnSync(process.execPath, [join(dir, "scripts", "check-library.mjs")], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
