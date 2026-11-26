@@ -23,7 +23,7 @@ An interruption costs the person their focus. Silence costs the project hours. T
 
 Not sure if it's a blocker or a decision? If other work can still move, it's a decision.
 
-**Critical** means production is down or there's a security hole someone could use right now. Only critical blockers ping while the person is away or in quiet hours. Add `--critical` for those, and only those.
+**Critical** means production is down or there's a security hole someone could use right now. Only critical blockers ping while the person is away or in quiet hours. Add `--critical` for those, and only those. An always-stop 🛑 is sent once with `node .claude/hooks/notify.mjs --level blocker`, on Full too, never with `--critical`: it pings at once when the person is here, and waits for `/back` while they're away or in quiet hours.
 
 ## Try before you block
 

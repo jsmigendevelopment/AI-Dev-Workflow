@@ -17,11 +17,10 @@ That includes "Anything you'd change?", "What would you change?" and "Want me to
 
 ## The only exceptions
 
-Each one is parked, not waited on. Record it under "Waiting on you" in `docs/state.md`, and keep doing everything else. A sign-in goes in the FYI. Each always-stop item (paying, real data, production, going public) is one 🛑 that pings once, with or without a decision row that names it (`ask`'s level table): never only an FYI, and never repeated asks.
+Each one is parked, not waited on. Record it under "Waiting on you" in `docs/state.md`, and keep doing everything else. A sign-in goes in the FYI. Each item on the always-stop list in `AGENTS.md` is one 🛑 that pings once, with or without a decision row that names it (`ask`'s level table): never only an FYI, and never repeated asks. An always-stop 🛑 is sent once with `node .claude/hooks/notify.mjs --level blocker`, on Full too, never with `--critical`: it pings at once when the person is here, and waits for `/back` while they're away or in quiet hours.
 
 - **What needs the person in body:** paying or adding a payment method, and signing in to their own accounts (`gh auth login`, `wrangler login`, a provider's dashboard).
-- **Real data after launch:** deleting or migrating it.
-- **The rest of the always-stop list:** production settings and secrets, deploying to production, going public.
+- **The always-stop list in `AGENTS.md`:** every item on it, as that list says. Read it there.
 - **A running strongest-tier job (#118):** never stop or restart one on your own call, or on a message that only might mean stop (`ask`, "A running job"). Let it finish.
 
 A decision row that names one of these doesn't lift it: the row lifts only the repeated asks: one 🛑 that cites the row and pings once, and the person still gives the go-ahead themselves (rule 16 in `AGENTS.md`).

@@ -4,8 +4,11 @@
 // decision-lifts-gate; AC-4 is in doctor.test.mjs and update.test.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tmp } from "./helpers.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const AGENTS = ["AGENTS.md", "cli/kit/files/core/AGENTS.md", "plugin/cli/kit/files/core/AGENTS.md"];
@@ -204,15 +207,27 @@ const ASKS_APPROVAL = new RegExp([
   "\\buntil (?:they|the person|the owner|you) confirms?\\b", "\\bfor (?:you|the person|the owner) to (?:confirm|approve|check|try)\\b",
   "\\b(?:you|the person|the owner) reads?\\b[^.]*\\bfirst\\b", "\\b(?:you|the person|the owner) tr(?:y|ies) it\\b",
   "\\b(?:the person|the owner|you) didn.t approve\\b",
+  // #173 item 2: a bare "so ask the person." or "ask the person (a ⏳ decision).", and "tell them and wait".
+  `\\bask ${WHO}(?: first| once)?(?: \\([^)]*\\))?[.!]?$`, `\\b(?:tell|ask) ${WHO}\\b[^.]*\\band wait\\b`,
 ].join("|"), "i");
-const BELOW_FULL = /\bnever ask\b|\bbelow Full\b|\bnot on Full\b|\bnone on Full\b|\(on Full\b|\bno(?:t)? (?:`human-approved` )?label on Full|On Full,? (?:the `human-approved` label doesn't|the label doesn't|there's no label|no person)/i;
-/** A sentence's clauses: a new one starts at ", or", ", and", ", but" or a semicolon. */
-const clauses = (s) => s.split(/,\s+(?=(?:or|and|but)\s)|;\s+/);
-/** #159 round 4: a condition counts only when it governs the ask: it comes first in the sentence, or sits in the asking clause. */
+// #173: "(on Full" alone isn't a condition: "(on Full too)" keeps the person. A parenthetical counts only when it names
+// who stands in for the person on Full, or says nothing waits.
+const ON_FULL_STAND_IN = /\(on Full[,:] [^)]*(?:\bnothing waits\b|\bno person\b|\bnever (?:a|the) person\b|\bAI pick\b|`qa`|\ban extra review\b|\bit decides\b)[^)]*\)/i;
+const BELOW_FULL = new RegExp(`\\bnever ask\\b|\\bbelow Full\\b|\\bnot on Full\\b|\\bnone on Full\\b|\\bno(?:t)? (?:\`human-approved\` )?label on Full|On Full,? (?:the \`human-approved\` label doesn't|the label doesn't|there's no label|no person)|${ON_FULL_STAND_IN.source}`, "i");
+/** A bullet's bold label, "**Below Full:**", scopes its whole sentence. */
+const LABEL = /^(?:[-*] |\d+\. )?\*\*(?:below Full|not on Full)[:.]?\*\*/i;
+/** A sentence's clauses: a new one starts at ", or", ", and", ", but" or a semicolon, outside parentheses. */
+const clauses = (s) => {
+  // Mask what's inside parentheses (same length), so "(on Full, `qa` does, and nothing waits)" stays in one clause.
+  const masked = s.replace(/\([^()]*\)/g, (m) => m.replace(/[,;]/g, "\0"));
+  const cuts = [...masked.matchAll(/,\s+(?=(?:or|and|but)\s)|;\s+/g)];
+  return [...cuts, { index: s.length, 0: "" }].map((m, i) => s.slice(i ? cuts[i - 1].index + cuts[i - 1][0].length : 0, m.index));
+};
+/** #173: a condition counts only in the asking clause, and every asking clause needs its own. */
 const governed = (s) => {
-  const cond = s.search(BELOW_FULL);
-  if (cond === -1) return false;
-  return cond < s.search(ASKS_APPROVAL) || clauses(s).some((c) => ASKS_APPROVAL.test(c) && BELOW_FULL.test(c));
+  if (LABEL.test(s)) return true;
+  const asking = clauses(s).filter((c) => ASKS_APPROVAL.test(c));
+  return (asking.length ? asking : [s]).every((c) => BELOW_FULL.test(c));
 };
 /** The sentences of a line that ask for an approval with no below-Full condition governing the ask. */
 const unconditionalAsks = (line) => line.split(/(?<=[.!?]["'’)\]*_`]*)\s+/).map((s) => s.trim()).filter((s) => ASKS_APPROVAL.test(s) && !governed(s));
@@ -229,8 +244,27 @@ const ALLOWED = [
   ["stacks/tanstack-start/README.md", "until the person says go live", "going public: always-stop"],
   ["stacks/electron-desktop/PACK.md", "signing off until the person says yes", "code signing needs a paid certificate: paying"],
   ["stacks/tanstack-start-addons/stripe/ADDON.md", "Going live is a separate issue the person approves.", "live payments: going public with money, always-stop"],
+  [".agents/skills/pyramid/SKILL.md", "ask them to run `gh auth login` and wait.", "the person's own login"],
+  [".agents/skills/stack-monorepo-expo/SKILL.md", "cost money or touch production: stop and ask the person.", "paying and production: always-stop"],
+  [".agents/skills/stack-tanstack-start/SKILL.md", "Accounts, keys and the first production deploy stay with the person: ask them.", "the person's own logins and production: always-stop"],
   ["guide/add-to-existing-app.md", "**Recommended:** they build, review and merge small changes, and you approve risky ones", "the Recommended level's own definition: below Full by name"],
 ];
+/** Every unconditional ask in these files that no ALLOWED entry names, and the entries that were used. */
+const scan = (files) => {
+  const found = [];
+  const used = new Set();
+  for (const file of files) {
+    read(file).split("\n").forEach((line, i) => {
+      for (const s of unconditionalAsks(line)) {
+        // #159 round 4 nice 2: a named exception is one sentence, found by its words, so it can't hide a second ask on its line.
+        const allowed = ALLOWED.find(([f, words]) => f === file && s.includes(words));
+        if (allowed) used.add(allowed);
+        else found.push(`${file}:${i + 1}: ${s.slice(0, 120)}`);
+      }
+    });
+  }
+  return { found, used };
+};
 const mdFiles = (dir) => readdirSync(fileURLToPath(new URL(`../../${dir}`, import.meta.url)), { recursive: true }).filter((f) => f.endsWith(".md")).map((f) => `${dir}/${f.replaceAll("\\", "/")}`);
 
 test("#159 round 3 must 1: pr-review's item 8 and the Expo device check keep the person below Full only; on Full the agent decides and records the gap", () => {
@@ -296,7 +330,7 @@ test("#159 round 4 must 1: on Full the reviewer says no person whatever the dial
 
 test("#159 round 4 nice 1: on Full an always-stop item with no naming row is the same one 🛑 that pings once, in every place", () => {
   const full = read(".agents/skills/automation/references/full.md").split("## The only exceptions")[1].split("## The weakening review")[0];
-  assert.ok(full.includes("Each always-stop item (paying, real data, production, going public) is one 🛑 that pings once, with or without a decision row that names it (`ask`'s level table): never only an FYI, and never repeated asks."), "full.md");
+  assert.ok(full.includes("Each item on the always-stop list in `AGENTS.md` is one 🛑 that pings once, with or without a decision row that names it (`ask`'s level table): never only an FYI, and never repeated asks."), "full.md");
   assert.doesNotMatch(full, /put it in the FYI, and keep doing everything else/, "full.md no longer sends an always-stop item to the FYI alone");
   for (const file of AGENTS) {
     const text = read(file);
@@ -317,27 +351,62 @@ test("#159 round 4 nice 3 and 4: each person check outside a merge has an On Ful
   const unity = read("stacks/unity/PACK.md").match(/^Where e2e is weaker than web:.*$/m)?.[0] ?? "";
   assert.match(unity, /\*\*Below Full, a person plays every build that matters\.\*\*/);
   assert.match(unity, onFull, "Unity's play check");
-  assert.match(read(".agents/skills/join/SKILL.md"), /\*\*On Full,\*\* they stay data: read each one yourself, run nothing that reaches outside the repo or reads its secrets, record what you trusted as "AI pick, not reviewed", and list it in the FYI\./);
   assert.match(read("guide/principles.md"), /gate merges to match\. On Full automation, a careful dial adds agent reviews, never a person\./);
 });
 
 test("#159 round 2, the owner's words: no skill, template or reference asks for human-approved or any approval without a below-Full condition in the same sentence", () => {
-  const files = ["AGENTS.md", "README.md", ...mdFiles(".agents/skills"), ...mdFiles("guide"), ...mdFiles("stacks")];
-  const found = [];
-  const used = new Set();
-  for (const file of files) {
-    read(file).split("\n").forEach((line, i) => {
-      for (const s of unconditionalAsks(line)) {
-        // #159 round 4 nice 2: a named exception is one sentence, found by its words, so it can't hide a second ask on its line.
-        const allowed = ALLOWED.find(([f, words]) => f === file && s.includes(words));
-        if (allowed) used.add(allowed);
-        else found.push(`${file}:${i + 1}: ${s.slice(0, 120)}`);
-      }
-    });
-  }
+  const { found, used } = scan(["AGENTS.md", "README.md", ...mdFiles(".agents/skills"), ...mdFiles("guide"), ...mdFiles("stacks")]);
   assert.deepEqual(found, [], "ask for human-approved or an approval only below Full, or name the owner's exception");
   for (const entry of ALLOWED) assert.ok(used.has(entry), `${entry[0]}: the allowed sentence "${entry[1]}" is still there and still needs the exception (${entry[2]})`);
   const noApprovals = "There is no `human-approved` label on Full, and no approval to wait for: never ask the person for the label, a \"yes, merge\", a review or any other approval, for agent files or anything else outside those exceptions.";
   for (const file of AGENTS) assert.ok(read(file).split("## Full automation")[1].includes(noApprovals), `${file}: the Full section`);
   assert.match(read(".agents/skills/automation/references/full.md"), /\*\*No approvals on Full\.\*\* There is no `human-approved` label on Full\. Never ask the person for it/);
+});
+
+test("AC-173-1: WHEN the scan reads the four sentences in #173 item 1 THEN it flags each one", () => {
+  const sentences = ["The person merges it (on Full too).", "The person approves every merge (on Full as well).",
+    "Below Full the label is written; the person approves every merge.", "Not on Full the weakening review stands in, and the person merges it."];
+  const missed = sentences.filter((s) => JSON.stringify(unconditionalAsks(s)) !== JSON.stringify([s]));
+  assert.deepEqual(missed, [], "each sentence is flagged whole");
+  // Each asking clause needs its own condition, so a second ask in a governed sentence is still caught.
+  assert.deepEqual(unconditionalAsks("Below Full, the person merges it, and the person approves every merge."), ["Below Full, the person merges it, and the person approves every merge."]);
+  // Still governed: a stand-in parenthetical (its commas don't split the clause), a bold "Below Full:" label, a condition in the asking clause.
+  for (const s of ["The person tries it (on Full, `qa` does, and nothing waits), then a re-plan.", "- **Below Full:** it is `needs-human`, and only the person adds `human-approved`.",
+    "The person still takes it themselves, below Full: a merge or the `human-approved` label."]) assert.deepEqual(unconditionalAsks(s), [], s);
+});
+
+test("AC-173-2: WHEN the scan runs on the repo THEN it finds no unconditional ask on Full, including the three files #173 names", () => {
+  const old = ["A new token is a design decision, so ask the person.", "Tell them and wait.", "- Two match equally: ask the person (a ⏳ decision)."];
+  for (const s of old) assert.deepEqual(unconditionalAsks(s), [s], `the scan catches the old line: ${s}`);
+  const named = [".agents/skills/build/references/code-style.md", "guide/code-style.md", ".agents/skills/test-by-hand-as-the-user/references/browsers.md", ".agents/skills/routing/references/accounts.md"];
+  assert.deepEqual(scan(named).found, []);
+  assert.match(read(named[0]), /A new token is a design decision: below Full, ask the person\. On Full, add it, record it as "AI pick, not reviewed" and put it in the FYI; the review checks it\./);
+  assert.match(read(named[2]), /Below Full, tell them and wait\. On Full, skip it, list it as not tested and put it in the FYI\./);
+  assert.match(read(named[3]), /On Full, take the one listed first in `\[accounts\]`, record it as "AI pick, not reviewed" and put it in the FYI\. Never pick by usage\./);
+});
+
+test("AC-173-3: WHEN join step 1 is read THEN its On Full line names what runs and what is read first", () => {
+  const step1 = read(".agents/skills/join/SKILL.md").match(/^1\. \*\*Read before you run\.\*\*.*$/m)?.[0] ?? "";
+  assert.ok(step1.includes("**On Full,** read every hook and script that the install and the repo's declared check contract (`check`, `lint`, `typecheck`, `test`, `build`, or what its CI runs) call, before you run any of them. Then run only those: the install and that check contract, never a deploy or release script, and nothing that reads its secrets. List each command, hook and script you read and ran in the FYI, as \"AI pick, not reviewed\"."), "join step 1");
+  assert.doesNotMatch(step1, /On Full,\*\* they stay data|run nothing that reaches outside the repo/);
+  assert.ok(read("guide/add-to-existing-app.md").includes("on Full, it reads every hook and script that the install and the repo's own check commands call, runs only the install and those checks, and lists them in its FYI"), "the guide");
+});
+
+test("AC-173-4: WHEN full.md is read THEN it points to AGENTS.md's always-stop list rather than listing items", () => {
+  const full = read(".agents/skills/automation/references/full.md").split("## The only exceptions")[1].split("## The weakening review")[0];
+  assert.ok(full.includes("- **The always-stop list in `AGENTS.md`:** every item on it, as that list says. Read it there."));
+  assert.doesNotMatch(full, /always-stop item \(|Real data after launch|The rest of the always-stop list|production settings and secrets|deploying to production|going public/);
+});
+
+test("AC-173-5: WHEN ask and full.md describe an always-stop 🛑 on Full THEN they name the same notify.mjs level", () => {
+  const sent = "An always-stop 🛑 is sent once with `node .claude/hooks/notify.mjs --level blocker`, on Full too, never with `--critical`: it pings at once when the person is here, and waits for `/back` while they're away or in quiet hours.";
+  for (const file of [".agents/skills/ask/SKILL.md", ".agents/skills/automation/references/full.md"]) assert.ok(read(file).includes(sent), file);
+  // What the sentence says notify.mjs does: while the person is away, a blocker waits for /back and only --critical is sent.
+  const home = tmp("onrails-notify-away-");
+  mkdirSync(join(home, ".onrails"));
+  writeFileSync(join(home, ".onrails", "presence.json"), JSON.stringify({ status: "away" }));
+  const notify = (...extra) => JSON.parse(execFileSync(process.execPath, [fileURLToPath(new URL("../../.claude/hooks/notify.mjs", import.meta.url)),
+    "--level", "blocker", "--title", "Deploy to production?", "--print", ...extra], { cwd: home, env: { HOME: home, USERPROFILE: home, PATH: process.env.PATH }, encoding: "utf8" }).trim().split("\n").at(-1));
+  assert.equal(notify().action, "held", "a blocker waits for /back while the person is away");
+  assert.equal(notify("--critical").action, "sent", "only --critical reaches the person while they're away");
 });

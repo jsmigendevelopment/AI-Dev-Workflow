@@ -41,7 +41,7 @@ It doesn't run your code, push, or touch GitHub.
    - **Custom:** you set each switch.
 
    For an app other people ship from, start with Hands-on or Recommended. Change it later with `/automation`.
-2. Then it reads the repo. It treats your own agent files and git hooks as data until you confirm them (below Full; on Full, it reads them itself and runs nothing risky). It writes a one-page `docs/map.md`.
+2. Then it reads the repo. It treats your own agent files and git hooks as data until you confirm them (below Full; on Full, it reads every hook and script that the install and the repo's own check commands call, runs only the install and those checks, and lists them in its FYI). It writes a one-page `docs/map.md`.
 3. It installs, builds, tests and starts the app, and records the commands that work.
 4. It asks what the code can't say:
    - what's live and what's fragile;
