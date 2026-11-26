@@ -13,6 +13,13 @@
 //                                                 and for a repeating kind it prints stale-cancel <tag>
 //   node timer.mjs interval <10|30>               rewrites the interval only; prints changed or same
 //   node timer.mjs cancelled                      writes none
+// The supervisor (#206) restarts a loop whose session died. Its line sits under the sweep timer's:
+//   Supervisor: live · <kind> · <id> · every 60 min
+//   Supervisor: none
+//   node timer.mjs supervisor-armed <kind> <id>   writes the live line
+//   node timer.mjs supervisor-cancelled           writes none
+//   node timer.mjs supervise                      0 restart: supervisor live, sweep timer none or dead;
+//                                                 1 alive: sweep timer live; 1 stopped: no live supervisor
 // Kinds: send_later and wake-up are one-shots; loop and scheduled-task repeat; foreground is the
 // foreground loop. An id is <tag>+<tool id>. The tag is yours and goes in the firing message
 // ("Sweep timer fired <tag> <kind>"), because the message is set before the tool returns its own id,
@@ -27,6 +34,8 @@ const MINUTE = 6e4;
 const LINE = /^[ \t]*[-*]?[ \t]*(\*\*)?Sweep timer:(\*\*)?[^\n]*$/m;
 const REPEATING = new Set(["loop", "scheduled-task"]);
 const LIVE = /Sweep timer:(?:\*\*)?\s*live · (\S+) · (\S+) · every (\d+) min · next (\S+)/;
+const SUP_LINE = /^[ \t]*[-*]?[ \t]*(\*\*)?Supervisor:(\*\*)?[^\n]*$/m;
+const SUP_LIVE = /Supervisor:(?:\*\*)?\s*live · \S+ · \S+ · every \d+ min/;
 
 /** The timer in a state file's text: { kind, id, interval, next } or null. */
 export function parse(text) {
@@ -40,7 +49,23 @@ export const format = (t) => (t ? `Sweep timer: live · ${t.kind} · ${t.id} · 
 /** The text with its Sweep timer line replaced, or added after the "## Loop" or first heading, never at the end. */
 export function withLine(text, timer) {
   const line = format(timer);
-  if (LINE.test(text)) return text.replace(LINE, line);
+  if (!LINE.test(text) && SUP_LINE.test(text)) return text.replace(SUP_LINE, (sup) => `${line}\n${sup}`);
+  return place(text, LINE, line);
+}
+
+/** True when the state file's Supervisor line is live. */
+const supervised = (text) => SUP_LIVE.test(text.match(SUP_LINE)?.[0] ?? "");
+
+/** The text with its Supervisor line replaced, or added right under the Sweep timer line, or where that line would go. */
+function withSupervisor(text, sup) {
+  const line = sup ? `Supervisor: live · ${sup.kind} · ${sup.id} · every 60 min` : "Supervisor: none";
+  if (!SUP_LINE.test(text) && LINE.test(text)) return text.replace(LINE, (sweep) => `${sweep}\n${line}`);
+  return place(text, SUP_LINE, line);
+}
+
+/** The text with the line that matches pattern replaced, or added after the "## Loop" or first heading. */
+function place(text, pattern, line) {
+  if (pattern.test(text)) return text.replace(pattern, line);
   const heading = /^## Loop\b[^\n]*$/m.exec(text) ?? /^#[^\n]*$/m.exec(text);
   if (!heading) return `${line}\n\n${text}`;
   const end = heading.index + heading[0].length;
@@ -101,8 +126,19 @@ export function run(args, text, now) {
     }
     case "cancelled":
       return { code: 0, out: "Sweep timer: none", text: withLine(text, null) };
+    case "supervisor-armed": {
+      const [kind, id] = rest;
+      if (!kind || !id || !SAFE.test(kind) || !SAFE.test(id)) return usage("supervisor-armed <kind> <id>");
+      const next = withSupervisor(text, { kind, id });
+      return { code: 0, out: next.match(SUP_LINE)[0], text: next };
+    }
+    case "supervisor-cancelled":
+      return { code: 0, out: "Supervisor: none", text: withSupervisor(text, null) };
+    case "supervise":
+      if (!supervised(text)) return { code: 1, out: "stopped" };
+      return shouldArm(timer, now) ? { code: 0, out: "restart" } : { code: 1, out: "alive" };
     default:
-      return usage("status | should-arm | dead-id | armed <kind> <id> <interval-min> | fired <tag> [kind] | interval <10|30> | cancelled");
+      return usage("status | should-arm | dead-id | armed <kind> <id> <interval-min> | fired <tag> [kind] | interval <10|30> | cancelled | supervisor-armed <kind> <id> | supervisor-cancelled | supervise");
   }
 }
 
