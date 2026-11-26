@@ -27,7 +27,7 @@ Start a new Claude Code session. For other setups, see [Codex](#codex) or [npm](
 | [`/back`](.agents/skills/back/SKILL.md) · `$back` | Start or resume work | See what changed, who's working and what to do first. |
 | [`/afk`](.agents/skills/afk/SKILL.md) · `$afk` | Step away | Set a time, check usage and safety, then keep building until a hard stop. |
 
-The other 26 skills run for you. To run one step yourself, see the [cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself).
+To get the latest onRails, type `/update` (`$update`). The other 26 skills run for you. To run one step yourself, see the [cheat sheet](guide/cheat-sheet.md#-advanced-run-one-step-yourself).
 
 [![npm package version](https://img.shields.io/npm/v/onrails?style=flat-square&color=a63407)](https://www.npmjs.com/package/onrails)
 [![Works with Claude Code](https://img.shields.io/badge/works%20with-Claude%20Code-7c3aed?style=flat-square)](#-install)
@@ -57,7 +57,7 @@ codex plugin add or@onrails
 
 Then type `$idea` or `$join`.
 
-- **Update the plugin by hand.** Run `claude plugin marketplace update onrails`, then `claude plugin update core@onrails`. In Codex, run `codex plugin marketplace upgrade onrails`.
+- **Update the plugin, and the rest of onRails.** Type `/update` (Codex: `$update`), or run `npx onrails@latest update --all` in a terminal. It updates the plugin, your global entry skills and the project's kit, then runs `doctor`. Then run `/reload-plugins`. By hand, it's `claude plugin marketplace update onrails`, then `claude plugin update core@onrails`; in Codex, `codex plugin marketplace upgrade onrails`.
 - **Marketplace 'onrails' not found?** The marketplace was added in a project. Run both install commands again for your account.
 - **The project's copy wins.** Once you install the kit in a folder, commands use that project's skills. Cloud sessions also use the repo's skills since they don't load personal plugins.
 - **The plugin works without npm.** Its CLI includes the rules and skills. Stack packs come from a clone or from GitHub at slice 0.
@@ -76,6 +76,7 @@ It installs the rules and skills, keeps your files and offers to open Claude Cod
 |---|---|
 | `init [dir]` | Installs the kit, keeps your files and offers to start a session there. |
 | `update [dir] --dry-run` | Updates the kit and keeps files you changed. `--dry-run` shows the plan first. |
+| `update --all` | Brings everything to the latest: the plugin, your global entry skills and the project's kit, then `doctor`. The `/update` command runs it for you. |
 | `doctor --fix` | Checks tools, sign-ins and env var names. Runs each offered fix after you type `y`. |
 | `profile init` | Saves things like your GitHub owner, naming style and models in your profile. |
 | `add <pack>` · `add <pack>/<add-on>` | Copies a stack pack or add-on into your project. `add --list` shows the packs. |
@@ -89,7 +90,7 @@ AI agents follow your instructions. Where you leave a gap, they guess. They can 
 | Part | What it is | When it applies |
 |---|---|---|
 | [`AGENTS.md`](AGENTS.md) | 13 standing rules, the code rules and a stop-and-ask list | Every session |
-| 30 skills | Step-by-step instructions, one job each | When a request names the skill |
+| 31 skills | Step-by-step instructions, one job each | When a request names the skill |
 | Guardrails | CI checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
 
 - **Rules and conventions keep it on track.** It asks instead of guessing. Lint and CI fail the build when the code breaks a rule.
@@ -395,7 +396,7 @@ The strongest model at high effort takes more time and usage. The cheapest model
 ```
 AGENTS.md                  ← rules every agent follows, every session (Codex + Claude)
 CLAUDE.md                  ← one line: @AGENTS.md
-.agents/skills/            ← the 30 skills, master copy (Codex reads this)
+.agents/skills/            ← the 31 skills, master copy (Codex reads this)
 .claude/skills/            ← the same skills (Claude Code reads this)
 .claude/settings.json      ← Claude Code: blocked git commands and hooks
 .claude/hooks/             ← the session-start and notify hooks
@@ -403,7 +404,7 @@ CLAUDE.md                  ← one line: @AGENTS.md
 .github/ISSUE_TEMPLATE/    ← the slice issue template
 stacks/                    ← 5 stack packs and 7 add-ons
 cli/                       ← the onrails CLI
-plugin/                    ← the plugin: the four entry skills and a copy of the CLI (generated)
+plugin/                    ← the plugin: the four entry skills, `update` and a copy of the CLI (generated)
 .claude-plugin/            ← the plugin marketplace (Codex: .agents/plugins/)
 guide/                     ← the guides above
 research/                  ← the research and plans behind the kit (never copied into a project), indexed with provenance
@@ -414,7 +415,7 @@ scripts/check-research.mjs ← checks a research folder: index, provenance, labe
 
 | Skills | |
 |---|---|
-| **You type** (4) | `idea` · `join` · `back` · `afk` |
+| **You type** (5) | `idea` · `join` · `back` · `afk` · `update` |
 | **Planning** (9) | `grill` · `wireframes` · `name` · `stack` · `secrets` · `research` · `pyramid` · `issues` · `routing` |
 | **The loop** (9) | `coordinate` · `build` · `diagnose` · `pr-review` · `pr-security` · `qa` · `test-by-hand-as-the-user` · `ask` · `automation` |
 | **Know-how**, named in issues (6) | `web-performance` · `web-security` · `seo` · `a11y` · `dependencies` · `writing-for-agents` |

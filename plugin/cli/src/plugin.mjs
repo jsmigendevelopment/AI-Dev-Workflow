@@ -1,4 +1,4 @@
-// For doctor: is the onRails plugin installed, and does its version match the project's kit?
+// For doctor and update --all: is the onRails plugin installed, and does its version match the project's kit?
 // Read-only and offline: it reads the agents' own install records, nothing else.
 //   Claude Code: <plugins root>/installed_plugins.json, key "core@onrails". The root is
 //                $CLAUDE_CODE_PLUGIN_CACHE_DIR, else $CLAUDE_CONFIG_DIR/plugins, else ~/.claude/plugins.
@@ -30,12 +30,20 @@ function codexVersion(home, env) {
   return versions.length ? versions[versions.length - 1] : null;
 }
 
+// For update --all: the documented update commands, in order, without the program name.
+const TOOLS = [
+  { tool: "claude", label: "Claude Code", id: PLUGIN_ID.claude, read: claudeVersion,
+    commands: [["plugin", "marketplace", "update", "onrails"], ["plugin", "update", PLUGIN_ID.claude]] },
+  { tool: "codex", label: "Codex", id: PLUGIN_ID.codex, read: codexVersion, commands: [["plugin", "marketplace", "upgrade", "onrails"]] },
+];
+
+/** Each tool's onRails plugin: { tool, label, id, commands, version } (version null when not installed). */
+export const pluginVersions = ({ home, env = {} }) => TOOLS.map(({ read, ...p }) => ({ ...p, version: read(home, env) }));
+
 // kitVersion: the project's kit version, or this CLI's when the project has no kit.
 export function pluginChecks({ home, env = {}, kitVersion }) {
-  const found = [
-    { label: "Claude Code", id: PLUGIN_ID.claude, version: claudeVersion(home, env), update: `claude plugin update ${PLUGIN_ID.claude}` },
-    { label: "Codex", id: PLUGIN_ID.codex, version: codexVersion(home, env), update: "codex plugin marketplace upgrade onrails" },
-  ].filter((p) => p.version);
+  const found = pluginVersions({ home, env }).filter((p) => p.version)
+    .map((p) => ({ ...p, update: [p.tool, ...p.commands.at(-1)].join(" ") }));
   if (!found.length) return [{ status: INFO, label: "onRails plugin not installed (optional: it gives you /idea in any folder)" }];
   return found.map((p) => (!kitVersion || p.version === kitVersion
     ? { status: OK, label: `${p.label} plugin ${p.id} v${p.version}${kitVersion ? " matches the kit" : ""}` }

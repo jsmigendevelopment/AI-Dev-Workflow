@@ -40,11 +40,14 @@ export const PLUGIN_TIP = [
   "~/.claude/skills and ~/.agents/skills.",
 ];
 
-export function initGlobal({ kitDir, home, log = console.log } = {}) {
+// tip: false leaves out the plugin tip (update --all runs this for people who already chose).
+export function initGlobal({ kitDir, home, log = console.log, tip = true } = {}) {
   const kit = loadKit(kitDir);
   const files = entryFiles(kit);
-  for (const line of PLUGIN_TIP) log(line);
-  log("");
+  if (tip) {
+    for (const line of PLUGIN_TIP) log(line);
+    log("");
+  }
   log(`Copying the entry skills (${ENTRY_SKILLS.join(", ")}) from kit v${kit.version} to your own skills folders`);
   for (const { label, dir } of globalSkillDirs(home)) {
     const counts = { added: 0, unchanged: 0, kept: 0 };
@@ -66,7 +69,7 @@ export function initGlobal({ kitDir, home, log = console.log } = {}) {
   return 0;
 }
 
-// For doctor: one line per global folder that holds any entry skill.
+// For doctor and update --all: one line per global folder that holds any entry skill, with the skills that differ (stale).
 export function globalSkillChecks({ kitDir, home } = {}) {
   let kit;
   try { kit = loadKit(kitDir); } catch { return []; }
@@ -78,12 +81,12 @@ export function globalSkillChecks({ kitDir, home } = {}) {
     const stale = present.filter((s) => files.some(([p, data]) => p.startsWith(`${s}/`) && hashFile(toNative(dir, p)) !== hash(data)));
     checks.push(stale.length
       ? {
-        status: FAIL, required: false,
+        status: FAIL, required: false, stale,
         label: `${label}: ${stale.join(", ")} differ from this CLI's kit v${kit.version}`,
         fix: `Run: ${RERUN}, then compare each ${NEW_SUFFIX} with yours`,
         remedy: { print: [`${RERUN}   (then compare each ${NEW_SUFFIX} with yours and delete it)`] },
       }
-      : { status: OK, label: `${label}: entry skills match kit v${kit.version}` });
+      : { status: OK, stale, label: `${label}: entry skills match kit v${kit.version}` });
   }
   return checks;
 }

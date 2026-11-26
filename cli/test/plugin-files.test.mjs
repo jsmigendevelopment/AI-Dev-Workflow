@@ -30,8 +30,8 @@ test("the Codex marketplace names its entry or, because Codex needs it to match 
   assert.deepEqual(m.plugins.map((p) => [p.name, p.source.path]), [["or", "./plugin"]]);
 });
 
-test("the plugin ships the four entry skills and a CLI that can run init", () => {
-  assert.deepEqual(readdirSync(repo("plugin/skills")).sort(), ["afk", "back", "idea", "join"]);
+test("the plugin ships the four entry skills, update (#178) and a CLI that can run init", () => {
+  assert.deepEqual(readdirSync(repo("plugin/skills")).sort(), ["afk", "back", "idea", "join", "update"]);
   assert.ok(existsSync(repo("plugin/cli/bin/cli.mjs")));
   assert.equal(readJson(repo("plugin/cli/kit/manifest.json")).kitVersion, version);
 });

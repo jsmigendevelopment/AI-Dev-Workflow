@@ -7,7 +7,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, join } from "node:path";
+import { delimiter, isAbsolute, join } from "node:path";
 
 export function findCommand(name, { env = process.env, platform = process.platform } = {}) {
   const exts = platform === "win32" ? ["", ...(env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";")] : [""];
@@ -23,8 +23,9 @@ export function findCommand(name, { env = process.env, platform = process.platfo
 
 // Windows .cmd/.bat shims (npm, pnpm, corepack) only start through cmd.exe. Fix commands are
 // fixed strings from this CLI, never user input, so passing them to cmd.exe is safe.
+// A full path (update --all finds each tool itself) is used as it is.
 function windowsArgv(argv) {
-  const found = findCommand(argv[0]);
+  const found = isAbsolute(argv[0]) ? argv[0] : findCommand(argv[0]);
   if (found && /\.(cmd|bat)$/i.test(found)) return ["cmd.exe", ["/d", "/s", "/c", found, ...argv.slice(1)]];
   return [found ?? argv[0], argv.slice(1)];
 }

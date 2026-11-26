@@ -86,6 +86,7 @@ When a step names a skill, open it. If it doesn't load by name, read `.agents/sk
 | `/back` | Starting or returning to work |
 | `/afk` | Stepping away while the loop keeps going |
 | `/automation` | Changing how much agents do on their own |
+| `/update` | Bringing onRails to its latest: plugin, global skills and the project's kit |
 
 Called by those, by issues and by the loop:
 - `grill`, `wireframes`, `name`, `stack`, `secrets`, `research`, `pyramid`, `issues`, `routing`;
