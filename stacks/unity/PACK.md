@@ -2,7 +2,7 @@
 
 **Stub pack. Not built yet. Researched 2026-11-22 (fact-checked). Re-check versions before building.**
 
-**Confidence: medium** that GameCI on GitHub Actions plus assembly-definition modules is the right shape. **Low** that agents can build much beyond game logic alone. Tell the person this before they choose it.
+**Confidence: medium** that assembly-definition modules are the right shape. **Low to medium** that GameCI's `unityci/editor` Docker images, run from the session or on a build machine, carry the checks. This way is untested: the research assumed GameCI's actions, and onRails runs no GitHub Actions (#98). **Low** that agents can build much beyond game logic alone. Tell the person this before they choose it.
 
 Source: `research/platform-packs.md`, section 4, and fact-check rows 50 to 64. Marks: [V] verified, [S] secondary, [I] inferred, as in the dossier.
 
@@ -11,18 +11,18 @@ Source: `research/platform-packs.md`, section 4, and fact-check rows 50 to 64. M
 Choose it when:
 
 - the person already uses Unity, or needs its asset store, platforms or tooling;
-- most of the agent's work is game logic, data and CI, and a person will do the scenes, art and play-testing.
+- most of the agent's work is game logic, data and the checks, and a person will do the scenes, art and play-testing.
 
 Don't choose it when:
 
-- the engine choice is still open and agents should do most of the work. Godot keeps scenes as readable text and needs no licence step in CI [I]. That deserves its own `research` thread;
+- the engine choice is still open and agents should do most of the work. Godot keeps scenes as readable text and needs no licence step on a build machine [I]. That deserves its own `research` thread;
 - the game is small enough for the web (a canvas or WebGL library in the web pack);
-- the person can't accept a licence question in CI (see Risks).
+- the person can't accept a licence question for a build machine or a container (see Risks).
 
-Alternatives considered (how to run CI):
+Alternatives considered (where the Editor runs the checks; never GitHub Actions):
 
-- **Unity Build Automation:** Unity's own service, handles licences and iOS without a Mac; builds run outside GitHub Actions; free minutes **unverified**.
-- **Self-hosted runner with Unity installed:** fastest (warm `Library`), one machine to keep alive. Move here when build time becomes the complaint.
+- **Unity Build Automation:** Unity's own service, handles licences and iOS without a Mac; builds run on Unity's machines, not GitHub Actions; free minutes **unverified**.
+- **A build machine with Unity installed** (the person's own, or one they keep), reached from the session: fastest (warm `Library`), one machine to keep alive. Move here when build time becomes the complaint.
 
 Keep a Unity project in its **own repository**, not in the kit's monorepo: different tools, LFS and multi-GB checkouts.
 
@@ -32,16 +32,14 @@ Keep a Unity project in its **own repository**, not in the kit's monorepo: diffe
 |---|---|---|
 | Editor | Unity 6.3 LTS, 6000.3.x; newest GameCI image 6000.3.29f1; supported until December 2027 [S] | Unity Hub release notes for 6.3 LTS; `curl -s "https://hub.docker.com/v2/repositories/unityci/editor/tags?name=6000.3&page_size=100" \| jq -r '.results[].name'` |
 | GameCI images | `unityci/editor` with `base`, `webgl`, `android`, `ios`, `windows-mono` (also `linux-il2cpp`, `mac-mono`) | the Docker Hub command above |
-| `game-ci/unity-test-runner` | `@v4` (latest stable v4.4.0; v5.0.0-beta.1 exists) | `git ls-remote --tags https://github.com/game-ci/unity-test-runner` |
-| `game-ci/unity-builder` | `@v4` (4.8.2, 2026-09-02). v5 and v6 lines exist | `git ls-remote --tags https://github.com/game-ci/unity-builder` |
 | Unity Test Framework | the version bundled with 6.3 (**not verified**) | `Packages/packages-lock.json` after first open |
-| Scripting backend | Mono for CI builds; IL2CPP only for release | |
+| Scripting backend | Mono for check builds; IL2CPP only for release | |
 
 Version notes:
 
 - **Not Unity 6.6.** It's an update release, supported only until 6.7 arrives [S]. **6.7 LTS** is in beta since 2026-11-19 [S]. Build on 6.3 LTS; upgrade once 6.7 LTS has a few patch releases.
-- **Why `@v4`.** GameCI's docs still use `@v4` in nearly every example, and v4 still gets backported fixes. v6 rewrote the action as a wrapper around a new `game-ci` CLI. Take v6 when the docs do.
-- Pin the editor in `ProjectSettings/ProjectVersion.txt`. The actions read it (`unityVersion: auto` is the default [V]).
+- **GameCI's GitHub Actions are not used** (`unity-test-runner`, `unity-builder`), since onRails runs no GitHub Actions (#98). The `scripts/` recipes call the Editor in the same `unityci/editor` images those actions use, with `docker run` from the session [I].
+- Pin the editor in `ProjectSettings/ProjectVersion.txt`. The `scripts/` recipes read it to pick the image tag [I].
 
 ## Folder structure
 
@@ -63,7 +61,7 @@ Assets/
     Scenes/  Prefabs/  Settings/  Art/
 Packages/manifest.json  packages-lock.json
 ProjectSettings/
-ci/                                    shell scripts behind the check-contract commands
+scripts/                               shell scripts behind the check-contract commands
 justfile                               the six command names
 .gitattributes  .gitignore  .env.example
 ```
@@ -78,15 +76,15 @@ The web folder layout doesn't apply; the rules do:
 
 ## Check contract
 
-Unity has no script runner. The six names are `justfile` recipes that call scripts in `ci/`. Most need a Unity Editor, which an agent's Linux sandbox normally doesn't have. In CI, GameCI's Docker images provide it.
+Unity has no script runner. The six names are `justfile` recipes that call scripts in `scripts/`. Most need a Unity Editor, which an agent's Linux sandbox normally doesn't have. With Docker, GameCI's `unityci/editor` image provides it from the session; without it, the recipes run on a build machine that has the Editor.
 
 | Command | Runs | Needs an Editor? |
 |---|---|---|
-| `lint` | `dotnet format whitespace --folder Assets/_Project --verify-no-changes`; `ci/check-meta.sh` (fails on a missing or orphaned `.meta`); the asmdef rule test, in CI | whitespace and `.meta`: no |
+| `lint` | `dotnet format whitespace --folder Assets/_Project --verify-no-changes`; `scripts/check-meta.sh` (fails on a missing or orphaned `.meta`); the asmdef rule test, in the Editor | whitespace and `.meta`: no |
 | `typecheck` | Unity batch mode compiling the project, warnings as errors | yes |
-| `test` | EditMode tests (`unity-test-runner`, `testMode: editmode`) | yes |
-| `test:e2e` | PlayMode tests (`testMode: playmode`) plus a smoke test that loads every scene in the build | yes |
-| `build` | `unity-builder` for one cheap target: `StandaloneLinux64` or WebGL | yes |
+| `test` | EditMode tests (`-runTests -testPlatform EditMode`) | yes |
+| `test:e2e` | PlayMode tests (`-testPlatform PlayMode`) plus a smoke test that loads every scene in the build | yes |
+| `build` | a batch-mode build (`-buildTarget` and an `Editor` build method [I]) for one cheap target: `StandaloneLinux64` or WebGL | yes |
 | `check` | `lint`, `typecheck`, `test`, `build` (not `test:e2e`) | yes |
 
 Local batch-mode commands, for a machine with the Editor [I: standard Unity command-line flags; check the 6.3 manual]:
@@ -110,15 +108,15 @@ If the game needs one (cloud saves, leaderboards, purchases), it's a client of t
 
 **The dossier did not research Clerk for Unity.** No Clerk Unity SDK was checked. Don't guess: send "how does a Unity client sign in with Clerk" to the `research` skill before building it. Never put a server secret in a game build; anything in the build can be extracted.
 
-## CI and release
+## Checks and release (no GitHub Actions)
 
-**Licence activation.** Every GameCI action needs a licence [V].
+**Licence activation.** The Editor needs an activated licence wherever it runs, in GameCI's images too [V for GameCI's actions].
 
-- *Personal:* activate in Unity Hub on your machine, copy the `.ulf` file into the `UNITY_LICENSE` secret, add `UNITY_EMAIL` and `UNITY_PASSWORD`, then sign out of Hub so your machine releases the seat [V]. Hub doesn't always produce a `.ulf`; GameCI points to its Discord for workarounds [V].
+- *Personal:* activate in Unity Hub on your machine, put the `.ulf` file's contents in `UNITY_LICENSE`, and `UNITY_EMAIL` and `UNITY_PASSWORD`, in a git-ignored `.env.local` through the `secrets` checklist, then sign out of Hub so your machine releases the seat [V]. Hub doesn't always produce a `.ulf`; GameCI points to its Discord for workarounds [V].
 - *Pro:* a serial in `UNITY_SERIAL`. *Enterprise:* a licence server URL [V].
-- **Whether Personal may be used on hosted CI is unverified.** Unity's compliance page says build machines need a separate licence [S]. Ask the person to read Unity's terms, or use a paid seat. Personal is for revenue and funding under $200,000 a year [S].
+- **Whether Personal may be used on a build machine or in a container is unverified.** Unity's compliance page says build machines need a separate licence [S]. Ask the person to read Unity's terms, or use a paid seat. Personal is for revenue and funding under $200,000 a year [S].
 
-CI secrets (names only, the `secrets` skill's format):
+Licence values (names only, the `secrets` skill's format; in the shell or a git-ignored `.env.local`, never GitHub):
 
 ```bash
 # Unity licence file contents (Personal) · get it: Unity Hub → Manage licences, then the .ulf file · scope: test,production · secret: yes
@@ -130,26 +128,26 @@ UNITY_PASSWORD=
 UNITY_SERIAL=
 ```
 
-Workflow:
+How the checks run (from the session: `coordinate`'s local gate):
 
-- **Every pull request:** `lint` (no Editor), then EditMode tests with `unity-test-runner`. Results go to an `artifacts` folder and a check run via `githubToken` [V].
-- **Main, or a `build` label:** typecheck, PlayMode tests and `unity-builder` for Linux or WebGL.
-- **Runners [V]:** Linux builds WebGL, Android, Linux and Windows (Mono). Windows IL2CPP needs a Windows runner. macOS and iOS need a macOS runner.
-- **Cache `Library/`** keyed on the target and a hash of `Assets/**`, `Packages/**` and `ProjectSettings/**`. The Actions cache is 10 GB per repo [V].
+- **Every pull request:** the gate's `check` (`lint`, then `typecheck`, EditMode tests and a build for Linux or WebGL) and `test:e2e` (PlayMode tests), in the `unityci/editor` image with `docker run`, or on the build machine. Results go to an `artifacts` folder, and the gate's `Checks:` comment names them.
+- **After each merge:** `coordinate` step 8's "Check main" runs the install and `check` again on main's own commit.
+- **Platforms [V for GameCI's images]:** the Linux image builds WebGL, Android, Linux and Windows (Mono). Windows IL2CPP needs a Windows machine. macOS and iOS need a Mac.
+- **Keep `Library/`** between runs: on the build machine, or in a Docker volume per target. A warm `Library/` turns a cold 15 to 40 minutes into a few [I].
 
 **Git LFS:**
 
 - GitHub Free and Pro include 10 GiB storage and 10 GiB bandwidth a month. At a $0 budget LFS is blocked for the rest of the month once used [V].
-- Every CI checkout spends LFS bandwidth. Cache LFS objects in CI [I].
+- Every fresh clone spends LFS bandwidth. The gate's worktrees share their clone's LFS objects, so each machine fetches them once [I].
 - Track binaries in LFS (`*.png`, `*.psd`, `*.fbx`, `*.wav`, `*.mp4`). Never `.unity`, `.prefab`, `.asset` or `.meta`: they're text. Use Force Text serialisation, Visible Meta Files, and UnityYAMLMerge as the merge tool [I].
 - Ignore `Library/`, `Temp/`, `Obj/`, `Logs/`, `UserSettings/` and build output.
 
-**Costs:** a cold build is commonly 15 to 40 minutes [I]. At $0.006 a Linux minute, GitHub Free's $12 is about 2,000 minutes: 50 to 130 builds. macOS is $0.062 a minute. Free on public repos [V].
+**Costs:** a cold build is commonly 15 to 40 minutes [I]. On the session's machine or a build machine it uses no GitHub minutes; a Mac for iOS is the person's.
 
 **Deploy:**
 
-- **WebGL to Cloudflare:** each static asset is capped at **25 MiB** [V]. Unity's `.data` file is often bigger: keep the build small or serve big files from R2. Needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
-- **itch.io** with `butler`, **Steam** with `steamcmd` (GameCI has a deploy action) [I]. Take their secret names from each tool's docs.
+- **WebGL to Cloudflare:** each static asset is capped at **25 MiB** [V]. Unity's `.data` file is often bigger: keep the build small or serve big files from R2. Deploy from the session after `wrangler login`, as the web pack does.
+- **itch.io** with `butler`, **Steam** with `steamcmd`. The person starts each upload. A release reaches players, like a production deploy, so an agent never runs `butler push` or a `steamcmd` upload on its own. Take their secret names from each tool's docs.
 - **Mobile stores** through fastlane; Apple $99 a year, Google Play $25 once. Store accounts cost money: **ask first.**
 
 ## Build steps for the agent
@@ -162,19 +160,19 @@ Workflow:
 6. Add the `Inventory` example: `Domain` rules with EditMode tests first, a small `Runtime` MonoBehaviour, and a PlayMode test that builds its objects in code.
 7. Write an `Editor` script that **generates** the example scene. Never hand-edit `.unity` or `.prefab` YAML. The person runs it once and commits the scene.
 8. Write the asmdef boundary test. Add a deliberate bad reference locally, see it fail, remove it.
-9. Add `ci/check-meta.sh`, the other `ci/` scripts and the `justfile` with the six names.
-10. Ask the person to add the licence secrets with `gh secret set NAME` (they type the values; never in chat).
-11. Add `.github/workflows/ci.yml` as above, with `Library/` and LFS caching.
+9. Add `scripts/check-meta.sh`, the other `scripts/` and the `justfile` with the six names, each running the Editor in `unityci/editor` (Docker) or on the build machine.
+10. The person puts the licence values in a git-ignored `.env.local` with the `secrets` checklist (they type the values; never in chat). Nothing goes to GitHub.
+11. Add no `.github/workflows/`. Write `ci = "local"` in `docs/stack.md`: `coordinate` runs the `justfile` recipes before each merge.
 12. Fill in "Commands that work here" in `AGENTS.md`, saying which commands need an Editor.
-13. Slice 0 is done when every check-contract command passes in CI.
-14. Offer to contribute the starter back to the kit: `stacks/unity/` with the asmdefs, example feature, scene generator, `ci/` and workflow, plus a `stack-unity` skill. No licence files, no project names, nothing private.
+13. Slice 0 is done when every check-contract command passes in the local gate (the Docker image or the build machine).
+14. Offer to contribute the starter back to the kit: `stacks/unity/` with the asmdefs, example feature, scene generator, `scripts/` and the `justfile`, plus a `stack-unity` skill. No licence files, no project names, nothing private.
 
 ## Known risks and unverified items
 
-- **Licence terms for CI machines:** unverified. Activation has broken before when Unity changed Hub [S].
+- **Licence terms for build machines and containers:** unverified. Activation has broken before when Unity changed Hub [S].
 - **Unity 6.6 date and support window, 6.7 LTS timing:** secondary only.
 - **Unity Build Automation free minutes:** unverified.
-- **Unity's MCP server** (`com.unity.ai.assistant` 2.0, beta since May 2026 [S]): lets an agent drive an Editor open on the person's machine. Unverified how well; no use in unattended CI.
+- **Unity's MCP server** (`com.unity.ai.assistant` 2.0, beta since May 2026 [S]): lets an agent drive an Editor open on the person's machine. Unverified how well; no use in an unattended run.
 - **GameCI is mid-rewrite** (v6) and community-run.
 - **Unity Test Framework version, the warnings-as-errors file, `dotnet format` on a Unity project, and `dotnet test` on `Domain` code** are all [I]. Check each in slice 0.
 
@@ -184,9 +182,9 @@ What agents can and can't do reliably here:
 |---|---|
 | C# gameplay logic, especially in `Domain` | Judging how anything looks, feels, sounds or plays |
 | EditMode tests, and PlayMode tests that build objects in code | Hand-editing `.unity` and `.prefab` YAML: references break silently |
-| Assembly definitions, the package manifest, CI workflows | Creating or renaming assets without breaking `.meta` GUIDs |
+| Assembly definitions, the package manifest, the `justfile` and its scripts | Creating or renaming assets without breaking `.meta` GUIDs |
 | Editor scripts that generate scenes, prefabs and ScriptableObjects | Animation, lighting, level and UI layout by eye |
 | ScriptableObject data, shaders and config as text | Anything binary: textures, models, audio |
-| Reading a CI log and fixing a compile error | Running `check` locally: usually no Editor in the sandbox |
+| Reading an Editor log and fixing a compile error | Running `check` with no Docker and no build machine: the sandbox has no Editor |
 
-The loop is slow: without an Editor, the agent's only feedback is CI, at 10 to 20 minutes a round. Keep logic in `Domain` so most of it is tested in seconds.
+The loop is slow: without an Editor in the sandbox, the agent's only feedback is the Docker image or the build machine, at 10 to 20 minutes a round. Keep logic in `Domain` so most of it is tested in seconds.

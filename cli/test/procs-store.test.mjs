@@ -153,7 +153,7 @@ test("a marked registry at 0664 keeps its records: start says to run chmod 600 o
   const path = homeRegistry(sys);
   put(sys.home, ".onrails/procs.json", JSON.stringify({ version: 1, procs: [{ id: "pold1", kind: "process", pid: 4000, start: "start-4000", group: true,
     command: "pnpm dev", why: "w", until: "u", session: "s-1", agent: { pid: 500, start: "start-500" }, startedAt: new Date(NOW).toISOString() }] }));
-  stamp(path); // its mode is from before #156; since #174 every registry a session writes holds its inode (row 104)
+  stamp(path); // its mode is from before #156; since #174 every registry a session writes holds its inode (row 105)
   chmodSync(path, 0o664);
   const r = await startDev(sys);
   assert.equal(r.code, 1);

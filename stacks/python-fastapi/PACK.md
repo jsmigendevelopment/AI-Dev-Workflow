@@ -45,7 +45,6 @@ Re-check any row with `curl -s https://pypi.org/pypi/<name>/json | jq -r .info.v
 | workers-py (`pywrangler`) | 1.17.9 | PyPI `workers-py` |
 | SQLAlchemy / psycopg (containers) | 2.1.9 / 3.3.9 | PyPI each |
 | anthropic / pydantic-ai, if needed | 2.12.0 / 2.71.0 | PyPI each |
-| `astral-sh/setup-uv` (CI) | current release, pinned by commit hash; tags reach v10.4.0 | `git ls-remote --tags https://github.com/astral-sh/setup-uv` |
 
 Notes:
 
@@ -120,7 +119,7 @@ Python has no `package.json`, so the commands are poe tasks in `pyproject.toml`,
 | `test:e2e` | start the app, then `pytest tests/e2e` and `schemathesis run <base>/openapi.json` | for Workers, start `pywrangler dev`, not uvicorn |
 | `check` | `lint`, `typecheck`, `test`, `build`, in order | |
 
-Name the e2e task `test-e2e` in poe if a colon isn't accepted in task names, and map `test:e2e` to it in CI and the `package.json` shim. Record which in `docs/decisions.md`.
+Name the e2e task `test-e2e` in poe if a colon isn't accepted in task names, and map `test:e2e` to it in the `package.json` shim the local gate calls. Record which in `docs/decisions.md`.
 
 Where e2e is weaker than web: there is no UI, so e2e is HTTP only. schemathesis generates requests from the OpenAPI document and finds crashes and schema mismatches. It doesn't know the business rules; the `pytest tests/e2e` cases do. **Tests run on CPython, production may run on Pyodide.** A package can pass every test and fail to import on deploy. That's why Workers e2e must run against `pywrangler dev`.
 
@@ -146,7 +145,7 @@ CLERK_AUTHORIZED_PARTIES=
 ANTHROPIC_API_KEY=
 ```
 
-## Deploy, CI and costs
+## Deploy, checks and costs
 
 The pack asks the person one question, then follows the answer:
 
@@ -163,13 +162,13 @@ Both doors stay open: the app is plain ASGI, `worker.py` is a short entry (copy 
 
 Data: under Workers, call D1 through the binding in a small repository adapter; no D1 driver for SQLAlchemy was verified [I]. In a container, SQLAlchemy with psycopg against Postgres.
 
-**CI** (`ubuntu-latest`, the cheapest pack to run):
+**Checks and deploys, from the session** (no GitHub Actions; `coordinate`'s local gate):
 
-- Pull requests: `actions/checkout`, `astral-sh/setup-uv` pinned by hash, `uv sync --locked`, then `lint`, `typecheck`, `test`, `build`, `test:e2e`.
-- Merge to `main`: deploy to **test** with `uv run pywrangler deploy` (Workers) or the container host's CLI.
+- Pull requests: on the exact head in a clean worktree, `uv sync --locked`, then `lint`, `typecheck`, `test`, `build`, `test:e2e`.
+- After a merge: deploy main to **test** from the session with `uv run pywrangler deploy` (Workers, after `wrangler login`) or the container host's CLI. Untested from a session [I].
 - Production deploy only when the person says so.
 
-Deploy secrets (GitHub environment secrets, names only):
+The session's deploys sign in with `wrangler login`. Only on `ci = "actions"`, these names go in GitHub environment secrets:
 
 ```bash
 # Cloudflare API token with Workers edit rights · get it: Cloudflare dashboard → My Profile → API Tokens · scope: test,production · secret: yes
@@ -178,7 +177,7 @@ CLOUDFLARE_API_TOKEN=
 CLOUDFLARE_ACCOUNT_ID=
 ```
 
-Server secrets go to the Worker with `npx wrangler secret put NAME`, as the `secrets` skill says. Actions cost $0.006 a Linux minute on private repos, within GitHub Free's $12 a month [V]; free on public repos.
+Server secrets go to the Worker with `npx wrangler secret put NAME`, as the `secrets` skill says.
 
 ## Build steps for the agent
 
@@ -194,9 +193,9 @@ Server secrets go to the Worker with `npx wrangler secret put NAME`, as the `sec
 10. Add `worker.py` and `wrangler.jsonc`, or the `Dockerfile`, per step 3. On Workers, run `pywrangler dev` and check every dependency imports. Run the auth spike: does `clerk-backend-api` load under Pyodide? Record the answer.
 11. Write `tests/e2e` and the schemathesis run. Measure CPU per request on Workers if that's the target; above 10 ms, tell the person the free plan won't hold.
 12. Add `.env.example`. Run the `secrets` skill.
-13. Add `.github/workflows/ci.yml` and the test deploy job.
+13. Add no `.github/workflows/`. Write `ci = "local"` in `docs/stack.md`, and a `deploy:test` task (`uv run pywrangler deploy`, or the container host's CLI) the session runs after each merge.
 14. Fill in "Commands that work here" in `AGENTS.md`.
-15. Slice 0 is done when every check-contract command passes in CI.
+15. Slice 0 is done when every check-contract command passes in the local gate.
 16. Offer to contribute the starter back to the kit: `stacks/python-fastapi/` app files with the example module, plus a `stack-python-fastapi` skill and the spike results. Strip project names, keys and anything private first.
 
 ## Known risks and unverified items
@@ -215,5 +214,5 @@ What agents can and can't do reliably here:
 |---|---|
 | Routers, services, schemas, adapters and their tests | Choosing Workers vs a container when costs differ (money) |
 | ruff, pyright, import-linter, pytest in a sandbox | Judging model output quality |
-| CI and a test deploy with test credentials | Production deploys and production keys |
+| The local checks and a test deploy with test credentials | Production deploys and production keys |
 | Reading a Pyodide import error and finding a pure-Python swap | Deciding a missing native package means moving to a container |

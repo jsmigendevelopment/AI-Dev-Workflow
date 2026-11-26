@@ -44,7 +44,7 @@ Stuck? It shows your usual account: the CLAUDE_CONFIG_DIR= part was missing from
 
 - Each folder keeps its own settings, history, plugins and login. A new folder starts empty.
 - There is no device-code sign-in for Claude Code. On a machine with no browser, use the copied link and the pasted code.
-- `claude setup-token` makes a one-year token for CI. It is a secret: it goes only through the `secrets` checklist, never chat. The steps above don't need it.
+- `claude setup-token` makes a one-year token for a headless run with no browser sign-in (a server; never GitHub Actions). It is a secret: it goes only through the `secrets` checklist, never chat. The steps above don't need it.
 - Windows PowerShell: `$env:CLAUDE_CONFIG_DIR="$HOME\.claude-<key>"; claude auth login`.
 
 **Codex** (verified against `codex login --help` 0.171.0 and the openai/codex source, 2026-11-24):

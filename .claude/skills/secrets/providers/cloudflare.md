@@ -158,7 +158,7 @@ Workers, D1, Turnstile, Web Analytics and Zero Trust (Free plan) have free tiers
 
 ## Why / if it goes wrong
 
-- **Three tokens, not one.** The deploy token lives in CI. The zone and Access tokens can change your domain and who can log in, so they stay on your machine. Never give them to CI.
+- **Three tokens, not one.** On `ci = "local"` the session deploys with your `wrangler login`; only on `ci = "actions"` does a deploy token live in GitHub. The zone and Access tokens can change your domain and who can log in, so they stay on your machine. Never put them in GitHub.
 - **"Authentication error" on deploy:** the token lacks a permission above, or its Account Resources is the wrong account.
 - **`wrangler login` on a remote machine** ends on "This site can't be reached". Run it on your own computer, or see the login doc above.
 - **A token is shown once.** Lost it? Roll or delete it on the API Tokens page and make a new one.
