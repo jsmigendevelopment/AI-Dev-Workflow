@@ -242,11 +242,11 @@ A migration that must drop or rename (nothing to keep yet, and the person agreed
 
 ## Checks before merge
 
-The pack ships no GitHub Actions workflows, and `docs/stack.md` says `ci = "local"`. Before a pull request merges, an agent other than its builder runs these on its exact head commit in a clean worktree, and records the result as the `onrails/check` commit status (the kit's `coordinate` skill):
+The pack ships no GitHub Actions workflows, and `docs/stack.md` says `ci = "local"`. Before a pull request merges, an agent other than its builder runs these on its exact head commit in its own clean clone, with no tokens and an empty home folder, and records the result as the `onrails/check` commit status (the kit's `coordinate` skill):
 
 1. `pnpm check`, then `pnpm test:e2e` (`pnpm exec playwright install chromium` once).
 2. `pnpm check:merge`: the pnpm `packageManager` pins, the bundle budgets, a check that migrations match the tables, `pnpm audit --audit-level=high`, the licence allow-list, no `.clerk/` files committed, `docs/research` (with the kit's checker), gitleaks (over a copy of the files git tracks at `HEAD`, so a dev checkout's git-ignored keys aren't scanned) and Semgrep (a local binary, else Docker), and the screenshot tests in Playwright's Linux image (Docker). A check this machine can't run is skipped with the reason; name every skip in the pull request.
-3. `pnpm pr:rules <n>`: `Closes #<n>` (or Fixes, Resolves) and a `feat|fix|chore/<n>-name` branch, unless it has the `no-issue` label (Dependabot is exempt), and at most 400 changed lines (lockfiles and generated files not counted) unless it has the `large-pr` label.
+3. The pull request rules, which the gate checks with the kit's `pr-rules.mjs` from its checkout of main (`feat/` and `fix/` branches only), never the pull request's own script. `pnpm pr:rules <n>` runs them by hand: `Closes #<n>` (or Fixes, Resolves) and a `feat|fix|chore/<n>-name` branch, unless it has the `no-issue` label (Dependabot is exempt), and at most 400 changed lines (lockfiles and generated files not counted) unless it has the `large-pr` label.
 
 The agent-file guard (`agent-files.mjs`) runs from the session too. Never add a workflow: if a tool's docs say "add this workflow", run its commands from the session as a package script.
 

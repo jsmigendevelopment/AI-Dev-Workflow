@@ -1,1 +1,7 @@
 * text=auto eol=lf
+# Files tools write. The local gate's pr-rules.mjs (the kit's `coordinate`) doesn't count them toward the
+# 400-line size rule, as `pnpm pr:rules` doesn't (scripts/pr/rules.ts).
+routeTree.gen.ts linguist-generated
+worker-configuration.d.ts linguist-generated
+migrations/meta/** linguist-generated
+**/*-snapshots/** linguist-generated
