@@ -70,7 +70,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
 
 ## Every change has an issue
 
-One issue, one branch (`feat/<n>-short-name` or `fix/<n>-short-name`), one pull request that says `Closes #<n>`. Work someone asks for without an issue gets one first. On a stack with `pnpm pr:rules` (the web pack), that script fails a pull request with no link unless it has `no-issue`. The local gate (`coordinate` step 6.1) runs it once #225 lands. Why: `guide/app-conventions.md` in the kit.
+One issue, one branch (`feat/<n>-short-name` or `fix/<n>-short-name`), one pull request that says `Closes #<n>`. Work someone asks for without an issue gets one first. On a stack with `pnpm pr:rules` (the web pack), that script fails a pull request with no link unless it has `no-issue`. The local gate (`coordinate` step 6.1) runs it, or the kit's `pr-rules.mjs` on a stack without it. Why: `guide/app-conventions.md` in the kit.
 
 ## No GitHub yet?
 

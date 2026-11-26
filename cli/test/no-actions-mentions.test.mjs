@@ -225,10 +225,10 @@ test("#141: paid evals are the person's own call, and the loop runs only the fak
 
 test("#141: the skills say what the local gate runs today, and the GitHub provider file is only for ci = \"actions\"", () => {
   assert.match(read(".agents/skills/secrets/providers/github.md").split("\n")[2], /^Only on `ci = "actions"` \(`docs\/stack\.md`\), which only the person turns on\. On `ci = "local"`, the default for every repo, skip this file/);
-  // pr:rules and check:merge reach the local gate with #225; until then no skill says the gate runs them.
-  assert.match(read(".agents/skills/issues/SKILL.md"), /The local gate \(`coordinate` step 6\.1\) runs it once #225 lands\./);
-  assert.match(read(".agents/skills/dependencies/SKILL.md"), /the local gate, `coordinate` step 6\.1, runs it once #225 lands/);
-  assert.match(read(".agents/skills/web-performance/SKILL.md"), /which the local gate runs once #225 lands/);
+  // pr:rules and check:merge reached the local gate with #225, so these skills say the gate runs them.
+  assert.match(read(".agents/skills/issues/SKILL.md"), /The local gate \(`coordinate` step 6\.1\) runs it, or the kit's `pr-rules\.mjs` on a stack without it\./);
+  assert.match(read(".agents/skills/dependencies/SKILL.md"), /which the local gate, `coordinate` step 6\.1, runs\)/);
+  assert.match(read(".agents/skills/web-performance/SKILL.md"), /which the local gate runs\)/);
   // Coordinate's deploy check names the command, not "secrets' step 5", which has two.
   assert.match(read(".agents/skills/coordinate/SKILL.md"), /`pnpm connect --dry-run` \(or `node \.agents\/skills\/secrets\/scripts\/push-secrets\.mjs --dry-run` without the pack's script\) finds no empty name for test/);
 });
