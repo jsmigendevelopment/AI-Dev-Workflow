@@ -113,13 +113,19 @@ fs.appendFileSync(process.env.FAKE_LOG, argv.join(" ") + "\\n");
 const api = JSON.parse(fs.readFileSync(process.env.FAKE_API, "utf8"));
 const path = argv.filter((a) => a !== "api" && !a.startsWith("--")).at(-1);
 if (!(path in api)) { process.stderr.write("HTTP 404: " + path + "\\n"); process.exit(1); }
-if (api[path]?.ghError) { process.stderr.write(api[path].ghError + "\\n"); process.exit(1); }
-process.stdout.write(JSON.stringify(argv.includes("--slurp") ? [api[path]] : api[path]));
+let answer = api[path];
+if (Array.isArray(answer?.sequence)) {
+  const seen = fs.readFileSync(process.env.FAKE_LOG, "utf8").split("\\n").filter((l) => l.split(" ").at(-1) === path).length;
+  answer = answer.sequence[Math.min(seen, answer.sequence.length) - 1];
+}
+if (answer?.ghError) { process.stderr.write(answer.ghError + "\\n"); process.exit(1); }
+process.stdout.write(JSON.stringify(argv.includes("--slurp") ? [answer] : answer));
 `;
 export const unixOnly = { skip: process.platform === "win32" ? "the fake gh is a shebang script" : false };
 
 // Puts the fake gh in dir/bin. `api` maps an API path to its answer; `{ ghError: "<stderr>" }` makes gh fail with
-// that text, the way a refused or broken call does. The env to spawn with drops the shell's
+// that text, the way a refused or broken call does. `{ sequence: [a, b] }` answers a on the first call to that
+// path, b on the second, and the last one from then on. The env to spawn with drops the shell's
 // REPO and HEAD_SHA, so a test never depends on them; `env` adds variables. `calls()` is the log so far.
 export function fakeGh(dir, api, env = {}) {
   mkdirSync(join(dir, "bin"), { recursive: true });

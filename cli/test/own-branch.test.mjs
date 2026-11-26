@@ -87,7 +87,7 @@ test("AC-131-1: coordinate's claim names the branch, and step 6.1 asks own-branc
   const step = skill.slice(skill.indexOf("1. **Local checks**"), skill.indexOf("2. **Code review.**"));
   const at = (text) => (assert.ok(step.includes(text), text), step.indexOf(text));
   assert.ok(at("own-branch.mjs <n> --repo <owner>/<repo>") < at("git fetch origin pull/<n>/head"));
-  assert.ok(at("git fetch origin pull/<n>/head") < at("git worktree add --detach"));
+  assert.ok(at("git fetch origin pull/<n>/head") < at("git clone --no-local --no-checkout . <dir>"));
   assert.ok(at("rev-parse HEAD` must print `<sha>`") < at("run the install"));
   assert.doesNotMatch(step, /\$sha\b|sha=\$\(/, "the sha is written out, never a shell variable");
 });
@@ -114,15 +114,16 @@ test("AC-131-1: every sha in coordinate's examples is the full 40 characters", (
 test("item 3 of the round 2 review: each run checks in a fresh mktemp folder, written out, and removes it", () => {
   const skill = read(".agents/skills/coordinate/SKILL.md");
   const step = skill.slice(skill.indexOf("1. **Local checks**"), skill.indexOf("2. **Code review.**"));
-  assert.ok(step.indexOf("`mktemp -d`") < step.indexOf("git worktree add --detach <dir> <sha>"));
-  assert.match(step, /Write that path into each command/);
-  assert.match(step, /`git worktree remove --force <dir>`, then `git worktree prune`/);
+  assert.ok(step.indexOf("`mktemp -d`") < step.indexOf("git clone --no-local --no-checkout . <dir>"));
+  assert.match(step, /Write both paths into each command/);
+  assert.match(step, /Remove both folders: `rm -rf <dir> <home>`/);
   assert.doesNotMatch(step, /check-<n>|\$\{TMPDIR/, "no fixed folder a stopped run can leave behind");
 });
 
 test("round 3 review, item 2: step 6.1.2 points to 6.1.5 for the fail comment, not the top-level step 5", () => {
   const skill = read(".agents/skills/coordinate/SKILL.md");
-  const step = skill.slice(skill.indexOf("2. Make a clean worktree"), skill.indexOf("3. In it, run the install"));
+  const step = skill.slice(skill.indexOf("2. Make a clean clone"), skill.indexOf("3. In it, run the install"));
+  assert.ok(skill.indexOf("2. Make a clean clone") > -1, "step 6.1.2 is found");
   assert.match(step, /post `Checks: fail @ <sha>` \(6\.1\.5\)/);
   assert.doesNotMatch(step, /\(step 5\)/);
 });
