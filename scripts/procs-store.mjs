@@ -67,7 +67,7 @@ function ownerProblem(sys, s, path, chmod) {
 }
 
 // A folder the registry reads from or writes into: missing, or a real folder of this user's that nobody else can
-// write. shared: ~/.onrails, which other kit files share, may be group-writable (docs/decisions.md row 55).
+// write. shared: ~/.onrails, which other kit files share, may be group-writable (docs/decisions.md row 59).
 function folderProblem(sys, dir, shared = false) {
   const k = kind(dir);
   if (k === "missing") return null;
