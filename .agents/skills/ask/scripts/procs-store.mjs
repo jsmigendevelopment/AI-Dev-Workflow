@@ -83,15 +83,18 @@ function folderProblem(sys, dir, shared = false) {
 }
 
 // The repo root holds the name .onrails, so whoever can write it can put any folder there. Others never; the group
-// only with the sticky bit, or when it is this user's own group with no one else in it (docs/decisions.md row 61).
+// only with the sticky bit, or when it is this user's own group with no one else in it and the root has no ACL:
+// with one, the group bits are its mask, so a named user may write too (docs/decisions.md row 61).
 function rootProblem(sys, root) {
   if (sys.platform === "win32") return null;
   const s = lstatSync(root);
   if (s.uid !== sys.uid) return `the repo at ${root} belongs to another user`;
   if (s.mode & 0o002) return `others can write the repo at ${root}: run chmod o-w ${root}`;
   if (!(s.mode & 0o020) || s.mode & 0o1000) return null;
-  if (s.gid === sys.gid && sys.privateGroup?.(s.gid) === true) return null;
-  return `the group can write the repo at ${root}, and it isn't this user's alone: run chmod g-w ${root}`;
+  const why = `the group can write the repo at ${root}`, fix = `run chmod g-w ${root}`;
+  if (s.gid !== sys.gid) return `${why}, and it isn't this user's alone: ${fix}`;
+  if (sys.acl?.(root) !== false) return `${why}, and it has an ACL, or whether it has one can't be told: ${fix}`;
+  return sys.privateGroup?.(s.gid) === true ? null : `${why}, and it isn't this user's alone: ${fix}`;
 }
 
 const folders = (sys, path) => folderProblem(sys, dirname(path), path === homeRegistry(sys)) ?? folderProblem(sys, join(dirname(path), "logs"));
@@ -124,37 +127,45 @@ function gitProblem(sys, path) {
 
 // Opens a file once, checks what was opened (a regular file of this user's that nobody else can write, and not
 // huge) and reads that same file. The name is never opened twice: it could point somewhere else by the second time.
-// { text } (null when it is missing) or { why }.
-function readChecked(sys, path) {
+// { text } (null when it is missing) or { why }. groupOk: a file only the group can write is still read, and its
+// text comes with the why.
+function readChecked(sys, path, groupOk = false) {
   let fd;
   try { fd = openSync(path, READ); } catch (error) {
     return error.code === "ENOENT" ? { text: null } : { why: `${path} can't be opened as a plain file (${error.code})` };
   }
   try {
     const s = fstatSync(fd);
-    const why = !s.isFile() ? `${path} isn't a regular file` : s.size > MAX_BYTES ? `${path} is over ${MAX_BYTES} bytes` : ownerProblem(sys, s, path, "600");
-    return why ? { why } : { text: readFileSync(fd, "utf8") };
+    const shape = !s.isFile() ? `${path} isn't a regular file` : s.size > MAX_BYTES ? `${path} is over ${MAX_BYTES} bytes` : null;
+    if (shape) return { why: shape };
+    const why = ownerProblem(sys, s, path, "600");
+    const read = !why || (groupOk && !ownerProblem(sys, s, path, "600", 0o002));
+    return read ? { why, text: readFileSync(fd, "utf8") } : { why };
   } finally { closeSync(fd); }
 }
 
-// A broken or untrusted index lists nothing, and the next write replaces it; each repo still finds its own registry.
-function readIndex(sys) {
+// The index's entries, and why it can't be trusted, if so. An untrusted one lists nothing, and the next write
+// replaces it; each repo still finds its own registry. kept: one only the group can write, as main wrote it under
+// a 002 umask before #156, still gives its entries, so the write that fixes it keeps them (docs/decisions.md row 62).
+function readIndex(sys, kept = false) {
   const path = indexPath(sys);
-  if (folderProblem(sys, dirname(path), true)) return [];
-  const { text } = readChecked(sys, path);
+  const folderWhy = folderProblem(sys, dirname(path), true);
+  if (folderWhy) return { list: [], why: folderWhy };
+  const { text, why } = readChecked(sys, path, kept);
   try {
     const list = JSON.parse(text ?? "{}").registries;
-    return Array.isArray(list) ? list.filter((p) => typeof p === "string") : [];
-  } catch { return []; } // not JSON: the same as no index
+    return { list: Array.isArray(list) ? list.filter((p) => typeof p === "string") : [], why };
+  } catch { return { list: [], why }; } // not JSON: the same as no index
 }
 
-const candidates = (sys, dir) => [...new Set([registryPath(sys, dir), homeRegistry(sys), ...readIndex(sys)])].filter((p) => existsSync(p));
+const candidates = (sys, dir) => [...new Set([registryPath(sys, dir), homeRegistry(sys), ...readIndex(sys).list])].filter((p) => existsSync(p));
 
 /** Every registry to look at: this folder's, the home one, and each repo's that a record was ever added to. Trusted ones only. */
 export const registries = (sys, dir) => candidates(sys, dir).filter((p) => !untrusted(sys, p));
 
-/** Why each registry skipped only for a mode this user can fix with chmod was skipped: a list names them, so none hides in silence. */
-export const fixable = (sys, dir) => candidates(sys, dir).map((p) => untrusted(sys, p)).filter((why) => why?.includes("run chmod"));
+/** Why each registry, or the index, skipped only for a mode this user can fix with chmod was skipped: a list names them, so none hides in silence. */
+export const fixable = (sys, dir) => [...new Set([...candidates(sys, dir).map((p) => untrusted(sys, p)), readIndex(sys).why])]
+  .filter((why) => why?.includes("run chmod"));
 
 function parse(text) {
   try {
@@ -231,9 +242,10 @@ export function update(sys, path, fn) {
 // Best effort: a registry the index misses still shows from its own repo.
 function remember(sys, path) {
   try {
-    const list = readIndex(sys);
-    if (list.includes(path)) return;
+    const { list, why } = readIndex(sys, true);
+    if (list.includes(path) && !why) return;
     mkdirSync(dirname(indexPath(sys)), { recursive: true, mode: 0o700 });
-    if (!folderProblem(sys, dirname(indexPath(sys)), true)) replace(indexPath(sys), JSON.stringify({ registries: [...list, path] }, null, 2) + "\n");
+    const next = [...new Set([...list, path])];
+    if (!folderProblem(sys, dirname(indexPath(sys)), true)) replace(indexPath(sys), JSON.stringify({ registries: next }, null, 2) + "\n");
   } catch { /* the home folder may be read-only in a sandbox */ }
 }

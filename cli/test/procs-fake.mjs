@@ -15,8 +15,9 @@ export const repoFile = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, 
 
 // A fake machine. procs: { pid: { args, parent, group, start, onTerm: "exit" | "stay" } }. Every signal is recorded.
 // hidden: what it spawns exits at once, so ps never sees it. privateGroup: what it answers when asked whether this
-// user is the only member of a group (true, false, or null for "can't tell").
-export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "", hidden = false, privateGroup = false } = {}) {
+// user is the only member of a group (true, false, or null for "can't tell"). acl: what it answers when asked
+// whether a folder has a POSIX ACL (true, false for none, or null for "can't tell").
+export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "", hidden = false, privateGroup = false, acl = false } = {}) {
   let clock = NOW, next = 7000;
   const live = new Map();
   const put1 = (pid, p) => live.set(pid, { parent: 1, group: pid, start: `start-${pid}`, args: "node x", cpu: "0.0% CPU", mem: 2048, onTerm: "exit", ...p });
@@ -27,6 +28,7 @@ export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s
   return {
     platform, env, home: tmp("procs-home-"), cwd: tmp("procs-cwd-"), parentPid: 900, selfPid: 999, uid: process.getuid?.() ?? null, gid: process.getgid?.() ?? null, calls, live,
     privateGroup: () => privateGroup,
+    acl: () => acl,
     now: () => clock, advance: (ms) => { clock += ms; },
     git: (dir, args) => git(dir, args),
     info: (pids) => new Map(pids.filter((p) => live.has(p)).map((p) => [p, live.get(p)])),

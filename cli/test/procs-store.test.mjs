@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { chmodSync, chownSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { put, tmp } from "./helpers.mjs";
-import { homeRegistry, untrusted } from "../src/procs-store.mjs";
+import { homeRegistry, untrusted, update } from "../src/procs-store.mjs";
 import { NOW, fakeSys, inRepo, run, signals, startDev } from "./procs-fake.mjs";
 
 const posix = { skip: process.platform === "win32" ? "Windows has no POSIX owner or mode" : false };
@@ -157,6 +157,19 @@ test("a registry written before #156 at 0664 keeps its records: start says to ru
   assert.doesNotMatch(r.out, /Delete that folder/);
   chmodSync(path, 0o600);
   assert.match((await run(sys, ["list"])).out, /pold1 · running · pid 4000/);
+});
+
+test("AC-156-4: WHEN a registry is over 1 MiB THEN it is never read for a signal, and start refuses it", posix, async () => {
+  const sys = fakeSys({ procs: { 4000: {} } });
+  const path = homeRegistry(sys);
+  const stale = { id: "pbad", kind: "process", pid: 4000, start: "start-4000", group: true, command: "x", why: "w", until: "u",
+    session: "s-old", agent: { pid: 600, start: "start-600" }, startedAt: new Date(NOW).toISOString() };
+  mkdirSync(dirname(path), { mode: 0o700 });
+  writeFileSync(path, JSON.stringify({ version: 1, procs: [stale], pad: "x".repeat(2 << 20) }), { mode: 0o600 });
+  for (const argv of [["stop", "stale"], ["stop", "all", "--yes"], ["session-end"]]) await run(sys, argv);
+  assert.deepEqual(signals(sys), []);
+  assert.ok(sys.live.has(4000));
+  assert.throws(() => update(sys, path, (procs) => procs), /is over 1048576 bytes/);
 });
 
 test("the session-end hook asks git each question once per registry in a run", async () => {

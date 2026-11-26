@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { chmodSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { load } from "../src/procs-store.mjs";
@@ -76,6 +76,18 @@ test("doctor warns about stale processes, with the command that stops them", () 
   assert.equal(check.required, false);
   assert.match(check.label, /1 stale background process\(es\): pold1 pnpm dev \(its owner session is gone\)/);
   assert.equal(check.fix, "Run: npx onrails ps --stop stale");
+});
+
+test("AC-156-4: doctor names a registry skipped for a mode chmod fixes, with that chmod line, as list does", (t) => {
+  if (process.platform === "win32") return t.skip("Windows has no POSIX mode");
+  const sys = fakeSys({ procs: { 4000: {} } });
+  seed(sys, { id: "pold1", pid: 4000, start: "start-4000", command: "pnpm dev" });
+  const path = join(sys.home, ".onrails", "procs.json");
+  chmodSync(path, 0o664);
+  assert.deepEqual(processChecks(sys.cwd, { sys }), [{
+    status: "✗", required: false, label: `Process registry not read: ${path} can be written by other users: run chmod 600 ${path}, which keeps what's in it`,
+    fix: "Run that chmod: it keeps the records, and its processes are listed and stopped again",
+  }]);
 });
 
 test("both tools' session hooks run the registry: Claude Code and Codex end, and the start hook reads it", () => {

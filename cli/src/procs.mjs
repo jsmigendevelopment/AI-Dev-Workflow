@@ -40,10 +40,10 @@ function row(r, now) {
     `    ${r.command} · why: ${r.why} · until: ${r.until}`].join("\n");
 }
 
-/** For doctor: how many records there are, and the stale ones. It writes nothing. */
+/** For doctor: how many records there are, the stale ones, and why each registry skipped for a mode was skipped. It writes nothing. */
 export function staleSummary(dir, { sys = realSys() } = {}) {
-  const seen = survey(sys, dir, { session: null, agent: null });
-  return seen ? { total: seen.length, stale: seen.filter((r) => r.stale) } : { total: 0, stale: [], unreadable: true };
+  const seen = survey(sys, dir, { session: null, agent: null }), skipped = fixable(sys, dir);
+  return seen ? { total: seen.length, stale: seen.filter((r) => r.stale), skipped } : { total: 0, stale: [], skipped, unreadable: true };
 }
 
 const fail = (log, message, code = 2) => (log(message), code);
