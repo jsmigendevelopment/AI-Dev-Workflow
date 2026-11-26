@@ -28,7 +28,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { LOCAL_CHECK, PROBE_CHECK, localChecks, requiredChecks } from "./required-checks.mjs";
 
@@ -97,12 +97,24 @@ try {
 const PUBLIC = visibility === "public";
 
 // --- ci = "actions" only when docs/stack.md says so (#139). ---
-// A trailing # comment is allowed. The same rule as push-secrets.mjs and the TanStack pack's
-// ci-mode.ts; one test runs the same cases on all three.
+// A trailing # comment is allowed. The nearest docs/stack.md from this folder (the app's) up to the
+// folder holding .git counts (#160). The same rule and lookup as push-secrets.mjs, connect and the
+// TanStack pack's ci-mode.ts; cli/test/deploy-keys-followups runs the same fixtures on all four.
 const CI_ACTIONS = /^ci[ \t]*=[ \t]*"actions"[ \t]*(?:#.*)?\r?$/m;
+function gitFolder(start) {
+  for (let dir = start; ; dir = dirname(dir)) {
+    if (existsSync(join(dir, ".git"))) return dir;
+    if (dirname(dir) === dir) return null;
+  }
+}
 function ciFromStack() {
-  const file = join(repoRoot(), "docs", "stack.md");
-  return existsSync(file) && CI_ACTIONS.test(readFileSync(file, "utf8")) ? "actions" : "local";
+  const start = process.cwd();
+  const top = gitFolder(start) ?? start;
+  for (let dir = start; ; dir = dirname(dir)) {
+    const file = join(dir, "docs", "stack.md");
+    if (existsSync(file)) return CI_ACTIONS.test(readFileSync(file, "utf8")) ? "actions" : "local";
+    if (dir === top || dirname(dir) === dir) return "local";
+  }
 }
 const ACTIONS = ciFromStack() === "actions";
 

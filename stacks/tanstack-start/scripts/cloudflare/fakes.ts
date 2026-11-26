@@ -89,6 +89,8 @@ export interface World {
   localNames?: string[]
   /** Cloudflare refuses to delete a service token. */
   tokenDeleteFails?: boolean
+  /** `wrangler secret put SITE_PASSWORD` fails, with an error that echoes what it was sent. */
+  passwordPutFails?: boolean
   /** Cloudflare One on the account; null: Zero Trust not set up. */
   access: {
     workers: { id: string; name: string }[]
@@ -159,8 +161,10 @@ export function fakes(
       if (cmd === 'secret list --env test --format json')
         return ok(JSON.stringify(world.testSecrets.map((name) => ({ name, type: 'secret_text' }))))
       if (cmd === 'secret put SITE_PASSWORD --env test') {
-        world.testSecrets.push('SITE_PASSWORD')
         stdin.push(input ?? '')
+        if (world.passwordPutFails)
+          return { status: 1, stdout: '', stderr: `✘ [ERROR] A request failed: ${String(input)}` }
+        world.testSecrets.push('SITE_PASSWORD')
         return ok()
       }
       if (cmd === 'whoami --json')

@@ -7,7 +7,7 @@
 // the registry its records. Its folder and logs folder must be this user's too, and nobody else may write them
 // (only ~/.onrails may be group-writable). The file is checked and read through one open file, so what is read
 // is what passed, and so is the index. A repo registry must also be its repo's own, in a repo this user owns
-// whose root only this user can write (docs/decisions.md row 61).
+// whose root only this user can write (docs/decisions.md row 64).
 // No dependencies. The master copy is scripts/procs-store.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { randomBytes } from "node:crypto";
 import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -73,7 +73,7 @@ function ownerProblem(sys, s, path, chmod, bits = 0o022) {
 
 // A folder the registry reads from or writes into: missing, or a real folder of this user's, right where its
 // name says, that nobody else can write. shared: ~/.onrails, which other kit files share, may be group-writable,
-// never world-writable (docs/decisions.md row 59).
+// never world-writable (docs/decisions.md row 62).
 function folderProblem(sys, dir, shared = false) {
   const k = kind(dir);
   if (k === "missing") return null;
@@ -84,7 +84,7 @@ function folderProblem(sys, dir, shared = false) {
 
 // The repo root holds the name .onrails, so whoever can write it can put any folder there. Others never; the group
 // only with the sticky bit, or when it is this user's own group with no one else in it and the root has no ACL:
-// with one, the group bits are its mask, so a named user may write too (docs/decisions.md row 61).
+// with one, the group bits are its mask, so a named user may write too (docs/decisions.md row 64).
 function rootProblem(sys, root) {
   if (sys.platform === "win32") return null;
   const s = lstatSync(root);
@@ -146,7 +146,7 @@ function readChecked(sys, path, groupOk = false) {
 
 // The index's entries, and why it can't be trusted, if so. An untrusted one lists nothing, and the next write
 // replaces it; each repo still finds its own registry. kept: one only the group can write, as main wrote it under
-// a 002 umask before #156, still gives its entries, so the write that fixes it keeps them (docs/decisions.md row 62).
+// a 002 umask before #156, still gives its entries, so the write that fixes it keeps them (docs/decisions.md row 65).
 function readIndex(sys, kept = false) {
   const path = indexPath(sys);
   const folderWhy = folderProblem(sys, dirname(path), true);

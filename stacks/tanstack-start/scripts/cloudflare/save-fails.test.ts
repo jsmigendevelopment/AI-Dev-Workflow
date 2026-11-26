@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { freshWorld, PACK_CONFIG, run, type World, zeroTrust } from './fakes'
+import { readResources } from './wrangler-config'
 
 const ACCESS = { CLOUDFLARE_ACCESS_TOKEN: 'set' }
 const TOKEN_SECRET = 'cfast_SECRET' // what the fake Cloudflare API answers for a new service token
@@ -45,6 +46,44 @@ describe.each(['false', 'throw'] as const)('when saving to .env.cloudflare.local
     expect(r.output()).toContain('so no password was set')
     expect(r.output()).not.toContain('by hand')
     for (const text of shown(r)) expect(text).not.toContain(PASSWORD)
+  })
+})
+
+// #160: the new password is saved before the Worker gets it, so a failed put leaves the two apart.
+// After a failed put nobody knows what the Worker holds; the next --new-password always converges.
+describe('when wrangler secret put SITE_PASSWORD fails', () => {
+  it('AC-160-3: WHEN --new-password runs and wrangler secret put fails THEN it says plainly to rerun with --new-password, exits non-zero and prints no password', async () => {
+    const world: World = {
+      ...freshWorld(),
+      testSecrets: ['SITE_PASSWORD'],
+      localNames: ['TEST_SITE_PASSWORD'],
+      passwordPutFails: true,
+    }
+    const config = files()
+    const r = await run(world, config, { protect: 'password', newPassword: true })
+    expect(r.code).not.toBe(0)
+    expect(r.saved).toEqual({ TEST_SITE_PASSWORD: PASSWORD }) // kept: the Worker may have taken it
+    expect(r.output()).toContain(
+      'TEST_SITE_PASSWORD in .env.cloudflare.local is now a new password the test Worker may not have. Run this again with --protect password --new-password so the two match.',
+    )
+    expect(r.output()).not.toContain('Done.')
+    expect(readResources(config['wrangler.jsonc']!).test.vars.SITE_PROTECTION).toBe('none')
+    // Sent only on the put's stdin; the fake's error echoes it, and the stop message hides it.
+    expect(r.stdin).toEqual([PASSWORD])
+    expect(r.output()).toContain('<hidden>')
+    for (const text of [r.output(), r.calls.join('\n'), JSON.stringify(r.writes)])
+      expect(text).not.toContain(PASSWORD)
+  })
+
+  it('AC-160-3: WHEN the rerun with --new-password succeeds THEN the Worker and the file match again', async () => {
+    const world: World = { ...freshWorld(), testSecrets: ['SITE_PASSWORD'], passwordPutFails: true }
+    await run(world, files(), { protect: 'password', newPassword: true })
+    world.passwordPutFails = false
+    const again = await run(world, files(), { protect: 'password', newPassword: true })
+    expect(again.code).toBe(0)
+    expect(again.calls).toContain('wrangler secret put SITE_PASSWORD --env test <stdin>')
+    expect(again.saved).toEqual({ TEST_SITE_PASSWORD: PASSWORD })
+    expect(again.output()).toContain('set SITE_PASSWORD on the test Worker')
   })
 })
 

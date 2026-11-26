@@ -165,7 +165,7 @@ test("AC-156-4: WHEN procs-index.json is a FIFO or a link to /dev/zero THEN list
   for (const [name, plant] of Object.entries(plants)) {
     const home = tmp("procs-index-home-");
     mkdirSync(join(home, ".onrails"));
-    chmodSync(join(home, ".onrails"), 0o775); // row 59: ~/.onrails may be group-writable
+    chmodSync(join(home, ".onrails"), 0o775); // row 62: ~/.onrails may be group-writable
     plant(join(home, ".onrails", "procs-index.json"));
     for (const cmd of ["list", "session-start", "session-end"]) {
       const started = Date.now();
