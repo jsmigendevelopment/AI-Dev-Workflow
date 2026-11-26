@@ -101,7 +101,7 @@ test("#169: the probes meant to run outside the repo run from a folder whose rea
     await probe(dir, sys);
     const away = sys.runs.filter((r) => /^(gh |npm |git ls-remote)/.test(r.line));
     assert.equal(away.length, 4);
-    // The folder is gone by now, so its path is compared as written: mkdtemp made it under a real folder.
+    // The folder is gone by now, so its path is compared as written: preflight made it under a real folder.
     for (const r of away) {
       assert.ok(relative(realpathSync(dir), r.cwd).startsWith(".."), `${r.line} ran inside the repo`);
       assert.equal(r.env.GIT_CEILING_DIRECTORIES, dirname(r.cwd), r.line);

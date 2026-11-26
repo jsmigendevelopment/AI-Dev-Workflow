@@ -33,6 +33,8 @@ The pack is `stacks/monorepo-expo/` in this kit: pnpm 12 workspaces and Turborep
 | `test:e2e` | web Playwright only, because it runs on Linux |
 | `test:e2e:mobile` | Maestro, needs a booted simulator or emulator with the app installed |
 
+Short on memory (`ask`, "Try before you block"): `pnpm check --concurrency=1` runs Turborepo's tasks one at a time. Jest and Vitest still start several workers each; for one, run a workspace's tests on their own: `pnpm --filter mobile exec jest --maxWorkers=1`, and `pnpm -C apps/web exec vitest run --maxWorkers=1` for the web app.
+
 Before merge, the agent that runs the local gate (`coordinate`, the `onrails/check` status) also runs `pnpm check:merge` and `pnpm pr:rules <n>` from the root. The web app's deploys run from the root too: `pnpm deploy:preview <n>`, `pnpm deploy:test`, `pnpm deploy:production` (`stack-tanstack-start`, Environments and deploys). The mobile app has no deploy here: EAS stays with the person.
 
 Run one workspace with `pnpm --filter mobile <script>` or `cd apps/mobile && pnpm <script>`. Use `pnpm turbo run <task> --affected` to run only what changed.

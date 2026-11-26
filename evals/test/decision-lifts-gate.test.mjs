@@ -3,32 +3,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LIFT_CITE, LIFT_MERGE, LIFT_PLAN } from "./decision-lifts-gate-plan.mjs";
+import { failedChecks } from "./failed-checks.mjs";
 
 const RUN = fileURLToPath(new URL("../run.mjs", import.meta.url));
-const FAKE = fileURLToPath(new URL("./fake-claude.mjs", import.meta.url));
 const skipWin = process.platform === "win32" ? "the fake claude is a shebang script" : false;
 
-/** Runs the scenario with the fake claude on these steps; returns the "with" arm's failed check ids. */
-function failedWith(t, steps) {
-  const root = mkdtempSync(join(tmpdir(), "evals-test-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const bin = join(root, "bin");
-  mkdirSync(bin);
-  copyFileSync(FAKE, join(bin, "claude"));
-  chmodSync(join(bin, "claude"), 0o755);
-  writeFileSync(join(bin, "plan.json"), JSON.stringify({ "decision-lifts-gate": { with: { steps }, without: LIFT_PLAN.without } }));
-  const results = join(root, "results");
-  // A fake key, so even a real claude found by mistake would fail to sign in rather than spend.
-  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, ANTHROPIC_API_KEY: "sk-ant-fake-for-tests" };
-  spawnSync(process.execPath, [RUN, "--results-dir", results, "--scenario", "decision-lifts-gate"], { encoding: "utf8", env, timeout: 120_000 });
-  const file = readdirSync(results).find((f) => f.endsWith(".json"));
-  return JSON.parse(readFileSync(join(results, file), "utf8")).runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
-}
+/** The "with" arm's failed check ids on these steps. */
+const failedWith = (t, steps) => failedChecks(t, "decision-lifts-gate", { with: { steps }, without: LIFT_PLAN.without });
 
 // Merging but still asking fails no-ask, merging with no citation fails cites-row, and citing without
 // merging fails merged.

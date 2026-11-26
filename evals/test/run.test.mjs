@@ -1,6 +1,6 @@
 // Harness tests: a fake `claude` on PATH prints canned stream-json, so nothing calls a model.
 // Needs the bundled kit for the "with" arm: run `cd cli && npm run bundle` first.
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -9,6 +9,7 @@ import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AUTO_GRILL_PLAN, REVIEWS, reviewPlan } from "./auto-grill-reviews.mjs";
 import { LIFT_PLAN } from "./decision-lifts-gate-plan.mjs";
+import { MEM_PLAN } from "./short-on-memory-plan.mjs";
 
 const KIT = JSON.parse(readFileSync(new URL("../../cli/package.json", import.meta.url), "utf8")).version;
 const KIT_RE = KIT.replaceAll(".", "\\.");
@@ -18,9 +19,16 @@ const FAKE = fileURLToPath(new URL("./fake-claude.mjs", import.meta.url));
 const TEST_SCENARIOS = fileURLToPath(new URL("./scenarios", import.meta.url));
 const skipWin = process.platform === "win32" ? "the fake claude is a shebang script" : false;
 
+// Every folder setup() makes is removed when this file ends, so a run leaves nothing in TMPDIR (#142).
+const made = [];
+after(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+});
+
 // A temp bin folder holding the fake as `claude`, plus its plan. Returns a runner.
 function setup(plan) {
   const root = mkdtempSync(join(tmpdir(), "evals-test-"));
+  made.push(root);
   const bin = join(root, "bin");
   mkdirSync(bin);
   copyFileSync(FAKE, join(bin, "claude"));
@@ -40,7 +48,7 @@ function setup(plan) {
   return { root, run, results, resultsFile, calls };
 }
 
-// setup, with its temp folder removed when the test ends. The #100 tests use it.
+// setup, with its temp folder removed as soon as the test ends, not the file. The tests that loop over many runs use it.
 function cleanSetup(t, plan) {
   const s = setup(plan);
   t.after(() => rmSync(s.root, { recursive: true, force: true }));
@@ -61,8 +69,8 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
   assert.match(r.stdout, /preflight-blocked: its own limits, 24 turns, 240 s, \$0\.5 budget/);
   const optIn = r.stdout.match(/^Opt-in, not in this run: (.+)\. Name them with --scenario\.$/m)?.[1].split(", ") ?? [];
-  assert.deepEqual(optIn.sort(), ["ci-never-starts", "clean-up-server", "decision-lifts-gate", "test-by-hand-zero"]);
-  assert.match(r.stdout, /Opt-in, not in this run: ci-never-starts, clean-up-server, decision-lifts-gate, test-by-hand-zero\. Name them with --scenario\./);
+  assert.deepEqual(optIn.sort(), ["ci-never-starts", "clean-up-server", "decision-lifts-gate", "short-on-memory", "test-by-hand-zero"]);
+  assert.match(r.stdout, /Opt-in, not in this run: ci-never-starts, clean-up-server, decision-lifts-gate, short-on-memory, test-by-hand-zero\. Name them with --scenario\./);
   assert.doesNotMatch(r.stdout, /test-by-hand-zero \[with\]/);
   assert.doesNotMatch(r.stdout, /ci-never-starts \[with\]/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
@@ -329,6 +337,7 @@ const SCENARIO_PLANS = {
     without: { steps: [{ bash: "cat docs/issues/004-shout-a-word.md" }, { text: "#4's CI job never started: a billing error. I'll wait for CI to pass before I merge it. Fix the billing, then re-run the job." }] },
   },
   "decision-lifts-gate": LIFT_PLAN,
+  "short-on-memory": MEM_PLAN,
   "one-prompt": {
     with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { tool: "Skill", input: { skill: "coordinate" }, ok: true }, { bash: "git checkout -qb feat/1-the-skeleton && mkdir -p src && printf 'export const app = 1;\\n' > src/app.mjs && git add src && git commit -qm '#1 The skeleton'" }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is built on feat/1-the-skeleton, and the loop goes on." }] },
     without: { steps: [{ write: "src/app.js", content: "x" }, { tool: "AskUserQuestion", input: { questions: [{ question: "Add sign-in next?" }] } }, { text: "I built a first version. Want me to add sign-in next?" }] },
