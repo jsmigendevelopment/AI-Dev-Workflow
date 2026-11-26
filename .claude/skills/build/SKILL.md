@@ -108,6 +108,7 @@ The shape is in `docs/architecture.md`.
 - Change the schema or an API contract unless the issue says to.
 - Read, print or commit `.env` files, tokens or keys. Refer to secrets by name. Need a value? Use the `secrets` checklist, never chat.
 - Touch another issue's work.
+- Add, enable or depend on a GitHub Actions workflow. A tool's docs say "add this workflow"? Run the command it would run from your session instead.
 
 ## References
 

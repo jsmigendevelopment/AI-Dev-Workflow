@@ -11,7 +11,7 @@ You did not write this code. Judge only the **issue, the diff and the check resu
 
 ## Check
 
-1. **Every `auto` acceptance check has a test whose title carries its ID.** Search the diff for each `AC-<issue>-<n>`. A missing ID, or a test that doesn't prove its check, is a must fix. Each test would fail without the change. CI passed on the head commit.
+1. **Every `auto` acceptance check has a test whose title carries its ID.** Search the diff for each `AC-<issue>-<n>`. A missing ID, or a test that doesn't prove its check, is a must fix. Each test would fail without the change. The local checks passed on the head commit (`coordinate`, step 6.1). Workflow results don't count.
    - A bug fix comes with a test that reproduces the bug.
    - Tests go through the public interface and mock only the edges (network, clock, randomness).
    - No snapshot test stands in for a logic test.

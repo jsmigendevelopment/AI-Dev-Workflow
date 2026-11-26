@@ -45,12 +45,13 @@ const BAD = { steps: [{ write: "app.js", content: "x" }, { text: "Built it." }],
 test("dry run prints the plan, needs no claude and writes nothing", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Dry run: 36 run\(s\)/);
+  assert.match(r.stdout, /Dry run: 38 run\(s\)/);
   assert.match(r.stdout, /--max-turns 12/);
   assert.match(r.stdout, /--output-format stream-json --verbose/);
   assert.match(r.stdout, /--permission-mode dontAsk/);
   assert.match(r.stdout, /idea-grill \[with\]/);
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
+  assert.match(r.stdout, /ci-never-starts: its own limits, 24 turns, 300 s, \$0\.5 budget/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
 });
 
@@ -266,6 +267,10 @@ const SCENARIO_PLANS = {
     with: { steps: [{ write: "docs/issues/001-deploy-test-site.md", content: "# #1 Deploy main to the test site\n\nStatus: blocked\nLabels: needs-human, blocker\n" }, { bash: "git merge -q --no-ff $(grep -o 'Review · [0-9a-f]*' docs/issues/003-shout-a-word.md | cut -d' ' -f3) -m '#3 Shout a word'" }, { bash: "git checkout -qb feat/2-add-numbers && printf 'export const add = (a, b) => a + b;\\n' >> src/math.mjs && git commit -qam '#2 Add two numbers'" }, { text: "#1 is parked on you (docs/issues/1.md). #3 is merged on main. #2 is built on feat/2-add-numbers." }] },
     without: { steps: [{ bash: "npm run deploy:test" }, { text: "The deploy needs CLOUDFLARE_API_TOKEN. You'll have to set it up." }] },
   },
+  "ci-never-starts": {
+    with: { steps: [{ bash: "git worktree add --detach ../check-4 $(git rev-parse feat/4-shout) 2>&1" }, { bash: "npm --prefix ../check-4 run check" }, { bash: "printf -- '- Checks: pass @ %s · npm run check: pass\\n' $(git rev-parse feat/4-shout) >> docs/issues/004-shout-a-word.md" }, { bash: "git merge -q --no-ff $(git rev-parse feat/4-shout) -m '#4 Shout a word'" }, { bash: "git worktree remove ../check-4" }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"This repo still has GitHub Actions workflows\"" }, ok: true }, { text: "Ran npm run check in a clean worktree of #4's head: pass. Merged it on main. Its CI job never started, and I didn't wait for it." }] },
+    without: { steps: [{ bash: "cat docs/issues/004-shout-a-word.md" }, { text: "#4's CI job never started: a billing error. I'll wait for CI to pass before I merge it. Fix the billing, then re-run the job." }] },
+  },
   "one-prompt": {
     with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { tool: "Skill", input: { skill: "coordinate" }, ok: true }, { bash: "git checkout -qb feat/1-the-skeleton && mkdir -p src && printf 'export const app = 1;\\n' > src/app.mjs && git add src && git commit -qm '#1 The skeleton'" }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is built on feat/1-the-skeleton, and the loop goes on." }] },
     without: { steps: [{ write: "src/app.js", content: "x" }, { tool: "AskUserQuestion", input: { questions: [{ question: "Add sign-in next?" }] } }, { text: "I built a first version. Want me to add sign-in next?" }] },
@@ -356,5 +361,24 @@ test("AC-5: one-prompt: an ask tool fails no-ask-tool; a soft line after buildin
     run("--scenario", "one-prompt");
     const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
     assert.deepEqual(failed, want);
+  }
+});
+
+// AC-131-4 of #131: the checks prove actions. Each of these skips one part of the local gate, and fails
+// that part's check and only it.
+const CI_GOOD = SCENARIO_PLANS["ci-never-starts"].with.steps;
+const ciSwap = (from, to) => CI_GOOD.map((st) => (st.bash?.startsWith(from) ? { bash: to } : st));
+const CI_SHORTCUTS = {
+  "check in the builder's checkout": [ciSwap("npm --prefix", "npm run check"), ["AC-131-1-clean-worktree"]],
+  "a worktree of main, not the head": [ciSwap("git worktree add", "git worktree add --detach ../check-4 main 2>&1"), ["AC-131-1-clean-worktree"]],
+  "a short sha on the Checks line": [ciSwap("printf", "printf -- '- Checks: pass @ %s\\n' $(git rev-parse --short feat/4-shout) >> docs/issues/004-shout-a-word.md"), ["AC-131-1-checks-recorded"]],
+  "the record but no merge": [CI_GOOD.filter((st) => !st.bash?.startsWith("git merge")), ["AC-131-2-merged-without-ci"]],
+};
+test("AC-131-4: ci-never-starts: each skipped part of the local gate fails its own check, and only it", { skip: skipWin }, () => {
+  for (const [name, [steps, want]] of Object.entries(CI_SHORTCUTS)) {
+    const { run, resultsFile } = setup({ "ci-never-starts": { with: { steps }, without: SCENARIO_PLANS["ci-never-starts"].without } });
+    run("--scenario", "ci-never-starts");
+    const failed = resultsFile().runs[0].scenarios[0].arms.with.checks.filter((c) => !c.pass).map((c) => c.id);
+    assert.deepEqual(failed, want, name);
   }
 });

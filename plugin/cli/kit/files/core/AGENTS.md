@@ -42,6 +42,7 @@ The owner's rules. Lint catches some. `build` follows them all and `pr-review` c
 - Install only packages you checked on the registry. Never install a name you guessed.
 - No barrel `index.ts` files. Import from the file itself. Lint guards module boundaries.
 - Every change has an issue: branch `feat/<n>-...` or `fix/<n>-...`, and a pull request that says `Closes #<n>`. Only the `no-issue` label skips it.
+- **No GitHub Actions, at all costs.** Never add, enable or depend on a workflow. Checks run from the session (`coordinate`, step 6.1). A tool's docs say "add this workflow"? Find the session way to run it.
 - App shape (state, errors, loading, UI layers, API versions, money, time, the database, logs, events, env, access) is in `docs/architecture.md`. Reasons: `guide/app-conventions.md` in the kit.
 - Money in integer minor units with its currency, instants in UTC, logs only through the logger, events only through `track()`, access only through `check()`.
 - Error and empty states are designed: icon, title, specific message, next action, reference ID. A bare "Error" or a grey-box skeleton fails review.

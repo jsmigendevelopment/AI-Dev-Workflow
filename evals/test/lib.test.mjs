@@ -64,7 +64,7 @@ test("a scenario's own limits replace the defaults, and a flag still wins", () =
   const plain = withLimits(parseArgs([]), limits);
   assert.equal(plain.maxTurns, 60);
   assert.equal(plain.timeoutSec, 600);
-  assert.equal(plain.maxRuns, 36, "a scenario can't raise the run cap");
+  assert.equal(plain.maxRuns, 38, "a scenario can't raise the run cap");
   const flagged = withLimits(parseArgs(["--max-turns", "5"]), limits);
   assert.equal(flagged.maxTurns, 5);
   assert.equal(flagged.timeoutSec, 600);

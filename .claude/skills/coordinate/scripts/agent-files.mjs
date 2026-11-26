@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// The agent-file guard, run by .github/workflows/agent-files.yml. A pull request that changes the
+// The agent-file guard. `coordinate` runs it from the session before every merge (`gate`), and a repo that
+// still has .github/workflows/agent-files.yml runs it there too (`--pr`). A pull request that changes the
 // agents' rules, check code or the automation level needs, on Recommended and Hands-on, the
 // `human-approved` label. On Full automation the label doesn't count (agents share the owner's login,
 // so it proves nothing, #103): only the weakening review does, a comment from someone with write access
@@ -7,11 +8,15 @@
 //   Weakening review: pass @ <full head sha>
 // On every level, a writer's fail at the head refuses first, whatever the labels say. A fail that is
 // there when the guard decides beats every pass; one deleted, or edited to drop the fail line, doesn't.
-// The workflow runs from the default branch and this file from that checkout, so a pull request can't
-// change either. The level is read from docs/stack.md there. The pull request's files, labels and
-// comments are read through the API as data; none of its code runs.
-//   node agent-files.mjs --pr <n>          the check (env REPO, GH_TOKEN, HEAD_SHA: the event's head)
-//   node agent-files.mjs verify-run <n> [--repo owner/name] [--head <sha>]   before a merge: the head's agent-files
+// The workflow and `gate` both run this file from the default branch and read the level from docs/stack.md
+// there, so a pull request can't change either. The pull request's files, labels and comments are read
+// through the API as data; none of its code runs.
+//   node agent-files.mjs gate <n> --repo owner/name --head <sha>   before a merge, from your checkout of main: the
+//                                          guard on the live files, comments and labels at that head, with
+//                                          docs/stack.md from the default branch. Needs no workflow. It fails if
+//                                          the pull request moved.
+//   node agent-files.mjs --pr <n>          the workflow's check (env REPO, GH_TOKEN, HEAD_SHA: the event's head)
+//   node agent-files.mjs verify-run <n> [--repo owner/name] [--head <sha>]   optional, where the workflow still runs: the head's agent-files
 //                                          runs are real and green, and the guard still passes on the live comments
 //                                          and labels. --head pins the sha; it fails if the pull request moved.
 // Tests: --files <json> --stack <file> --comments <json> --labels a,b --head <sha> --trusted a,b
@@ -179,9 +184,22 @@ function fromFlags(argv) {
   };
 }
 
+/** The guard from the session (#131): the live decision at the pinned head, with no workflow run. */
+function gate(argv, env) {
+  const repo = argv.includes("--repo") ? argv[argv.indexOf("--repo") + 1] : env.REPO;
+  const pinned = argv.includes("--head") ? argv[argv.indexOf("--head") + 1] : null;
+  const pr = /^\d+$/.test(argv[1] ?? "") ? argv[1] : null;
+  if (!pr || !repo || !pinned) return { pass: false, why: "Usage: agent-files.mjs gate <n> --repo <owner>/<name> --head <sha>" };
+  // Like the workflow, the level comes from the default branch, so a pull request can't change it.
+  const r = decide({ ...fromApi(repo, pr, pinned, defaultStack(repo)), expected: pinned });
+  return { ...r, why: `${pinned}: ${r.why}` };
+}
+
 export function main(argv, env = process.env) {
   let r;
-  if (argv[0] === "verify-run") {
+  if (argv[0] === "gate") {
+    r = gate(argv, env);
+  } else if (argv[0] === "verify-run") {
     if (argv.includes("--runs")) {
       r = verifyMerge(JSON.parse(readFileSync(argv[argv.indexOf("--runs") + 1], "utf8")), decide(fromFlags(argv)));
     } else {
