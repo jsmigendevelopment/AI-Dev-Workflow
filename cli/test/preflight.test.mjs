@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CHECKS, detectTool, fingerprint, main, probe, readRecord, render, satisfies, withRecord } from "../src/preflight.mjs";
 import { commandFor } from "../src/preflight-sys.mjs";
-import { logger, put } from "./helpers.mjs";
+import { logger, put, safeEnv } from "./helpers.mjs";
 import { BLOCKED, fakeSys, HEALTHY, project, readProject, status, temp } from "./preflight-fakes.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
@@ -333,11 +333,11 @@ test("bad flags exit 2, and --json prints the report", async () => {
 
 test("the kit's copy and the CLI command run for real in a temp repo", () => {
   const dir = project({ "package.json": "{}" });
-  spawnSync("git", ["init", "--quiet", dir]);
+  spawnSync("git", ["init", "--quiet", dir], { env: safeEnv() });
   // A dead registry on a closed local port: the probe fails fast and needs no network.
   writeFileSync(join(dir, ".npmrc"), "registry=http://127.0.0.1:9/\n");
   for (const argv of [[SCRIPT, dir, "--json"], [CLI, "preflight", dir, "--json"]]) {
-    const r = spawnSync(process.execPath, argv, { encoding: "utf8", timeout: 60_000 });
+    const r = spawnSync(process.execPath, argv, { encoding: "utf8", timeout: 60_000, env: safeEnv() });
     assert.equal(r.status, 1, r.stderr);
     const report = JSON.parse(r.stdout);
     assert.equal(report.results.find((x) => x.id === "registry").status, "blocked");

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { runChecks } from "../src/checks.mjs";
 import { initGlobal } from "../src/global.mjs";
 import { readFileSync } from "node:fs";
-import { exists, fakeSystem, logger, put, read, tmp } from "./helpers.mjs";
+import { exists, fakeSystem, logger, put, read, safeEnv, tmp } from "./helpers.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const V = version.replaceAll(".", "\\.");
@@ -51,7 +51,7 @@ test("doctor warns when global entry skills differ from the CLI's kit, and is qu
 test("init --global through the binary uses HOME", () => {
   const home = tmp();
   const cli = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
-  const r = spawnSync(process.execPath, [cli, "init", "--global"], { encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home } });
+  const r = spawnSync(process.execPath, [cli, "init", "--global"], { encoding: "utf8", env: safeEnv({ HOME: home, USERPROFILE: home }) });
   assert.equal(r.status, 0, r.stderr);
   assert.ok(exists(home, ".claude/skills/join/SKILL.md"));
   assert.ok(exists(home, ".agents/skills/afk/SKILL.md"));

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { flow, median, percentile, report } from "../../.agents/skills/coordinate/scripts/flow.mjs";
-import { put, tmp } from "./helpers.mjs";
+import { put, safeEnv, tmp } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/coordinate/scripts/flow.mjs", import.meta.url));
 const NOW = "2026-11-23T12:00:00Z";
@@ -68,7 +68,7 @@ test("the command prints the report, or JSON, and needs a file", () => {
   put(dir, "merged.json", JSON.stringify(MERGED));
   put(dir, "issues.json", JSON.stringify(ISSUES));
   put(dir, "bad.json", "{");
-  const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { cwd: dir, encoding: "utf8" });
+  const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { cwd: dir, encoding: "utf8", env: safeEnv() });
   const text = run("--github", "merged.json", "--github", "issues.json", "--now", NOW);
   assert.equal(text.status, 0, text.stderr);
   assert.equal(text.stdout, [

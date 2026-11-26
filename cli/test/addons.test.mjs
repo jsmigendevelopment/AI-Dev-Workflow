@@ -6,11 +6,11 @@ import { fileURLToPath } from "node:url";
 import { addAddon, addPack, listAddons, listPacks } from "../src/add.mjs";
 import { parseAddon } from "../src/addon-doc.mjs";
 import { loadKit } from "../src/kit.mjs";
-import { exists, logger, put, read, tmp } from "./helpers.mjs";
+import { exists, logger, put, read, safeEnv, tmp } from "./helpers.mjs";
 
 const ADDONS_DIR = fileURLToPath(new URL("../../stacks/tanstack-start-addons/", import.meta.url));
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
-const run = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8" });
+const run = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", env: safeEnv() });
 const EXPECTED = ["analytics", "database-supabase", "email-resend", "jobs", "r2-uploads", "sentry", "stripe"];
 
 test("parseAddon: first sentence as summary, Apply without the CLI's own step", () => {

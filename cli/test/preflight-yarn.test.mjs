@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { put } from "./helpers.mjs";
+import { checkPath, put } from "./helpers.mjs";
 import { markRead } from "../src/preflight-sys.mjs";
 import { project, readProject, temp } from "./preflight-fakes.mjs";
 
@@ -50,7 +50,7 @@ function rig() {
   }
   const run = (dir) => {
     for (const file of [log, unsafe, seen]) rmSync(file, { force: true });
-    const r = spawnSync(process.execPath, [SCRIPT, dir, "--json"], { encoding: "utf8", env: { PATH: bin, HOME: home }, timeout: 60000 });
+    const r = spawnSync(process.execPath, [SCRIPT, dir, "--json"], { encoding: "utf8", env: checkPath({ PATH: bin, HOME: home }), timeout: 60000 });
     const versions = JSON.parse(r.stdout).results.find((x) => x.id === "versions");
     const calls = existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean) : [];
     // Anything but npm's registry check is a probe that ran.

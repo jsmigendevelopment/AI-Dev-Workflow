@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { hasAcl, realSys, soleMember } from "../src/procs-sys.mjs";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 
 const GNU = "ls (GNU coreutils) 9.4\nCopyright (C) 2023 Free Software Foundation, Inc.\n";
 
@@ -36,7 +36,7 @@ test("AC-156-4: off Linux, the real machine can't tell whether a group is privat
 
 test("AC-156-4: on Linux with GNU ls, the real machine says a fresh folder has no ACL", (t) => {
   if (process.platform !== "linux") return t.skip("Linux only");
-  const version = spawnSync("ls", ["--version"], { encoding: "utf8" }).stdout ?? "";
+  const version = spawnSync("ls", ["--version"], { encoding: "utf8", env: safeEnv() }).stdout ?? "";
   if (!version.startsWith("ls (GNU coreutils)")) return t.skip("no GNU ls here");
   assert.equal(realSys().acl(tmp("procs-sys-")), false);
 });

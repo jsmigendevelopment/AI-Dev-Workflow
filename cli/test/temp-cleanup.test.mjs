@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { tmp } from "./helpers.mjs";
+import { safeEnv, tmp } from "./helpers.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 // tmp() and makeKit (rename, update), fakeSystem (fix), fakeGh (local-gate), a spawned CLI (rename, procs), presence.
@@ -17,8 +17,8 @@ const NPM_CACHE = "node-compile-cache";
 test("AC-142-1: WHEN a sample of the CLI suite runs with TMPDIR set to an empty folder THEN the folder is empty afterwards", () => {
   const dir = tmp("onrails-empty-");
   // The nested runner must not think it's a child of this one, or it reports in the parent's format.
-  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "NODE_TEST_CONTEXT"));
-  const r = spawnSync(process.execPath, ["--test", ...SAMPLE], { encoding: "utf8", env: { ...env, TMPDIR: dir, TMP: dir, TEMP: dir }, timeout: 120_000 });
+  const env = safeEnv({ NODE_TEST_CONTEXT: undefined, TMPDIR: dir, TMP: dir, TEMP: dir });
+  const r = spawnSync(process.execPath, ["--test", ...SAMPLE], { encoding: "utf8", env, timeout: 120_000 });
   assert.equal(r.status, 0, r.stdout.slice(-2000));
   assert.match(r.stdout, /^# pass [1-9]/m, "the sample ran");
   assert.deepEqual(readdirSync(dir).filter((name) => name !== NPM_CACHE), []);

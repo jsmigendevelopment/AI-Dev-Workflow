@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildingPass, checkPlan, readSlices, readSteps } from "../../.agents/skills/pyramid/scripts/check-plan.mjs";
 import { mustError, mustPass, mustWarn } from "./check-plan-cases.mjs";
-import { put, tmp } from "./helpers.mjs";
+import { put, safeEnv, tmp } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/pyramid/scripts/check-plan.mjs", import.meta.url));
 const TEMPLATE = fileURLToPath(new URL("../../.agents/skills/idea/templates/pyramid.md", import.meta.url));
@@ -197,7 +197,7 @@ test("the command: exit 0 on a thin plan, 1 on a coarse one, 2 with no file, and
   const dir = tmp("onrails-plan-");
   put(dir, "docs/pyramid.md", plan());
   put(dir, "coarse.md", plan([THIN[0], THIN[2]]));
-  const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { cwd: dir, encoding: "utf8" });
+  const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { cwd: dir, encoding: "utf8", env: safeEnv() });
   const ok = run();
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(ok.stdout, /plan: 8 steps, 3 slices \(2\.3 per slice\), median size 3, biggest 5, 1 can start now, longest chain 4/);

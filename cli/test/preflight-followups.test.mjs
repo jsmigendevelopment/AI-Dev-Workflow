@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { main, probe, render, satisfies } from "../src/preflight.mjs";
-import { logger } from "./helpers.mjs";
+import { logger, safeEnv } from "./helpers.mjs";
 import { BLOCKED, fakeSys, HEALTHY, project, readProject, status } from "./preflight-fakes.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
@@ -156,7 +156,7 @@ test("AC-144-7: WHEN the repo has been marked read THEN preflight runs yarn --ve
 });
 
 test("AC-144-8: WHEN the CLI prints its usage THEN the preflight line lists --tool", () => {
-  const r = spawnSync(process.execPath, [CLI, "--help"], { encoding: "utf8" });
+  const r = spawnSync(process.execPath, [CLI, "--help"], { encoding: "utf8", env: safeEnv() });
   const line = r.stdout.slice(r.stdout.indexOf("npx onrails preflight"), r.stdout.indexOf("for agents: probe"));
   assert.match(line, /\[--tool <name>\]/);
 });

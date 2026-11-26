@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ROLE_FIELDS, checkResearch, parseCsv, staleDossiers } from "../../scripts/check-research.mjs";
-import { put, tmp } from "./helpers.mjs";
+import { put, safeEnv, tmp } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../scripts/check-research.mjs", import.meta.url));
 const SCHEMA_FILE = fileURLToPath(new URL("../../.agents/skills/research/references/provenance.schema.json", import.meta.url));
@@ -192,7 +192,7 @@ test("with --base, sources and claims only grow and run files never change", () 
   put(dir, "pick/runs/r1/manifest.json", JSON.stringify({ run: "r1", created: "2026-11-01", question: "q", machine: "m", command: "c", cases: ["a"], metrics: ["t"] }));
   put(dir, "pick/runs/r1/results.csv", "run,machine,case,metric,unit,iteration,phase,value,status\nr1,m,a,t,ms,1,measure,5,ok\n");
   put(dir, "pick/summaries/m.md", "# m\n");
-  const git = (...args) => execFileSync("git", args, { cwd: dir, stdio: "pipe" });
+  const git = (...args) => execFileSync("git", args, { cwd: dir, stdio: "pipe", env: safeEnv() });
   git("init", "-q", "-b", "main");
   git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "root");
   git("add", ".");
@@ -218,7 +218,7 @@ test("the JSON schema and the checker agree on the required fields", () => {
 });
 
 test("the command line fails on errors, passes a good folder and lists stale dossiers", () => {
-  const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
+  const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8", env: safeEnv() });
   const good = folder();
   assert.equal(run(good, "--today", TODAY).status, 0);
   const bad = folder({ roles: [role("author")] });
