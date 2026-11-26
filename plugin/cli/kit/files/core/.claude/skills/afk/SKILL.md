@@ -9,7 +9,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 
 1. **How long?** Ask, or read it from what the person said ("going to lunch" is a short break, "good night" is the night).
    - **"brb", "hold on" or "pause" on its own** is a pause, not this skill: follow "Pause and stop" in `ask`. "I'm done for the day" with no loop to keep going is a stop.
-   - **Short break** (under about 2 hours): the loop keeps going as normal. Anything that needs the person waits for them.
+   - **Short break** (under about 2 hours): the loop keeps going as normal. Below Full, anything that needs the person waits for them. On Full, only the exceptions in `automation`'s `references/full.md` wait.
    - **Long** (the night, or longer): the full unattended rules below.
    - **Check the automation level** in `docs/stack.md` (see `automation`):
      - **Hands-on:** no loop. Write the state note (step 5) and stop.
@@ -88,9 +88,9 @@ description: Use when the person is stepping away and wants the build loop to ke
   ```bash
   claude -p "ok" --output-format stream-json --verbose
   ```
-  This isn't documented, so its shape can change. If it's missing, ask the person to read `/usage` to you.
+  This isn't documented, so its shape can change. If it's missing, below Full, ask the person to read `/usage` to you; on Full, say "usage unknown" in the FYI and go on.
   Another Claude account: put its `CLAUDE_CONFIG_DIR=<config_dir>` in front. That reads its usage; it never moves work to it.
-- **Codex and others:** ask the person to check their usage page.
+- **Codex and others:** below Full, ask the person to check their usage page. On Full, say "usage unknown" in the FYI and go on.
 - You can't predict exactly what a queue will cost. Until `docs/state.md` has a week of "tokens per merged issue", say "X% used, N issues queued, no estimate yet."
 
 ---
