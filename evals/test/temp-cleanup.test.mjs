@@ -33,22 +33,32 @@ test("AC-142-2: WHEN a sample of the eval tests runs with TMPDIR set to an empty
 
 const OWN = fileURLToPath(import.meta.url).split(/[\\/]/).at(-1);
 
-const CALL = /\bmkdtemp(?:Sync)?\(/;
+const CALL = /\bmkdtemp(?:Sync)?\(/g;
+// What comes just before a maker's one allowed tmpdir(: its mkdtemp call, so the folder is the one it removes.
+const IN_MKDTEMP = /\bmkdtemp(?:Sync)?\(\s*(?:join\(\s*)?$/;
 // The dry run's results folder: the run never makes it, and the dry-run tests check it doesn't exist.
-const NEVER_MADE = /tmpdir\(\), "evals-never"/;
+const NEVER_MADE_BEFORE = /\bjoin\(\s*$/;
+const NEVER_MADE_AFTER = /^\),\s*"evals-never"\)/;
+const INTO_MKDIR = /\bmkdir(?:Sync)?\(\s*join\(\s*$/;
 
-/** Whether a file's text makes a temp folder its maker's allowance doesn't cover: one mkdtemp call for a maker. */
-function leaks(text, maker) {
-  if (!maker) return /mkdtemp/.test(text) || text.split("\n").some((line) => /tmpdir\(/.test(line) && !NEVER_MADE.test(line));
-  const calls = text.match(new RegExp(CALL, "g")) ?? [];
-  return calls.length > 1 || text.split("\n").some((line) => /tmpdir\(/.test(line) && !CALL.test(line) && !NEVER_MADE.test(line));
+/** Whether the tmpdir( call at index i is allowed: a maker's mkdtemp folder, or the never-made folder outside a mkdir. */
+function allowed(text, i, maker) {
+  const before = text.slice(0, i);
+  if (maker && IN_MKDTEMP.test(before)) return true;
+  return NEVER_MADE_BEFORE.test(before) && NEVER_MADE_AFTER.test(text.slice(i + "tmpdir(".length)) && !INTO_MKDIR.test(before);
 }
 
-/** The .mjs files in dir and its subfolders that make a temp folder no maker removes, as paths from dir. */
+/** Whether a file's text makes a temp folder its maker's allowance doesn't cover, judging each call on its own. */
+function leaks(text, maker) {
+  if (maker ? (text.match(CALL) ?? []).length > 1 : /mkdtemp/.test(text)) return true;
+  return [...text.matchAll(/tmpdir\(/g)].some((m) => !allowed(text, m.index, maker));
+}
+
+/** The .mjs, .js and .cjs files in dir and its subfolders that make a temp folder no maker removes, as paths from dir. */
 function findLeaks(dir) {
   return readdirSync(dir, { recursive: true })
     .map((name) => name.split(/[\\/]/).join("/"))
-    .filter((name) => name.endsWith(".mjs") && name !== OWN)
+    .filter((name) => /\.[cm]?js$/.test(name) && name !== OWN)
     .filter((name) => leaks(readFileSync(join(dir, name), "utf8"), MAKERS.includes(name)));
 }
 
@@ -67,6 +77,15 @@ const PLANTED = {
   "a maker that gains a second mkdtemp": [{ "harness.mjs": `${MAKE}${MAKE}` }, ["harness.mjs"]],
   "a maker that also makes its own folder": [{ "failed-checks.mjs": `${MAKE}${OWN_FOLDER}` }, ["failed-checks.mjs"]],
   "a maker's name in a subfolder": [{ "sub/harness.mjs": MAKE }, ["sub/harness.mjs"]],
+  // Each tmpdir( call is judged on its own, not by the line it's on (#180 review).
+  "a folder made on the same line as the never-made folder": [
+    { "planted.test.mjs": "mkdirSync(join(tmpdir(), \"mine\")); const never = join(tmpdir(), \"evals-never\");\n" }, ["planted.test.mjs"]],
+  "the never-made folder passed to a mkdir": [
+    { "planted.test.mjs": "mkdirSync(join(tmpdir(), \"evals-never\"), { recursive: true });\n" }, ["planted.test.mjs"]],
+  "a maker's mkdtemp line that also makes its own folder": [
+    { "harness.mjs": "const dir = mkdtempSync(join(tmpdir(), \"evals-test-\")); mkdirSync(join(tmpdir(), \"x\"));\n" }, ["harness.mjs"]],
+  "a .js helper that calls mkdtemp": [{ "sub/planted.js": MAKE }, ["sub/planted.js"]],
+  "a .cjs helper that calls mkdtemp": [{ "sub/planted.cjs": MAKE }, ["sub/planted.cjs"]],
   "each maker's one mkdtemp, and a dry run's folder that is never made": [
     { "harness.mjs": MAKE, "failed-checks.mjs": MAKE, "dry-run.test.mjs": "run(\"--dry-run\", \"--results-dir\", join(tmpdir(), \"evals-never\"));\n" }, []],
 };

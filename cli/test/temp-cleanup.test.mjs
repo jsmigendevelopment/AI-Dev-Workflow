@@ -31,20 +31,21 @@ test("AC-142-1: WHEN a sample of the CLI suite runs with TMPDIR set to an empty 
 const REMOVERS = ["helpers.mjs", "safe-path-preload.mjs"];
 const OWN = fileURLToPath(import.meta.url).split(/[\\/]/).at(-1);
 
-const CALL = /\bmkdtemp(?:Sync)?\(/;
+const CALL = /\bmkdtemp(?:Sync)?\(/g;
+// What comes just before a remover's one allowed tmpdir(: its mkdtemp call, so the folder is the one it removes.
+const IN_MKDTEMP = /\bmkdtemp(?:Sync)?\(\s*(?:join\(\s*)?$/;
 
-/** Whether a file's text makes a temp folder it may not: a remover may make one, with one mkdtemp call. */
+/** Whether a file's text makes a temp folder it may not: a remover may make one, with one mkdtemp call. Each call counts. */
 function leaks(text, remover) {
-  if (!remover) return /mkdtemp|tmpdir\(/.test(text);
-  const calls = text.match(new RegExp(CALL, "g")) ?? [];
-  return calls.length > 1 || text.split("\n").some((line) => /tmpdir\(/.test(line) && !CALL.test(line));
+  if (remover ? (text.match(CALL) ?? []).length > 1 : /mkdtemp/.test(text)) return true;
+  return [...text.matchAll(/tmpdir\(/g)].some((m) => !(remover && IN_MKDTEMP.test(text.slice(0, m.index))));
 }
 
-/** The .mjs files in dir and its subfolders that make a temp folder no remover removes, as paths from dir. */
+/** The .mjs, .js and .cjs files in dir and its subfolders that make a temp folder no remover removes, as paths from dir. */
 function findLeaks(dir) {
   return readdirSync(dir, { recursive: true })
     .map((name) => name.split(/[\\/]/).join("/"))
-    .filter((name) => name.endsWith(".mjs") && name !== OWN)
+    .filter((name) => /\.[cm]?js$/.test(name) && name !== OWN)
     .filter((name) => leaks(readFileSync(join(dir, name), "utf8"), REMOVERS.includes(name)));
 }
 
@@ -63,6 +64,11 @@ const PLANTED = {
   "a remover that gains a second mkdtemp": [{ "helpers.mjs": `${MAKE}${MAKE}` }, ["helpers.mjs"]],
   "a remover that also makes its own folder": [{ "safe-path-preload.mjs": `${MAKE}${OWN_FOLDER}` }, ["safe-path-preload.mjs"]],
   "a remover's name in a subfolder": [{ "sub/helpers.mjs": MAKE }, ["sub/helpers.mjs"]],
+  // Each tmpdir( call is judged on its own, not by the line it's on (#180 review).
+  "a remover's mkdtemp line that also makes its own folder": [
+    { "helpers.mjs": "const dir = mkdtempSync(join(tmpdir(), \"onrails-\")); mkdirSync(join(tmpdir(), \"mine\"));\n" }, ["helpers.mjs"]],
+  "a .js helper that calls mkdtemp": [{ "sub/planted.js": MAKE }, ["sub/planted.js"]],
+  "a .cjs helper that calls mkdtemp": [{ "sub/planted.cjs": MAKE }, ["sub/planted.cjs"]],
   "each remover's one mkdtemp": [{ "helpers.mjs": MAKE, "safe-path-preload.mjs": MAKE }, []],
 };
 
