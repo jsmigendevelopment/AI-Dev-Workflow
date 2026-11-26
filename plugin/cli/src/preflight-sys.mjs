@@ -8,6 +8,47 @@ import { accessSync, constants, existsSync, lstatSync, readFileSync, realpathSyn
 import { connect, createServer } from "node:net";
 import { hostname } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { realSys as machine } from "./procs-sys.mjs";
+import { groupProblem } from "./procs-store.mjs";
+
+// Who may write a folder preflight runs from or reads (#232). The rule is the process registry's for a repo's root
+// (procs-store.mjs, row 69): this user's or root's, no write bit for others, and the group's only when the group is this
+// user's alone with no ACL. The sticky bit doesn't count for the folder itself: it stops renames, not new names, such as
+// a .git, a package.json or a git another user puts there. It counts for a folder above: there it stops another user from
+// swapping a folder this user or root owns for one of theirs. Windows isn't checked yet (#246).
+let user;
+const mine = () => (user ??= machine());
+
+/** Why another local user could write the folder at path itself (s its lstat), or null. */
+function writers(sys, path, s) {
+  if (s.uid !== sys.uid && s.uid !== 0) return `${path} belongs to another user`;
+  if (s.mode & 0o002) return `others can write ${path}`;
+  return groupProblem(sys, s, path, `the group can write ${path}`);
+}
+
+/**
+ * Why another local user could write the folder at path, or swap it or a folder above it, or null when only this user
+ * (or root) can. A folder that can't be checked counts as written by others. sys gives uid, gid, acl and privateGroup.
+ */
+export function othersCanWrite(path, { platform = process.platform, sys = mine() } = {}) {
+  if (platform === "win32") return null;
+  if (!Number.isInteger(sys.uid)) return "this user's id can't be read";
+  try {
+    const real = realpathSync.native(path);
+    const why = writers(sys, real, lstatSync(real));
+    if (why) return why;
+    // Each child was checked a step before (path itself, then each folder above it), so this user or root owns it.
+    for (let child = real, at = dirname(real); at !== child; child = at, at = dirname(at)) {
+      const s = lstatSync(at);
+      if (s.uid !== sys.uid && s.uid !== 0) return `${at} belongs to another user, who could swap ${child}`;
+      const shared = writers(sys, at, s);
+      if (shared && !(s.mode & 0o1000)) return `${shared}, without the sticky bit that stops a swap of ${child}`;
+    }
+    return null;
+  } catch (error) {
+    return `${path} can't be checked (${error.code ?? "an error"})`;
+  }
+}
 
 /** True for a regular file this process may start. On POSIX a file without its run bit is passed over, as the shell does. */
 function runnable(file, win) {
@@ -173,10 +214,14 @@ function ownGitDir(at) {
   return kind === "file" ? linkedGitDir(dot) : null;
 }
 
-/** The real folder that holds the first .git entry of any kind at or above dir, where git's own search stops, or null. */
+/**
+ * The real folder that holds the first .git entry of any kind at or above dir, where git's own search stops, or null.
+ * It stops at a folder another user can write or swap, and trusts nothing there: they could have put that .git (#232).
+ */
 export function repoTop(dir) {
   if (!existsSync(dir)) return null;
   for (let at = realpathSync(dir); ; at = dirname(at)) {
+    if (othersCanWrite(at)) return null;
     if (kindOf(join(at, ".git"))) return at;
     if (dirname(at) === at) return null;
   }
@@ -197,6 +242,8 @@ function marker(top) {
   const own = ownGitDir(top);
   if (!own) return null;
   const at = own.admin ?? own.git;
+  // A mark another user could write, or a checkout they could swap, proves nothing (#232).
+  if (othersCanWrite(top) || othersCanWrite(at)) return null;
   const stat = (path) => statSync(path, { bigint: true });
   const id = (path, ...more) => { const { dev, ino } = stat(path); return [`${path}\n${dev}:${ino}`, ...more].join(":"); };
   const dot = join(top, ".git");

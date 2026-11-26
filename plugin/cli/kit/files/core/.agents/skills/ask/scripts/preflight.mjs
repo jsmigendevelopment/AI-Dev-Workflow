@@ -166,6 +166,7 @@ const CLOSED = "the repo's checkouts can't all be read, so no PATH folder is use
 
 async function checkGit(dir, tool, sys, safe) {
   if (safe.closed) return { status: "limited", detail: CLOSED };
+  if (!safe.hooks) return { status: "limited", detail: "no empty hooks folder that only this user can write could be made, so it's checked after the repo is read" };
   const git = (args) => sys.run("git", args, { cwd: dir, ...safe.git });
   const top = await git(["rev-parse", "--show-toplevel"]);
   if (!top) return { status: "blocked", detail: "git isn't installed", ladder: ladder("git", tool) };
@@ -188,14 +189,16 @@ async function checkGit(dir, tool, sys, safe) {
 const PLAIN_REGISTRY = /^registry[ \t]*=[ \t]*(https?:\/\/[\w.-]+(:\d{1,5})?(\/[\w./-]*)?)[ \t]*$/m;
 
 // Said by the rows that run from outside the repo, when no temp folder outside it could be made.
-const NO_AWAY = "no empty temp folder outside the repo could be made, so it's checked after the repo is read";
+const NO_AWAY = "no empty temp folder outside the repo that only this user can write could be made, so it's checked after the repo is read";
 
 async function checkRegistry(dir, tool, sys, pm, safe) {
   if (safe.closed) return { status: "limited", detail: CLOSED };
   const named = safe.read ? null : PLAIN_REGISTRY.exec(small(join(dir, ".npmrc")))?.[1];
   const how = safe.read ? { cwd: dir } : safe.away;
   if (!how) return { status: "limited", detail: NO_AWAY };
-  const pick = named ? [`--registry=${named}`] : [];
+  // --prefix=. (the empty temp folder) keeps npm from looking above it for a project: a package.json and an .npmrc
+  // another user put in a shared folder such as /tmp would name its registry and settings (#232). cmd.exe takes ".".
+  const pick = [...(safe.read ? [] : ["--prefix=."]), ...(named ? [`--registry=${named}`] : [])];
   const url = await sys.run("npm", ["config", "get", "registry", ...pick], how);
   if (!url) return { status: "blocked", detail: "npm isn't installed", ladder: ladder("versions", tool) };
   // Node before 18.17 has no URL.canParse: then plain words, and the versions row says Node is too old.
@@ -334,8 +337,10 @@ export async function probe(dir, sys = realSys(), given = {}) {
   const temps = tempFolders(dir, sys.platform, layout);
   const path = read ? {} : pathOutside(dir, sys.platform, sys.env, layout);
   const away = temps.away && { ...temps.away, env: { ...temps.away.env, ...path } };
-  // An empty hooks folder: no hook the repo ships, or names in its config, runs on the temp branch.
-  const safe = { read, away, path, closed: !read && !layout, git: read ? {} : { config: [`core.hooksPath=${temps.hooks}`], env: path } };
+  // An empty hooks folder: no hook the repo ships, or names in its config, runs on the temp branch. Without one only
+  // this user can write, the temp branch waits for the read (#232).
+  const hooks = temps.hooks ? [`core.hooksPath=${temps.hooks}`] : [];
+  const safe = { read, away, path, hooks: read || Boolean(temps.hooks), closed: !read && !layout, git: read ? {} : { config: hooks, env: path } };
   try {
     const loop = await sys.loopback();
     const found = {
@@ -353,7 +358,8 @@ export async function probe(dir, sys = realSys(), given = {}) {
     const ok = results.every((r) => r.status !== "fix" && r.status !== "blocked");
     // Workflow files or Actions on (#133): a warning with its fix, never a failed row. Before the read, files only.
     const warnings = await ciWarnings(dir, sys, read);
-    return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg, read), ok, read, state: existsSync(join(dir, "docs", "state.md")), results, warnings };
+    return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg, read), ok, read, away: !read && Boolean(away),
+      state: existsSync(join(dir, "docs", "state.md")), results, warnings };
   } finally {
     temps.remove();
   }
@@ -363,7 +369,8 @@ export async function probe(dir, sys = realSys(), given = {}) {
 function unreadNote(report) {
   if (report.read !== false) return [];
   const why = report.state ? "This repo has a docs/state.md, but no session on this machine has marked it read, so it counts as not read. " : "";
-  return ["", `${why}Probes that could run the repo's own code ran nothing from it (the rows that say "after the repo is read").`
+  const away = report.away ? " npm, git and gh ran from an empty temp folder outside it that only this user can write, and npm looked for no project above it." : "";
+  return ["", `${why}Probes that could run the repo's own code ran nothing from it (the rows that say "after the repo is read").${away}`
     + " /join or /back marks it with `--mark-read`; then run preflight again."];
 }
 
@@ -439,7 +446,8 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
     // Only the .git next to dir: a folder under a bigger repo (a home-folder repo, say) never marks that repo.
     const marked = markRead(dir);
     if (marked) return log(`Marked this repo read on this machine: ${shown(marked, "path", "(path not printed)")}. Run preflight again: every probe runs now.`), 0;
-    return log("No .git folder of its own in this folder (or a .git file preflight doesn't follow): not marked. Run it in the repo's top folder, after `git init` if there's none."), 1;
+    return log("No .git folder of its own in this folder, a .git file preflight doesn't follow, or a folder another user can write: not marked."
+      + " Run it in the repo's top folder, after `git init` if there's none, in a folder only you can write."), 1;
   }
   const statePath = join(dir, "docs", "state.md");
   const state = existsSync(statePath) ? readFileSync(statePath, "utf8") : null;

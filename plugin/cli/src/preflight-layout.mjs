@@ -4,6 +4,7 @@
 import { existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import { othersCanWrite } from "./preflight-sys.mjs";
 
 /** Something about the layout can't be read or isn't what git writes: the caller fails closed. */
 class Unknown extends Error {}
@@ -185,26 +186,29 @@ function outsideOf(path, layout) {
  */
 export function pathOutside(dir, platform, env, layout = repoLayout(dir)) {
   const split = platform === "win32" ? ";" : ":";
+  // A folder another local user can write or swap is unsafe in the same way: they choose what runs from it (#232).
   const keep = (entry) => {
     const real = layout && isAbsolute(entry) ? outsideOf(entry, layout) : null;
-    return real ? [real] : [];
+    return real && !othersCanWrite(real, { platform }) ? [real] : [];
   };
   const keys = Object.keys(env).filter((key) => key.toUpperCase() === "PATH");
   return Object.fromEntries(keys.map((key) => [key, String(env[key]).split(split).flatMap(keep).join(split)]));
 }
 
 // The session's TMPDIR can point into the repo, and git or npm run from a folder inside it read the repo's settings.
+// Another local user who can write a temp folder, or swap it, could put hooks or a project's settings there (#232).
+/** The session's temp folder, then the system's (not on Windows), then the home folder: where tempFolders looks. */
+const BASES = (platform) => [tmpdir(), platform === "win32" ? null : "/tmp", homedir()];
+
 /**
- * Empty temp folders for the probes. hooks: an empty hooks folder. away: how to run a command outside the repo, from
- * an empty folder whose real path is outside every checkout of the repo, with a git that searches no folder above it;
- * or null, also when the layout can't be read.
+ * Empty temp folders for the probes, each one only this user can write and no one can swap. hooks: an empty hooks
+ * folder, or null. away: how to run a command outside the repo, from such a folder whose real path is outside every
+ * checkout of the repo, with a git that searches no folder above it; or null, also when the layout can't be read.
  */
-export function tempFolders(dir, platform = process.platform, layout = repoLayout(dir)) {
-  const hooks = mkdtempSync(join(tmpdir(), "onrails-preflight-"));
-  let outside = layout && outsideOf(hooks, layout) ? hooks : null;
-  // Then the system's own temp folder, then the home folder.
-  for (const base of [platform === "win32" ? null : "/tmp", homedir()]) {
-    if (outside || !layout || !base || !existsSync(base)) continue;
+export function tempFolders(dir, platform = process.platform, layout = repoLayout(dir), bases = BASES(platform)) {
+  let hooks = null, outside = null;
+  for (const base of bases) {
+    if ((hooks && (outside || !layout)) || !base || !existsSync(base)) continue;
     let made;
     try {
       made = mkdtempSync(join(base, "onrails-preflight-"));
@@ -212,8 +216,10 @@ export function tempFolders(dir, platform = process.platform, layout = repoLayou
       // A folder this sandbox can't write: the next one, or none, and those rows wait for the read.
       continue;
     }
-    if (outsideOf(made, layout)) outside = made;
-    else rmSync(made, { recursive: true, force: true });
+    const safe = !othersCanWrite(made, { platform });
+    hooks ??= safe ? made : null;
+    if (safe && !outside && layout && outsideOf(made, layout)) outside = made;
+    if (made !== hooks && made !== outside) rmSync(made, { recursive: true, force: true });
   }
   const away = outside && { cwd: outside, env: { GIT_CEILING_DIRECTORIES: dirname(realpathSync.native(outside)) } };
   const remove = () => { for (const f of new Set([hooks, outside])) if (f) rmSync(f, { recursive: true, force: true }); };
