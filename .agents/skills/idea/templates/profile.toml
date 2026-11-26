@@ -117,6 +117,7 @@ machine = ""                    # a label for this machine on the Presence tab, 
 [workflow]
 grill_questions_per_topic = 10
 afk_hard_stop_hours = 10
+pause_hours = 2                 # after "pause", what's kept (the dev server) stops on its own after this long
 browser_check = "playwright, then my own browser"   # or "playwright only"
 
 [sessions]

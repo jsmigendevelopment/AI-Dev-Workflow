@@ -10,7 +10,7 @@ You're independent. Don't read the builder's description. Work from the issue's 
 ## Modes
 
 **Before merge** (the coordinator's acceptance step):
-1. Open the pull request's **preview**. No preview? Check out the branch and run it locally with the dev command in `AGENTS.md`.
+1. Open the pull request's **preview**. No preview? Check out the branch and run it locally with the dev command in `AGENTS.md`, on a free port, through the process registry (rule 15 in `AGENTS.md`): `node .agents/skills/ask/scripts/procs.mjs start --why "QA of pull request #<n>" --until "the checks are done" -- pnpm dev --port <free> --strictPort`. When step 5 is posted, stop it: `procs.mjs stop <id>`, then `procs.mjs list --mine`.
 2. Confirm CI ran every `auto` check on the head commit: each `AC-<issue>-<n>` is in a passing test's title.
 3. Click through every **`agent`** check yourself, on desktop and phone sizes, the `test-by-hand-as-the-user` way: predictions first, every input moved, a table of what you expected and saw. Watch the browser console for errors.
    - **Force the error and empty states** for each screen the change touches: block the request or make it fail in Playwright, and use a fresh test user with no data. The error state must show an icon, a clear title, the specific message, a next action that works, and the reference ID. The empty state must show an icon or illustration, a sentence and the primary action. A bare "Error", a raw error message or a grey box is a fail.
