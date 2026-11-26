@@ -25,7 +25,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureWatcher, reap, sessionEnd, sessionStart, watch } from "./procs-hooks.mjs";
 import { MINUTE, SCRIPT, age, iso, newId, newRecord, survey, whoAmI } from "./procs-records.mjs";
-import { homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
+import { askGitAgain, fixable, homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
 import { GRACE_S, NO_LIST, floor, forget, guarded, stopRecords } from "./procs-stop.mjs";
 import { realSys } from "./procs-sys.mjs";
 
@@ -40,10 +40,10 @@ function row(r, now) {
     `    ${r.command} · why: ${r.why} · until: ${r.until}`].join("\n");
 }
 
-/** For doctor: how many records there are, and the stale ones. It writes nothing. */
+/** For doctor: how many records there are, the stale ones, and why each registry skipped for a mode was skipped. It writes nothing. */
 export function staleSummary(dir, { sys = realSys() } = {}) {
-  const seen = survey(sys, dir, { session: null, agent: null });
-  return seen ? { total: seen.length, stale: seen.filter((r) => r.stale) } : { total: 0, stale: [], unreadable: true };
+  const seen = survey(sys, dir, { session: null, agent: null }), skipped = fixable(sys, dir);
+  return seen ? { total: seen.length, stale: seen.filter((r) => r.stale), skipped } : { total: 0, stale: [], skipped, unreadable: true };
 }
 
 const fail = (log, message, code = 2) => (log(message), code);
@@ -55,7 +55,11 @@ function list(sys, log, { dir, me, mine, json, hint }) {
   if (!seen) return fail(log, NO_PS, 1);
   const shown = mine ? seen.filter((r) => r.mine) : seen;
   if (json) return log(JSON.stringify(shown, null, 2)), 0;
-  if (!shown.length) return log(mine ? "Nothing this session started is running." : "Nothing registered is running."), 0;
+  // A registry skipped for its mode is named first, so "nothing is running" never hides it.
+  const skipped = fixable(sys, dir);
+  for (const why of skipped) log(`Not read: ${why}. Until then its processes aren't listed or stopped.`);
+  const others = skipped.length ? " else" : "";
+  if (!shown.length) return log(mine ? `Nothing${others} this session started is running.` : `Nothing${others} registered is running.`), 0;
   log(`${mine ? "This session's" : "Registered"} background processes (${shown.length}):`);
   for (const r of shown) log(row(r, sys.now()));
   const stale = shown.filter((r) => r.stale).length;
@@ -68,8 +72,10 @@ function start(sys, log, { path, me, flags, command }) {
   if (flags.for !== undefined && !(Number(flags.for) > 0)) return fail(log, "--for takes minutes, more than 0");
   if (!command.length) return fail(log, "Name the command after --: start --why ... --until ... -- pnpm dev");
   const why = untrusted(sys, path);
-  if (why) return fail(log, `Nothing started: the registry can't be used (${why}). Delete that folder or ask the person.`, 1);
-  const id = newId(path);
+  // A mode problem on this user's own registry is fixed with chmod, which keeps its records and their processes.
+  const next = why && (why.includes("chmod") ? "Then start it again." : "Delete that folder or ask the person.");
+  if (why) return fail(log, `Nothing started: the registry can't be used (${why}). ${next}`, 1);
+  const id = newId(sys, path);
   const logFile = logFor(sys, path, id);
   const pid = sys.spawn(command, { cwd: sys.cwd, log: logFile });
   if (!pid) return fail(log, `Couldn't start ${command[0]}. Is it installed and on PATH?`, 1);
@@ -80,7 +86,10 @@ function start(sys, log, { path, me, flags, command }) {
     return fail(log, `${command[0]} exited at once, or its start time can't be read, so it isn't recorded and was stopped. Its output: ${logFile}`, 1);
   }
   const fields = { id, pid, group: sys.platform !== "win32", start: begun, command: command.join(" "), log: logFile };
-  update(sys, path, (procs) => [...procs, newRecord(sys, me, flags, fields)]);
+  try { update(sys, path, (procs) => [...procs, newRecord(sys, me, flags, fields)]); } catch (error) {
+    sys.killSpawned(pid); // through its own handle: nothing it can't record is left running
+    return fail(log, `${command[0]} was stopped: ${error.message}.`, 1);
+  }
   if (flags.for) ensureWatcher(sys, path, me);
   log(`${id} · pid ${pid} · output: ${logFile}`);
   return 0;
@@ -118,11 +127,13 @@ async function stop(sys, log, ctx) {
   const picked = pick(seen, target);
   if (!picked.length && /^\d+$/.test(target)) return stopUnregistered(sys, log, Number(target), ctx);
   if (!picked.length && !["mine", "stale", "all"].includes(target)) return fail(log, `No record ${target}. See them all: ${ctx.listCmd}`, 1);
-  // Another live session's processes: only after a yes (issue rule 7). The person at the CLI is asked; an agent must ask them.
-  const others = target === "stale" ? [] : picked.filter((r) => !r.mine && r.owner === "alive");
+  // Another session's processes, live or with no agent recorded to tell: only after a yes (issue rule 7).
+  // The person at the CLI is asked; an agent must ask them.
+  const others = target === "stale" ? [] : picked.filter((r) => !r.mine && r.owner !== "gone");
   const names = others.map((r) => `${r.id} (${r.label})`).join(", ");
-  if (others.length && !flags.yes && !(await yes(ask, `Another live session started ${names}. Stop them too?`))) {
-    return fail(log, `Left everything alone: another live session started ${names}. Ask the person first. After a yes: ${ctx.stopCmd} ${target} --yes`, 1);
+  const who = others.every((r) => r.owner === "alive") ? "another live session" : "another session, maybe still live,";
+  if (others.length && !flags.yes && !(await yes(ask, `${who[0].toUpperCase()}${who.slice(1)} started ${names}. Stop them too?`))) {
+    return fail(log, `Left everything alone: ${who} started ${names}. Ask the person first. After a yes: ${ctx.stopCmd} ${target} --yes`, 1);
   }
   const grace = flags.grace ? Number(flags.grace) : GRACE_S;
   const { stopped, killed, refused } = await stopRecords(sys, picked, { grace });
@@ -198,6 +209,7 @@ const USAGE = "Usage: procs.mjs start --why \"...\" --until \"...\" [--for <min>
 export async function main(argv, { sys = realSys(), log = console.log, ask } = {}) {
   const { error, flags, rest, command } = parse(argv);
   if (error) return fail(log, `${error}\n${USAGE}`);
+  askGitAgain(sys); // git's answers last one command
   let [cmd, ...args] = rest;
   const cli = cmd === "ps";
   if (cli) [cmd, args] = [flags.stop ? "stop" : "list", [flags.stop]];
