@@ -1,5 +1,6 @@
-// #191: tests never run the person's real claude or codex. helpers.mjs gives every child (and each test file's own
-// process) a PATH of the test's fakes, a copy of node and the system folders, and checks it before a child starts.
+// #191: tests never run the person's real claude or codex. safe-path-preload.mjs (loaded by `npm test` and by
+// helpers.mjs) gives each test process a PATH of a copy of node and the system folders, and helpers.mjs gives every
+// child that PATH with the test's fakes, checked before the child starts.
 // These tests run a sample of the suite with fakes next to node, check that guard, and scan every test file for a
 // child that would get the shell's PATH. The scan reads this file too, so its samples are built from pieces.
 import { test } from "node:test";
@@ -7,10 +8,11 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { basename, delimiter, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { checkPath, fake, nodeOnly, put, safeEnv, safePath, tmp, unixOnly } from "./helpers.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
+const CLI = fileURLToPath(new URL("..", import.meta.url));
 // doctor and research-library run doctor in-process; cli and rename run `doctor` through the binary. On main these
 // ran the claude and codex next to node 15 times each.
 const SAMPLE = ["doctor", "research-library", "cli", "rename"].map((name) => `${HERE}${name}.test.mjs`);
@@ -52,6 +54,18 @@ test("#191: the runtime guard reads every casing of the PATH key, and lets only 
   assert.throws(() => checkPath({ PATH: ".." }, join(other, "x")), /isn't one of this test's fakes/, "a relative entry too");
 });
 
+test("#197: the runtime guard never skips an empty PATH item, which a child reads as its own working folder", () => {
+  const a = tmp(), b = tmp(), other = tmp();
+  put(other, "claude", "#!/bin/sh\necho real claude\n");
+  for (const PATH of ["", `${a}${delimiter}`, `${delimiter}${a}`, [a, "", b].join(delimiter)]) {
+    assert.throws(() => checkPath({ PATH }), /an empty item/, `${JSON.stringify(PATH)} with no working folder named`);
+    assert.throws(() => checkPath({ PATH }, other), /isn't one of this test's fakes/, `${JSON.stringify(PATH)} run in a folder with a claude`);
+    assert.deepEqual(checkPath({ PATH }, b), { PATH }, `${JSON.stringify(PATH)} run in a folder with none`);
+  }
+  assert.throws(() => checkPath({ PATH: a, path: `${b}${delimiter}` }), /an empty item/, "on any casing of the key");
+  assert.deepEqual(checkPath({ PATH: [a, b].join(delimiter) }), { PATH: [a, b].join(delimiter) });
+});
+
 // The forms that give a child the shell's PATH. Each pattern is written so it can't match its own source.
 const READS_PATH = /process\.env\s*(?:\??\.\s*path\b|\[\s*["'`]path["'`]\s*\])(?!\s*=[^=])/i;
 const WHOLE_ENV = /process\.env\b(?!\s*(?:\??\.|\[))/;
@@ -61,6 +75,9 @@ const PATH_KEY = /\bPath\s*:|["'`][Pp]ath["'`]\s*:/;
 const STRIPS = "PATH_KEY.test(";
 const LOOKUP = /\b(?:findCommand|commandFor)\(/;
 const CHILD_PROCESS = /["'](?:node:)?child_process["']/;
+// A claude or codex named by its path in node's own folder, which no PATH reaches (#197).
+const TOOL_FILE = String.raw`[/\\"'\x60](?:claude|codex)(?:\.cmd|\.exe)?["'\x60]`;
+const NEXT_TO_NODE = new RegExp(String.raw`\bexecPath\b.*${TOOL_FILE}|${TOOL_FILE}.*\bexecPath\b`, "i");
 
 // The text from just after an opening paren to its closing one.
 function args(text, start) {
@@ -76,6 +93,7 @@ function inherits(text) {
     if (READS_PATH.test(line)) found.push(`line ${i + 1}: reads the shell's PATH`);
     if (WHOLE_ENV.test(line) && !line.includes(STRIPS)) found.push(`line ${i + 1}: passes the shell's whole env`);
     if (PATH_KEY.test(line) && !LOOKUP.test(line)) found.push(`line ${i + 1}: sets a Path key`);
+    if (NEXT_TO_NODE.test(line)) found.push(`line ${i + 1}: names a claude or codex next to node`);
   });
   const imports = [...text.matchAll(/import\s*(\{[^}]*\}|\*\s*as\s+\w+)\s*from\s*(["'][^"']+["'])/g)].filter((m) => CHILD_PROCESS.test(m[2]));
   if (imports.some((m) => m[1].startsWith("*")) || /require\(\s*["'](?:node:)?child_process["']\s*\)/.test(text)) {
@@ -121,4 +139,106 @@ test("AC-191-2: WHEN a test file spawns the CLI with the inherited PATH THEN the
   assert.ok(files.includes(basename(fileURLToPath(import.meta.url))), "the scan reads this file too");
   const leaks = files.flatMap((name) => inherits(readFileSync(join(HERE, name), "utf8")).map((why) => `${name}: ${why}`));
   assert.deepEqual(leaks, [], "give each child env: safeEnv(...) from helpers.mjs");
+});
+
+test("#197: the scan flags a claude or codex started by its path in node's own folder, which no PATH guard sees", () => {
+  const X = "process" + ".execPath", Q = (name) => `"${name}"`;
+  const run = (file) => `spawnSync(${file}, ["--version"], { encoding: "utf8", env: safeEnv() });`;
+  const bad = [
+    run(`join(dirname(${X}), ${Q("cla" + "ude")})`),
+    run(`resolve(${X}, "..", ${Q("co" + "dex.cmd")})`),
+    run(`\`\${dirname(${X})}/${"cla" + "ude"}\``),
+    `const tool = join(${Q("co" + "dex")}, dirname(${X}));`,
+  ];
+  for (const form of bad) assert.notDeepEqual(inherits(form), [], form);
+  const good = [run(X), run(`join(dirname(${X}), "npm")`), `const env = safeEnv({ CLAUDE_PROJECT_DIR: dirname(${X}) });`];
+  for (const form of good) assert.deepEqual(inherits(form), [], form);
+});
+
+// #197: `npm test` loads the safe PATH before any test file. These run test files the way it does: node with the
+// test script's flags before --test, from cli/, as a fresh run that makes its own copy of node.
+const FLAGS = JSON.parse(readFileSync(join(CLI, "package.json"), "utf8")).scripts.test.split(/\s+--test\b/)[0].split(/\s+/).slice(1);
+const asUrl = (file) => JSON.stringify(pathToFileURL(file).href);
+
+function npmTest(files, { node = process.execPath, bins = [], extra = {} } = {}) {
+  const env = safeEnv({ NODE_TEST_CONTEXT: undefined, ONRAILS_TEST_NODE: undefined, ...extra }, { bins });
+  return spawnSync(node, [...FLAGS, "--test", ...files], { cwd: CLI, encoding: "utf8", env, timeout: 120_000 });
+}
+
+test("AC-197-1: WHEN a test file that never imports helpers.mjs runs doctor in-process with a fake claude next to node THEN the fake is never called", unixOnly, () => {
+  const bin = nodeOnly(tmp("onrails-next-to-node-"));
+  const log = join(tmp(), "calls.log");
+  for (const name of ["claude", "codex"]) fake(bin, name, `#!/bin/sh\necho "${name} $*" >> '${log}'\necho 1.0.0\n`);
+  const dir = tmp();
+  put(dir, "doctor.test.mjs", [
+    `import { test } from "node:test";`,
+    `import { doctor } from ${asUrl(join(CLI, "src", "doctor.mjs"))};`,
+    `test("doctor in-process", () => { doctor(${JSON.stringify(dir)}, { log: () => {} }); });`,
+  ].join("\n"));
+  const r = npmTest([join(dir, "doctor.test.mjs")], { node: join(bin, basename(process.execPath)), bins: [bin] });
+  assert.equal(r.status, 0, r.stdout.slice(-2000) + r.stderr);
+  assert.match(r.stdout, /^# pass 1$/m, "doctor ran");
+  assert.equal(existsSync(log) ? readFileSync(log, "utf8") : "", "", "doctor ran the claude or codex next to node");
+});
+
+test("AC-197-2: WHEN the runtime guard throws at import THEN no node copy is left in TMPDIR", unixOnly, () => {
+  // A system folder holding a claude that isn't a fake makes the guard throw as each process loads.
+  const system = tmp(), dir = tmp();
+  put(system, "claude", "#!/bin/sh\necho real claude\n");
+  put(dir, "loads.test.mjs", `import ${asUrl(join(HERE, "helpers.mjs"))};\n`);
+  for (const [how, flags] of [["npm test", FLAGS], ["a file run alone", []]]) {
+    const temp = tmp();
+    const env = safeEnv({ NODE_TEST_CONTEXT: undefined, ONRAILS_TEST_NODE: undefined, ONRAILS_TEST_SYSTEM_DIRS: system, TMPDIR: temp });
+    const r = spawnSync(process.execPath, [...flags, "--test", join(dir, "loads.test.mjs")], { cwd: CLI, encoding: "utf8", env, timeout: 120_000 });
+    assert.match(r.stdout + r.stderr, /isn't one of this test's fakes/, `${how}: the guard threw`);
+    assert.deepEqual(readdirSync(temp), [], `${how}: a node copy or temp folder was left behind`);
+  }
+});
+
+test("#197: WHEN ONRAILS_TEST_SYSTEM_DIRS holds an empty or relative entry THEN the preload throws before any test runs", unixOnly, () => {
+  // The test file runs a claude by name in a folder that holds one. An empty or relative PATH item finds it there.
+  const dir = tmp(), log = join(tmp(), "calls.log");
+  fake(dir, "claude", `#!/bin/sh\necho "claude $*" >> '${log}'\n`);
+  const S = "spawn" + "Sync";
+  put(dir, "runs.test.mjs", [
+    `import { test } from "node:test";`,
+    `import { ${S} } from "node:child_process";`,
+    `test("runs claude by name", () => { ${S}("claude", ["--version"], { cwd: ${JSON.stringify(dir)} }); });`,
+  ].join("\n"));
+  for (const system of ["", ["/usr/bin", "", "/bin"].join(delimiter), ".", "bin"]) {
+    const temp = tmp();
+    const r = npmTest([join(dir, "runs.test.mjs")], { extra: { ONRAILS_TEST_SYSTEM_DIRS: system, TMPDIR: temp } });
+    const how = `ONRAILS_TEST_SYSTEM_DIRS=${JSON.stringify(system)}`;
+    assert.notEqual(r.status, 0, `${how}: the run passed`);
+    assert.match(r.stderr, /ONRAILS_TEST_SYSTEM_DIRS takes only absolute folders/, how);
+    assert.doesNotMatch(r.stdout, /^# (?:pass|fail) [1-9]/m, `${how}: a test ran`);
+    assert.equal(existsSync(log) ? readFileSync(log, "utf8") : "", "", `${how}: the claude in the test's working folder ran`);
+    assert.deepEqual(readdirSync(temp), [], `${how}: a node copy was left behind`);
+  }
+});
+
+test("AC-197-3: WHEN npm test runs THEN at most one node copy is made", unixOnly, () => {
+  const dir = tmp(), temp = tmp(), log = join(tmp(), "copies.log");
+  // Each file logs where its copy of node is, and whether nodeOnly() hard-linked that copy rather than copying again.
+  const files = ["a", "b", "c"].map((name) => {
+    put(dir, `${name}.test.mjs`, [
+      `import { test } from "node:test";`,
+      `import { appendFileSync, statSync } from "node:fs";`,
+      `import { delimiter, join } from "node:path";`,
+      `import { nodeOnly, safePath } from ${asUrl(join(HERE, "helpers.mjs"))};`,
+      `test("${name}", () => {`,
+      `  const copy = join(safePath().split(delimiter)[0], "node");`,
+      `  const linked = statSync(join(nodeOnly(), "node")).ino === statSync(copy).ino;`,
+      `  appendFileSync(${JSON.stringify(log)}, copy + " " + linked + "\\n");`,
+      `});`,
+    ].join("\n"));
+    return join(dir, `${name}.test.mjs`);
+  });
+  const r = npmTest(files, { extra: { TMPDIR: temp } });
+  assert.equal(r.status, 0, r.stdout.slice(-2000) + r.stderr);
+  const lines = readFileSync(log, "utf8").trim().split("\n");
+  assert.equal(lines.length, 3, "each file logged its copy");
+  assert.ok(lines.every((line) => line.endsWith(" true")), "nodeOnly() hard-links the copy, never copies it again");
+  assert.equal(new Set(lines).size, 1, `one copy of node for the whole run:\n${lines.join("\n")}`);
+  assert.deepEqual(readdirSync(temp), [], "the run removed its copy when it ended");
 });
