@@ -38,7 +38,7 @@ When a step adds a service, it adds its variables here in this format.
    | Provider file | Fills |
    |---|---|
    | `cloudflare.md` | `wrangler login`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_TOKEN`, `CLOUDFLARE_ACCESS_TOKEN`, Zero Trust, `TURNSTILE_*`, `VITE_CF_BEACON_TOKEN` |
-   | `github.md` | the `test`, `production` and `preview` environments, and every secret and variable the workflows read |
+   | `github.md` | the workflows' environments on `ci = "actions"` only: `test`, `production` and `preview`, with every secret and variable |
    | `clerk.md` | `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` |
    | `google-oauth.md`, `github-oauth.md`, `facebook.md`, `linkedin.md`, `yandex.md`, `entra.md` | `ACCESS_<LOGIN>_CLIENT_ID`, `ACCESS_<LOGIN>_CLIENT_SECRET` (and `ACCESS_ENTRA_TENANT_ID`) for Cloudflare Access |
    | `stripe.md` | `STRIPE_*` |
@@ -56,7 +56,7 @@ When a step adds a service, it adds its variables here in this format.
 
 4. **If they'll do it themselves:** they run `pnpm connect` in **their own terminal**, not yours. Say: *"In a terminal in the app folder, run `pnpm connect`. It walks you through each service one at a time, opens the page, and asks for each key with hidden input. It takes about 10 minutes for Cloudflare and Clerk, longer with add-ons. Tell me when it's done."*
    - `pnpm connect clerk` does one provider. `--force` sets a value again. `--dry-run` shows what's set and what it would ask, by name only.
-   - It lists the providers the app needs (from `.env.example` and the workflows' `secrets.*` and `vars.*`), prints each walkthrough's steps short, and asks before it opens a page.
+   - It lists the providers the app needs (from `.env.example`, and on `ci = "actions"` the workflows' `secrets.*` and `vars.*`), prints each walkthrough's steps short, and asks before it opens a page.
    - It checks each value's shape where the provider has a rule, and asks before each destination: `.env.local` (mode 600), `wrangler secret put`, and `gh secret set` or `gh variable set` only on `ci = "actions"` (on `ci = "local"` nothing goes to GitHub). Values go on stdin, never in a command's arguments, and are never printed. Production needs its own yes.
    - Every value is read hidden; a public one is shown after Enter unless it looks like a secret key, which is refused. Typing from before a question is dropped, and a y/N question shows only y, n or yes, so a key pasted in the wrong place is never shown. A failing `wrangler` or `gh` prints only its exit code and the command to rerun by hand. It refuses to run without a terminal, so you never run it for them. Afterwards, check by name: `pnpm connect --dry-run` (✓ set, ✗ missing, ? couldn't check).
    - A step the script can't do (for example `wrangler login`, Clerk's CLI, a DNS record) stays in the printed steps for them to do.

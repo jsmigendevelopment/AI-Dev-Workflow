@@ -77,7 +77,7 @@ src/
     authz.ts               the access port: check(user, action, object). The adapter is injected in composition.ts
     audit-log.ts           records who did what, to what, when
 scripts/
-  openapi.ts               builds openapi.v1.json from the api-schemas.v*.ts files. CI runs it
+  openapi.ts               builds openapi.v1.json from the api-schemas.v*.ts files. `check` runs it
 ```
 
 - **Files are kebab-case.** Views end in `-view.tsx`, sections in `-section.tsx`, and each exports a PascalCase component. Hooks are `use-*.ts`. Stores are `*-store.ts`.
@@ -191,7 +191,7 @@ request → <feature>.functions.ts → <feature>.controller.ts → <feature>.ser
 - **One composition root** (`src/server/composition.ts`) builds the adapters and passes them in. That's what lets a service be tested with the memory fake.
 - **Validate at every boundary,** and reject unknown fields.
 - **One error envelope** for every route, with the code and the request ID. Never send stack traces, SQL or internal names to the client.
-- **OpenAPI for every public route** (every version, the health endpoint, webhooks), built in CI by `scripts/openapi.ts` from the same Zod schemas the routes use. Internal server functions aren't in it.
+- **OpenAPI for every public route** (every version, the health endpoint, webhooks), built by `scripts/openapi.ts` in `check` from the same Zod schemas the routes use. Internal server functions aren't in it.
 - **Access goes through `check(user, action, object)`** from `server/authz.ts`. Services call it. No role checks anywhere else. Simple apps filter by owner in the repository instead. The model is in `docs/security-policy.md`.
 - **Someone else's data returns "not found"**, never "forbidden".
 - **The public API is versioned from day one.** Routes live under `/api/v1`. A breaking change adds `/api/v2` alongside: its own `.http.v2.ts` controller and `api-schemas.v2.ts`, the same services. The old version sends `Deprecation` and `Sunset` headers, and its retirement date goes in `docs/decisions.md`. Contract tests and OpenAPI docs are per version. Internal server functions are not versioned.

@@ -32,7 +32,7 @@ pnpm add -D -E drizzle-kit@0.31.11
 - **Stay on the stable 0.x line** until 1.0 is released or the person decides otherwise in `docs/decisions.md`. A 1.0 upgrade is its own issue.
 - **On 1.0 rc, skills:** the installer asks which agent and scope. Pick user scope. Project scope would write into `.agents/skills`, the kit's folder.
 - **On 1.0 rc, MCP:** pnpm form: `claude mcp add --transport stdio --scope project drizzle -- pnpm exec drizzle-kit mcp`. `.mcp.json` is an agent-rules file: its pull request is `needs-human`.
-- **The MCP server can write migration files and change the database its config points at.** Use it on local D1 only. Migrations reach test and production through the pack's deploy workflow, never through chat.
+- **The MCP server can write migration files and change the database its config points at.** Use it on local D1 only. Migrations reach test and production through the pack's deploy scripts (`pnpm deploy:test`, `pnpm deploy:production`), never through chat.
 - **No `d1-http` driver credentials.** Drizzle's D1 page puts an account ID, database ID and token in `drizzle.config.ts`. The pack generates SQL and lets `wrangler d1 migrations apply` run it, so no token is needed.
 - Tables follow `guide/app-conventions.md` (snake_case plurals, `created_at`, forward-only migrations). Use `pnpm new:table` in a pack app.
 

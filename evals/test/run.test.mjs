@@ -11,6 +11,7 @@ import { AUTO_GRILL_PLAN, REVIEWS, reviewPlan } from "./auto-grill-reviews.mjs";
 import { CLEAN_PLAN } from "./clean-up-server-plan.mjs";
 import { LIFT_PLAN } from "./decision-lifts-gate-plan.mjs";
 import { MEM_PLAN } from "./short-on-memory-plan.mjs";
+import { SHOW_PLAN } from "./show-it-early-plan.mjs";
 
 const KIT = JSON.parse(readFileSync(new URL("../../cli/package.json", import.meta.url), "utf8")).version;
 const KIT_RE = KIT.replaceAll(".", "\\.");
@@ -228,8 +229,6 @@ const THIN_PLAN = `# Tracer-bullet pyramid
 `;
 const COARSE_PLAN = "# Plan\n\n## Phase 1\n\n1. Set up the database schema\n2. Build the API\n3. Build the UI\n";
 
-const CI = "on: pull_request\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm run check\n";
-
 const BLOCKER_ISSUE = `# #5 Test deploy needs a Cloudflare token
 
 Labels: needs-human, blocker
@@ -312,10 +311,7 @@ const SCENARIO_PLANS = {
     with: { steps: [{ text: "The wireframes aren't approved yet. Do you approve docs/wireframes/index.html, or what would you change?" }] },
     without: { steps: [{ write: "docs/stack.md", content: "# Stack\n" }, { write: "docs/architecture.md", content: "# Architecture\n" }, { text: "Done." }] },
   },
-  "show-it-early": {
-    with: { steps: [{ bash: "ls .github/workflows 2>/dev/null" }, { tool: "Bash", input: { command: "PORT=3000 nohup npm run dev > dev.log 2>&1 &" }, ok: true }, { text: "The app runs at http://localhost:3000. You'll see the starter page with Tidy's name. Sign-in is off: CLERK_SECRET_KEY isn't set." }, { write: ".github/workflows/ci.yml", content: CI }, { text: "CI runs npm run check on every pull request." }] },
-    without: { steps: [{ bash: "grep -n 'npm run dev' README.md" }, { tool: "Bash", input: { command: "npm run dev" } }, { write: ".github/workflows/ci.yml", content: CI }, { bash: "git checkout -qb feat/1-skeleton && git add -A && git commit -qm '#1 CI'" }, { text: "Slice 0 is done: CI is set up." }] },
-  },
+  "show-it-early": SHOW_PLAN,
   "auto-grill-door": AUTO_GRILL_PLAN,
   "blocker-recorded": {
     with: { steps: [{ bash: "npm run deploy:test" }, { write: "docs/issues/5.md", content: BLOCKER_ISSUE }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level blocker --issue 5 --title \"Test deploy needs a Cloudflare token\"" }, ok: true }, { text: "The test deploy is parked on you: docs/issues/5.md, labelled needs-human. Everything else is done." }] },

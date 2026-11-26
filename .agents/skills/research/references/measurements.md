@@ -44,7 +44,7 @@ docs/research/<topic>/
 
    One row per measured value. `phase` is `warmup` or `measure`. `status` is `ok` or `failed`. A failed row keeps an empty or partial `value`.
 3. **Keep every row.** Warm-up rows and failed rows stay in the file. Summaries leave them out, and say how many there were.
-4. **Run folders are append-only.** Never edit or delete a file in `runs/`. A bad run stays, and a new run folder replaces it. CI checks this against the merge base.
+4. **Run folders are append-only.** Never edit or delete a file in `runs/`. A bad run stays, and a new run folder replaces it. `node .agents/skills/research/scripts/check-research.mjs <dir> --base origin/main` checks this against the merge base, from the session.
 5. **Summarise per machine.** `summaries/<machine>.md` covers one machine. Never average across machines. Compare them side by side.
 6. **Label every number in the prose** `[measured]` (with the run ID) or `[estimated]` (with how). The review checks this; the checker can't.
 

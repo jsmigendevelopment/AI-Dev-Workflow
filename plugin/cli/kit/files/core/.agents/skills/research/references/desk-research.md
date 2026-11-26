@@ -18,7 +18,7 @@ A dossier `docs/research/<topic>.md` has a folder `docs/research/<topic>/`:
 
 Set `"stores": ["desk"]` in `provenance.json`. The checker then requires the first four files.
 
-**Append-only** means: add rows at the end. Never edit or delete a row. A claim that turned out wrong gets a new row that says so, and the dossier text is fixed. CI checks this against the merge base.
+**Append-only** means: add rows at the end. Never edit or delete a row. A claim that turned out wrong gets a new row that says so, and the dossier text is fixed. `node .agents/skills/research/scripts/check-research.mjs <dir> --base origin/main` checks this against the merge base, from the session.
 
 ## The columns
 

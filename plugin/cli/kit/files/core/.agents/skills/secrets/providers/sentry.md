@@ -13,10 +13,10 @@ How: docs.sentry.io was blocked here, so these were read from Sentry's public do
 ```text
 SENTRY_DSN           Worker var (not secret)
 SENTRY_ENVIRONMENT   in wrangler.jsonc vars, e.g. test
-VITE_SENTRY_DSN      build time; GitHub variable SENTRY_DSN
-SENTRY_AUTH_TOKEN    CI only, GitHub secret
-SENTRY_ORG           CI only, GitHub variable (the org slug)
-SENTRY_PROJECT       CI only, GitHub variable (the project slug)
+VITE_SENTRY_DSN      build time; the deploy's shell (GitHub variable SENTRY_DSN on ci = "actions")
+SENTRY_AUTH_TOKEN    deploy builds only; the deploy's shell (GitHub secret on ci = "actions")
+SENTRY_ORG           deploy builds only; the deploy's shell, the org slug (GitHub variable on ci = "actions")
+SENTRY_PROJECT       deploy builds only; the deploy's shell, the project slug (GitHub variable on ci = "actions")
 ```
 
 A DSN only lets someone send events, not read them, so it isn't a secret. `[V]` The auth token is.
@@ -46,7 +46,7 @@ For an agent driving the browser once the person has signed in (`secrets`, "Keys
 | Variable | Open | Pick |
 |---|---|---|
 | `SENTRY_DSN`, `VITE_SENTRY_DSN` | https://sentry.io/orgredirect/organizations/:orgslug/settings/projects/:projectId/keys/ | The project's **Client Keys (DSN)**: copy the DSN. Nothing to make once the project exists. No project yet? Create one for the JavaScript / Cloudflare platform first (walkthrough step 2). Public. `[V]` |
-| `SENTRY_AUTH_TOKEN` | https://sentry.io/orgredirect/organizations/:orgslug/settings/auth-tokens/ | Only on `ci = "actions"`. An **Organization Token** (**Settings** → **Developer Settings** → **Organization Tokens**). No scopes to pick: Sentry fixes them for CI. **Create New Token**, name: `<app> CI`. Stop there: the person presses **Create Token**. Shown once. `[V]` steps, `[U]` the button names. |
+| `SENTRY_AUTH_TOKEN` | https://sentry.io/orgredirect/organizations/:orgslug/settings/auth-tokens/ | For source maps from the deploy builds: the deploy's shell on `ci = "local"` (the `sentry` add-on keeps it in `.env.sentry.local`), a GitHub secret on `ci = "actions"`. An **Organization Token** (**Settings** → **Developer Settings** → **Organization Tokens**). No scopes to pick: Sentry fixes them for uploads. **Create New Token**, name: `<app> deploys`. Stop there: the person presses **Create Token**. Shown once. `[V]` steps, `[U]` the button names. |
 | `SENTRY_ORG`, `SENTRY_PROJECT` | https://sentry.io/orgredirect/organizations/:orgslug/settings/projects/ | Nothing to make: the org slug and the project slug in the page's URL. Not secret. `[U]` the page. |
 
 ## Sentry's agent guide and CLI (reviewed)
@@ -90,7 +90,7 @@ Sentry's free plan is the **Developer** plan, with monthly quotas per event type
 
 ## Why / if it goes wrong
 
-- **Use an Organization Token for CI, not a personal one.** It has only the CI permissions, and it keeps working if the person who made it leaves. `[V]`
-- **No events:** the DSN is empty in that build. `VITE_SENTRY_DSN` is read at build time, so set the GitHub variable and redeploy.
-- **Minified stack traces:** `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` or `SENTRY_PROJECT` is missing in that GitHub environment. Source maps upload only from the deploy builds, never from pull requests (the add-on's rule).
+- **Use an Organization Token for the uploads, not a personal one.** It has only the upload permissions, and it keeps working if the person who made it leaves. `[V]`
+- **No events:** the DSN is empty in that build. `VITE_SENTRY_DSN` is read at build time, so set it for the deploy (the deploy's shell, or the GitHub variable on `ci = "actions"`) and redeploy.
+- **Minified stack traces:** `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` or `SENTRY_PROJECT` is missing from the deploy's shell (on `ci = "actions"`, from that GitHub environment). Source maps upload only from the deploy builds, never from pull requests (the add-on's rule).
 - **A DSN leaked and spam arrives:** rotate it in **Client Keys (DSN)**. `[V]`

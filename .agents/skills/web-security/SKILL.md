@@ -1,6 +1,6 @@
 ---
 name: web-security
-description: Use when protecting a web app from bots, spam, abuse or surprise bills ("stop the spam", "bots are hitting the form", "add rate limiting", "block AI crawlers", "security headers", "what if we get flooded") - cost of each request path, edge blocks, rate limits, form spam, AI crawlers, webhooks, closed input schemas, uniform 401s, one error envelope, safe logs, and CI tokens.
+description: Use when protecting a web app from bots, spam, abuse or surprise bills ("stop the spam", "bots are hitting the form", "add rate limiting", "block AI crawlers", "security headers", "what if we get flooded") - cost of each request path, edge blocks, rate limits, form spam, AI crawlers, webhooks, closed input schemas, uniform 401s, one error envelope, safe logs, and deploy tokens.
 ---
 
 # Web security: bound the damage, fail closed at every boundary
@@ -32,9 +32,9 @@ Make every request a stranger can send cheap to refuse, strictly checked, and un
 - `*.workers.dev` and preview URLs sit outside your zone's rules and share production bindings. Give previews their own Worker and data, add `X-Robots-Tag: noindex` there, and gate side effects on the hostname.
 - Send security headers from both `_headers` and the Worker: HSTS (no `preload` on a subdomain), `nosniff`, a strict `Referrer-Policy`, a tight `Permissions-Policy`, and a CSP with `object-src 'none'; base-uri 'none'; frame-ancestors 'none'`. Use a per-response nonce for pages rendered on the server, and hashes for prerendered pages.
 
-## Accounts and CI
+## Accounts and deploy tokens
 
-- The CI job that holds a deploy token never runs pull-request code. Use one scoped token per job, each with an expiry.
+- A deploy token stays on the machine that deploys (the session's shell or a git-ignored file), never where pull-request code runs: the local gate runs with deploy tokens unset (`coordinate` step 6.1). Use one scoped token per job, each with an expiry.
 - Every account that can change the site uses a passkey or security key. Changing a dashboard or account setting needs the person's approval of the exact change.
 
 ## Checklist before merge

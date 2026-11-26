@@ -64,7 +64,7 @@ Cloud first: `[sessions] prefer = "cloud"` in the profile. Unattended work runs 
 | `research` | `research`, the competitor scan | cloud |
 | `build` | one builder per issue | cloud. Local when it needs a simulator, a device, a signed-in browser, local files or hardware. |
 | `review` | `pr-review`, `pr-security`, `qa` before merge | cloud. Local for "my own browser" checks. |
-| `evals` | behaviour tests of the skills | cloud or CI |
+| `evals` | behaviour tests of the skills | cloud or locally |
 | `overnight` | the `/afk` loop | cloud |
 
 `prefer = "local"`, or no cloud sessions in your tool? Everything runs here.

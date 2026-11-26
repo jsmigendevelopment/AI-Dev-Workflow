@@ -93,9 +93,9 @@ AI agents follow your instructions. Where you leave a gap, they guess. They can 
 |---|---|---|
 | [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blob/main/AGENTS.md) | 13 standing rules, the code rules and a stop-and-ask list | Every session |
 | 31 skills | Step-by-step instructions, one job each | When a request names the skill |
-| Guardrails | CI checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
+| Guardrails | The local gate's checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
 
-- **Rules and conventions keep it on track.** It asks instead of guessing. Lint and CI fail the build when the code breaks a rule.
+- **Rules and conventions keep it on track.** It asks instead of guessing. Lint and the local gate fail the build when the code breaks a rule.
 - **You stay in charge.** You pick the product, the core and the stack. Production, secrets, real data and money always wait for you.
 - **Nobody checks their own work.** One fresh agent builds an issue. Other fresh agents review it and test it.
 
@@ -129,7 +129,7 @@ Below Full, the grill still shows each pick for you to confirm; on Full, each pi
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/how-it-works-dark.svg">
-  <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/how-it-works.svg" alt="Plan once from pitch through issues. Then coordinate, build, run CI and code review, check the preview, review risky changes, merge to test and smoke test. Failed checks go back to Build. Your test site feedback becomes new issues." width="960">
+  <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/how-it-works.svg" alt="Plan once from pitch through issues. Then coordinate, build, run the local checks and code review, check the preview, review risky changes, merge to test and smoke test. Failed checks go back to Build. Your test site feedback becomes new issues." width="960">
 </picture>
 
 Plan once. Each step saves to files, so you can stop any time and pick up with `/back`.
@@ -141,14 +141,14 @@ Plan once. Each step saves to files, so you can stop any time and pick up with `
 | 3 | **MVP** | You pick the one thing that makes the app stand out. | `mvp.md` |
 | 4 | **Name** | While the screens finish, you get 5 to 7 names, `git init` and a GitHub repo if you say yes. | |
 | 5 | **You approve the screens** (below Full) | Try the full set as a clickable light and dark prototype. Below Full, the agent asks what to change and starts tech work after you approve. On Full, it records the screens as "AI pick, not reviewed", goes on, and sends the prototype in an FYI. | `decisions.md` |
-| 6 | **Tech grill** | Platform, stack, data, auth, environments, CI and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
+| 6 | **Tech grill** | Platform, stack, data, auth, environments, the local checks (no GitHub Actions) and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
 | 7 | **Plan** | On the strongest model (below Full, after you approve it), it outlines three passes, cuts the first into steps you can try, and designs the schema and API from the approved screens. A script checks the steps. | `pyramid.md`, `design.md` |
 | 8 | **Issues** | One per step in the current pass. Each says what to try, gives WHEN/THEN checks with IDs, and lists scope limits, dependencies, risks, a lane and a complexity score. A read-only check looks for gaps in the plan. | GitHub issues |
 | 9 | **Keys** | It lists the accounts and keys for the first deploy and helps you set them up in about 10 minutes. | |
-| 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, CI and the test deploy. Then one fresh agent builds each issue, three in flight at most (one on Hands-on). | `state.md`, a line on what to try per merge |
+| 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, the local checks and the test deploy. Then one fresh agent builds each issue, three in flight at most (one on Hands-on). | `state.md`, a line on what to try per merge |
 | 11 | **Pass gate** | The loop keeps going. A fresh audit checks the code against the plan and screens. The loop fixes what it finds and does some cleanup. Try it when you can, then the agent plans the next pass. | `pyramid.md` |
 
-**What each pull request goes through:** build → CI → code review → QA on the preview → security review (risky changes only) → merge the exact commit that was checked → deploy to the test site → smoke test. A failed check goes back to a fresh builder. After two rejected rounds (three for a complex issue), below Full the issue is parked and you're asked. On Full, nothing waits: one more round on a stronger model, then the issue is split into smaller ones, with an FYI.
+**What each pull request goes through:** build → the local gate (every check on the exact commit, from the session) → code review → QA on the preview → security review (risky changes only) → merge the exact commit that was checked → deploy to the test site → smoke test. A failed check goes back to a fresh builder. After two rejected rounds (three for a complex issue), below Full the issue is parked and you're asked. On Full, nothing waits: one more round on a stronger model, then the issue is split into smaller ones, with an FYI.
 
 **You control the test site.** The default stack lets you use Cloudflare Access, a password page or open access. Production starts on a “Coming soon” page. You decide when to go live.
 
@@ -161,7 +161,7 @@ Plan once. Each step saves to files, so you can stop any time and pick up with `
 
 If you build the full schema, then the API, then the UI, there’s nothing to try until the end. **Tracer bullets** cut through all three in thin slices. Try the first slice and steer while changes are cheap.
 
-- **Slice 0** is the skeleton: the app runs, CI checks every pull request, and main deploys to test.
+- **Slice 0** is the skeleton: the app runs, the local gate checks every pull request, and main deploys to test from the session.
 - **The MVP is three passes:** Works (a thin tracer bullet through every slice), Real (the core goes deep), Ready (the core polished, plus speed, accessibility, SEO and the launch checklist).
 - **A pass is an improvement** to what's already there.
 - **Each pass is cut into thin steps.** A slice is one thing the app lets you do, like "the shared list". A step is the smallest change to it that you can try, like "add an item". One step is one issue and one pull request, so every merge puts something new on the test site to try.
@@ -182,8 +182,8 @@ Every issue has a **lane**. The lane sets the checks.
 
 | Lane | Checks before merge | When |
 |---|---|---|
-| **tiny** | CI · code review | Copy, styling, config. No logic. |
-| **normal** | CI · code review · QA on the preview | Most issues |
+| **tiny** | local gate · code review | Copy, styling, config. No logic. |
+| **normal** | local gate · code review · QA on the preview | Most issues |
 | **risky** | Normal · security review · you, unless you chose Full automation | Auth, secrets, personal data, money, migrations, new dependencies |
 
 - **The reviewer reads the diff.** It skips the pull request description.
@@ -225,7 +225,7 @@ At every risk and automation level, the agent stops and asks before:
 |---|---|---|
 | [`pr-security`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/pr-security/SKILL.md) | Risky lane | A fresh agent reads the diff against `docs/security-policy.md`: access, input, injection, secrets, data exposure, dependencies, abuse and money. |
 | [`qa`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/qa/SKILL.md) | Normal and risky lanes | A fresh agent opens the preview in a real browser. It tries to read and delete another user's data. |
-| Secret scan | Every pull request | gitleaks in CI. |
+| Secret scan | Every pull request | gitleaks in the local gate (`pnpm check:merge`). |
 | Agent-file guard | Every pull request | Below Full, a change to the agents' own rules can't merge until you add the `human-approved` label. On Full there's no label: a fresh weakening review decides. |
 | Second opinion | Personal data or money | A reviewer from another vendor's model, if you have one. |
 
@@ -253,7 +253,7 @@ The [`secrets`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/
 
 ### Tests that the skills change behaviour
 
-[`evals/`](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md) holds seventeen small scenarios, one per rule that matters most: the grill asks before it builds, no force push or push to main, keys never in chat or git, test first inside the fence, a reviewer catches a weakened test, the wireframe gate, asking before the strongest model, a plan cut into thin steps you can try, a plan cut by layer sent back, the auto grill surfacing a one-way door, slice 0 showing the running app before CI, a blocker recorded instead of left in chat, a handoff answered with a reading, "go ahead" building more than one issue, a blocked issue not stopping the next one, "not yet" leaving a running strongest-tier job alone, and "stop it" stopping it. Each runs in Claude Code twice, with the kit and without, and checks what the agent did from its transcript and files, never from another model's opinion. A scenario passes only if the kit made the difference. CI runs them on Claude Haiku 5.5 when a skill, `AGENTS.md`, the plugin or a script changes. A full run cost about $0.16 when measured in 2026-11. Not every scenario passes on that model yet: [the evals README](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md#cost-controls) says which. `npm run evals` runs them locally with your own login.
+[`evals/`](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md) holds seventeen small scenarios, one per rule that matters most: the grill asks before it builds, no force push or push to main, keys never in chat or git, test first inside the fence, a reviewer catches a weakened test, the wireframe gate, asking before the strongest model, a plan cut into thin steps you can try, a plan cut by layer sent back, the auto grill surfacing a one-way door, slice 0 showing the running app before the checks are set up, a blocker recorded instead of left in chat, a handoff answered with a reading, "go ahead" building more than one issue, a blocked issue not stopping the next one, "not yet" leaving a running strongest-tier job alone, and "stop it" stopping it. Each runs in Claude Code twice, with the kit and without, and checks what the agent did from its transcript and files, never from another model's opinion. A scenario passes only if the kit made the difference. The paid run, `npm run evals`, is your own call: you run it by hand when you choose to. It runs locally with your own login, on Claude Haiku 5.5. A full run cost about $0.16 when measured in 2026-11. Not every scenario passes on that model yet: [the evals README](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md#cost-controls) says which. The build loop never runs it: it runs only `npm run test:evals` (a fake `claude`, no model) and `node evals/run.mjs --dry-run`.
 
 ### And the rest
 
@@ -297,7 +297,7 @@ Each one comes with a recipe. Nothing is installed until a feature needs it.
 
 **How the code is laid out:** one folder per feature. A request goes route → service → database, and features can't reach into each other. That's a rule lint enforces, not a stack choice. See [Guardrails](#-guardrails).
 
-A **stack pack** is that stack already working: configs, the folder skeleton, an example module through every layer, CI and the checks. At slice 0 the agent pulls it into your project. There are 5 packs: 2 ready, 3 stubs.
+A **stack pack** is that stack already working: configs, the folder skeleton, an example module through every layer, and the checks, previews and deploys as scripts the session runs. At slice 0 the agent pulls it into your project. There are 5 packs: 2 ready, 3 stubs.
 
 | Pack | Status | What's in it |
 |---|---|---|
@@ -319,7 +319,7 @@ The `tanstack-start` pack has 7 optional **add-ons**. The tech grill offers them
 | [`r2-uploads`](https://github.com/jsmigendevelopment/onRails/blob/main/stacks/tanstack-start-addons/r2-uploads/ADDON.md) | File uploads to Cloudflare R2, scoped to the owner | risky |
 | [`database-supabase`](https://github.com/jsmigendevelopment/onRails/blob/main/stacks/tanstack-start-addons/database-supabase/ADDON.md) | A move from D1 to Supabase Postgres | risky |
 
-**The check contract:** every project has the same six commands, whatever the stack: `check`, `lint`, `typecheck`, `test`, `test:e2e`, `build`. The skills, CI and the loop call only those.
+**The check contract:** every project has the same six commands, whatever the stack: `check`, `lint`, `typecheck`, `test`, `test:e2e`, `build`. The skills, the local gate and the loop call only those.
 
 ## 🧠 Model routing
 

@@ -105,8 +105,8 @@ You rarely need these. The four commands call them for you.
 
 | Lane | Checks before merge | When |
 |---|---|---|
-| **tiny** | CI · code review | Copy, styling, config. No logic. |
-| **normal** | CI · code review · QA on the preview | Most issues |
+| **tiny** | local gate · code review | Copy, styling, config. No logic. |
+| **normal** | local gate · code review · QA on the preview | Most issues |
 | **risky** | Normal · security review · the person (below Full; on Full, an extra review) | Auth, secrets, personal data, money, migrations, new dependencies |
 
 🛑 **Always waits for a person, whatever the dial:** production, secrets, deleting or migrating real data, and spending money.

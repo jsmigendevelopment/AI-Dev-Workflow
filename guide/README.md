@@ -10,7 +10,7 @@ Load a guide only when its row fits the job. Most runs need none: the skills car
 | [environments.md](environments.md) | Adding, rotating or onboarding a key or variable, or setting up local, test, preview or production. |
 | [staying-in-the-loop.md](staying-in-the-loop.md) | Explaining pings, the board or the automation levels to the person. |
 | [add-to-existing-app.md](add-to-existing-app.md) | Adding the kit to an app that already has code. |
-| [principles.md](principles.md) | Changing how the workflow works, and you need the why. |
+| [principles.md](principles.md) | Changing how onRails works, and you need the why. |
 | [evidence.md](evidence.md) | Someone asks what a rule is based on, or a change would undo a tested rule. |
 | [cheat-sheet.md](cheat-sheet.md) | The person asks which command to type. |
 
