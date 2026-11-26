@@ -45,11 +45,15 @@ test("#173 round 4 must: an ask is the match the scan makes from its first word,
 
 test("#173 round 3 nice 1: a parenthesis belongs to its clause, so a condition inside it counts there (main flagged this)", () => {
   assert.deepEqual(unconditionalAsks("Ask the person to review it (only for risky changes, and below Full)."), []);
+  // Round 4: a parenthesis inside the ask's own words doesn't cut it either, so the condition after it is in the asking clause.
+  assert.deepEqual(unconditionalAsks("Ask the person (for this one, and the next) to review it below Full."), []);
+  assert.deepEqual(unconditionalAsks("Ask the person (for this one, and the next) to review it."), ["Ask the person (for this one, and the next) to review it."]);
   // The parenthesis is still read: with no condition, or with "on Full too", the ask is flagged.
   for (const s of ["Ask the person to review it (only for risky changes, and big ones).", "Ask the person to review it (only for risky changes, and on Full too)."]) {
     assert.deepEqual(unconditionalAsks(s), [s], s);
   }
   assert.match(read("docs/decisions.md"), /A parenthesis belongs to its clause, so a condition inside it counts there: [^|]*fixes a false alarm on main/);
+  assert.match(read("docs/decisions.md"), /parenthesis sits inside the ask's own words: [^|]*passes/);
 });
 
 test("#173 round 1 nice 2: the scan catches each phrasing the review listed", () => {
