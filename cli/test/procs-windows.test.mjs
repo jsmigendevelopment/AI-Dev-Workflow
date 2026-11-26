@@ -85,16 +85,16 @@ test("AC-174-1: the Windows ACL reader's output gives the owner and every other 
 
 test("AC-174-1: the real machine reads a Windows ACL through PowerShell with the path in the environment, never in the command; elsewhere it can't tell", () => {
   const ran = [];
-  const out = "user S-1-5-21-1-2-3-1001\nowner S-1-5-21-1-2-3-1001\nAllow S-1-5-21-1-2-3-1001 2032127\n";
+  const out = "user S-1-5-21-1-2-3-1001\npath 0\nowner S-1-5-21-1-2-3-1001\nAllow S-1-5-21-1-2-3-1001 2032127\nend 0\n";
   const fakeRun = (cmd, args, opts) => (ran.push({ cmd, args, path: opts.env?.ONRAILS_ACL_PATH }), { status: 0, stdout: out });
   const path = "C:\\Users\\a\\it's [here]\\.onrails";
-  assert.deepEqual(realSys({ platform: "win32", run: fakeRun }).winAcl(path), OWN);
+  assert.deepEqual(realSys({ platform: "win32", run: fakeRun }).winAcls([path]).get(path), { ...OWN, movers: [] });
   assert.equal(ran.length, 1);
   assert.equal(ran[0].cmd, "powershell.exe");
   assert.equal(ran[0].path, path);
   assert.ok(!ran[0].args.some((a) => a.includes("here")), "the path never reaches the command line");
-  assert.equal(realSys({ platform: "win32", run: () => ({ status: 1, stdout: "", stderr: "denied" }) }).winAcl(path), null);
-  assert.equal(realSys({ platform: "linux", run: fakeRun }).winAcl(path), null);
+  assert.equal(realSys({ platform: "win32", run: () => ({ status: 1, stdout: "", stderr: "denied" }) }).winAcls([path]).get(path), null);
+  assert.equal(realSys({ platform: "linux", run: fakeRun }).winAcls([path]), null);
   assert.equal(ran.length, 1, "not asked off Windows");
 });
 

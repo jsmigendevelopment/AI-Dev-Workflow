@@ -12,13 +12,14 @@
 // unpacked archive or a copy is a new file, so its records read as none (#174, row 106). Inode numbers are reused, so
 // the mark is a filter, not a proof: each record still needs a live process with the same start time. Every folder
 // on the way to the one that holds .onrails (the repo root, or the home folder), and each symlink on the way, must be
-// this user's or root's, nobody else may write it (sticky folders aside), and on Linux getfacl shows its ACLs (#231).
+// this user's or root's, nobody else may write it (sticky folders aside), and on Linux getfacl shows its ACLs (#231);
+// on Windows its ACL says no other account may rename or replace what is in it, every ACL read in one start (#248).
 // No dependencies. The master copy is scripts/procs-store.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { randomBytes } from "node:crypto";
 import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { HOME_OFF, pathProblem } from "./procs-path.mjs";
+import { above, aclProblem, forgetAcls, pathProblem, readAcls, winAboveProblem } from "./procs-path.mjs";
 
 const readText = (p) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
 const IGNORE = "*\n";
@@ -35,12 +36,12 @@ export function homeDir(home = homedir()) {
 export const homeRegistry = (sys) => join(homeDir(sys.home), "procs.json");
 const indexPath = (sys) => join(homeDir(sys.home), "procs-index.json");
 
-// Each git answer, and each Windows ACL (a PowerShell start), once per command: the session-end hook has 3 seconds
+// Each git answer, and each Windows ACL (procs-path.mjs), once per command: the session-end hook has 3 seconds
 // for every registry in the index. The watcher runs for hours, so it forgets them before each pass: a branch
 // checked out since may track the registry.
 const answers = new WeakMap();
 /** Forgets git's and the ACL reader's answers, so the next check asks again. procs.mjs calls it once per command, the watcher once per pass. */
-export const askAgain = (sys) => { for (const fn of [sys.git, sys.winAcl]) if (fn) answers.delete(fn); };
+export const askAgain = (sys) => { if (sys.git) answers.delete(sys.git); forgetAcls(sys); };
 function remembered(fn, key, ask) {
   const memo = answers.get(fn) ?? new Map();
   answers.set(fn, memo);
@@ -48,7 +49,6 @@ function remembered(fn, key, ask) {
   return memo.get(key);
 }
 const git = (sys, dir, args) => remembered(sys.git, [dir, ...args].join("\0"), () => sys.git(dir, args));
-const winAcl = (sys, path) => (sys.winAcl ? remembered(sys.winAcl, path, () => sys.winAcl(path)) : null);
 
 /** The registry for a folder: its repo's main checkout, so worktrees share one, else the home one. */
 export function registryPath(sys, dir) {
@@ -77,18 +77,6 @@ function ownerProblem(sys, s, path, chmod, bits = 0o022) {
   if (s.uid !== sys.uid) return `${path} belongs to another user`;
   if (s.mode & bits) return `${path} can be written by other users: run chmod ${chmod} ${path}, which keeps what's in it`;
   return null;
-}
-
-// On Windows: owned by this user (or SYSTEM or Administrators), and no other account may write it. A folder made
-// directly under C:\ lets every signed-in user write, and what is made inside it inherits that (#174). The home
-// folder (home) gets its own words: a repo can move, the home folder can't.
-function aclProblem(sys, path, home = false) {
-  const acl = winAcl(sys, path), where = home ? `the home folder ${path}` : path, off = home ? `: ${HOME_OFF}` : "";
-  if (!acl) return `who can write ${where} can't be read, so its owner can't be checked${off}`;
-  if (!acl.owned) return `${where} belongs to another account${off}`;
-  if (!acl.writers.length) return null;
-  const fix = home ? "take their write access away, or the home registry and the index stay off" : "keep the repo in your user folder, or take their write access away";
-  return `${where} can be written by other accounts (${acl.writers.join(", ")}): ${fix}`;
 }
 
 // A folder the registry reads from or writes into: missing, or a real folder of this user's, right where its
@@ -137,6 +125,7 @@ const folders = (sys, path) => folderProblem(sys, dirname(path), path === homeRe
  * error counts as untrusted, never as untracked. The file is checked again, through the open file, when it is read.
  */
 export function untrusted(sys, path) {
+  readAcls(sys, aclPaths(sys, path));
   const why = holderProblem(sys, dirname(dirname(path)), path === homeRegistry(sys)) ?? folders(sys, path);
   if (why) return why;
   const k = kind(path);
@@ -157,16 +146,22 @@ function gitProblem(sys, path) {
   return tracked ? `git tracks files in ${dir}, so a branch could have written them` : null;
 }
 
-// The folder that holds .onrails and every folder on the way to it (procs-path.mjs, #231). On Windows only the home
-// folder's ACL is read here, and the repo root's in gitProblem: each folder above would cost a PowerShell start.
+// The folder that holds .onrails and every folder on the way to it (procs-path.mjs, #231). On Windows the home
+// folder's ACL, or the folders above a repo root (#248); the repo root's own ACL is read in gitProblem.
 const holderProblem = (sys, holder, home) => (sys.platform !== "win32" ? pathProblem(sys, holder, home, groupProblem)
-  : home ? aclProblem(sys, holder, true) : null);
+  : home ? aclProblem(sys, holder, true) : winAboveProblem(sys, holder));
+
+// Every path whose ACL a registry's checks read on Windows, so one PowerShell start answers them all (#248).
+function aclPaths(sys, path) {
+  const dir = dirname(path), holder = dirname(dir), home = path === homeRegistry(sys);
+  return [...(home ? [] : above(holder)), holder, dir, join(dir, "logs"), path, ...(home ? [indexPath(sys)] : [])];
+}
 
 // Opens a file once, checks what was opened (a regular file of this user's that nobody else can write, and not
 // huge) and reads that same file. The name is never opened twice: it could point somewhere else by the second time.
 // { text, inode } (text null when it is missing) or { why }. groupOk: a file only the group can write is still read,
-// and its text comes with the why.
-function readChecked(sys, path, groupOk = false) {
+// and its text comes with the why. owner false: not checked, so the text is never trusted (peek, below).
+function readChecked(sys, path, groupOk = false, owner = true) {
   let fd;
   try { fd = openSync(path, READ); } catch (error) {
     return error.code === "ENOENT" ? { text: null } : { why: `${path} can't be opened as a plain file (${error.code})` };
@@ -175,7 +170,7 @@ function readChecked(sys, path, groupOk = false) {
     const s = fstatSync(fd);
     const shape = !s.isFile() ? `${path} isn't a regular file` : s.size > MAX_BYTES ? `${path} is over ${MAX_BYTES} bytes` : null;
     if (shape) return { why: shape };
-    const why = ownerProblem(sys, s, path, "600");
+    const why = owner ? ownerProblem(sys, s, path, "600") : null;
     const read = !why || (groupOk && !ownerProblem(sys, s, path, "600", 0o002));
     return read ? { why, text: readFileSync(fd, "utf8"), inode: String(fstatSync(fd, { bigint: true }).ino) } : { why };
   } finally { closeSync(fd); }
@@ -189,13 +184,18 @@ function readIndex(sys, kept = false) {
   const folderWhy = holderProblem(sys, dirname(dirname(path)), true) ?? folderProblem(sys, dirname(path), true);
   if (folderWhy) return { list: [], why: folderWhy };
   const { text, why } = readChecked(sys, path, kept);
-  try {
-    const list = JSON.parse(text ?? "{}").registries;
-    return { list: Array.isArray(list) ? list.filter((p) => typeof p === "string") : [], why };
-  } catch { return { list: [], why }; } // not JSON: the same as no index
+  return { list: listOf(text), why };
 }
+// Not JSON: the same as no index.
+const listOf = (text) => { try { const l = JSON.parse(text ?? "{}").registries; return Array.isArray(l) ? l.filter((p) => typeof p === "string") : []; } catch { return []; } };
+// The index's list, read before it is checked only to know which ACLs to ask for, all at once (#248). Never trusted.
+const peek = (sys) => listOf(readChecked(sys, indexPath(sys), false, false).text);
 
-const candidates = (sys, dir) => [...new Set([registryPath(sys, dir), homeRegistry(sys), ...readIndex(sys).list])].filter((p) => existsSync(p));
+function candidates(sys, dir) {
+  const here = [registryPath(sys, dir), homeRegistry(sys)];
+  if (sys.platform === "win32") readAcls(sys, [homeRegistry(sys), ...here, ...peek(sys)].flatMap((p) => aclPaths(sys, p)));
+  return [...new Set([...here, ...readIndex(sys).list])].filter((p) => existsSync(p));
+}
 
 /** Every registry to look at: this folder's, the home one, and each repo's that a record was ever added to. Trusted ones only. */
 export const registries = (sys, dir) => candidates(sys, dir).filter((p) => !untrusted(sys, p));
