@@ -8,12 +8,13 @@ import { update } from "./procs-store.mjs";
 export const GRACE_S = 5;
 export const NO_LIST = "the process list can't be read";
 const NO_TREE = "the process tree can't be read, so whether it holds this script, its parent or the agent can't be told";
+export const NO_AGENT = "the agent can't be found from here, so whether its group or tree holds the agent can't be told";
 
-/** The PIDs nothing may signal: this process, its parent, the agent and the agent's parent (#174). */
-export function guarded(sys) {
+/** The PIDs nothing may signal: this process, its parent, the agent, the agent's parent (#174) and any also given. */
+export function guarded(sys, also = []) {
   const agent = findAgent(sys);
   const parent = Number.isInteger(agent) ? sys.info([agent])?.get(agent)?.parent : null;
-  return new Set([sys.selfPid, sys.parentPid, agent, parent].filter(Number.isInteger));
+  return new Set([sys.selfPid, sys.parentPid, agent, parent, ...also].filter(Number.isInteger));
 }
 
 /** What a record must be before any process is looked at: a PID of its own, not ours, and a start time. Why not, or null. */
@@ -93,13 +94,16 @@ function kill(sys, left, { guard, platform }) {
 /**
  * TERM to each process's group or tree, then KILL what's still there after the grace.
  * Returns { stopped, killed, refused: [{ r, why }] }. A refused record gets no signal at all.
+ * For the detached runners (procs-hooks.mjs): also, more PIDs to guard; blind(r), true when nothing tells
+ * where the agent is for r, which is then refused with NO_AGENT.
  */
-export async function stopRecords(sys, recs, { grace = GRACE_S } = {}) {
-  const guard = guarded(sys);
+export async function stopRecords(sys, recs, { grace = GRACE_S, also = [], blind = () => false } = {}) {
+  const guard = guarded(sys, also);
   const live = sys.info([...recs.map((r) => r.pid).filter(Number.isInteger), ...guard]);
   const rows = recs.some((r) => byTree(r, sys.platform)) ? sys.table() : [];
   const ctx = { guard, platform: sys.platform, groups: groupsOf(live, guard), rows };
-  const refused = recs.map((r) => ({ r, why: live ? refusal(r, live.get(r.pid), ctx) : NO_LIST })).filter((x) => x.why);
+  const why = (r) => (blind(r) ? NO_AGENT : live ? refusal(r, live.get(r.pid), ctx) : NO_LIST);
+  const refused = recs.map((r) => ({ r, why: why(r) })).filter((x) => x.why);
   const ok = recs.filter((r) => !refused.some((x) => x.r === r));
   for (const r of ok) signal(sys, r, r.group ? [] : descendants(rows ?? [], r.pid, ctx.guard), "SIGTERM");
   let left = ok;

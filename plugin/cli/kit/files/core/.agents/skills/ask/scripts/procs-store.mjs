@@ -9,7 +9,8 @@
 // is what passed, and so is the index. A repo registry must also be its repo's own, in a repo this user owns
 // whose root only this user can write (docs/decisions.md row 69). On Windows the owner and who may write come from
 // the ACL. Its records count only when the file holds its own inode, which update() writes into it: a patch, an
-// unpacked archive or a copy is a new file, so its records read as none (#174, row 103).
+// unpacked archive or a copy is a new file, so its records read as none (#174, row 103). Inode numbers are reused, so
+// the mark is a filter, not a proof: each record still needs a live process with the same start time.
 // No dependencies. The master copy is scripts/procs-store.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { randomBytes } from "node:crypto";
 import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -36,7 +37,7 @@ const indexPath = (sys) => join(homeDir(sys.home), "procs-index.json");
 // checked out since may track the registry.
 const answers = new WeakMap();
 /** Forgets git's and the ACL reader's answers, so the next check asks again. procs.mjs calls it once per command, the watcher once per pass. */
-export const askGitAgain = (sys) => { for (const fn of [sys.git, sys.winAcl]) if (fn) answers.delete(fn); };
+export const askAgain = (sys) => { for (const fn of [sys.git, sys.winAcl]) if (fn) answers.delete(fn); };
 function remembered(fn, key, ask) {
   const memo = answers.get(fn) ?? new Map();
   answers.set(fn, memo);
@@ -181,9 +182,10 @@ export const registries = (sys, dir) => candidates(sys, dir).filter((p) => !untr
 export const fixable = (sys, dir) => [...new Set([...candidates(sys, dir).map((p) => untrusted(sys, p)), readIndex(sys).why])]
   .filter((why) => why?.includes("run chmod"));
 
-// Only the records of a file a session wrote: update() writes the file's own inode into it. A patch, an unpacked
-// archive or a copy makes a new file with another inode, so its records read as none, and the next write replaces
-// them; moving the folder keeps the inode (#174, docs/decisions.md row 103).
+// Only the records of a file whose mark is its own inode: update() writes it into the file. A patch, an unpacked
+// archive or a copy makes a new file, so its records read as none, and the next write replaces them; moving the
+// folder keeps the inode. A new file can get a freed inode number back, and then its mark matches: the start time
+// check is what still stands (#174, docs/decisions.md row 103).
 function parse(text, inode) {
   try {
     const data = JSON.parse(text);

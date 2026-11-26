@@ -191,3 +191,40 @@ test("AC-174-3: WHEN a non-group record's PID is the agent's parent THEN no sign
     }
   }
 });
+
+test("AC-174-3: WHEN a non-group record's tree holds the agent below its parent THEN no signal is sent (Linux)", async () => {
+  const me = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
+  // The record is the agent's grandparent: 400, then the shell 450, then the agent. Only its tree shows that.
+  const procs = { 400: { args: "sshd", group: 400 }, 450: { args: "bash", parent: 400, group: 450 }, [AGENT]: { args: "/opt/claude-code/bin/claude", parent: 450, group: AGENT } };
+  for (const argv of [["stop", "pmine"], ["stop", "all", "--yes"], ["session-end"]]) {
+    const sys = fakeSys({ procs, stdin: '{"session_id":"s-1"}' });
+    seed(sys, { id: "pmine", pid: 400, start: "start-400", group: false, command: "sshd", ...me });
+    const r = await run(sys, argv);
+    const reaper = sys.calls.find((c) => / reap --registry /.test(c));
+    if (reaper) await run(sys, reaper.split(" ").slice(3));
+    assert.deepEqual(signals(sys), [], `${argv.join(" ")}\n${r.out}`);
+    assert.ok(sys.live.has(400) && sys.live.has(AGENT), argv.join(" "));
+  }
+});
+
+test("AC-174-3: WHEN the process table can't be read THEN a non-group record gets no signal (Linux)", async () => {
+  const sys = fakeSys({ procs: { 4000: { group: 3000 } } });
+  sys.table = () => null;
+  seed(sys, { id: "ptree", pid: 4000, start: "start-4000", group: false, command: "pnpm dev", session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } });
+  const r = await run(sys, ["stop", "ptree"]);
+  assert.deepEqual(signals(sys), [], r.out);
+  assert.match(r.out, /Left ptree alone: the process tree can't be read/);
+});
+
+test("AC-174-2, AC-174-3: WHEN the agent joins a record's tree after the TERM THEN no KILL is sent (Linux and Windows)", async () => {
+  for (const [platform, term] of [["linux", "kill 4000 SIGTERM"], ["win32", "taskkill /PID 4000 /T"]]) {
+    const sys = fakeSys({ platform, procs: { 4000: { group: 3000, onTerm: "stay" } } });
+    seed(sys, { id: "ptree", pid: 4000, start: "start-4000", group: false, command: "pnpm dev", session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } });
+    const [send, taskkill] = [sys.signal, sys.taskkill];
+    sys.signal = (pid, sig) => { const hit = send(pid, sig); sys.live.get(AGENT).parent = 4000; return hit; };
+    sys.taskkill = (pid, force) => { const hit = taskkill(pid, force); sys.live.get(AGENT).parent = 4000; return hit; };
+    await run(sys, ["stop", "ptree"]);
+    assert.deepEqual(signals(sys), [term], platform);
+    assert.ok(sys.live.has(4000) && sys.live.has(AGENT), platform);
+  }
+});

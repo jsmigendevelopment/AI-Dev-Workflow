@@ -148,7 +148,7 @@ test("AC-156-4: a registry in a repo whose root another user owns is refused", p
   assert.match(untrusted(sys, join("/", ".onrails", "procs.json")) ?? "", /the repo at \/ belongs to another user/);
 });
 
-test("a registry written before #156 at 0664 keeps its records: start says to run chmod 600 on it, not to delete it", posix, async () => {
+test("a marked registry at 0664 keeps its records: start says to run chmod 600 on it, not to delete it", posix, async () => {
   const sys = fakeSys({ procs: { 4000: {} } });
   const path = homeRegistry(sys);
   put(sys.home, ".onrails/procs.json", JSON.stringify({ version: 1, procs: [{ id: "pold1", kind: "process", pid: 4000, start: "start-4000", group: true,
