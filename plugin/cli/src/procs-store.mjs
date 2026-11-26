@@ -105,10 +105,18 @@ function rootProblem(sys, root) {
   const s = lstatSync(root);
   if (s.uid !== sys.uid) return `the repo at ${root} belongs to another user`;
   if (s.mode & 0o002) return `others can write the repo at ${root}: run chmod o-w ${root}`;
-  if (!(s.mode & 0o020) || s.mode & 0o1000) return null;
-  const why = `the group can write the repo at ${root}`, fix = `run chmod g-w ${root}`;
+  return s.mode & 0o1000 ? null : groupProblem(sys, s, root, `the group can write the repo at ${root}`);
+}
+
+/**
+ * Why the group can write path (s its lstat), or null: no group write bit, or this user's own group with no one else
+ * in it and no ACL. why opens the message. Preflight asks it of the folders it runs from (#232), so the rule is one.
+ */
+export function groupProblem(sys, s, path, why) {
+  if (!(s.mode & 0o020)) return null;
+  const fix = `run chmod g-w ${path}`;
   if (s.gid !== sys.gid) return `${why}, and it isn't this user's alone: ${fix}`;
-  if (sys.acl?.(root) !== false) return `${why}, and it has an ACL, or whether it has one can't be told: ${fix}`;
+  if (sys.acl?.(path) !== false) return `${why}, and it has an ACL, or whether it has one can't be told: ${fix}`;
   return sys.privateGroup?.(s.gid) === true ? null : `${why}, and it isn't this user's alone: ${fix}`;
 }
 
