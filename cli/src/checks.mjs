@@ -48,7 +48,7 @@ export function runChecks(projectDir, { kitDir, sys = realSystem({ projectDir })
     add(claude?.ok ? OK : INFO, claude?.ok ? `Claude Code ${claude.out}` : "Claude Code not installed (optional, you have Codex)");
     add(codex?.ok ? OK : INFO, codex?.ok ? `Codex ${codex.out}` : "Codex not installed (optional, you have Claude Code)");
   } else {
-    add(FAIL, notFound("Neither Claude Code nor Codex found", "claude", "codex"),"Install one: npm i -g @anthropic-ai/claude-code, or npm i -g @openai/codex",
+    add(FAIL, notFound("Neither Claude Code nor Codex found", "claude", "codex"), "Install one: npm i -g @anthropic-ai/claude-code, or npm i -g @openai/codex",
       true, { print: agentInstallLines(sys.platform) });
   }
 
