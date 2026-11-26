@@ -134,6 +134,7 @@ Stuck? <the one most likely problem and its fix>.
 - Numbered steps, one action each. Exact links and exact button names, not "go to settings".
 - Say how long it takes, and what they'll see when it worked.
 - For a secret value, follow the `secrets` skill's checklist. The person types the value into a file or a hidden prompt, never into chat.
+- **A key?** Do every step you can first (`secrets`, "Keys on Full"): open the page, make the key, open where it goes. The step you write holds only the sign-in and the paste.
 
 ## Steps
 

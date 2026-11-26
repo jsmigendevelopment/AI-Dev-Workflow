@@ -18,6 +18,14 @@ Test and production are two Supabase projects and two Hyperdrive configs.
 
 **No `pnpm connect` block, on purpose.** `DATABASE_URL` lives only in your shell for a migration, and the Hyperdrive id isn't secret, so there's nothing for the script to store.
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page, pick what the row says, and stop on the screen that shows a value. `[V]` = checked against Supabase's docs on 2026-11-26.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `DATABASE_URL` | https://supabase.com/dashboard/project/_?showConnect=true&method=session | Pick the test project; production is the person's go-ahead first. The **Connect** dialog opens on **Session pooler**: the string holds `[YOUR-PASSWORD]`, which the person fills in, in their own terminal (walkthrough step 3). No project yet? https://supabase.com/dashboard/new: fill in the name and region, and leave **Database password** to the person, since it's a secret. A third project needs a paid plan: a 🛑. `[V]` the Connect link, `[U]` the new-project link. |
+
 ## Walkthrough · about 10 minutes per environment
 
 1. Create a project: https://supabase.com/dashboard/new (or **New project** on https://supabase.com/dashboard). Save the database password in your password manager; the dashboard won't show it again. `[V]` (create), `[U]` (the deep link).

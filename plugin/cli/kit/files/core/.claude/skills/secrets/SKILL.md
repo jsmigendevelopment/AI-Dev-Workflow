@@ -1,6 +1,6 @@
 ---
 name: secrets
-description: Use when an app needs API keys, environment variables or accounts wired up ("set up the env vars", "add my keys", "wire up Clerk", "the app needs secrets", or slice 0 of a new app) - lists every variable from .env.example with where to get it, asks whether the person wants to handle keys themselves or have the agent wire them, and pushes values to local, test and production without ever showing them in chat.
+description: Use when an app needs API keys, environment variables or accounts wired up ("set up the env vars", "add my keys", "wire up Clerk", "the app needs secrets", or slice 0 of a new app) - lists every variable from .env.example with where to get it, asks whether the person wants to handle keys themselves or have the agent wire them, on Full opens each provider's page and makes the key so the person only signs in and pastes, and pushes values to local, test and production without ever showing them in chat.
 ---
 
 # Secrets: wire every key without pasting it into chat
@@ -26,11 +26,12 @@ When a step adds a service, it adds its variables here in this format.
 
 **When:** right after the issues are written, before the build starts (`idea` step 11 and `join`), so the first deploy is never stuck waiting on a key. Don't wait to be asked.
 
-**On Full automation, ask nothing.** Do step 1, then skip steps 2 to 5: run on the fakes, list each missing key as a "Setup step for you" under "Waiting on you" in `docs/state.md`, send one ℹ️ FYI with the list, and go on.
+**On Full automation,** do step 1, skip step 2's question, and run "Keys on Full" below for every missing key. Run on the fakes meanwhile: the first look never waits on a key.
 
 1. **List what's needed.** Read `.env.example` and show a table of the name, what it's for, where to get it, which environments, and whether it's secret. Mention any accounts to create first (for example Cloudflare, Clerk, Stripe).
 
-2. **Ask once:** *"Do you want to set the keys up yourself, or should I wire them for you? Yourself means running one command in your own terminal that walks you through it. Either way, you'll type the values into a local file or a prompt, never into this chat."*
+2. **Ask once:** *"Do you want to set the keys up yourself, or should I wire them for you? Yourself means running one command in your own terminal that walks you through it. Or I can open each provider's page in your browser and make the keys there: you'd only sign in and paste. Either way, you'll type the values into a local file or a prompt, never into this chat."*
+   - Below Full, this is the one ask before you use the browser in the person's accounts, as `test-by-hand-as-the-user` does: name each site and account, and what you'll click. A yes to the browser? Run "Keys on Full" below.
 
 3. **Walk them through one provider at a time.** (Doing it themselves with `pnpm connect`? The script prints each walkthrough, so skip item 5 below; still do items 1 to 4, then go to step 4.) Each provider has a click-by-click file in [`providers/`](providers/). Group the variables by provider, finish one provider, then start the next.
 
@@ -73,6 +74,41 @@ When a step adds a service, it adds its variables here in this format.
    5. Read its last line and its exit code. Only `Every value is stored somewhere.` with exit code 0 lets you offer to delete `.env.production.local`. `Stored nowhere: ...` names each value no place took (on `ci = "local"` without `--wrangler`, every one; a plain variable even with it): keep the file, tell the person those names, and where each belongs (a plain variable goes in `wrangler.jsonc` vars). `Not stored everywhere (a destination FAILED above): ...` names each value one place took and another refused (GitHub yes, the Worker no). A non-zero exit means a destination failed, whatever the last line says: keep the file, fix the `FAILED` line's cause and run it again. On Full automation the offer stays a no while any value is unstored or the exit code isn't 0.
 
 6. **Check it works.** Start the app. A missing variable fails at startup with its name (the pack's env schema does this). Then report which variables are set where, by name only.
+
+## Keys on Full: the person only signs in and pastes
+
+On Full, and below Full after a yes to the browser in step 2. For each missing key, do every step you can. The person does two things: sign in, and paste.
+
+- **Never read, copy, print or screenshot a key's value** (rule 9 in `AGENTS.md`): not in chat, a command's arguments, a log, a screenshot or a page read.
+- **Signing in and paying are the person's.** Never type a password, a code or a passkey, and never sign in for them. A page that asks for a paid plan or a card: stop on it and send one 🛑 (paying is on the always-stop list).
+- **A production key is on the always-stop list.** Make test and local keys this way. For production, send one 🛑 and make it only after the person's own go-ahead.
+- **Which browser:** the first the session has: Claude in Chrome (the person's own browser, often signed in already), then computer use, then the built-in browser (Claude Code). How to drive Claude in Chrome and the built-in browser: `test-by-hand-as-the-user`'s `references/browsers.md`. None? Go to "No browser" below.
+
+Group the keys by provider, in the connect block's `order`. For each provider:
+
+1. **Open the page.** Open the URL from the provider file's "Make each key" table: the page that makes the key, not the home page.
+2. **Ask for the sign-in only.** One line: "Sign in to <provider> in the tab I opened, then tell me." It goes in chat when the person is here, and in the ℹ️ FYI when they're away. Wait only for this, and only for this provider: the rest of the loop goes on. Already signed in? Skip the line.
+3. **Make the key.** Click through as the table's row says: the name, the scopes, the permissions, the resources and the expiry. Take your last look before the click that creates it. Once the value is on screen, stop on that screen: no screenshot, page read, text search or copy until the person has pasted it. Leave the tab open for them.
+4. **Open where it goes.** The connect block's `to` says where. Open it ready for the paste:
+   - With computer use on the person's machine: open a terminal in the app folder and type `pnpm connect <provider>`, the command only, so it waits at the hidden prompt.
+   - Otherwise, give one command for their own terminal: `pnpm connect <provider>`. It refuses to run without a terminal, so never run it in your shell.
+   - A destination with its own page (a GitHub secret on `ci = "actions"`, the provider's own settings): open that page in a new tab, at the empty field.
+   - A pack without the script: `npx wrangler secret put NAME --env <env>` or `gh secret set NAME --env <env>`, the same way. Both read the value hidden.
+
+   Then one line: "Copy the key from the tab and paste it into the prompt."
+5. **Check by name.** `pnpm connect --dry-run` shows ✓ by name only. Close the tab that showed the value, then start the next key.
+
+**Done when** every key the app needs shows ✓ in `pnpm connect --dry-run`, or its sign-in line is under "Waiting on you" in `docs/state.md`.
+
+### No browser (a cloud session)
+
+No browser tool, and no terminal on the person's machine? Send one "Setup step for you" (`ask`) for every missing key, grouped so the person does it all in one sitting:
+
+1. For each provider, in order: the exact link from its "Make each key" table, the button to press and what to pick.
+2. Then the one command, in their own terminal in the app folder: `pnpm connect`. It asks for each key with hidden input.
+3. Then "Tell me when it's done." Check by name with `pnpm connect --dry-run`.
+
+Put it under "Waiting on you" in `docs/state.md`, send it as one ℹ️ FYI, run on the fakes, and go on with the loop.
 
 ## The connect block
 

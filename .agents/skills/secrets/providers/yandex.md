@@ -29,6 +29,14 @@ You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare p
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page, pick what the row says, and stop on the screen that shows a value. `[V]` = checked against Yandex's and Cloudflare's docs on 2026-11-26.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `ACCESS_YANDEX_CLIENT_ID`, `ACCESS_YANDEX_CLIENT_SECRET` | https://oauth.yandex.com/client/new | App type: for user login on your service (Yandex: the type can't change later). Under **Yandex ID API** (or **Yandex.Passport API**), tick **Access to email address**, **Access to user avatar** and **Access to username, first name and surname, gender**. Platform **Web services**, the callback URL in **Redirect URI** (or **Callback URL #1**). **Create app**. The **ClientID** and **Client secret** are on the app's page. `[V]` steps, `[U]` the deep link. |
+
 ## Walkthrough · about 5 minutes
 
 1. Sign in to Yandex and open https://oauth.yandex.com/client/new (Cloudflare: **Open a new OAuth Application → New client**). Fill in the required fields. `[V]` steps, `[U]` the deep link.

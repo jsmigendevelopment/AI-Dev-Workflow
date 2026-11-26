@@ -53,6 +53,16 @@ Production keys need a domain you own and can add DNS records to. They don't wor
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page, pick what the row says, and stop on the screen that shows a value. `[V]` = checked against Clerk's docs on 2026-11-26. Production keys are section 2, after the person's go-ahead.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `VITE_CLERK_PUBLISHABLE_KEY` | https://dashboard.clerk.com/~/api-keys | The app, then the **Development** instance (the menu at the top). The publishable key (`pk_test_`) is in **Quick copy**: nothing to make, and it's public. `[V]` |
+| `CLERK_SECRET_KEY` | https://dashboard.clerk.com/~/api-keys | The **Development** instance. In **Quick copy**, click **Insert a new secret key**. No scopes to pick: a secret key reaches the whole instance. Shown once (`sk_test_`). `[V]` page, `[U]` button name. |
+| `CLERK_JWT_KEY` | https://dashboard.clerk.com/~/api-keys | Optional. The **Development** instance's **JWKS Public Key** (PEM). Nothing to make, and it's public. `[V]` |
+
 ## Clerk's CLI, and its agent prompt (reviewed copy)
 
 Clerk publishes a CLI and a setup prompt for agents. This is the part that fits this kit, checked against the sources above on 2026-11-23. `[V]` unless marked.

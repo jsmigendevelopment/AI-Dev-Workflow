@@ -35,6 +35,16 @@ STRIPE_ALLOW_LIVE        only "true", only in production, only set by the person
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page, pick what the row says, and stop on the screen that shows a value. `[V]` = checked against Stripe's docs on 2026-11-26. Always a sandbox (test mode), never live: live keys are the person's production step.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | https://dashboard.stripe.com/test/apikeys | **Create restricted key** (Stripe recommends one over a secret key). Name: `<app> test`. **Write** on **Customers**, **Checkout Sessions** and **Customer portal**; every other resource **None**. The key starts `rk_test_`. `[V]` steps, `[U]` the resource names, not tried on a real account. |
+| `STRIPE_WEBHOOK_SECRET` | https://dashboard.stripe.com/test/webhooks | For the test site. **Create an event destination**, **Your account**, payload **Snapshot**, the five `customer.subscription.*` events from the walkthrough, **Continue**, **Webhook endpoint**, the URL `https://<test host>/api/stripe/webhook`. On its page, **Reveal secret** shows the `whsec_` value. Local dev uses `stripe listen` instead (walkthrough step 6). `[V]` |
+| `STRIPE_PRICE_ID` | https://dashboard.stripe.com/test/products | **+ Add product**: a name and a **Recurring** price. The price id (`price_...`) is on the product's page. Not secret. `[V]` |
+
 ## Walkthrough, test mode · about 10 minutes
 
 1. Make an account and stay in test mode (or a sandbox). Open the API keys page: https://dashboard.stripe.com/test/apikeys. Reveal the **Secret key** (or make a **restricted key**) and paste it into `.env.local` and `.env.test.local` as `STRIPE_SECRET_KEY`. Never into chat. `[U]`

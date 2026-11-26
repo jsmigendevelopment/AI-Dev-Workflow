@@ -29,6 +29,14 @@ You need your **team domain**: `<team>.cloudflareaccess.com` (setup-cloudflare p
 }
 ```
 
+## Make each key
+
+For an agent driving the browser once the person has signed in (`secrets`, "Keys on Full"). Open the page, pick what the row says, and stop on the screen that shows a value. `[V]` = checked against Meta's and Cloudflare's docs on 2026-11-26.
+
+| Variable | Open | Pick |
+|---|---|---|
+| `ACCESS_FACEBOOK_CLIENT_ID`, `ACCESS_FACEBOOK_CLIENT_SECRET` | https://developers.facebook.com/apps/creation/ | **App name** and **App contact email**. Use case: **Authenticate and request data from users with Facebook Login**. **Create app**. Then walkthrough steps 4 and 5: **Use Strict Mode for redirect URIs** on, and the callback URL. The **App ID** and **App Secret** are on **App settings** → **Basic**. No scopes to pick: Access asks for the email at sign-in. `[V]` |
+
 ## Walkthrough · about 10 minutes
 
 1. Open https://developers.facebook.com/apps/creation/ (make a developer account if asked). Enter the **App name** and **App contact email**, **Next**. `[V]` steps, `[U]` the deep link.
