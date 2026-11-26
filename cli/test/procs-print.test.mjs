@@ -65,3 +65,9 @@ test("#231: WHEN an id or command holds a blank other than the plain space THEN 
   assert.equal(await startLine("pold1", "pnpm dev"), 'pold1 · "pnpm\\u00a0dev"');
   assert.equal(await startLine("pold1", "pnpm dev --port 5173"), "pold1 · pnpm dev --port 5173", "the plain space prints bare");
 });
+
+test("#231: WHEN an id or command starts with a combining mark THEN it prints escaped, so it can't draw on the opening quote", async () => {
+  assert.equal(await endId("́x"), '"\\u0301x"');
+  assert.equal(await startLine("pold1", "̸ls"), 'pold1 · "\\u0338ls"', "in a command at session start too");
+  assert.equal(await endId("x́"), '"x́"', "a mark on a plain letter still prints raw");
+});

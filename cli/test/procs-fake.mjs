@@ -20,8 +20,8 @@ export const repoFile = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, 
 // ACL reader, { owned, writers } or null; by default every path is this user's and no other account can write it.
 // fsType(path): the file system a folder is on, as /proc/self/mountinfo names it (#231); ext4 by default.
 // lstat(path): what the walk to a registry's folder sees (#231); the real lstat by default, so a test can give a
-// folder or a link another owner without root's chown.
-export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "", hidden = false, privateGroup = false, acl = false, winAcl = () => ({ owned: true, writers: [] }), fsType = () => "ext4", lstat = lstatSync } = {}) {
+// folder or a link another owner without root's chown. home: the home folder, a new temp folder by default.
+export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s-1", CLAUDE_PID: String(AGENT) }, procs = {}, git = () => null, stdin = "", hidden = false, privateGroup = false, acl = false, winAcl = () => ({ owned: true, writers: [] }), fsType = () => "ext4", lstat = lstatSync, home = tmp("procs-home-") } = {}) {
   let clock = NOW, next = 7000;
   const live = new Map();
   const put1 = (pid, p) => live.set(pid, { parent: 1, group: pid, start: `start-${pid}`, args: "node x", cpu: "0.0% CPU", mem: 2048, onTerm: "exit", ...p });
@@ -30,7 +30,7 @@ export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s
   const calls = [];
   const end = (pid, sig) => { if (sig === "SIGKILL" || live.get(pid)?.onTerm === "exit") live.delete(pid); };
   return {
-    platform, env, home: tmp("procs-home-"), cwd: tmp("procs-cwd-"), parentPid: 900, selfPid: 999, uid: process.getuid?.() ?? null, gid: process.getgid?.() ?? null, calls, live,
+    platform, env, home, cwd: tmp("procs-cwd-"), parentPid: 900, selfPid: 999, uid: process.getuid?.() ?? null, gid: process.getgid?.() ?? null, calls, live,
     privateGroup: () => privateGroup,
     acl: () => acl,
     winAcl: (path) => winAcl(path),
@@ -132,6 +132,13 @@ export function homeWith(more = {}) {
   writeFileSync(join(sys.home, ".onrails", "procs-index.json"), JSON.stringify({ registries: [file] }), { mode: 0o600 });
   sys.git = (dir, args) => (!dir.startsWith(repo) ? null : args.includes("--git-common-dir") ? join(repo, ".git") : args[0] === "ls-files" ? "" : null);
   return sys;
+}
+
+/** homeWith, with the home folder inside a folder of its own: sys.home's parent, which only this user can write. */
+export function homeUnder(more = {}) {
+  const home = join(tmp("procs-above-"), "home");
+  mkdirSync(home, { mode: 0o700 });
+  return homeWith({ ...more, home });
 }
 
 /** An lstat for fakeSys: the real one, except that path shows uid as its owner. */

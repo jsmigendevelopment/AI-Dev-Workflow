@@ -20,7 +20,7 @@ const NAMED = 5;
 // U+2800. One TOKEN is a JSON escape or one code point, so a cut never splits either.
 const UNSAFE = /^(?! )[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}\p{Zs}⠀\p{Default_Ignorable_Code_Point}]$/u;
 // Combining marks stack on one letter: past MARKS in a row, each is escaped, so a long run can't hide or smear text.
-// One right after an escape is escaped too: it would draw on the escape's last letter.
+// One right after an escape, or after the opening quote, is escaped too: it would draw on that letter.
 const MARK = /^\p{M}$/u;
 const MARKS = 3;
 const TOKEN = /\\u[0-9a-f]{4}|\\.|./gsu;
@@ -28,15 +28,16 @@ const TOKEN = /\\u[0-9a-f]{4}|\\.|./gsu;
 const escape = (t) => t.replace(/[\s\S]/g, (u) => `\\u${u.charCodeAt(0).toString(16).padStart(4, "0")}`);
 
 // A record's id or command made safe to print on one line (#233, #231): JSON-quoted, each UNSAFE character, each
-// mark past MARKS in a row and each mark right after an escape escaped as \uXXXX, and cut to max characters, the last
-// one an ellipsis. With bare, text that needs no escape and no cut prints as it is.
+// mark past MARKS in a row and each mark right after an escape or the opening quote escaped as \uXXXX, and cut to
+// max characters, the last one an ellipsis. With bare, text that needs no escape and no cut prints as it is.
 function printable(id, { bare = false, max = ID_CHARS, none = "no id" } = {}) {
   let marks = 0, last = "";
-  const tokens = (JSON.stringify(id) ?? none).match(TOKEN).map((t) => {
+  const tokens = (JSON.stringify(id) ?? none).match(TOKEN).map((t, i) => {
     const mark = MARK.test(t);
     marks = mark ? marks + 1 : 0;
-    last = UNSAFE.test(t) || marks > MARKS || (mark && last.startsWith("\\")) ? escape(t) : t;
-    return last;
+    const out = UNSAFE.test(t) || marks > MARKS || (mark && last.startsWith("\\")) ? escape(t) : t;
+    last = i === 0 && t === '"' ? "\\" : out; // the opening quote counts as an escape
+    return out;
   });
   const text = tokens.join("");
   if (bare && text === `"${id}"` && text.length <= max) return id;

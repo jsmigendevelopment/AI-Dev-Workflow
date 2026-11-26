@@ -153,7 +153,7 @@ function gitProblem(sys, path) {
   const why = home ? null : rootProblem(sys, root);
   if (why) return why;
   const tracked = git(sys, root, ["ls-files", "--", basename(dir)]);
-  if (tracked === null) return `git ls-files failed in ${root}, so it can't tell whether a branch wrote ${dir}`;
+  if (tracked === null) return `git ls-files failed in ${root}, so it can't tell whether a branch wrote its .onrails folder`;
   return tracked ? `git tracks files in ${dir}, so a branch could have written them` : null;
 }
 
@@ -201,7 +201,7 @@ const candidates = (sys, dir) => [...new Set([registryPath(sys, dir), homeRegist
 export const registries = (sys, dir) => candidates(sys, dir).filter((p) => !untrusted(sys, p));
 
 /** A skip whose text says what to do: a chmod, where the repo goes, or that the home registry stays off (#231). */
-export const FIX = /run chmod|keep the repo|use a repo|move the repo|real path|write access away|stay off/;
+export const FIX = /run chmod|keep the repo|use a repo|move the repo|real path|stay off/;
 
 /** Why each registry, or the index, skipped for something this user can fix was skipped: a list names them, so none hides in silence. */
 export const fixable = (sys, dir) => [...new Set([...candidates(sys, dir).map((p) => untrusted(sys, p)), readIndex(sys).why])]

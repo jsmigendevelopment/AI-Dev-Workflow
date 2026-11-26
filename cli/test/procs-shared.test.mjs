@@ -4,11 +4,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, chownSync, lchownSync, symlinkSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmp } from "./helpers.mjs";
 import { processChecks } from "../src/project-checks.mjs";
 import { mountType, realSys } from "../src/procs-sys.mjs";
-import { STALE, fakeSys, hit, homeWith, ownedBy, repoAt, repoFile, run, runAll, seed, signals, startDev, stopped } from "./procs-fake.mjs";
+import { STALE, fakeSys, hit, homeUnder, homeWith, ownedBy, repoAt, repoFile, run, runAll, seed, signals, startDev, stopped } from "./procs-fake.mjs";
 
 const posix = { skip: process.platform === "win32" ? "Windows has no POSIX owner or mode" : false };
 const STOPS = [["stop", "stale"], ["stop", "all", "--yes"], ["stop", "p0bad", "--yes"], ["ps", "--stop", "all", "--yes"], ["session-end"]];
@@ -141,6 +141,37 @@ test("AC-231-2: WHEN the home folder can be written by another account THEN the 
   assert.equal(r.code, 1);
   assert.ok(r.out.includes(`the group can write the home folder ${sys.home}, and it isn't this user's alone: run chmod g-w ${sys.home}`), r.out);
   assert.ok(!sys.calls.some((c) => c.startsWith("spawn")));
+});
+
+test("AC-231-2: WHEN a folder above the home folder belongs to another account, or another account can write it THEN the home registry and the index are never read for a signal", posix, async () => {
+  const cases = [
+    // [the folder above's mode, the user is its group's one member, its ACL, read]
+    [0o755, false, false, true],
+    [0o757, false, false, false], // others can write it
+    [0o775, false, false, false],
+    [0o775, null, false, false],
+    [0o2775, false, false, false],
+    [0o775, true, false, true], // this user's own group, no one else in it, no ACL
+    [0o775, true, true, false],
+    [0o775, true, null, false],
+    [0o1777, false, false, true], // sticky: nobody else can rename or remove what is in it
+  ];
+  for (const [mode, sole, acl, read] of cases) {
+    for (const argv of EVERY) {
+      const sys = homeUnder({ privateGroup: sole, acl });
+      chmodSync(dirname(sys.home), mode);
+      await runAll(sys, argv);
+      assert.deepEqual(hit(sys), { home: read, index: read }, `above ~ ${mode.toString(8)}, sole member ${sole}, ACL ${acl}, ${argv.join(" ")}`);
+    }
+  }
+  for (const [owner, read] of [[4242, false], [process.getuid(), true], [0, true]]) {
+    for (const argv of EVERY) {
+      const sys = homeUnder();
+      sys.lstat = ownedBy(dirname(sys.home), owner);
+      await runAll(sys, argv);
+      assert.deepEqual(hit(sys), { home: read, index: read }, `above ~ owned by uid ${owner}, ${argv.join(" ")}`);
+    }
+  }
 });
 
 test("AC-231-2: WHEN a Windows home folder can be written by another account, or its ACL can't be read THEN the home registry and the index are never read for a signal", async () => {
