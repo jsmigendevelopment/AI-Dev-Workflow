@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **The local merge gate drops what it can't check, and only that (#158).** A claim or a weakening-review pass from a login whose access has no answer is dropped instead of stopping the run: `own-branch.mjs` exits 2 only when no checked writer claims the branch, and the guard fails only on an unchecked fail. gh's status is read from its trailing `(HTTP nnn)`, so a 403 that quotes "HTTP 404" exits 2. A second identical exit 2 on one pull request sends one FYI. Decision 158-1 words pause like `AGENTS.md` rule 15.
 - **short-on-memory catches every stop that hits more than one record (#176).** Its two stopped-processes checks now also see `procs.mjs ps --stop mine`, `ps --stop all` and `npx onrails ps --stop all --yes`, with a test for each form.
 
 - **test-by-hand-zero's checks close four holes (#147).** A load with `--length=2m` no longer counts as trying 2m, a Generate press after `cd scripts` is caught, "Nothing wrong… 0 min" no longer counts as calling 0 min wrong, and a prediction in words ("about 30 seconds, 1, 2, 3 and 5 minutes") passes. A "Predicted" column counts, the run's summary lists the opt-in scenarios it left out, the skill fails only a 0 the prediction didn't expect, and README's standing-rule count matches `AGENTS.md`, with a test. Decision 147-1.
