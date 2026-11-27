@@ -69,7 +69,7 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
 - The files live in `kickoff/` until the project has a repo, and in `docs/` after that. Start each from the templates in the `idea` skill's `templates/` folder.
 - After every round, append the questions, your recommendations and the answers to `grill-log.md`, in the person's own words where it matters.
 - Write each decision to `decisions.md` the moment it's made.
-- Label every answer's source in `grill-log.md`, and every decision's originator in `decisions.md`, with one of these: **person**, **default** (the person didn't know), **AI** (your idea, taken by the person), **AI pick, approved at review** or **changed at review** (auto grill), or **AI pick, not reviewed** (auto grill on Full automation). An auto grill draft says **AI pick** until the review.
+- Label every answer's source in `grill-log.md`, and every decision's originator in `decisions.md`, with one of these: **person**, **person (pitch)** (on Full, a seed answer the pitch gave), **default** (the person didn't know), **AI** (your idea, taken by the person), **AI pick, approved at review** or **changed at review** (auto grill), or **AI pick, not reviewed** (auto grill on Full automation). An auto grill draft says **AI pick** until the review.
 - Keep the coverage map at the top of `grill-log.md` current. A new session resumes from it.
 
 ## When you hit an unknown

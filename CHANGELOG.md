@@ -23,6 +23,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
+- **auto-grill-door's checks close four gaps (#189).** "a floating add button" is no longer money; a money Pick must open with the whole stored unit ("Integer cents", "Cents stored as an integer"), so "Whole dollars, rounded to cents" fails; "anything else?" and "rest look ok?" are blanket questions, while "the items table" in a door's own question passes. The `grill-log.md` label list and `grill`'s "Keep the record" name "person (pitch)" and "AI pick, not reviewed".
 - **push-secrets hides the value in a failing tool's error (#161).** A `gh` or `wrangler` error that echoes what it was given prints `<hidden>` in the FAILED line, the rule `connect` uses.
 - **The CLI tests pass with `TMPDIR` unset (#282).** `preflight-read-gate.test.mjs` put an unset `TMPDIR` back as the string "undefined", so the two #169 tests after it failed to make a temp folder. It now deletes it, and a new test fails any test file that puts a saved env value back without the unset case. Decision 282-1.
 - **The temp-folder and safe-PATH tests pass on newer Node and with `FORCE_COLOR` set (#277).** Every test that reads a nested `node --test` run's output now asks for the TAP report and drops `FORCE_COLOR` and `NO_COLOR` from the child's env, so a Node that prints the spec report when piped no longer fails AC-142-2 or AC-180-3 when every sample passed. Decision 277-1.

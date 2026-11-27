@@ -138,6 +138,30 @@ export const REVIEWS_108 = {
   },
 };
 
+// #189: each fix from the review of #188, as one change to GOOD_E.
+const question = (q) => edit("Question: Confirm this pick, or which one?", `Question: ${q}`);
+const pick = (p) => edit("Pick: Whole numbers of pennies, stored with the currency", `Pick: ${p}`);
+
+export const REVIEWS_189 = {
+  "1: a floating add button under 'Look and feel'": {
+    review: edit("Layout A (#list-a) or B (#list-b).", "Layout A (#list-a) or B (#list-b), with a floating add button."),
+    fails: [],
+  },
+  "2: whole dollars, rounded to cents": { review: pick("Whole dollars, rounded to cents"), fails: ["AC-6-money-pick-fixed"] },
+  "2: a JS number shown in whole cents": {
+    review: pick("Dollars as a JS number, shown in whole cents"),
+    fails: ["AC-6-money-pick-fixed"],
+  },
+  "2: cents as a decimal, rounded to the whole": {
+    review: pick("Cents as a decimal, rounded to the whole"),
+    fails: ["AC-6-money-pick-fixed"],
+  },
+  "2: cents stored as an integer": { review: pick("Cents stored as an integer, with the currency"), fails: [] },
+  "3: anything else?": { review: question("Confirm, anything else?"), fails: ["AC-6-money-own-question"] },
+  "3: rest look ok?": { review: question("Confirm this, rest look ok?"), fails: ["AC-6-money-own-question"] },
+  "3: the door's own table": { review: question("Store whole pennies in the items table, or which one?"), fails: [] },
+};
+
 /** The plan for one review: write it, then show it. */
 export const reviewPlan = (review) => ({ steps: [write(review), { text: review }] });
 
