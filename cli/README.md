@@ -117,7 +117,7 @@ onRails ships its maker's own preferences. They are a starting point, not the on
 | `[web]` | The framework, UI kit, database, sign-in, hosting, and tools never to suggest |
 | `[defaults]` | The package manager, risk dial, automation level, grill mode, repo visibility and licence |
 | `[design]` | The look and feel, light or dark, roomy or dense, and how your app's text sounds |
-| `[routing]` | Your model for each tier, and whether to ask before the strongest one |
+| `[routing]` | Your model for each tier and each role, and whether to ask before the strongest one |
 
 On every level below Full, the grill shows each pick for you to confirm. On Full, nothing waits: each pick is recorded as an "AI pick, not reviewed" and listed in an FYI. What you say in the session beats the profile. Only two stack packs are ready: TanStack Start, and TanStack Start with an Expo mobile app. For another stack, the agent sets up the same parts by hand. The risk dial and the automation level change who merges, but the review steps stay.
 
@@ -325,6 +325,18 @@ The `tanstack-start` pack has 7 optional **add-ons**. The tech grill offers them
 
 The strongest model at high effort takes more time and usage. The cheapest model can miss things. onRails picks a **model tier** and an **effort level** for each job.
 
+Three roles do most of the work:
+
+| Role | Default | Does |
+|---|---|---|
+| **CTO** | Fable 5.2 · high | Research, architecture, the pyramid, writing the issues |
+| **Coordinator** | Opus 5.5 · medium | Runs the loop, gates, reviews, security reviews and merges |
+| **Builder** | Sonnet 5.5 · medium | Builds most issues. Risky changes and big slices start on Opus. Codex (ChatGPT) is an option outside security work. |
+
+A role's effort is the base. A job's own rule can raise it: a code review never runs below the builder, and a security review runs one step above code review.
+
+**Your profile wins.** Set `cto`, `coordinator` or `builder` in `[routing]`. A person who says "no Fable" sets `cto = "Claude Opus 5.5"` and gets the CTO on Opus.
+
 | Job | Tier · effort | Example model |
 |---|---|---|
 | The live thread: the one you talk to all day | Everyday · low | Claude Opus 5.5 |
@@ -332,8 +344,8 @@ The strongest model at high effort takes more time and usage. The cheapest model
 | Grill and planning chat | Everyday · medium | Claude Opus 5.5 |
 | Wireframes, stage 1: grey-box layout | Everyday · medium | Claude Opus 5.5 |
 | **CTO work:** research, the pyramid, schema, API design, wireframes stage 2 (the detailed design) | **Strongest · high** | Claude Fable 5.2 |
-| Writing issues from the plan | Everyday · medium | Claude Opus 5.5 |
-| Building an issue | Everyday · low at complexity 1–4, medium at 5–7 or from pass 2 | Claude Opus 5.5 |
+| Writing issues from the plan (CTO work) | **Strongest · high** | Claude Fable 5.2 |
+| Building an issue | Fast · medium; Everyday · medium for risky changes or complexity 5–7 | Claude Sonnet 5.5, or Claude Opus 5.5 |
 | Code review | Everyday · never below the builder | Claude Opus 5.5 |
 | Security review (risky changes only) | Everyday · one step above review | Claude Opus 5.5, plus a second vendor's model when it touches personal data or money |
 | Browser checks | Everyday · low | Claude Opus 5.5 |
@@ -342,10 +354,10 @@ The strongest model at high effort takes more time and usage. The cheapest model
 <sub>The example models were checked in 2026-11. Pick your own models for each tier.</sub>
 
 - **It asks before it uses the strongest tier.** You can turn the question off in your profile.
-- **Start low.** Go up one step only after a failed check or a rejected review.
+- **Start on the default.** Go up one step only after a failed check or a rejected review, two steps at most: Sonnet to Opus, then more effort. Infrastructure errors don't count against the model.
 - **A reviewer never runs below the builder's effort.**
 
-**Accounts.** More than one Claude or Codex account, like a work one and a personal one? `/idea` and `/join` ask once, walk you through signing each in with its own config folder (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`), and write `[accounts]` in your profile. **It's a fixed split by job or project that you set, never by usage.** onRails never spreads, balances or moves work between accounts to get past a limit. At a limit, that account's work waits for its reset, and the session tells you the reset time. Why: providers' terms can treat moving work as account rotation, and it puts your accounts at risk. A job for another account gets a ready-to-paste prompt for that account's session. Unattended work starts in a cloud session first (`[sessions] prefer = "cloud"`). `npx onrails accounts` lists them.
+**Accounts.** More than one Claude or Codex account, like a work one and a personal one? `/idea` and `/join` ask once, walk you through signing each in with its own config folder (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`), and write `[accounts]` in your profile. **It's a fixed split by job or project that you set, never by usage.** onRails never spreads, balances or moves work between Claude accounts to get past a limit. Each app has a home account. At a limit, that app's work waits for its reset, and the session tells you the reset time. If you use Codex, work it can do outside security can go to ChatGPT instead. Why: providers' terms can treat moving work as account rotation, and it puts your accounts at risk. A job for another account gets a ready-to-paste prompt for that account's session. Unattended work starts in a cloud session first (`[sessions] prefer = "cloud"`). `npx onrails accounts` lists them.
 
 → [Job-by-job table](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-model-routing) · [The `routing` skill](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/routing/SKILL.md)
 

@@ -3,6 +3,9 @@
 .claude/skills/** linguist-generated
 plugin/** linguist-generated
 cli/README.md linguist-generated
+# Insights records, written only by insights.mjs and mark-check.mjs (#332). A records pull request's review is
+# `insights.mjs land --verify`, which also caps each file's size (decision 332-2).
+docs/insights/** linguist-generated
 # People edit these two by hand (versions.mjs bumps them), and no script writes them, so they count.
 plugin/.claude-plugin/plugin.json -linguist-generated
 plugin/.codex-plugin/plugin.json -linguist-generated

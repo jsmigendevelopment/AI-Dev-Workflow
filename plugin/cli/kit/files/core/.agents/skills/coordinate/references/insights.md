@@ -12,8 +12,8 @@ Exit 2 names the bad field and writes nothing. Exit 1 is any other failed write.
 ## Where each lands
 
 - **A builder** writes its own records on its branch and commits them with the work.
-- **A reviewer** commits nothing: it runs `line` and puts the printed `<!-- onrails-insights {...} -->` at the end of its verdict comment. #332 harvests it.
-- **The coordinator** writes the rest in its own checkout of main.
+- **A reviewer** commits nothing: it runs `line` and puts the printed `<!-- onrails-insights {...} -->` at the end of its verdict comment.
+- **The coordinator** writes the rest in its own checkout of main. After each merge, `insights.mjs harvest --pr <n> --repo <owner>/<repo>` saves the reviewers' lines there: only from its own login or one under `[insights] writers = ["<login>"]` in `docs/profile.toml` (the list may span lines). At the end of each sweep, `insights.mjs land` opens one records-only pull request, or adds to the one already open, and `land --verify <pr>` is its review (`coordinate` step 10, decisions 332-1 and 332-2). A record file is the writer's exact bytes, at most 16 KB.
 
 ## The file name
 
@@ -25,7 +25,7 @@ Exit 2 names the bad field and writes nothing. Exit 1 is any other failed write.
 
 Optional `source=board`: a record from `board.mjs` (#346) needs only the envelope.
 
-Text is capped at 200 characters. A list is comma-separated or a JSON list.
+Text is capped at 200 characters. A list is comma-separated or a JSON list, and holds text items (check's `commands` holds objects).
 
 ## The kinds
 
