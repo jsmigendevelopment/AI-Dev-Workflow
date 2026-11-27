@@ -240,7 +240,7 @@ The rules are in [`AGENTS.md`](AGENTS.md). In the `tanstack-start` pack, tools e
 | Design tokens only. No one-off colours or sizes. | ESLint |
 | No unused files, exports or dependencies. No copy-pasted code over 3%. | knip, jscpd |
 | No migration that drops or renames a column, or stores money in a float. | A migration lint |
-| Every pull request closes an issue and stays under about 400 changed lines. | A pull request check |
+| Every pull request closes an issue and stays under 1,000 changed lines, not counting lockfiles, generated files and test fixtures. Over that, it needs the `size-exception` label and a `Size exception: <reason>` line. | A pull request check |
 | Pages don't change by accident. | Screenshot tests, every route, both themes |
 
 → [Code style](guide/code-style.md) · [App conventions](guide/app-conventions.md) · [Testing](guide/testing.md)

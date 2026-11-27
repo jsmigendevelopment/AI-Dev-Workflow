@@ -89,7 +89,7 @@ No comments that narrate the code (`// loop over the users`). Write comments for
 
 ### 13. Small pull requests
 
-Aim for under about 400 changed lines, not counting lockfiles and generated files. Split a bigger one, or label it `large-pr` with the reason in the description.
+Stay under 1,000 changed lines, not counting lockfiles, generated files and test fixtures. Over that, split it, or give it the `size-exception` label and a `Size exception: <reason>` line in the description.
 
 **Why:** reviewers, human or AI, catch less as a diff grows. A small pull request gets a real review.
 
