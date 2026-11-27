@@ -91,6 +91,8 @@ export interface World {
   tokenDeleteFails?: boolean
   /** `wrangler secret put SITE_PASSWORD` fails, with an error that echoes what it was sent. */
   passwordPutFails?: boolean
+  /** randomSecret() gives a new value on each call (counted here), so a rerun's password differs. */
+  secretsMade?: number
   /** Cloudflare One on the account; null: Zero Trust not set up. */
   access: {
     workers: { id: string; name: string }[]
@@ -228,7 +230,11 @@ export function fakes(
       delete files[p]
     },
     log: (line) => lines.push(line),
-    randomSecret: () => 'Zx81_random-SECRET-value-0123456',
+    randomSecret: () => {
+      if (world.secretsMade === undefined) return 'Zx81_random-SECRET-value-0123456'
+      world.secretsMade += 1
+      return `Zx81_random-SECRET-value-${world.secretsMade}`
+    },
     secret: (name) => env[name],
     env,
   }

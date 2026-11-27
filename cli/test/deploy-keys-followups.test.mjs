@@ -50,10 +50,12 @@ const FIXTURES = [
   { name: "root actions, no app file", root: "actions", app: null, want: "actions" },
   { name: "root local, no app file", root: "local", app: null, want: "local" },
   { name: "no file anywhere", root: null, app: null, want: "local" },
+  { name: "app only, actions", root: null, app: "actions", want: "actions" },
+  { name: "root local, app actions with a trailing comment", root: "local", app: "actions", appComment: "  # comment", want: "actions" },
 ];
 
 /** A git repo with the fakes and providers at its root, and an app/ folder with the .env files. */
-function makeRepo({ root, app }) {
+function makeRepo({ root, app, appComment = "" }) {
   const dir = tmp("onrails-ci-nested-");
   fakeBin(dir);
   execFileSync("git", ["init", "-q", dir], { env: safeEnv() });
@@ -61,15 +63,15 @@ function makeRepo({ root, app }) {
   const providers = join(dir, ".agents", "skills", "secrets", "providers");
   mkdirSync(providers, { recursive: true });
   writeFileSync(join(providers, "demo.md"), DEMO);
-  const stack = (folder, ci) => {
+  const stack = (folder, ci, comment = "") => {
     if (!ci) return;
     mkdirSync(join(folder, "docs"), { recursive: true });
-    writeFileSync(join(folder, "docs", "stack.md"), `## CI\n\nci = "${ci}"\n`);
+    writeFileSync(join(folder, "docs", "stack.md"), `## CI\n\nci = "${ci}"${comment}\n`);
   };
   stack(dir, root);
   if (app === undefined) return (envFiles(dir), dir);
   mkdirSync(join(dir, "app"));
-  stack(join(dir, "app"), app);
+  stack(join(dir, "app"), app, appComment);
   envFiles(join(dir, "app"));
   return dir;
 }
