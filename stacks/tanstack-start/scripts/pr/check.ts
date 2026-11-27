@@ -25,8 +25,16 @@ const repo = gh(['repos/{owner}/{repo}', '--jq', '.full_name']).trim()
 const problems = issueLinkProblems(pull)
 for (const problem of problems) console.error(problem)
 // It prints the size, the biggest files and, over the limit, why it fails.
-const size = spawnSync(process.execPath, [SIZE_SCRIPT, pr, '--repo', repo], { stdio: 'inherit' })
+const size = spawnSync(process.execPath, [SIZE_SCRIPT, pr, '--repo', repo], {
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'inherit'],
+})
+process.stdout.write(size.stdout ?? '')
 // Stopped by a signal, it has no status: that's an error, never a pass.
 if (size.status !== 0) process.exit(size.status ?? 2)
 if (problems.length) process.exit(1)
-console.log(`#${pr}: tied to an issue, and small enough to review.`)
+// Over the limit, it passes only on an exception, and prints that line.
+const excepted = /^Size exception: /m.test(size.stdout)
+console.log(
+  `#${pr}: tied to an issue, and ${excepted ? 'passes on its size exception' : 'small enough to review'}.`,
+)

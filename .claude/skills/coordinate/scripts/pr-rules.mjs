@@ -91,7 +91,7 @@ export function main(argv) {
   try {
     lines = measure(files, generated(changedPaths(files))).total;
   } catch (error) {
-    console.error(`Couldn't read main's .gitattributes, so the size can't be counted: ${error.message}`);
+    console.error(`The size can't be counted (main's .gitattributes or a line count): ${error.message}`);
     return 2;
   }
   const tooBig = sizeProblem(lines, { labels, body: pull.body ?? "" });

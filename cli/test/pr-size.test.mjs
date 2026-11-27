@@ -13,18 +13,10 @@ const read = (path) => readFileSync(fileURLToPath(new URL(`../../${path}`, impor
 const KIT_ATTRIBUTES = read(".gitattributes");
 const PACK_ATTRIBUTES = read("stacks/tanstack-start/.gitattributes");
 const listed = (files) => files.map(([filename, additions, deletions]) => ({ filename, additions, deletions }));
+const headOf = (dir) => git(dir, "rev-parse", "HEAD").trim();
 
-/** pr-size.mjs on pull request 9 of acme/app, with `labels`, `body` and the files changed ([name, additions, deletions]). */
-function size({ files, labels = [], body = "Closes #5", attributes = "", args = ["9", "--repo", "acme/app"] } = {}) {
-  const dir = checkout(attributes);
-  const pull = { number: 9, body, labels: labels.map((name) => ({ name })), changed_files: files.length };
-  const fake = fakeGh(tmp("onrails-gh-"), { "repos/acme/app/pulls/9": pull, "repos/acme/app/pulls/9/files": listed(files) });
-  return spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), ...args], { cwd: dir, encoding: "utf8", env: fake.env });
-}
-
-/** pr-size.mjs --base main in a repo whose branch commits `files` ({ path: text }) on top of main. */
-function local(files, attributes = "") {
-  const dir = checkout(attributes);
+/** Commits `files` ({ path: text }) in `dir` on a new branch, as a pull request's head. */
+function commitBranch(dir, files) {
   git(dir, "branch", "-M", "main");
   git(dir, "switch", "-q", "-c", "feat/5-share");
   for (const [path, text] of Object.entries(files)) {
@@ -33,6 +25,23 @@ function local(files, attributes = "") {
   }
   git(dir, "add", "-A");
   git(dir, "commit", "-q", "-m", "branch");
+}
+
+/** pr-size.mjs on pull request 9 of acme/app, with `labels`, `body` and the files changed ([name, additions, deletions],
+ * or GitHub's own entries as `entries`). Its base is main's commit; `branch` commits files on top, so the checkout
+ * is on the head; `base` names another base sha. */
+function size({ files = [], entries = listed(files), labels = [], body = "Closes #5", attributes = "", branch, base, args = ["9", "--repo", "acme/app"] } = {}) {
+  const dir = checkout(attributes);
+  const pull = { number: 9, body, labels: labels.map((name) => ({ name })), changed_files: entries.length, base: { ref: "main", sha: base ?? headOf(dir) } };
+  if (branch) commitBranch(dir, branch);
+  const fake = fakeGh(tmp("onrails-gh-"), { "repos/acme/app/pulls/9": pull, "repos/acme/app/pulls/9/files": entries });
+  return spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), ...args], { cwd: dir, encoding: "utf8", env: fake.env });
+}
+
+/** pr-size.mjs --base main in a repo whose branch commits `files` ({ path: text }) on top of main. */
+function local(files, attributes = "") {
+  const dir = checkout(attributes);
+  commitBranch(dir, files);
   return spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), "--base", "main"], { cwd: dir, encoding: "utf8", env: safeEnv() });
 }
 const lines = (n) => Array.from({ length: n }, (_, i) => `line ${i}`).join("\n") + "\n";
@@ -74,14 +83,14 @@ test("AC-377-3: WHEN the extra lines are only in generated files, lockfiles or f
     ["plugin/skills/build/SKILL.md", 600, 0], [".claude/skills/build/SKILL.md", 600, 0], ["cli/README.md", 700, 0],
     ["stacks/tanstack-start/src/routeTree.gen.ts", 1500, 0], ["stacks/tanstack-start/migrations/meta/0001_snapshot.json", 2000, 0],
     ["stacks/tanstack-start/e2e/visual.spec.ts-snapshots/home.png", 0, 0], ["stacks/tanstack-start/worker-configuration.d.ts", 4000, 0],
-    ["cli/test/fixtures/big.json", 3000, 0], ["src/__snapshots__/a.test.ts.snap", 1200, 0], ["e2e/__fixtures__/page.html", 1100, 0],
+    ["cli/test/fixtures/big.json", 3000, 0], ["test/__snapshots__/a.test.ts.snap", 1200, 0], ["e2e/__fixtures__/page.html", 1100, 0],
   ];
   const tree = checkout(KIT_ATTRIBUTES);
   mkdirSync(join(tree, "stacks", "tanstack-start"), { recursive: true });
   writeFileSync(join(tree, "stacks", "tanstack-start", ".gitattributes"), PACK_ATTRIBUTES);
   git(tree, "add", "-A");
   git(tree, "commit", "-q", "-m", "the pack's list");
-  const pull = { number: 9, body: "Closes #5", labels: [], changed_files: files.length };
+  const pull = { number: 9, body: "Closes #5", labels: [], changed_files: files.length, base: { ref: "main", sha: headOf(tree) } };
   const fake = fakeGh(tmp("onrails-gh-"), { "repos/acme/app/pulls/9": pull, "repos/acme/app/pulls/9/files": listed(files) });
   const r = spawnSync(process.execPath, [join(tree, SCRIPTS, "pr-size.mjs"), "9", "--repo", "acme/app"], { cwd: tree, encoding: "utf8", env: fake.env });
   assert.equal(r.status, 0, r.stderr);
@@ -108,7 +117,7 @@ test("#377: there is one size rule: the gate, the web pack's pr:rules and the ki
 test("#377: a rename is skipped only when both its names are, and a usage or API error is exit 2", unixOnly, () => {
   const dir = checkout();
   const fake = fakeGh(tmp("onrails-gh-"), {
-    "repos/acme/app/pulls/9": { number: 9, body: "", labels: [], changed_files: 1 },
+    "repos/acme/app/pulls/9": { number: 9, body: "", labels: [], changed_files: 1, base: { ref: "main", sha: headOf(dir) } },
     "repos/acme/app/pulls/9/files": [{ filename: "test/fixtures/core.ts", previous_filename: "src/core.ts", status: "renamed", additions: 700, deletions: 650 }],
   });
   const run = (...args) => spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), ...args], { cwd: dir, encoding: "utf8", env: fake.env });
@@ -122,10 +131,94 @@ test("#377: a rename is skipped only when both its names are, and a usage or API
   assert.equal(missing.status, 2);
   assert.match(missing.stderr, /Couldn't count the size/);
   const cut = fakeGh(tmp("onrails-gh-"), {
-    "repos/acme/app/pulls/9": { number: 9, body: "", labels: [], changed_files: 3500 },
+    "repos/acme/app/pulls/9": { number: 9, body: "", labels: [], changed_files: 3500, base: { ref: "main", sha: headOf(dir) } },
     "repos/acme/app/pulls/9/files": listed([["src/a.ts", 1, 0]]),
   });
   const short = spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), "9", "--repo", "acme/app"], { cwd: dir, encoding: "utf8", env: cut.env });
   assert.equal(short.status, 2, "a list GitHub cut short is never a pass");
   assert.match(short.stderr, /GitHub listed 1 of the 3500 files #9 changes/);
+});
+
+test("#377 round 1, must 1: the .gitattributes that mark generated files come from the base, never from the branch", unixOnly, () => {
+  const marked = { "src/a.ts": lines(1500), ".gitattributes": "src/** linguist-generated\n" };
+  const branchMarks = local(marked);
+  assert.equal(branchMarks.status, 1, branchMarks.stdout);
+  assert.match(branchMarks.stdout, /HEAD against main: 1501 changed lines counted, 0 not counted/);
+  const nested = local({ "src/a.ts": lines(1500), "src/.gitattributes": "*.ts linguist-generated\n" });
+  assert.equal(nested.status, 1, nested.stdout);
+  // A pull request read from a checkout that is on its head, not its base.
+  const pr = size({ files: [["src/a.ts", 1500, 0]], branch: { ".gitattributes": "src/** linguist-generated\n" } });
+  assert.equal(pr.status, 1, pr.stdout);
+  assert.match(pr.stdout, /#9: 1500 changed lines counted, 0 not counted/);
+  const missing = size({ files: [["src/a.ts", 10, 0]], base: "f".repeat(40) });
+  assert.equal(missing.status, 2, "a base this checkout doesn't have is never a pass");
+  assert.match(missing.stderr, /The base f{40} isn't in this checkout: git fetch origin main/);
+  assert.equal(size({ files: [["src/a.ts", 10, 0]], base: "main" }).status, 2, "a base that isn't a full sha");
+});
+
+test("#377 round 1, must 2: the branch's own diff or binary attributes don't hide its lines", unixOnly, () => {
+  for (const attributes of [{ ".gitattributes": "src/** -diff\n" }, { "src/.gitattributes": "*.ts binary\n" }, { ".gitattributes": "*.ts diff=none\n" }]) {
+    const r = local({ "src/a.ts": lines(1500), ...attributes });
+    assert.equal(r.status, 1, `${JSON.stringify(attributes)}: ${r.stdout}`);
+    assert.match(r.stdout, /HEAD against main: 1501 changed lines counted/);
+  }
+  // A real binary file, with a NUL byte, still counts 0, as GitHub counts it.
+  const png = local({ "e2e/home.png": `\0PNG${lines(1500)}`, "src/a.ts": lines(10) });
+  assert.equal(png.status, 0, png.stdout);
+  assert.match(png.stdout, /HEAD against main: 10 changed lines counted, 0 not counted/);
+});
+
+test("#377 round 1, must 3: only data files under a test folder's fixtures count as fixtures, never source code", unixOnly, () => {
+  const code = size({ files: [["src/fixtures/handler.ts", 1500, 0], ["src/routes/Fixtures/page.tsx", 900, 0], ["src/testdata/core.ts", 800, 0], ["src/a.ts", 10, 0]] });
+  assert.equal(code.status, 1, code.stdout);
+  assert.match(code.stdout, /#9: 3210 changed lines counted, 0 not counted/);
+  const testCode = size({ files: [["test/fixtures/core.ts", 1500, 0], ["cli/test/fixtures/run.mjs", 200, 0]] });
+  assert.equal(testCode.status, 1, testCode.stdout);
+  assert.match(testCode.stdout, /#9: 1700 changed lines counted/);
+  const data = size({ files: [["test/fixtures/core.json", 1500, 0], ["e2e/__fixtures__/page.html", 900, 0], ["src/a.ts", 10, 0]] });
+  assert.equal(data.status, 0, data.stderr);
+  assert.match(data.stdout, /#9: 10 changed lines counted, 2400 not counted/);
+  // A deleted source file and a new fixture don't pair as a rename: the deletion counts, and so does new code.
+  const moved = local({ "test/fixtures/core.ts": lines(1500) });
+  assert.equal(moved.status, 1, moved.stdout);
+});
+
+test("#377 round 1, must 4: a Size exception line counts only where the description shows it", unixOnly, () => {
+  const files = [["src/a.ts", 1200, 0]];
+  const labels = ["size-exception"];
+  for (const [why, body] of [
+    ["an HTML comment", "Closes #5\n\n<!--\nSize exception: hidden\n-->"],
+    ["an unclosed HTML comment", "Closes #5\n\n<!-- note\nSize exception: hidden"],
+    ["a fenced block", "Closes #5\n\n```\nSize exception: hidden\n```"],
+    ["a tilde fence", "Closes #5\n\n~~~md\nSize exception: hidden\n~~~"],
+    ["an indented code block", "Closes #5\n\n    Size exception: hidden"],
+    ["a tab-indented code block", "Closes #5\n\n\tSize exception: hidden"],
+  ]) {
+    const r = size({ files, labels, body });
+    assert.equal(r.status, 1, `${why}: ${r.stdout}`);
+    assert.doesNotMatch(r.stdout, /hidden/, why);
+  }
+  const shown = size({ files, labels, body: "```\ncode\n```\n<!-- template note -->\nSize exception: generated API types\n\nCloses #5" });
+  assert.equal(shown.status, 0, shown.stderr);
+  assert.match(shown.stdout, /Size exception: generated API types/);
+});
+
+test("#377 round 1, nice items: counts must be whole numbers, a reason needs a letter, and more lockfiles don't count", unixOnly, () => {
+  for (const [why, entry] of [
+    ["a string", { filename: "src/a.ts", additions: "1500", deletions: 0 }],
+    ["a negative count", { filename: "src/a.ts", additions: 1500, deletions: -1000 }],
+    ["no count", { filename: "src/a.ts", additions: 1500 }],
+    ["a fraction", { filename: "src/a.ts", additions: 1.5, deletions: 0 }],
+  ]) {
+    const r = size({ entries: [entry] });
+    assert.equal(r.status, 2, why);
+    assert.match(r.stderr, /src\/a\.ts has a line count that isn't a whole number of 0 or more/, why);
+  }
+  assert.equal(size({ files: [["src/a.ts", 1200, 0]], labels: ["size-exception"], body: "Size exception: ." }).status, 1, "no letter");
+  assert.equal(size({ files: [["src/a.ts", 1200, 0]], labels: ["size-exception"], body: "Size exception: 2FA codes" }).status, 0, "a letter");
+  const locks = ["ios/Podfile.lock", "pubspec.lock", "flake.lock", "mix.lock", "src/App/packages.lock.json", "android/app/gradle.lockfile"];
+  const r = size({ files: [...locks.map((name) => [name, 900, 0]), ["src/a.ts", 10, 0]] });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /#9: 10 changed lines counted, 5400 not counted/);
+  assert.match(read("stacks/tanstack-start/scripts/pr/check.ts"), /passes on its size exception/);
 });
