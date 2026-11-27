@@ -204,17 +204,23 @@ function posixTable(out) {
     .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), pgid: Number(m[3]), args: m[4] }));
 }
 
-// Every process, "<pid>|<parent>|<start>|<bytes>|<cpu s>|<command line>". Single quotes only: the script goes through
-// Windows' command-line quoting as one argument.
+// Every process, "<pid>|<parent>|<start>|<bytes>|<cpu s>|<command line>", one per line. Any program picks its own
+// command line, so its CR and LF become spaces: it can never start a line of its own (#248). Single quotes only: the
+// script goes through Windows' command-line quoting as one argument.
 const WIN_PROCS = "Get-CimInstance Win32_Process | ForEach-Object { '{0}|{1}|{2}|{3}|{4}|{5}' -f $_.ProcessId, $_.ParentProcessId, "
   + "$(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().ToString('o') }), $_.WorkingSetSize, "
-  + "[math]::Round(($_.KernelModeTime + $_.UserModeTime) / 1e7), $(if ($_.CommandLine) { $_.CommandLine } else { $_.Name }) }";
+  + "[math]::Round(($_.KernelModeTime + $_.UserModeTime) / 1e7), ($(if ($_.CommandLine) { $_.CommandLine } else { $_.Name }) -replace '[\\r\\n]', ' ') }";
 
-/** The Windows process list from WIN_PROCS's output: [{ pid, ppid, start, cpu, mem, args }], or null when it failed. */
+/**
+ * The Windows process list from WIN_PROCS's output: [{ pid, ppid, start, cpu, mem, args }], or null when it failed.
+ * A PID on two lines can't be told: one of them may be text from a command line, so the whole list is null and the
+ * caller refuses (#248). The command line is the rest of the line, whatever it holds, so no character drops a process.
+ */
 export function windowsProcs(text) {
   if (text === null) return null;
-  return text.split(/\r?\n/).map((l) => /^(\d+)\|(\d+)\|([^|]*)\|(\d*)\|(\d*)\|(.*)$/.exec(l.trim())).filter(Boolean)
+  const rows = text.split(/\r?\n/).map((l) => /^(\d+)\|(\d+)\|([^|]*)\|(\d*)\|(\d*)\|(.*)$/s.exec(l.trim())).filter(Boolean)
     .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), start: m[3], cpu: `${m[5]} s CPU`, mem: Math.round(Number(m[4]) / 1024), args: m[6] }));
+  return new Set(rows.map((r) => r.pid)).size === rows.length ? rows : null;
 }
 
 function windowsInfo(rows, pids) {

@@ -188,10 +188,10 @@ function readIndex(sys, kept = false) {
 }
 // Not JSON: the same as no index.
 const listOf = (text) => { try { const l = JSON.parse(text ?? "{}").registries; return Array.isArray(l) ? l.filter((p) => typeof p === "string") : []; } catch { return []; } };
-// The index's list, read unchecked only to know which ACLs to ask for at once (#248). Never trusted, so only a registry
-// path on a local drive: nothing another account wrote makes Windows look up a UNC or device path before the check.
-const peek = (sys) => listOf(readChecked(sys, indexPath(sys), false, false).text).filter(localRegistry);
-const localRegistry = (p) => isAbsolute(p) && resolve(p) === p && p.endsWith(`${sep}.onrails${sep}procs.json`) && (sep === "/" ? !p.startsWith("//") : /^[A-Za-z]:\\[^\\]/.test(p));
+// The index's list, read unchecked only to know which ACLs to ask for at once (#248). Never trusted, so only a registry path on
+// a local drive: nothing another account wrote makes Windows look up a UNC or device path first. Tests pass path.win32.
+const peek = (sys) => listOf(readChecked(sys, indexPath(sys), false, false).text).filter((p) => localRegistry(p));
+export const localRegistry = (p, { isAbsolute: abs, resolve: res, sep: s } = { isAbsolute, resolve, sep }) => abs(p) && res(p) === p && p.endsWith(`${s}.onrails${s}procs.json`) && (s === "/" ? !p.startsWith("//") : /^[A-Za-z]:\\[^\\]/.test(p));
 
 function candidates(sys, dir) {
   const here = [registryPath(sys, dir), homeRegistry(sys)];

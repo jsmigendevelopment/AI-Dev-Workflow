@@ -4,8 +4,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { realSys } from "../src/procs-sys.mjs";
+import { dirname, join, win32 } from "node:path";
+import { realSys, windowsProcs } from "../src/procs-sys.mjs";
+import { localRegistry } from "../src/procs-store.mjs";
 import { run, stamp } from "./procs-fake.mjs";
 import { tmp } from "./helpers.mjs";
 
@@ -31,9 +32,9 @@ function registryAt(root, rec) {
  * A fake Windows machine with three repos, each under a folder of its own, all in the index. acl(path) gives the
  * rule lines after the owner (null: Get-Acl fails); owner(path) the owner. cut(text) can cut the output short.
  * rec(pid) is each repo's one record, procs() more live processes or other start times, as { pid: start }, read
- * again on every PowerShell start, and more(repos, files) more paths for the index.
+ * again on every PowerShell start, more(repos, files) more paths for the index, and list(text) changes the process list.
  */
-function windows({ acl = () => [], owner = () => ME, cut = (t) => t, rec = record, procs = () => ({}), more = () => [] } = {}) {
+function windows({ acl = () => [], owner = () => ME, cut = (t) => t, rec = record, procs = () => ({}), more = () => [], list = (t) => t } = {}) {
   const home = tmp("procs-home-"), repos = [4000, 4001, 4002].map(() => join(tmp("procs-above-"), "repo"));
   mkdirSync(join(home, ".onrails"), { mode: 0o700 });
   const files = repos.map((root, i) => registryAt(root, rec(4000 + i)));
@@ -51,7 +52,7 @@ function windows({ acl = () => [], owner = () => ME, cut = (t) => t, rec = recor
     starts.push({ script, args, paths });
     if (script.includes("Win32_Process")) {
       const live = { [AGENT]: START, 4000: START, 4001: START, 4002: START, ...procs() };
-      return { status: 0, stdout: Object.entries(live).map(([pid, start]) => `${pid}|1|${start}|2097152|1|${Number(pid) === AGENT ? "claude.exe" : "node dev"}`).join("\r\n") };
+      return { status: 0, stdout: list(Object.entries(live).map(([pid, start]) => `${pid}|1|${start}|2097152|1|${Number(pid) === AGENT ? "claude.exe" : "node dev"}`).join("\r\n")) };
     }
     const block = (p, i) => {
       const rules = acl(p);
@@ -165,4 +166,32 @@ test("#248 round 1: WHEN the ACL paths would overflow one Windows environment va
   assert.ok(starts.every((n) => n + "ONRAILS_ACL_PATH=".length < 32767), `sizes ${starts}`);
   assert.ok(paths.every((p) => got.get(p)?.owned === true), "every path is answered");
   assert.equal(got.get(`C:\\${"y".repeat(40000)}`), null, "a path longer than a chunk can't be told");
+});
+
+test("#248 round 2: WHEN a command line in the win32 process list holds a line break and a line for a recorded PID THEN that PID's start time can't be told, and stop runs no taskkill", async () => {
+  // PID 4000 went to a newer process; 4100's command line carries a line that would give 4000 the record's start time.
+  const LATER = "2026-11-26T09:30:00.0000000Z";
+  const list = (t) => `${t.replace(`4000|1|${START}|`, `4000|1|${LATER}|`)}\r\n4100|1|${START}|2097152|1|node x\r\n4000|1|${START}|2097152|1|node dev`;
+  const w = windows({ list });
+  assert.equal(w.sys.info([4000]), null, "a PID on two lines can't be told");
+  const r = await run(w.sys, ["stop", "p4000"], { ask: async () => "y" });
+  assert.deepEqual(w.killed, [], r.out);
+  const script = w.starts.find((s) => s.script.includes("Win32_Process")).script;
+  assert.ok(script.includes("-replace '[\\r\\n]', ' '"), "PowerShell turns CR and LF in a command line into spaces");
+});
+
+test("#248 round 2: WHEN a win32 command line holds another line-ending character THEN the process is still listed, with that command line", () => {
+  const rows = windowsProcs(`4000|1|${START}|2048|3|node a\u2028b\u2029c\u0085d`);
+  assert.deepEqual(rows, [{ pid: 4000, ppid: 1, start: START, cpu: "3 s CPU", mem: 2, args: "node a\u2028b\u2029c\u0085d" }]);
+});
+
+test("#248 round 2: WHEN the index lists a path THEN only a plain registry path on a local drive is peeked, on Windows and POSIX", () => {
+  const ok = ["C:\\a\\.onrails\\procs.json", "d:\\Users\\me\\repo\\.onrails\\procs.json"];
+  const bad = ["\\\\srv\\share\\.onrails\\procs.json", "//srv/share/.onrails/procs.json", "\\\\?\\C:\\a\\.onrails\\procs.json",
+    "\\\\.\\C:\\a\\.onrails\\procs.json", "\\a\\.onrails\\procs.json", "C:a\\.onrails\\procs.json", "C:\\a\\..\\b\\.onrails\\procs.json",
+    "C:/a/.onrails/procs.json", "C:\\a\\\\.onrails\\procs.json", "C:\\\\a\\.onrails\\procs.json", "C:\\a\\.onrails\\other.json"];
+  for (const p of ok) assert.equal(localRegistry(p, win32), true, p);
+  for (const p of bad) assert.equal(localRegistry(p, win32), false, p);
+  assert.equal(localRegistry("/home/me/repo/.onrails/procs.json"), process.platform !== "win32");
+  for (const p of ["//srv/repo/.onrails/procs.json", "/home/me/../me/.onrails/procs.json", "home/.onrails/procs.json"]) assert.equal(localRegistry(p), false, p);
 });
