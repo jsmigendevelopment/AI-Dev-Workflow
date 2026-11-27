@@ -39,3 +39,6 @@ finding,claim,disposition,reason
 "Fresh session: c34's $2.19 is per 30 days in the cheapest regions, Ashburn and Secaucus; the same Machine costs more elsewhere (s18).",c34,accepted,The cost rows are about the smallest always-on app; a dearer region still fits in Fly's $5.
 "Fresh session: c50 says GiB-seconds from s32; s33's Free Tier list says GB-seconds for the same 360,000.",c50,accepted,The pricing page (s32) uses GiB; a 7 percent unit difference changes no pick.
 "Fresh session: this second fact-check ran on the author's model, claude-opus-5-5.",,accepted,"The owner allows Opus only, so no other model was available. It ran in a fresh context that never saw the author's thread, and re-opened every source behind the picks itself."
+"Review (#384): c52 says idle instances aren't charged; s37 says that holds only on request-based billing, and instance-based billing bills idle time even with min instances 0.",c52,fixed,"c124 states it. The host table, the recommendation and decision 340-1 now name request-based billing."
+"Review (#384): c121 says azp is checked once AuthorizedPartyMatches is passed, but its handler accepts a token whose azp is empty.",c121,fixed,"c126 states it. Question 4 now says so, for the Go pack's sign-in issue."
+"Review (#384): the Cloud Run regions cell had no claim ID.",,fixed,c125 counts them from s117: 43 regions.

@@ -21,6 +21,7 @@ When does an app outgrow Cloudflare Workers, and when it does, where should its 
 |---|---|
 | `read` | Read in the vendor's own docs, pricing page, package page or the Go module proxy (`read-in-source`). |
 | `vendor` | The vendor says so about its own product, and nobody independent tested it (`vendor-claim`). |
+| `anecdote` | One person's account of their own use, such as an engineer's blog post (`anecdote`). |
 | `[inferred]` | My own reasoning or arithmetic from the claims next to it. Not a finding, and not in `claims.csv`. |
 
 Every claim in this dossier is one of these. No claim rests only on a search snippet: where a search found a page, the page itself was read.
@@ -34,7 +35,7 @@ Every claim in this dossier is one of these. No claim rests only on a search sni
 | 3. The database from Go | **Postgres on Neon**, through **pgx**, with **goose** migrations and **sqlc** queries. Not D1 over HTTP. | **High** against D1 over HTTP, **medium** for the rest |
 | 4. Sign-in | **Clerk's Go SDK** middleware. golang-jwt v5 with keyfunc v3 is the no-SDK fallback. | **Medium** |
 
-**The main reasons:** Cloud Run and Fly.io both cost $0 for a small app once a card is on file [c50, c52, c104, c33, c34 · read]. Both can preview each change from the CLI alone [c55, c115 · read]. Cloud Run wins because its preview is a tagged revision of the same service, at no extra cost, where a Fly preview is a whole extra app that counts against the Free plan's 3 Machines [c113 · read]; and because Fly bills the whole month once usage passes $5 [c113 · read], where Google bills only the overage [c116 · read]. Neon pairs with it: free, scales to zero, and a branch per preview from the CLI [c69, c71 · read], though it runs only on AWS [c119 · read]. Cloudflare's own docs call D1's HTTP API best for admin use, under a limit of 1,200 requests per five minutes per user or token [c64, c122 · read].
+**The main reasons:** Cloud Run and Fly.io both cost $0 for a small app once a card is on file, Cloud Run on request-based billing [c50, c52, c124, c104, c33, c34 · read]. Both can preview each change from the CLI alone [c55, c115 · read]. Cloud Run wins because its preview is a tagged revision of the same service, at no extra cost, where a Fly preview is a whole extra app that counts against the Free plan's 3 Machines [c113 · read]; and because Fly bills the whole month once usage passes $5 [c113 · read], where Google bills only the overage [c116 · read]. Neon pairs with it: free, scales to zero, and a branch per preview from the CLI [c69, c71 · read], though it runs only on AWS [c119 · read]. Cloudflare's own docs call D1's HTTP API best for admin use, under a limit of 1,200 requests per five minutes per user or token [c64, c122 · read].
 
 ## 1. When does an app outgrow Workers?
 
@@ -103,10 +104,10 @@ Prices as listed on 2026-11-27. "Small load" here means one small instance servi
 | | Cloudflare Containers | Fly.io | Railway | Google Cloud Run | Small VPS |
 |---|---|---|---|---|---|
 | **Free tier** | None: needs Workers Paid, $5 a month [c22 · read] | $1 once, no card, expires in 7 days; $5 of usage a month with a card [c33 · read]. Up to 3 Machines; over $5, the whole month is billed [c113 · read] | $1 of usage a month, no card; $5 once on Trial [c42 · read] | 180,000 vCPU-s, 360,000 GiB-s, 2 million requests a month [c50 · read]; $300 trial for 90 days needs a card [c53 · read]; after 90 days, only a Paid billing account keeps it running [c116 · read] | None found |
-| **Cost at idle** | $5 a month; container stops after its Durable Object goes idle [c22, c27 · read] | Stopped Machine: $0.15 per GB of root filesystem a month [c35 · read] | Sleeps after 5 to 10 minutes idle [c47 · read] | $0: idle instances that aren't minimum instances aren't charged [c52 · read] | Always on: EUR 5.49 to 6.49 a month at Hetzner, $4 at DigitalOcean [c59, c61 · read]. Both Hetzner plans read were marked unavailable [c58, c105 · read] |
+| **Cost at idle** | $5 a month; container stops after its Durable Object goes idle [c22, c27 · read] | Stopped Machine: $0.15 per GB of root filesystem a month [c35 · read] | Sleeps after 5 to 10 minutes idle [c47 · read] | $0 on request-based billing with min instances 0 [c52, c124 · read]; instance-based billing bills idle time even then [c124 · read] | Always on: EUR 5.49 to 6.49 a month at Hetzner, $4 at DigitalOcean [c59, c61 · read]. Both Hetzner plans read were marked unavailable [c58, c105 · read] |
 | **Small load** | About $6.75 a month for a lite instance always on, nearly $5 if it sleeps [inferred from c22, c24, c100] | $2.19 a month for 256 MB always on [c34 · read], inside the $5 monthly usage with a card [inferred from c33] | Hobby $5 a month includes $5 of usage [c43 · read]; 256 MB always on is about $2.50 of RAM [inferred from c44] | $0 inside the free tier [inferred from c50, c51] | Same as idle |
 | **Cold start** | "often in the 1-3 second range", depending on image size and code start-up [c102 · vendor] | "about 2 seconds or more"; a few hundred ms from suspend [c37 · vendor] | "a small amount of time", no number [c47 · read] | No number found; minimum instances avoid it [c52 · read] | None: always on |
-| **Regions** | Region:Earth, no choice described [c32 · read] | 17 [c39 · read] | 4 [c48 · read] | Many, listed by price tier (not counted) | Hetzner: Germany, Finland, Singapore, USA [c60 · read] |
+| **Regions** | Region:Earth, no choice described [c32 · read] | 17 [c39 · read] | 4 [c48 · read] | 43, at two price tiers [c125 · read] | Hetzner: Germany, Finland, Singapore, USA [c60 · read] |
 | **Logs from a CLI** | Billed on Observability pricing from 2026-12-01 [c31 · read] | `fly logs`; 7 days of search [c40 · read] | `railway logs` [c46 · read] | `gcloud run services logs read` [c57 · read] | Whatever the person sets up |
 | **Preview per pull request** | `wrangler preview` per branch, with its own containers [c30 · read] | Fly's guide uses a GitHub Actions workflow [c38 · read], but the Action only runs `flyctl launch`, `deploy` and `apps destroy`, so the same commands work from the CLI [c115 · read]. Each preview is a whole extra app [c113 · read] | PR environments open with each GitHub pull request; the page doesn't say how Railway is connected [c45 · read]. `railway environment new` from the CLI [c46 · read] | `--no-traffic --tag` gives each revision its own URL from the CLI [c55 · read] | None built in |
 | **Deploy from the session, no workflow** | `wrangler deploy`; Docker needed when the image is a Dockerfile [c28 · read] | `fly launch` writes a Dockerfile, then `flyctl deploy` [c41 · read], which builds on Fly's remote builder by default, so no local Docker [c114 · read] | `railway up`; Railpack builds Go from `go.mod` [c46, c49 · read] | `gcloud run deploy --source .`, no Dockerfile needed [c54 · read] | Kamal over SSH; Docker installed on the server [c62 · read] |
@@ -119,14 +120,14 @@ Prices as listed on 2026-11-27. "Small load" here means one small instance servi
 **Pick: Google Cloud Run.** **Confidence: medium.**
 
 Why [each step cites its claims]:
-- It costs $0 at idle and at small load: a monthly free tier of usage [c50 · read] and no charge for idle instances [c52 · read]. Fly also reaches $0, but through a $5 monthly credit that an always-on instance draws down [c33, c34 · read; inferred], and a month that goes over $5 is billed in full [c113 · read]. Google bills only the usage above its Free Tier [c116 · read]. The person pays nothing until the app has real traffic.
+- It costs $0 at idle and at small load: a monthly free tier of usage [c50 · read] and no charge for idle instances on request-based billing with min instances 0 [c52, c124 · read]. Instance-based billing bills idle time even with min instances 0 [c124 · read], so the Go pack must deploy with request-based billing [inferred from c124]. Fly also reaches $0, but through a $5 monthly credit that an always-on instance draws down [c33, c34 · read; inferred], and a month that goes over $5 is billed in full [c113 · read]. Google bills only the usage above its Free Tier [c116 · read]. The person pays nothing until the app has real traffic.
 - A preview per change is a tagged revision of the same service: deploy with `--no-traffic --tag pr-12` and test the tagged URL [c55 · read]. It costs nothing extra while idle [c52 · read]. Fly can also preview from the CLI [c115 · read], but each preview is a whole extra app, and its Free plan allows 3 Machines in all, 2 per app by default [c113 · read]. Both fit the kit's no-Actions rule.
 - It builds a Go app from source with no Dockerfile in the repo [c54 · read]. Fly writes a Dockerfile, though it too builds remotely with no local Docker [c41, c114 · read], so this lead is small.
 - A request can run for up to 60 minutes [c56 · read].
 
 **What holds it at medium:**
 - Google needs a payment method for its free trial [c53 · read], and a billing account to use the Free Tier at all [c104 · read]. After 90 days the trial account closes and stops its resources unless the person upgrades it to a Paid billing account [c116 · read]. A card on file is a step the person must take (their own login), even at $0.
-- Google Cloud's setup (a project, billing, APIs to turn on) is heavier for a beginner than Fly's or Railway's. Not measured here.
+- I think Google Cloud's setup (a project, billing, APIs to turn on) is heavier for a beginner than Fly's or Railway's [inferred from c104, c116]. Not measured here.
 - Each source deploy stores an image in Artifact Registry, whose Free Tier is 0.5 GB [c117 · read]. With a preview per pull request, old images need deleting to stay at $0 [inferred].
 - Preview revisions inherit the service's settings. Environment variables belong to a revision, and later revisions keep them unless changed [c118 · read]. So a preview that points at its own Neon branch would leave that branch's URL in place for the next deploy. The Go pack must set every variable on every deploy [inferred from c118].
 - No cold start figure was found for Cloud Run.
@@ -188,6 +189,8 @@ Why [each step cites its claims]:
 
 **Pick: Clerk's Go SDK middleware.** **Confidence: medium.** It does the checks Clerk's own guide asks for [c90 · read] without the app writing them, once the app uses `RequireHeaderAuthorization` and passes its origins to `AuthorizedPartyMatches` (the plain `WithHeaderAuthorization` lets a request with no token through, and `azp` is off by default [c121 · read]), and its one-hour key cache means verification makes no network call per request [c93 · read]. It costs one more secret on the server [c109 · read], which a backend that reads Clerk user data needs anyway [inferred]. golang-jwt plus keyfunc is the fallback if the SDK's API churns, or if the Go service should hold no Clerk secret.
 
+**For the Go pack's sign-in issue:** `AuthorizedPartyMatches` accepts a token whose `azp` is empty, and checks only a non-empty `azp` against the list [c126 · read]. A token with no `azp` passes that check, so the issue should decide whether the app also requires `azp` to be set [inferred from c126].
+
 **What would change the answer:** a Clerk SDK major version that breaks the middleware; Clerk changing where its keys live.
 
 ## Hypotheses, checked
@@ -208,7 +211,7 @@ From `go-api-platform/hypotheses.md`, written before the first search.
 ## Gaps
 
 - **No measurements.** No cold start, wake-up or query time was measured: no accounts, by the rules. Cold start and wake-up numbers are the vendors' own [c102, c37, c123].
-- **Cloud Run:** no cold start figure; regions not counted. Per-revision environment variables are now read [c118], but a preview flow was not tried.
+- **Cloud Run:** no cold start figure. Regions are now counted [c125]. Per-revision environment variables are now read [c118], but a preview flow was not tried.
 - **Railway:** whether PR environments need its GitHub app, and on which plans, is not on its environments page [c45].
 - **Fly:** the CLI review-app path was read from the Action's script [c115], not tried.
 - **Neon from Cloud Run:** the latency between a Google Cloud region and the nearest Neon AWS region was not measured [c119].
@@ -222,7 +225,7 @@ From `go-api-platform/hypotheses.md`, written before the first search.
 
 The research skill asks for a fresh session. The coordinator told this builder it could not start one, so the author's own session ran it as a separate pass after the dossier was written, under `go-api-platform/briefs/fact-check.md`: it re-fetched every source named in `claims.csv` and checked each claim word for word. That is weaker than a fresh session on another model, and the pull request says so. The findings and what was done with each are in `go-api-platform/fact-check.csv`.
 
-**What it found:** 22 findings: 11 fixed, 1 disputed, 10 accepted. No pick changed, but Cloud Run's case is narrower: Fly.io also costs $0 for a small app once a card is on file, so the lead rests on CLI-only previews and builds with no Dockerfile. The fixes: the six-connection limit counts only calls waiting for a reply [c101]; Durable Object storage is 1 GB on Free [c103]; Cloud Run's Free Tier needs a billing account, which closes a gap [c104]; both Hetzner plans were out of stock [c105]; Atlas's pricing page disagrees with itself on linting [c106]; sqlc's SQLite support is beta [c107]; Clerk's key sources were reworded [c108]; and Clerk's Go SDK needs the secret key [c109], now a stated trade-off. Railway's PR environments and the container cold start were reworded to match their pages. The one dispute: a second read of Fly's Go guide said it never mentions a Dockerfile; the page's own intro does. Corrected claims are new rows in `claims.csv` (c101 to c109); the old rows stay.
+**What it found:** 22 findings: 11 fixed, 1 disputed, 10 accepted. No pick changed, but Cloud Run's case is narrower: Fly.io also costs $0 for a small app once a card is on file. *Superseded:* this pass said the lead rested on CLI-only previews and builds with no Dockerfile; the fresh-session check below found Fly does both [c114, c115], so the lead now rests on free previews in one service and overage-only billing. The fixes: the six-connection limit counts only calls waiting for a reply [c101]; Durable Object storage is 1 GB on Free [c103]; Cloud Run's Free Tier needs a billing account, which closes a gap [c104]; both Hetzner plans were out of stock [c105]; Atlas's pricing page disagrees with itself on linting [c106]; sqlc's SQLite support is beta [c107]; Clerk's key sources were reworded [c108]; and Clerk's Go SDK needs the secret key [c109], now a stated trade-off. Railway's PR environments and the container cold start were reworded to match their pages. The one dispute: a second read of Fly's Go guide said it never mentions a Dockerfile; the page's own intro does. Corrected claims are new rows in `claims.csv` (c101 to c109); the old rows stay.
 
 ### The fresh-session fact-check
 
@@ -235,6 +238,8 @@ Issue #340's AC-340-3 asks for a fact-check in a fresh session. A second fact-ch
 - **Question 4's pick held.** The Go SDK's `azp` check and its 403 are only there when the app asks for them [c121].
 - Confidence did not change for any question.
 
+**After review (pull request #384):** request-based billing for Cloud Run's $0 at idle [c124], the region count [c125] and the empty-`azp` case [c126] were read and added, as new claims c124 to c126 and sources s117 and s118. Their rows in `fact-check.csv` start with "Review". No pick or confidence changed.
+
 ## Provenance
 
-The model, effort, harness and dates for every role are in `go-api-platform/provenance.json`. Each role's brief is in `go-api-platform/briefs/`, verbatim. The first session's helper briefs were never sent: the second author did the reading itself.
+The model, effort, harness and dates for every role are in `go-api-platform/provenance.json`. Each role's brief is in `go-api-platform/briefs/`, verbatim, except that local scratchpad paths now read `<scratchpad>` and a session ID was removed. The first session's helper briefs were never sent: the second author did the reading itself.

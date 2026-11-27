@@ -2,7 +2,7 @@
 
 Committed before the first search, 2026-11-27. Two parts, verbatim: the coordinator's brief to this build session, then the goal of issue #340.
 
-## The coordinator's brief (session_01QHnB3KjQfR34yczJypyfi1, 2026-11-27)
+## The coordinator's brief (2026-11-27)
 
 > Use the `research` and `build` skills. Do issue #340 on branch `feat/340-research-workers-to-go`: the research dossier and its decision file, in the folders the issue's Modules line names, as a pull request in this repo. Compare at least three options against evidence, cite dated sources, and record provenance and a re-check date, as the `research` skill says. Its fact-check step runs in a fresh sub-agent inside your session. The private research-library capture step needs a repo this session can't push to: skip it and say so in the PR (that's an FYI for the owner, not a wait). No paid services, no sign-ups, no real accounts. Read the issue and ALL its comments first.
 >

@@ -115,3 +115,5 @@ s113,"Cloud Run: Configure environment variables for services (Google Cloud docs
 s114,"Neon: Regions (Neon docs, no date read; fresh-session fact-check)",https://neon.com/docs/introduction/regions,2026-11-27,skimmed
 s115,"Sqlc: 2024 check in (brandur.org, an engineer's blog, 2024-06-16; fresh-session fact-check, found through s116)",https://brandur.org/fragments/sqlc-2024,2026-11-27,skimmed
 s116,"Search: sqlc limitations dynamic queries (found s115; results say the sqlc discussion on dynamic queries is still open)",web search,2026-11-27,skimmed
+s117,"Cloud Run locations (Google Cloud docs, last updated 2026-11-25; opened in the review fixes)",https://docs.cloud.google.com/run/docs/locations,2026-11-27,full
+s118,"Clerk Go SDK v2.10.0 http/middleware.go, the AuthorizedPartyMatches function (Go module proxy zip of the tagged release; opened in the review fixes)",https://proxy.golang.org/github.com/clerk/clerk-sdk-go/v2/@v/v2.10.0.zip,2026-11-27,skimmed
