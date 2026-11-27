@@ -1,6 +1,6 @@
 ---
 name: issues
-description: Use to turn a plan, the current pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - one issue per step, each with a try line, WHEN/THEN acceptance checks that carry IDs, tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, a complexity score, priority and the skills to load, then a read-only consistency check. Runs on the everyday model from the CTO's plan.
+description: Use to turn a plan, the current pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - one issue per step, each with a try line, WHEN/THEN acceptance checks that carry IDs, tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, a complexity score, a size under 1,000 changed lines, priority and the skills to load, then a read-only consistency check. Runs on the everyday model from the CTO's plan.
 ---
 
 # Issues: the contract between the plan and every agent after it
@@ -25,7 +25,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - **A number, an estimate, a price or a formula changes?** It gets an `auto` check with real expected values for several inputs, not only an `agent` check: `AC-9-2: WHEN the length is 2 minutes THEN the estimate says 2 min`.
    - For anything a signed-in user owns, add one check that **a signed-out visitor and a second user can't read or delete it.**
    - **Unsure what the person wants?** Write `[NEEDS CLARIFICATION: <question>]` where the gap is, and ask it through `ask`. A marker blocks `status:ready`. Answered? Replace the marker with the answer.
-6. **Complexity.** Write `Complexity: <1–10> · <one-line reason>`. Score the hardest part, not the line count. **Aim for 4 or under.** At 5 to 7, the reason says why it can't be cut thinner. **Above 7, split it** before it's ready.
+6. **Complexity and size.** Write `Complexity: <1–10> · <one-line reason>`. Score the hardest part, not the line count. **Aim for 4 or under.** At 5 to 7, the reason says why it can't be cut thinner. **Above 7, split it** before it's ready.
 
    | Score | Looks like |
    |---|---|
@@ -33,6 +33,8 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    | 3–4 | One screen, form or endpoint on an existing module, copying the nearest example. |
    | 5–7 | A new module end to end (table, service, API, screen), or rules with edge cases: permissions, money, time. |
    | 8–10 | Several modules, a new outside service, a data migration, or something the repo has never done. Split it. |
+
+   **Size.** Write `Size: <estimate> lines · <files or modules>`: the changed lines its pull request will have, not counting generated files, lockfiles and test fixtures. Review sends big pull requests back far more often, so aim for about 400. An estimate of 1,000 or more is split into child issues before it's ready, each with its own Size line, and the parent links them. Only a change that can't be split, like a mechanical rename, stays whole, with `Size: exception: <reason>`.
 7. **Risk flags and lane.** Tick every flag that applies, then set the lane:
    - **tiny:** copy, styling or config with no logic. Build, local gate, review, merge.
    - **normal:** anything else. Build, local gate, review, `qa` on the preview, merge.
@@ -44,7 +46,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - `slice:core`, `slice:support`;
    - `gate`, on an issue from a pass gate's audit, cleanup pick or feedback about what's built. The loop builds these while the gate runs;
    - `lane:tiny`, `lane:normal`, `lane:risky`;
-   - `status:ready` once nothing blocks it: no `[NEEDS CLARIFICATION]` left, complexity 7 or under;
+   - `status:ready` once nothing blocks it: no `[NEEDS CLARIFICATION]` left, complexity 7 or under, a size under 1,000 or an exception;
    - `status:in-progress` and `needs-human`, which `coordinate` sets later;
    - `blocker`, added next to `needs-human` when nothing can move until the person answers (see `ask`);
    - `human-approved`, below Full only, which only the person adds, to a pull request that changes the agents' rules. On Full the label doesn't exist: never ask for it (`automation`'s `references/full.md`);
