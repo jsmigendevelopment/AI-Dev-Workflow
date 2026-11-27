@@ -224,3 +224,13 @@ test("AC-2: WHEN setup-github runs on a fake win32 with a git.exe in the current
   assert.ok(gitStarts.some((s) => s.args.join(" ") === "remote get-url origin"), JSON.stringify(r.starts));
   for (const s of gitStarts) assert.deepEqual([s.file, s.noCurrentFolder], [join(outside, "git.exe"), "1"]);
 });
+
+test("#240: WHEN setup-github finds git only inside the repo THEN it starts no git and blames git, not gh", () => {
+  const { dir, path } = ghRepo();
+  put(dir, "git.exe", "the repo's own\n");
+  const r = onWindows(SETUP, dir, path, ["--plan", "free"]);
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.deepEqual(r.starts.filter((s) => /git(\.exe)?$/i.test(s.file)), []);
+  assert.match(r.stderr, /Couldn't run git: git found only in a relative PATH entry, not run/);
+  assert.doesNotMatch(r.stderr, /Couldn't run gh/);
+});
