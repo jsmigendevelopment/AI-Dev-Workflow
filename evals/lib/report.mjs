@@ -74,6 +74,8 @@ export function summary(run) {
     for (const w of s.warnings ?? []) lines.push("", `⚠️ ${w}`);
     if (s.manual?.length) lines.push("", "Check by hand (needs judgement, not automated):", ...s.manual.map((m) => `- ${m}`));
   }
+  // Opt-in scenarios left out of this run, so a reader of the summary knows they weren't checked (#147).
+  if (run.optedOut?.length) lines.push("", `Opt-in, not in this run: ${run.optedOut.join(", ")}. Name them with --scenario.`);
   lines.push("", `Exit: ${run.exitCode === 0 ? "pass" : "fail"}.`);
   return lines.join("\n") + "\n";
 }
