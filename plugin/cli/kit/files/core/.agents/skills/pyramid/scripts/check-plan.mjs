@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 // Checks that the current pass in docs/pyramid.md is cut into thin steps (the pyramid skill).
 // It reads the steps table and fails a plan that is empty, is cut by layer, has a step nobody
-// can try, has steps that are too big, or has too few steps for its slices. No dependencies.
+// can try, has steps that are too big or 1,000 changed lines or more, or has too few steps for its slices.
+// Its one import is the issues skill's size reader, so a step's Lines cell and its issue's Size line agree (#376).
 // Usage:  node check-plan.mjs [docs/pyramid.md]      errors fail (exit 1)
 //         node check-plan.mjs <file> --json          the numbers and the problems as JSON
 //         node check-plan.mjs <file> --per-slice 3   ask for more steps per slice (default 2)
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LIMIT, checkSizes, readSize } from "../../issues/scripts/check-issue-size.mjs";
 
-export const COLUMNS = ["#", "step", "slice", "try it", "size", "after"];
+export const COLUMNS = ["#", "step", "slice", "try it", "size", "after"]; // and "lines", checked on its own
 export const THIN = 4; // a step this size or under needs no reason
 export const HARD_CAP = 7; // above this the issues skill splits it anyway
 export const BIG_SHARE = 1 / 3; // at most this share of steps may be above THIN
@@ -74,7 +76,7 @@ export function readSteps(text) {
     const size = c.size.match(SIZE);
     return {
       line: r.line, id: c["#"], name: c.step, slice: c.slice, tryIt: c["try it"],
-      size: size ? Number(size[1]) : null, reason: size?.[2] ?? "",
+      size: size ? Number(size[1]) : null, reason: size?.[2] ?? "", lines: c.lines ?? null,
       after: c.after.split(/[,\s]+/).map((s) => s.replace(/^#/, "")).filter(Boolean),
     };
   });
@@ -137,6 +139,23 @@ function longestChain(steps) {
   return Math.max(0, ...steps.map((s) => walk(s)));
 }
 
+// The Lines cell is the issue's Size value (#375): "about 300 lines", or "exception: <reason>". The issues
+// skill's reader judges it, so a cell it can't read fails here as it would on the issue.
+function linesProblem(cell) {
+  const value = cell.replace(/<!--[\s\S]*?-->/g, "").trim();
+  if (!value) return `has no line estimate. In the Lines column, write the changed lines its pull request will have, not counting generated files, lockfiles and test fixtures: "about 300 lines"`;
+  const body = `Size: ${value}`;
+  const [gap] = checkSizes([{ number: 0, title: "step", body }]);
+  if (!gap) return null;
+  const size = readSize(body);
+  if (size.split && size.exception === null) return `"${value}" splits an issue. A step isn't an issue yet: cut it into two or more steps in this table`;
+  if (size.estimate >= LIMIT && !size.unreadable && size.second === undefined && size.exception === null) {
+    const hint = size.limit ? ". Write your estimate, not the limit" : "";
+    return `the line estimate is ${size.estimate.toLocaleString("en-US")} lines, ${LIMIT.toLocaleString("en-US")} or more. Cut it again before the issues are written. Only a change that can't be split, like a mechanical rename, writes "exception: <reason>"${hint}`;
+  }
+  return `the Lines cell fails the issue's Size check: ${gap.replace(/^#0 step: /, "")}`;
+}
+
 function checkStep(step, seen, position, problem, warn) {
   const where = `step ${step.id || "?"} (line ${step.line})`;
   if (!step.id) problem(where, "has no number in the # column");
@@ -152,6 +171,8 @@ function checkStep(step, seen, position, problem, warn) {
   if (step.size === null || step.size < 1 || step.size > 10) problem(where, "Size must be a number from 1 to 10");
   else if (step.size > HARD_CAP) problem(where, `size ${step.size} is above ${HARD_CAP}: split it`);
   else if (step.size > THIN && !step.reason) problem(where, `size ${step.size} is above ${THIN} with no reason. Cut it thinner, or write why it can't be cut: "${step.size} · <reason>"`);
+  const lines = step.lines === null ? null : linesProblem(step.lines);
+  if (lines) problem(where, lines);
   for (const id of step.after) {
     if (id === step.id) problem(where, "comes after itself");
     else if (!position.has(id)) problem(where, `comes after step ${id}, which isn't in the table`);
@@ -172,6 +193,7 @@ export function checkPlan(text, { perSlice = PER_SLICE } = {}) {
   const slices = readSlices(text);
   if (!slices.length) problem("plan", "no slices. List the slices in the Slices table, with a Slice and a Role column");
   if (!steps.length) problem("plan", "the current pass has no steps. Cut it into the smallest things a person can try");
+  if (steps.length && steps.every((s) => s.lines === null)) problem("plan", `the steps table has no Lines column. Add one after Size, and give each step the changed lines its pull request will have: "about 300 lines", under ${LIMIT.toLocaleString("en-US")}, or "exception: <reason>"`);
   const position = new Map(steps.map((s, n) => [s.id, n]));
   const seen = new Set();
   for (const step of steps) { checkStep(step, seen, position, problem, warn); seen.add(step.id); }

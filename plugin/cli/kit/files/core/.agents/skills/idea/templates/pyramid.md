@@ -34,12 +34,13 @@ Pass 3 done = **MVP complete on the test site.** Not launch. Launch is the perso
 <!-- Only the pass marked building. One row per step, in build order. One step is one issue and one pull request.
      Try it: what the person does on the test site, and what they see. No try line, no step.
      Size: the issue's complexity, 1 to 10. 4 or under is thin. A 5 to 7 says why it can't be cut: "5 · <reason>". At most one step in three.
+     Lines: the changed lines its pull request will have, not counting generated files, lockfiles and test fixtures: "about 300 lines". Under 1,000, or cut it again. Only a change that can't be split: "exception: <reason>". The issue's Size line copies it.
      After: the numbers of the steps that must merge first. Empty when none.
      Check it: node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md -->
 
-| # | Step | Slice | Try it | Size | After |
-|---|---|---|---|---|---|
-| 1 | The skeleton | slice 0 | Open http://localhost:3000, then the test URL: the starter page shows the app's name | 5 · sets up the app, the checks and the test deploy | |
+| # | Step | Slice | Try it | Size | Lines | After |
+|---|---|---|---|---|---|---|
+| 1 | The skeleton | slice 0 | Open http://localhost:3000, then the test URL: the starter page shows the app's name | 5 · sets up the app, the checks and the test deploy | exception: copies the stack pack's starter whole | |
 
 ## Done means
 
