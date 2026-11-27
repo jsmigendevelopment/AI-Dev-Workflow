@@ -5,6 +5,7 @@ Picked in the tech grill. Every choice says whether it was the recommended defau
 | Area | Choice | Alternatives considered | Default or chosen | Why |
 |---|---|---|---|---|
 | Platform(s) |  |  |  |  |
+| Backend | none / TypeScript on Workers / Go |  |  |  |
 | Framework |  |  |  |  |
 | UI kit and styling |  |  |  |  |
 | API style |  |  |  |  |
