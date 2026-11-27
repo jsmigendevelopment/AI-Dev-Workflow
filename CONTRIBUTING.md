@@ -44,8 +44,11 @@ From the repo root:
 ```bash
 node scripts/sync-skills.mjs --check
 node scripts/check-research.mjs research/
+node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main
 cd cli && npm run bundle && npm test
 ```
+
+`pr-size.mjs` fails at 1,000 changed lines or more, not counting lockfiles, generated files and test fixtures. Split the change, or give the pull request the `size-exception` label and a `Size exception: <reason>` line.
 
 The CLI tests need Node 22.12 or later. To run one test file, from `cli/`: `node --require ./test/safe-path-preload.mjs --test test/<file>`. The `--require` gives it the same safe `PATH` as `npm test`, so it never runs your real `claude` or `codex`.
 

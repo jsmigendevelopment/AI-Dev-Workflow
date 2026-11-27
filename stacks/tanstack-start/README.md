@@ -84,7 +84,7 @@ Names are kebab-case; a module name is plural (`todo-items`). A new page needs i
 | `pnpm check:lowmem`     | the same steps on a machine short of memory: one test worker (`vitest --maxWorkers=1`)  |
 | `pnpm check:budgets`    | after a build: initial JS, route JS, CSS and lazy-chunk budgets per page (gzip)         |
 | `pnpm check:merge`      | before merge: budgets, migrations, audit, licences, secret scan, Semgrep, screenshots   |
-| `pnpm pr:rules <n>`     | pull request `<n>` names its issue and is under about 400 changed lines                 |
+| `pnpm pr:rules <n>`     | pull request `<n>` names its issue and is under 1,000 changed lines                     |
 | `pnpm deploy:*`         | `deploy:preview <n>`, `deploy:test`, `deploy:production`: see [Deploys](#deploys)       |
 | `pnpm check:licenses`   | every installed package's licence against the allow-list                                |
 | `pnpm lhci`             | after a build: Lighthouse CI, mobile, 3 runs (`CHROME_PATH` to pick a Chrome)           |
@@ -228,7 +228,7 @@ For clients that aren't this web app (mobile, desktop, scripts). The web app its
 | duplicated code                                                                                                                                    | jscpd (`.jscpd.json`)                                                                                                              |
 | unsafe migrations                                                                                                                                  | `scripts/check-migrations.ts`                                                                                                      |
 | security patterns                                                                                                                                  | Semgrep community rules for TypeScript and React (`pnpm check:merge`)                                                              |
-| pull request tied to an issue, under about 400 lines                                                                                               | `pnpm pr:rules <n>`                                                                                                                |
+| pull request tied to an issue, under 1,000 changed lines                                                                                           | `pnpm pr:rules <n>`                                                                                                                |
 | the UI doesn't change by accident                                                                                                                  | `pnpm test:visual --docker` (`pnpm check:merge`)                                                                                   |
 
 **An exception** is a decision someone can revisit: a comment with the reason and an issue number, on the line or the line above.
@@ -246,7 +246,7 @@ The pack ships no GitHub Actions workflows, and `docs/stack.md` says `ci = "loca
 
 1. `pnpm check`, then `pnpm test:e2e` (`pnpm exec playwright install chromium` once).
 2. `pnpm check:merge`: the pnpm `packageManager` pins, the bundle budgets, a check that migrations match the tables, `pnpm audit --audit-level=high`, the licence allow-list, no `.clerk/` files committed, `docs/research` (with the kit's checker), gitleaks (over a copy of the files git tracks at `HEAD`, so a dev checkout's git-ignored keys aren't scanned) and Semgrep (a local binary, else Docker), and the screenshot tests in Playwright's Linux image (Docker). A check this machine can't run is skipped with the reason; name every skip in the pull request.
-3. The pull request rules, which the gate checks with the kit's `pr-rules.mjs` from its checkout of main (`feat/` and `fix/` branches only), never the pull request's own script. `pnpm pr:rules <n>` runs them by hand: `Closes #<n>` (or Fixes, Resolves) and a `feat|fix|chore/<n>-name` branch, unless it has the `no-issue` label (Dependabot is exempt), and at most 400 changed lines (lockfiles and generated files not counted) unless it has the `large-pr` label.
+3. The pull request rules, which the gate checks with the kit's `pr-rules.mjs` from its checkout of main (`feat/` and `fix/` branches only), never the pull request's own script. `pnpm pr:rules <n>` runs them by hand: `Closes #<n>` (or Fixes, Resolves) and a `feat|fix|chore/<n>-name` branch, unless it has the `no-issue` label (Dependabot is exempt), and under 1,000 changed lines (lockfiles, generated files and test fixtures not counted, with the kit's `pr-size.mjs`) unless it has the `size-exception` label and a `Size exception: <reason>` line in the description.
 
 The agent-file guard (`agent-files.mjs`) runs from the session too. Never add a workflow: if a tool's docs say "add this workflow", run its commands from the session as a package script.
 

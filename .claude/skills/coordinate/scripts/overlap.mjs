@@ -12,7 +12,7 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gh, pages } from "./agent-files.mjs";
-import { LOCKFILES, generated } from "./pr-rules.mjs";
+import { LOCKFILES, generated } from "./pr-size.mjs";
 
 // Files most changes touch on purpose and that merge cleanly, each with why it's expected to merge.
 export const HOT_SPOTS = [
