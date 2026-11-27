@@ -40,3 +40,12 @@ prefix_rule(
     match = ["node .claude/hooks/notify.mjs --level fyi --title x", "node .agents/skills/afk/scripts/worklog.mjs presence"],
     not_match = ["node evil.mjs"],
 )
+
+# The insights writer (#329): write and line only add a file under docs/insights/ or print a line.
+prefix_rule(
+    pattern = ["node", ".agents/skills/coordinate/scripts/insights.mjs", ["write", "line"]],
+    decision = "allow",
+    justification = "The kit's insights writer.",
+    match = ["node .agents/skills/coordinate/scripts/insights.mjs write job outcome=started", "node .agents/skills/coordinate/scripts/insights.mjs line review round=1"],
+    not_match = ["node .agents/skills/coordinate/scripts/insights.mjs read"],
+)
