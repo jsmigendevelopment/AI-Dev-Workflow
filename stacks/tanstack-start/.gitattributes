@@ -5,3 +5,6 @@ routeTree.gen.ts linguist-generated
 worker-configuration.d.ts linguist-generated
 migrations/meta/** linguist-generated
 **/*-snapshots/** linguist-generated
+# An app that keeps a CHANGELOG.md: two branches each adding a line under one heading merge with no conflict (#362).
+# Only with git's own merge: GitHub's merge and Update branch buttons ignore it.
+CHANGELOG.md merge=union
