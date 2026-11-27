@@ -3,9 +3,9 @@
 .claude/skills/** linguist-generated
 plugin/** linguist-generated
 cli/README.md linguist-generated
-# sync-skills.mjs's COPIES, one line per copy, so a shared script counts once, in its master (#430). Its masters
-# (scripts/, guide/, the secrets skill's command-for.mjs, the research skill's schemas) count. A new copy without a
-# line fails cli/test/copies-generated.test.mjs.
+# The copies sync-skills.mjs makes (COPIES, in scripts/sync-copies.mjs), one line per copy, so a shared script
+# counts once, in its master (#430). The masters (scripts/, guide/, the secrets skill's command-for.mjs, the research
+# skill's schemas) count. A new copy without a line fails cli/test/copies-generated.test.mjs.
 .agents/skills/ask/scripts/preflight-ci.mjs linguist-generated
 .agents/skills/ask/scripts/preflight-layout.mjs linguist-generated
 .agents/skills/ask/scripts/preflight-output.mjs linguist-generated
