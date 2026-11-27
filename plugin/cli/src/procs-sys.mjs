@@ -5,7 +5,7 @@
 //   git(dir, args) its output, "" for nothing, null when git failed · uid, gid this user's ids (null on Windows)
 //   privateGroup(gid) true when this user is the group's one member, false when not, null when it can't tell
 //   acl(path) true when the path has a POSIX ACL, false when it has none, null when it can't tell
-//   winAcls(paths) on Windows a Map of each path to { owned, writers, movers } (procs-winacl.mjs); null off Windows
+//   winAcls(paths) on Windows a Map of each path to { owned, writers, heirs, movers } (procs-winacl.mjs); null off Windows
 //   fresh() drops the Windows process list, so the next info() or table() reads it again
 //   fsType(path) on Linux the file system a real folder is on, from /proc/self/mountinfo (null when it can't tell);
 //   undefined elsewhere

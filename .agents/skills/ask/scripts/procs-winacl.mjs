@@ -8,8 +8,8 @@
 export const ACL_CHUNK = 30000;
 
 /**
- * A Map of each path to { owned, writers, movers }: whether this user (or the admins) owns it, every other account
- * that can write it, and every other one that can rename, remove or replace what is in it; null for a path it can't
+ * A Map of each path to { owned, writers, heirs, movers }: whether this user (or the admins) owns it, every other
+ * account that can write it, every other one an inherit-only rule lets write what is made in it later, and every other one that can rename, remove or replace what is in it; null for a path it can't
  * tell. A path with a line break can't go in the list, and one longer than a chunk can't fit, so neither can be told.
  * A block counts only when it ends, so output cut short, or a start that failed, leaves only the paths it didn't
  * finish as "can't tell". run(cmd, args, opts) is spawnSync or a test's fake.
@@ -41,14 +41,15 @@ function chunks(paths) {
 
 // The ACL of each path in $env:ONRAILS_ACL_PATH, one per line: this user's SID once, then for path i "path i", the
 // owner's SID, "nodacl" for a null DACL (everyone has full access), one line per rule, "<Allow|Deny> <SID> <rights>",
-// and "end i"; or "fail i" when it can't be read. A rule that is inherit-only grants nothing on the path itself (as
-// the one under C:\ that lets every user change what they make there); what inherits it is read with its own ACL.
+// and "end i"; or "fail i" when it can't be read. A rule that is inherit-only ends in " io": it grants nothing on the
+// path itself (as the one under C:\ that lets every user change what they make there), only on what is made in it
+// later, so it counts on the registry's own folders, which make files, and not on the folders above (#268).
 // Single quotes only: the script goes through Windows' command-line quoting as one argument.
 const WIN_ACL = ["$ErrorActionPreference = 'Stop'", "$t = [System.Security.Principal.SecurityIdentifier]",
   "'user ' + [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value", "$i = 0",
   "foreach ($p in ($env:ONRAILS_ACL_PATH -split [char]10)) { 'path ' + $i; try { $a = Get-Acl -LiteralPath $p; 'owner ' + $a.GetOwner($t).Value; "
   + "if ($a.GetSecurityDescriptorSddlForm('Access') -match 'NO_ACCESS_CONTROL') { 'nodacl' }; foreach ($r in $a.GetAccessRules($true, $true, $t)) { "
-  + "if (-not ($r.PropagationFlags -band 2)) { '{0} {1} {2}' -f $r.AccessControlType, $r.IdentityReference.Value, [long]$r.FileSystemRights } }; "
+  + "$o = ''; if ($r.PropagationFlags -band 2) { $o = ' io' }; '{0} {1} {2}{3}' -f $r.AccessControlType, $r.IdentityReference.Value, [long]$r.FileSystemRights, $o }; "
   + "'end ' + $i } catch { 'fail ' + $i }; $i++ }"].join("; ");
 // Any right that changes what is in it, who may, or that it is there: write or append data (make files or folders),
 // write attributes, delete a child or itself, change its ACL or owner, and generic all or write.
@@ -64,28 +65,30 @@ const WIN_OWNERS = ["S-1-5-18", "S-1-5-32-544", WIN_TRUSTED[4]];
 const SID = /^S-1(-\d+)+$/;
 
 /**
- * One path's ACL from its PowerShell output: { owned, writers }, owned when this user, SYSTEM, Administrators or
+ * One path's ACL from its PowerShell output: { owned, writers, heirs }, owned when this user, SYSTEM, Administrators or
  * TrustedInstaller owns the path, writers every other account an Allow rule gives a right in mask (a deny is ignored:
- * it can't take away another rule's grant to someone else). null for output it doesn't know, so the caller refuses.
+ * it can't take away another rule's grant to someone else), heirs every other account an inherit-only Allow rule
+ * gives one, on what is made in it later (#268). null for output it doesn't know, so the caller refuses.
  */
 export function winAccess(text, mask = WIN_WRITE) {
   let user = null, owner = null;
-  const writers = new Set();
+  const writers = new Set(), heirs = new Set();
   for (const line of (text ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
-    const [word, sid, rights, ...more] = line.split(" ");
+    const [word, sid, rights, mark, ...more] = line.split(" ");
     if (line === "nodacl") writers.add("S-1-1-0");
-    else if (more.length || !SID.test(sid ?? "")) return null;
+    else if (more.length || (mark !== undefined && mark !== "io") || !SID.test(sid ?? "")) return null;
     else if (word === "user" && rights === undefined) user = sid;
     else if (word === "owner" && rights === undefined) owner = sid;
     else if (!["Allow", "Deny"].includes(word) || !/^-?\d+$/.test(rights ?? "")) return null;
-    else if (word === "Allow" && (Number(rights) >>> 0) & mask) writers.add(sid);
+    else if (word === "Allow" && (Number(rights) >>> 0) & mask) (mark ? heirs : writers).add(sid);
   }
   if (!user || !owner) return null;
-  return { owned: [user, ...WIN_OWNERS].includes(owner), writers: [...writers].filter((s) => s !== user && !WIN_TRUSTED.includes(s)) };
+  const others = (set) => [...set].filter((s) => s !== user && !WIN_TRUSTED.includes(s));
+  return { owned: [user, ...WIN_OWNERS].includes(owner), writers: others(writers), heirs: others(heirs) };
 }
 
 /**
- * winAcls() from its PowerShell output for paths: a Map of each path whose block ended to { owned, writers, movers },
+ * winAcls() from its PowerShell output for paths: a Map of each path whose block ended to { owned, writers, heirs, movers },
  * or null for a block it doesn't know. A path whose block is missing, failed or didn't end is left out.
  */
 function winBatch(text, paths) {

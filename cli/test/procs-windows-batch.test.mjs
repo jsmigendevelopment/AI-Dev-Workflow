@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, win32 } from "node:path";
 import { realSys, windowsProcs } from "../src/procs-sys.mjs";
-import { localRegistry } from "../src/procs-store.mjs";
+import { localRegistry, untrusted } from "../src/procs-store.mjs";
 import { run, stamp } from "./procs-fake.mjs";
 import { tmp } from "./helpers.mjs";
 
@@ -212,4 +212,38 @@ test("AC-267-1: WHEN a peeked registry path has a link on the way, at any folder
   const asked = w.acls()[0].paths;
   assert.deepEqual(asked.filter((a) => links.some((l) => a === l || a.startsWith(`${l}/`))), [], "no link, and nothing below one, is asked");
   assert.ok(asked.includes(w.files[0]), r.out);
+});
+
+test("AC-268-1: WHEN .onrails, its logs folder or the folder that holds .onrails has an inherit-only rule giving another account a write right THEN the registry is refused before it is read or written", async () => {
+  const where = { ".onrails": (w) => dirname(w.files[1]), logs: (w) => join(dirname(w.files[1]), "logs"), holder: (w) => w.repos[1] };
+  for (const [name, which] of Object.entries(where)) {
+    let bad = null;
+    const w = windows({ acl: (p) => (p === bad ? [`Allow S-1-5-11 ${MODIFY} io`] : []) });
+    bad = which(w);
+    const r = await run(w.sys, ["session-end"]);
+    assert.deepEqual(w.reaped(), [w.files[0], w.files[2]], `${name}: ${r.out}`);
+    assert.match(untrusted(w.sys, w.files[1]) ?? "", /can be written by other accounts \(S-1-5-11\): keep the repo/, `${name}: the same fix line as any write grant`);
+    assert.equal(w.acls().length, 1, `AC-268-3, ${name}: one PowerShell start for the batch`);
+  }
+  const w = windows();
+  await run(w.sys, ["list"]);
+  assert.ok(w.acls()[0].script.includes("' io'"), "PowerShell marks an inherit-only rule instead of skipping it");
+});
+
+test("AC-268-2: WHEN a folder above the repo root has an inherit-only rule giving another account a write right THEN it still doesn't count there", async () => {
+  let bad = null;
+  const w = windows({ acl: (p) => (p === bad ? [`Allow S-1-5-11 ${MODIFY} io`, `Allow S-1-5-11 ${MAKE_FOLDERS}`] : []) });
+  bad = dirname(w.repos[1]);
+  const r = await run(w.sys, ["session-end"]);
+  assert.ok(w.acls()[0].paths.includes(bad), "the folder above is asked");
+  assert.deepEqual(w.reaped(), w.files, r.out);
+  assert.equal(w.acls().length, 1, "AC-268-3: one PowerShell start for the batch");
+});
+
+test("#268: WHEN a rule line carries any mark but io THEN that path's ACL can't be told", async () => {
+  let bad = null;
+  const w = windows({ acl: (p) => (p === bad ? [`Allow S-1-5-11 ${MAKE_FOLDERS} xx`] : []) });
+  bad = w.repos[1];
+  const r = await run(w.sys, ["session-end"]);
+  assert.deepEqual(w.reaped(), [w.files[0], w.files[2]], r.out);
 });
