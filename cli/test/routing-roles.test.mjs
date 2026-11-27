@@ -2,7 +2,8 @@
 // escalation and the account rule, and a person's profile wins over each default.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, symlinkSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "./child.mjs";
 import { put, safeEnv, tmp } from "./helpers.mjs";
@@ -28,7 +29,8 @@ test("AC-379-1: WHEN routing is read THEN it has the three roles with the owner'
   assert.match(rowFor(table, "Builder"), /Sonnet 5\.5[^|]*· medium \|[^|]*most issues/i);
   assert.match(table, /security path[^.]*big slices[^.]*start on Opus|start on Opus[^.]*security path[^.]*big slices/i);
   assert.match(table, /Codex[^.]*\(ChatGPT, medium or high[^.]*builder option for non-security work/);
-  assert.match(table, /live thread[^.]*keeps its own fast row/i, "fits #280: the live thread isn't the coordinator");
+  assert.match(table, /live thread keeps its own row \(Everyday · low/i, "fits #280: the live thread isn't the coordinator");
+  assert.doesNotMatch(table, /own fast row/, "the live thread's row isn't the Fast tier");
 });
 
 test("AC-379-1: WHEN routing is read THEN it has the escalation rule: one step per verified failure, two at most", () => {
@@ -121,4 +123,124 @@ test("AC-379-2: WHEN the profile template is read THEN its [routing] section has
   assert.match(routing, /"No Fable"\? cto = "Claude Opus 5\.5"/);
   assert.match(routing, /wins over the kit's default/);
   assert.match(read(".agents/skills/routing/SKILL.md"), /node \.agents\/skills\/routing\/scripts\/roles\.mjs <role>/);
+});
+
+// Fix round 1 (review of PR #403).
+/** Runs the script with a throwaway HOME, and a timeout so a hang fails instead of blocking. */
+function runScript(dir, home, ...args) {
+  return spawnSync(process.execPath, [SCRIPT, ...args, "--project", dir], {
+    encoding: "utf8", timeout: 10_000, env: safeEnv({ HOME: home, USERPROFILE: home }),
+  });
+}
+const homeWithOpus = () => {
+  const home = tmp("onrails-home-");
+  put(home, ".onrails/profile.toml", '[routing]\ncto = "Claude Opus 5.5"\n');
+  return home;
+};
+const posixOnly = { skip: process.platform === "win32" ? "FIFOs and symlink loops are POSIX" : false };
+
+test("AC-379-2: WHEN docs/profile.toml is a directory THEN the script warns once and falls through to the home profile", () => {
+  const dir = tmp("onrails-routing-");
+  mkdirSync(join(dir, "docs", "profile.toml"), { recursive: true });
+  const run = runScript(dir, homeWithOpus(), "cto");
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.stdout, "cto: Claude Opus 5.5 · high (~/.onrails/profile.toml)\n");
+  assert.match(run.stderr, /^[^\n]*docs\/profile\.toml[^\n]*\n$/, "one stderr line naming the file");
+});
+
+test("AC-379-2: WHEN docs/profile.toml is a FIFO THEN the script neither hangs nor crashes", posixOnly, () => {
+  const dir = tmp("onrails-routing-");
+  mkdirSync(join(dir, "docs"), { recursive: true });
+  const fifo = spawnSync("mkfifo", [join(dir, "docs", "profile.toml")], { env: safeEnv() });
+  assert.equal(fifo.status, 0, "mkfifo");
+  const run = runScript(dir, homeWithOpus(), "cto");
+  assert.equal(run.signal, null, "it didn't hang");
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.stdout, "cto: Claude Opus 5.5 · high (~/.onrails/profile.toml)\n");
+  assert.match(run.stderr, /^[^\n]*docs\/profile\.toml[^\n]*\n$/, "one stderr line naming the file");
+});
+
+test("AC-379-2: WHEN docs/profile.toml can't be read THEN the script warns once and uses the default", posixOnly, () => {
+  const dir = tmp("onrails-routing-");
+  mkdirSync(join(dir, "docs"), { recursive: true });
+  symlinkSync("profile.toml", join(dir, "docs", "profile.toml")); // a link to itself: stat fails with ELOOP
+  const run = runScript(dir, tmp("onrails-home-"), "cto");
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.stdout, "cto: Claude Fable 5.2 · high (default)\n");
+  assert.match(run.stderr, /^[^\n]*docs\/profile\.toml[^\n]*\n$/, "one stderr line naming the file");
+});
+
+test("AC-379-2: WHEN [routing] is written in other valid TOML forms THEN the profile still wins", async () => {
+  const { resolveRoles } = await roles();
+  const forms = {
+    "a header with a comment": '[routing] # my models\ncto = "Claude Opus 5.5"\n',
+    "spaces in the header": '[ routing ]\ncto = "Claude Opus 5.5"\n',
+    "a literal string": "[routing]\ncto = 'Claude Opus 5.5'\n",
+    "a quoted key": '[routing]\n"cto" = "Claude Opus 5.5"\n',
+    "a single-quoted key and a comment": "[routing]\n'cto' = \"Claude Opus 5.5\"   # no Fable\n",
+  };
+  for (const [name, text] of Object.entries(forms)) {
+    const got = resolveRoles([{ label: "docs/profile.toml", text }]);
+    assert.deepEqual(got.cto, { model: "Claude Opus 5.5", effort: "high", from: "docs/profile.toml" }, name);
+  }
+});
+
+test("AC-379-2: WHEN a value has escaped quotes THEN they are read as quotes", async () => {
+  const { resolveRoles } = await roles();
+  const got = resolveRoles([{ label: "docs/profile.toml", text: '[routing]\ncto = "with \\"x\\" y"\n' }]);
+  assert.equal(got.cto.model, 'with "x" y');
+});
+
+test("AC-379-2: WHEN a role key is present but its value can't be read THEN it warns with the key and file and says so in the source", async () => {
+  const { resolveRoles } = await roles();
+  const warnings = [];
+  const got = resolveRoles([{ label: "docs/profile.toml", text: '[routing]\nbuilder = Claude Opus 5.5\ncto = "unclosed\n' }], (w) => warnings.push(w));
+  assert.equal(got.builder.model, "Claude Sonnet 5.5");
+  assert.equal(got.builder.from, "default; could not read builder in docs/profile.toml");
+  assert.equal(got.cto.model, "Claude Fable 5.2");
+  assert.equal(warnings.length, 2);
+  assert.ok(warnings.some((w) => /\bbuilder\b/.test(w) && /docs\/profile\.toml/.test(w)), "names builder and the file");
+  assert.ok(warnings.some((w) => /\bcto\b/.test(w) && /docs\/profile\.toml/.test(w)), "names cto and the file");
+});
+
+test("AC-379-2: WHEN an effort isn't low, medium, high or extra-high THEN it warns and keeps the default effort", async () => {
+  const { resolveRoles } = await roles();
+  const warnings = [];
+  const text = '[routing]\ncto = "GPT-9 Imaginary"\ncto_effort = "ludicrous"\nbuilder_effort = "HIGH"\ncoordinator_effort = "Extra-High"\n';
+  const got = resolveRoles([{ label: "docs/profile.toml", text }], (w) => warnings.push(w));
+  assert.equal(got.cto.model, "GPT-9 Imaginary", "any model name passes");
+  assert.equal(got.cto.effort, "high");
+  assert.equal(got.cto.from, "docs/profile.toml; could not read cto_effort in docs/profile.toml");
+  assert.equal(got.builder.effort, "high", "any case");
+  assert.equal(got.coordinator.effort, "extra-high");
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /cto_effort[^\n]*ludicrous[^\n]*docs\/profile\.toml/);
+});
+
+test("AC-379-2: WHEN the script gets an inherited name, two roles or an unknown flag THEN it exits 2", () => {
+  const dir = tmp("onrails-routing-");
+  const home = tmp("onrails-home-");
+  for (const args of [["__proto__"], ["toString"], ["cto", "builder"], ["--nope"]]) {
+    const run = runScript(dir, home, ...args);
+    assert.equal(run.status, 2, `${args.join(" ")}: ${run.stdout}`);
+    assert.equal(run.stdout, "", args.join(" "));
+    assert.notEqual(run.stderr, "", args.join(" "));
+  }
+});
+
+test("AC-379-1: WHEN routing is read THEN the security review stays one step above code review, and the wording agrees", () => {
+  const skill = read(".agents/skills/routing/SKILL.md");
+  assert.match(section(skill, "Roles"), /role's effort is the base[^\n]*never below the builder[^\n]*one step above the code reviewer/i);
+  assert.match(section(skill, "Jobs"), /Security review[^\n]*one step above the code reviewer/);
+  const rules = section(skill, "Rules");
+  assert.doesNotMatch(rules, /\*\*Start low\.\*\*/, "Rules and Escalation both start on the role's default");
+  assert.match(rules, /\*\*Start on the role's default\.\*\*/);
+  assert.doesNotMatch(skill, /Its own limits win/);
+  assert.match(section(read("guide/cheat-sheet.md"), "🧠 Model routing"), /\| 🛡️ Security review[^\n]*\| Opus 5\.5 high \+ ChatGPT \|/);
+});
+
+test("AC-379-1: WHEN decision 379-1 is read THEN it names the review-cap follow-up and the security review pick", () => {
+  const decision = read("docs/decisions/379-1.md");
+  assert.match(decision, /review cap[^\n]*#406/);
+  assert.match(decision, /one step above the code review/);
 });

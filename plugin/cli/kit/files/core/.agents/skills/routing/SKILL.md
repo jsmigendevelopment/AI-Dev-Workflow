@@ -37,15 +37,16 @@ Three roles do most of the work. The Jobs table below says which role runs each 
 
 - **The security path and big slices start on Opus:** a builder on the risky lane, or on an issue of `Complexity:` 5 or more, starts on Opus 5.5 · medium.
 - **Codex** (ChatGPT, medium or high effort) stays a builder option for non-security work. Never on the risky lane.
-- **The coordinator is the loop.** The live thread keeps its own fast row in the Jobs table (#280).
+- **A role's effort is the base. A job's own rule can raise it:** a code reviewer runs never below the builder, and the security reviewer one step above the code reviewer.
+- **The coordinator is the loop.** The live thread keeps its own row (Everyday · low, for speed) in the Jobs table (#280).
 
 ## Escalation
 
 - **Start on the role's default.** Escalate only after a verified failure: a failed check or a rejected review, not a hunch.
 - **One step per verified failure, two steps at most.** The builder goes Sonnet to Opus, then effort up: Sonnet · medium, Opus · medium, Opus · high. A builder that starts on Opus · medium goes to high, then extra-high where the model has it.
 - **Infrastructure errors and process blocks don't count against the model:** a network or rate-limit error, a sandbox block, a missing key, a runner that's down, a merge conflict. Fix the cause, then run the same step again.
-- **Still failing after two steps?** Stop climbing. `coordinate`'s review cap says what's next. Escalation never reaches the strongest tier on its own.
-- **The profile's pick is step one.** Its own limits win.
+- **Still failing after two steps?** Stop climbing. `coordinate`'s review cap says what's next. Escalation never reaches the strongest tier on its own. Where the cap says "the next tier up" and no step is left, this section wins: go straight to the split (#406).
+- **The profile's pick is step one.** No step above it in the profile? Don't climb. For example, a profile whose builder is already its `everyday` model at its highest effort has no step left.
 
 ## Jobs
 
@@ -104,7 +105,7 @@ Cloud first: `[sessions] prefer = "cloud"` in the profile. Unattended work runs 
   - **Can't switch models in this session?** Say so once, carry on with the current model, and record the model and effort used in the plan's provenance (`docs/decisions.md`, or the grill log). Never tell the person to start a new session for a model.
   - On Full automation: use the current model, record it, and don't ask.
 - **Never stop or restart a strongest-tier run without the person's yes.** It throws away work already paid for. Before any restart, check for reusable output and say what it costs (`ask`, "A running job"). Everyday-tier runs may be restarted.
-- **Start low.** Escalate one step only after a verified failure ("Escalation" above).
+- **Start on the role's default.** Escalate one step only after a verified failure ("Escalation" above).
 - **Spend the strongest model on thinking, not typing.** It designs and writes the issues. Cheaper models write the code from them.
 - **Change what reviewers see before you change how hard they think.** Hide the PR description, and give them a written policy and the check results. Extra effort found no more bugs in testing.
 - **Buy what you'd rather not review.** Use an auth provider instead of reviewing hand-made auth.

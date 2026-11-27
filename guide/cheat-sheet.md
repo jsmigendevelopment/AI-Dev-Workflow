@@ -97,7 +97,7 @@ You rarely need these. The four commands call them for you.
 | 📋 Writing issues from the plan (CTO) | **Strongest · high** | Fable 5.2 high |
 | 🔨 Build an issue | Fast · medium; Everyday · medium for risky or complexity 5–7 | Sonnet 5.5 medium / Opus 5.5 medium |
 | 🔍 Code review | Never below the builder | Opus 5.5 medium |
-| 🛡️ Security review (risky only) | One step above review, plus a second vendor for personal data or money | Opus 5.5 medium + ChatGPT |
+| 🛡️ Security review (risky only) | One step above review, plus a second vendor for personal data or money | Opus 5.5 high + ChatGPT |
 | 🎨 Art | Creative | ChatGPT |
 
 **Start on the default. Escalate one step per verified failure, two steps at most: Sonnet to Opus, then effort up. Infrastructure errors don't count.**
