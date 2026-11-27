@@ -14,6 +14,8 @@ const DOCS = ["docs/vision.md", "docs/mvp.md", "docs/decisions.md"];
 const ENV_FILE = /(^|\/)\.env(\.[^/]*)?$/;
 const ENV_EXAMPLE = ".env.example";
 const MAX_SCAN = 1024 * 1024;
+// The longest text scanned for split names, well past a lesson's 200 characters, so a huge field stays fast.
+const JOINED_MAX = 2000;
 // Hosts that are never a project's own (RFC 2606 and 6761), so `example` doesn't block every lesson. Any `example`
 // label counts, as in a placeholder such as app.example.workers.dev.
 const RESERVED = /(^|\.)(localhost|test|invalid|local)$|(^|\.)example(\.|$)/;
@@ -74,33 +76,51 @@ function reader(root, { anywhere = false } = {}) {
   return { text, folder };
 }
 
-// A regular file of at most MAX_SCAN bytes, as text; anything else, or a NUL byte, gives "".
-function readCapped(path) {
-  const fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+/**
+ * A regular file of at most MAX_SCAN bytes, as text; anything else, a bigger file or a NUL byte gives "". With
+ * `input` (the lesson file the person names), a link is followed, a pipe is read too, a bigger one gives
+ * null, and anything else throws.
+ */
+export function readCapped(path, { input = false } = {}) {
+  const fd = openSync(path, constants.O_RDONLY | (input ? 0 : constants.O_NOFOLLOW ?? 0));
   try {
     const info = fstatSync(fd);
-    if (!info.isFile()) return "";
-    // One byte past the size it says, so a file that grew past the cap is still caught.
-    const buffer = Buffer.allocUnsafe(Math.min(info.size, MAX_SCAN) + 1);
-    let size = 0;
-    for (let n; size < buffer.length && (n = readSync(fd, buffer, size, buffer.length - size, size)) > 0;) size += n;
-    if (size > MAX_SCAN) return "";
-    const text = buffer.toString("utf8", 0, size);
+    if (!info.isFile() && !(input && info.isFIFO())) {
+      if (input) throw new Error("not a file or a pipe");
+      return "";
+    }
+    const bytes = readUpTo(fd, info.isFile() ? Math.min(info.size, MAX_SCAN) + 1 : 64 * 1024);
+    if (!bytes) return input ? null : "";
+    const text = bytes.toString("utf8");
     return text.includes("\0") ? "" : text;
   } finally {
     closeSync(fd);
   }
 }
 
-// A term, each of its parts, and the parts joined by `-` and by a space. Kit words never enter, nor a term whose
-// singular or plural is one: `review` or `reviews` in a repo name can't block every lesson.
+// Reads an open file or pipe in chunks of `chunk` bytes until it ends; null once it passes MAX_SCAN. A regular file's
+// first chunk is one byte past the size it says, so a file that grew past the cap is still caught.
+function readUpTo(fd, chunk) {
+  const buffer = Buffer.allocUnsafe(chunk);
+  const parts = [];
+  let size = 0;
+  for (let n; size <= MAX_SCAN && (n = readSync(fd, buffer, 0, chunk, null)) > 0;) {
+    parts.push(Buffer.from(buffer.subarray(0, n)));
+    size += n;
+  }
+  return size > MAX_SCAN ? null : Buffer.concat(parts);
+}
+
+// A term, each of its parts, and the parts joined by `-` and by a space. A term kept whole (an env name, a full host)
+// still gives the joins, so RIVER_SIGNAL_TOKEN gives `river signal token`, but not its parts. Kit words never enter,
+// nor a term whose singular or plural is one: `review` or `reviews` in a repo name can't block every lesson.
 function adder(terms, kitWords) {
   const isKit = (word) => [word, `${word}s`, `${word}es`, singular(word)].some((form) => form && kitWords.has(form));
   const add = (raw, kind, { split = true } = {}) => {
     const clean = trimEnds(raw);
-    const parts = split ? clean.split(PART_BREAK).map((part) => trimEnds(part.toLowerCase())).filter(Boolean) : [];
+    const parts = clean.split(PART_BREAK).map((part) => trimEnds(part.toLowerCase())).filter(Boolean);
     const joined = parts.length > 1 ? [parts.join("-"), parts.join(" ")] : [];
-    for (const word of [norm(clean), ...parts, ...joined]) {
+    for (const word of [norm(clean), ...(split ? parts : []), ...joined]) {
       if (word.length >= 2 && !isKit(word) && !terms.has(word)) terms.set(word, kind);
     }
   };
@@ -235,14 +255,45 @@ function matcher(terms) {
   const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll(" ", "\\s+");
   const alternatives = [...forms.keys()].sort((a, b) => b.length - a.length).map(escape);
   const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(${alternatives.join("|")})(?:e?s)?(?![\\p{L}\\p{N}])`, "u");
-  return { forms, pattern };
+  // Every form with its spaces and hyphens removed, so a lesson that splits or joins a name its own way still
+  // matches: `bright paper` for brightpaper, `river-signal token` for RIVER_SIGNAL_TOKEN.
+  const joined = new Map();
+  for (const [form, kind] of forms) {
+    const key = form.replace(/[\s-]+/g, "");
+    if (/^[\p{L}\p{N}]+$/u.test(key) && !joined.has(key)) joined.set(key, kind);
+  }
+  const longest = Math.max(0, ...[...joined.keys()].map((form) => form.length)) + 2;
+  return { forms, pattern, joined, longest };
 }
 
-/** The source kind of the first project term in text, whole-word, case-blind and in either number, or null. */
+// The kind of a form that a run of two or more words spells with the spaces and hyphens removed (`bright paper` or
+// `bright-paper` for `brightpaper`), in either number, or null.
+function joinedTerm(text, { joined, longest }) {
+  for (const chunk of text.split(/[^\p{L}\p{N}\s-]+/u)) {
+    const words = chunk.split(/[\s-]+/).filter(Boolean);
+    for (let i = 0; i < words.length; i++) {
+      let run = words[i];
+      for (let j = i + 1; j < words.length && run.length < longest; j++) {
+        run += words[j];
+        const form = [run, run.replace(/s$/, ""), run.replace(/es$/, "")].find((f) => joined.has(f));
+        if (form) return joined.get(form);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The source kind of the first project term in text, whole-word, case-blind and in either number, or null. A term
+ * also matches its letters with spaces or hyphens in other places (`bright paper`, `river-signal token`).
+ */
 export function projectTerm(text, terms) {
   if (terms.size === 0) return null;
   if (!matchers.has(terms)) matchers.set(terms, matcher(terms));
-  const { forms, pattern } = matchers.get(terms);
-  const found = pattern.exec(norm(text));
-  return found ? forms.get(found[1].replace(/\s+/g, " ")) : null;
+  const match = matchers.get(terms);
+  const lower = norm(text);
+  const found = match.pattern.exec(lower);
+  if (found) return match.forms.get(found[1].replace(/\s+/g, " "));
+  // Past JOINED_MAX the run scan is skipped: lesson check refuses such a field for its length anyway.
+  return lower.length <= JOINED_MAX ? joinedTerm(lower, match) : null;
 }
