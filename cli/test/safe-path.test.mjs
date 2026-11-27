@@ -16,6 +16,9 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const CLI = fileURLToPath(new URL("..", import.meta.url));
 // doctor and research-library run doctor in-process; cli and rename run `doctor` through the binary. On main these
 // ran the claude and codex next to node 15 times each.
+// A nested run reports in TAP, uncoloured: newer Node prints the spec report when piped, and FORCE_COLOR colours it (#277).
+const TAP = "--test-reporter=tap";
+const NESTED = { NODE_TEST_CONTEXT: undefined, FORCE_COLOR: undefined, NO_COLOR: undefined };
 const SAMPLE = ["doctor", "research-library", "cli", "rename"].map((name) => `${HERE}${name}.test.mjs`);
 
 test("AC-191-1: WHEN the CLI suite runs with a fake claude and codex placed next to node THEN neither fake is ever called", unixOnly, () => {
@@ -24,8 +27,8 @@ test("AC-191-1: WHEN the CLI suite runs with a fake claude and codex placed next
   for (const name of ["claude", "codex"]) fake(bin, name, `#!/bin/sh\necho "${name} $*" >> '${log}'\necho 1.0.0\n`);
   // Started as the copy, so the sample's own process.execPath is in the folder with the fakes, first on its PATH.
   const node = join(bin, basename(process.execPath));
-  const env = safeEnv({ NODE_TEST_CONTEXT: undefined }, { bins: [bin] });
-  const r = spawnSync(node, ["--test", ...SAMPLE], { encoding: "utf8", env, timeout: 120_000 });
+  const env = safeEnv(NESTED, { bins: [bin] });
+  const r = spawnSync(node, ["--test", TAP, ...SAMPLE], { encoding: "utf8", env, timeout: 120_000 });
   assert.equal(r.status, 0, r.stdout.slice(-2000));
   assert.match(r.stdout, /^# pass [1-9]/m, "the sample ran");
   assert.equal(existsSync(log) ? readFileSync(log, "utf8") : "", "", "a test ran the claude or codex next to node");
@@ -171,8 +174,8 @@ const FLAGS = JSON.parse(readFileSync(join(CLI, "package.json"), "utf8")).script
 const asUrl = (file) => JSON.stringify(pathToFileURL(file).href);
 
 function npmTest(files, { node = process.execPath, bins = [], extra = {} } = {}) {
-  const env = safeEnv({ NODE_TEST_CONTEXT: undefined, ONRAILS_TEST_NODE: undefined, ...extra }, { bins });
-  return spawnSync(node, [...FLAGS, "--test", ...files], { cwd: CLI, encoding: "utf8", env, timeout: 120_000 });
+  const env = safeEnv({ ...NESTED, ONRAILS_TEST_NODE: undefined, ...extra }, { bins });
+  return spawnSync(node, [...FLAGS, "--test", TAP, ...files], { cwd: CLI, encoding: "utf8", env, timeout: 120_000 });
 }
 
 test("AC-197-1: WHEN a test file that never imports helpers.mjs runs doctor in-process with a fake claude next to node THEN the fake is never called", unixOnly, () => {

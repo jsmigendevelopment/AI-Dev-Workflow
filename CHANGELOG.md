@@ -8,6 +8,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 - **A test child's env is checked in the folder it starts in (#229).** `cli/test/child.mjs` wraps `spawnSync`, `spawn` and `execFileSync` so each call checks the child's `PATH` against that spawn's own `cwd`, with `args` given or left out; every CLI test file now imports them from there, and the safe-PATH scan (now in `cli/test/safe-path-scan.mjs`) flags a test that takes them from `child_process` by name, by a default or namespace import, or at run time, `createRequire` included. Both temp-folder guards also catch a saved or renamed `tmpdir`, `tmpdir ()`, a read of `process.env.TMPDIR`, and a saved read used as a folder. A test file run alone that throws while it loads, which fires no `exit` event on Node 22, no longer leaves its copy of `node` behind: `helpers.mjs`'s throw monitor removes it. When the guard throws as a process loads, the copy is removed by its `exit` handler as the process exits, not first as the #197 entry said. Decision row 118.
 
+### Fixed
+
+- **The temp-folder and safe-PATH tests pass on newer Node and with `FORCE_COLOR` set (#277).** Every test that reads a nested `node --test` run's output now asks for the TAP report and drops `FORCE_COLOR` and `NO_COLOR` from the child's env, so a Node that prints the spec report when piped no longer fails AC-142-2 or AC-180-3 when every sample passed. Decision row 119.
+
 ## [0.7.1] - 2026-11-27
 
 ### Added
