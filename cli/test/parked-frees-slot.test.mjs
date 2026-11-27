@@ -87,7 +87,7 @@ test("AC-205-2: WHEN the test reads coordinate step 5 THEN nothing else that can
   }
   const full = onFull(stuck).find((s) => /stops only new work/.test(s));
   assert.ok(full, "an On Full sentence: the always-stop list and nothing else that can move stop only new work");
-  assert.match(full, /On Full, either stops only new work on that item: the loop keeps sweeping while any issue is open/);
+  assert.match(full, /On Full, an always-stop item stops only new work on that one issue: the loop keeps sweeping while any issue is open/);
   assert.match(full, /\(step 10, and step 2's "Every open issue parked"\)/);
 });
 
