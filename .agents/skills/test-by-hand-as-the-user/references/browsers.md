@@ -24,6 +24,6 @@ Both act as the person. Their sign-ins are the person's: never sign out, change 
 ## Stop and say so
 
 - **A site waits for the person's permission?** Below Full, tell them and wait. On Full, skip it, list it as not tested and put it in the FYI. Declined? Skip it and list it as not tested. Never work around it.
-- **Alerts and confirm boxes freeze the extension.** Don't click what raises one, such as Delete. A test needs it? Below Full, warn the person first. On Full, don't click it: list it as not tested and put it in the FYI. Stuck on one? Below Full, ask them to close it in Chrome. On Full, leave that tab, list what's left in it as not tested and put it in the FYI.
+- **Alerts and confirm boxes freeze the extension.** Don't click what raises one, such as Delete. A test needs it? Below Full, warn the person first. On Full, don't click it: list it as not tested and put it in the FYI. Stuck on one? Below Full, ask them to close it in Chrome. On Full, an open alert blocks every command to the extension: stop using Claude in Chrome for the rest of the run, list everything left as not tested and put it in the FYI.
 - **Not connected, or no answer?** Say so once. Don't retry in a loop.
 - **The same action fails 2 or 3 times?** Stop and say what you tried. Below Full, ask how to go on. On Full, mark that row not tested, put what you tried in the FYI and go on with the rest.
