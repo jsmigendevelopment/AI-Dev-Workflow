@@ -116,6 +116,19 @@ export function readAcls(sys, paths) {
 }
 const winAcl = (sys, path) => { readAcls(sys, [path]); return acls.get(sys.winAcls)?.get(path) ?? null; };
 
+/**
+ * Whether a link (a symlink, or on Windows a junction: both a reparse point) is on the way to path, from the root down,
+ * checked with lstat only, so nothing on the way is followed (#267). A missing part ends the walk: nothing below it is there.
+ */
+export function linkOnWay(sys, path) {
+  for (const at of [...above(path), path]) {
+    let s;
+    try { s = lstat(sys, at); } catch { return false; }
+    if (s.isSymbolicLink()) return true;
+  }
+  return false;
+}
+
 /** Every folder above dir, from the drive or filesystem root down. */
 export function above(dir) {
   const up = [];
