@@ -46,6 +46,7 @@ async function deploy(deps: DeployDeps) {
       env: TEST,
       worker: test.worker,
       sha,
+      site: 'test' as const,
       message: `main ${sha}`,
       what: 'deploy the test Worker',
       after: AFTER,

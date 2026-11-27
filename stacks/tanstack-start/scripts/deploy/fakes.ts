@@ -37,6 +37,8 @@ export interface Place {
   serial: number
   /** A Worker's first deploy goes live without its message, as wrangler's first-deploy path may. */
   untagged: boolean
+  /** `wrangler deployments list` gives no deployment an id. */
+  noIds?: boolean
   /** The first `wrangler deployments list` fails; later ones answer. */
   firstListFails: boolean
   /** The pnpm on PATH (`pnpm --version`). */
@@ -192,18 +194,18 @@ function wrangler(place: Place, args: string[], env: ChildEnv = {}): CommandResu
  * `wrangler deployments list --json`: an older deployment, and `live` as the newest, out of order.
  * A deployment with no message (`live` is '') has no annotation.
  */
-const deployments = ({ live, serial }: Place) =>
+const deployments = ({ live, serial, noIds }: Place) =>
   JSON.stringify(
     live === undefined
       ? []
       : [
           {
-            id: `d${serial}`,
+            id: noIds ? undefined : `d${serial}`,
             created_on: `2026-11-02T10:00:${String(serial).padStart(2, '0')}Z`,
             annotations: live ? { 'workers/message': live } : {},
           },
           {
-            id: 'd1',
+            id: noIds ? undefined : 'd1',
             created_on: '2026-11-01T10:00:00Z',
             annotations: { 'workers/message': 'main 9999999' },
           },

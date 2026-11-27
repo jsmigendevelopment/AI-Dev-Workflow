@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **Deploy script follow-ups 2 (#170).** A `.takeover` file older than a deploy can take is named as left by a crashed run, with its age and the file to delete; a failed first deploy on test no longer gives the production-only Coming soon advice or asks for the `main <sha>` message it may not carry; a deployment without an id reads as "couldn't tell" and never rolls back; the deploy tests are split under 300 lines.
 - New opt-in eval `full-never-parks` (#208): a loop on Full meets an issue one rejection from the review cap and asks nothing, labels nothing `needs-human`, gives it another round or splits it, and builds and merges the next issue. A transcript test checks each part.
 - **Beta label follow-ups (#149).** "(beta)" also on the marketplace `core` entry and the Codex short description; the beta test checks each label on its own; the README says what the grill does on each level and names `npx onrails update`; the profile template says the `[routing]` model names are notes.
 - On macOS, the process registry reads the extended ACL of every folder on its path in one `ls -lde` start, and refuses a folder whose ACL lets another account write it, or whose ACL can't be read; `list`, `ps`, session start and `doctor` name it with the `chmod -a#` that fixes it (#249).
