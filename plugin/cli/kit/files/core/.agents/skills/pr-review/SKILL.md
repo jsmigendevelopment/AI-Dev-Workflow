@@ -56,7 +56,7 @@ You did not write this code. Judge only the **issue, the diff and the check resu
    - [ ] **Translations:** strings in the module's `copy.ts`, or its message keys if translation is on. No strings built by concatenation.
    - [ ] **Access:** owner filters in the repository, or `check(user, action, object)` through the port. No role checks scattered in code. Someone else's object returns "not found".
 7. **Bugs:** edge cases, errors, empty states, off-by-one errors, races.
-8. **Instruction files:** if the diff touches `AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/`, `.codex/` or `.github/`, say so. Below Full, that needs the person. On Full, the code review and the local guard decide it, with the weakening review standing in for the person (`automation`'s `references/full.md`).
+8. **Instruction files:** if the diff touches `AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/`, `.codex/` or `.github/`, or a check file the guard protects (lint, type, test or budget config, a check script: the list is in `../automation/references/full.md`), say so. Below Full, that needs the person. On Full, the code review and the local guard decide it, with the weakening review standing in for the person (`automation`'s `references/full.md`).
 
 ## Verdict
 

@@ -172,6 +172,22 @@ test("#162: the issue's other protected names count at any depth and in any case
   }
 });
 
+test("AC-216-1: WHEN .lighthouserc.json, .semgrep.yaml or tsconfig.base.jsonc changes THEN the guard treats it as check code", () => {
+  for (const path of [".lighthouserc.json", "apps/web/.lighthouserc.js", ".semgrep.yaml", "tsconfig.base.jsonc", "packages/a/tsconfig.jsonc"]) {
+    assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, false, path);
+  }
+  const doc = read(".agents/skills/automation/references/full.md");
+  for (const name of ["`.lighthouserc.*`", "`.semgrep.yaml`", "`tsconfig*.jsonc`"]) assert.ok(doc.includes(name), name);
+});
+
+test("AC-216-2: README, add-to-existing-app and pr-review say the guard covers check files and point to full.md", () => {
+  for (const file of ["README.md", "guide/add-to-existing-app.md", ".agents/skills/pr-review/SKILL.md"]) {
+    const text = read(file);
+    assert.match(text, /check (?:files?|script)/, file);
+    assert.ok(text.includes("automation/references/full.md"), file);
+  }
+});
+
 test("AC-162-6: full.md's weakening review names the guard's new paths", () => {
   const doc = read(".agents/skills/automation/references/full.md").split("## The weakening review")[1];
   for (const name of ["`.mcp.json`", "`eslint.config.*`", "`.prettierrc*`", "`knip.jsonc`", "`tsconfig*.json`", "`vitest.config.*`", "`playwright.config.*`",
