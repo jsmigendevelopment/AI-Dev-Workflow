@@ -52,7 +52,6 @@ Sentry's entry point is "Read and follow https://sentry.io/agent-handoff.md verb
 - npm, 2026-11-23: `sentry` 0.50.0 (FSL-1.1-Apache-2.0, published 2026-11-18); `@sentry/cloudflare` and `@sentry/tanstackstart-react` 11.16.0; `@sentry/wizard` 9.1.0 (FSL-1.1-MIT).
 - sentry.io and cli.sentry.dev weren't reached. `[U]` that the served handoff page matches the template.
 
-## Follow-up notes for the `sentry` add-on
+## The `sentry` add-on's packages
 
-- Sentry's TanStack Start on Workers guide now uses `@sentry/tanstackstart-react` (`wrapFetchWithSentry`) with `@sentry/cloudflare`. The add-on uses `@sentry/react` with `@sentry/cloudflare`. Check whether the Start package is worth the switch.
-- The add-on pins 11.13.0; 11.16.0 is out.
+- The add-on pins `@sentry/cloudflare@11.19.0` and `@sentry/react@11.19.0`, dev `@sentry/vite-plugin@11.19.0` (npm, 2026-11-27). It does not use `@sentry/tanstackstart-react`, which Sentry's TanStack Start on Workers guide adds for server-function tracing: decision 257-1.
