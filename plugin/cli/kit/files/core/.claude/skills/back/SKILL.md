@@ -52,7 +52,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
    - a pass at `gate`: try it, then re-plan the next pass (the right pick then);
    - try what's on "To try", riskiest first (usually the right pick otherwise);
    - clear the `needs-human` list;
-   - start or keep running `coordinate`.
+   - start or keep running the loop (`coordinate`, as a background sub-agent or session).
 
    Below Full, offer to start the dev server too, so they can try things locally (`build`, "Show it"). On Full, put the command that starts it in the report.
 
@@ -62,7 +62,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
 10. **Before the session ends,** not before step 11 (a loop that step starts keeps running), stop what you started (`procs.mjs stop mine`, then its list is empty), and update `docs/state.md`. Overwrite it, keep it under 30 lines, and leave it so a brand-new session could take over.
 
-11. **On Full, start the loop again.** Work left (a ready issue, an open pull request, a retro issue from step 7) and the person hasn't said pause or stop? Start `coordinate` now, as the last thing `/back` does: it cancels a dead timer and arms one (`coordinate`, "Start", step 1). `timer.mjs should-arm` exits 1? A live loop runs already: leave it. Add *"Loop restarted"* or *"Loop already running"* as the report's last line. Below Full, the loop starts when the person picks it in step 8. **Done when** the timer is armed or a live loop was found, or the report says why not (no work left, or the person said pause or stop).
+11. **On Full, start the loop again.** Work left (a ready issue, an open pull request, a retro issue from step 7) and the person hasn't said pause or stop? Start `coordinate` now, as the last thing `/back` does: from this thread, the live thread, it starts the loop as a background sub-agent or session and returns (`coordinate`, "Where this runs"). The loop cancels a dead timer and arms one (`coordinate`, "Start", step 1). `timer.mjs should-arm` exits 1? A live loop runs already: leave it. Add *"Loop restarted"* or *"Loop already running"* as the report's last line. Below Full, the loop starts when the person picks it in step 8. **Done when** the timer is armed or a live loop was found, or the report says why not (no work left, or the person said pause or stop).
 
 ## Retro
 

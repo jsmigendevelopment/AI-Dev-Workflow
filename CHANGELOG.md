@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- **The live thread isn't the loop (#280).** `coordinate` starts with "Where this runs": called in the thread the person talks to, it starts the loop as a background sub-agent or cloud session, says so in one line and returns, so that thread stays free to answer. It relays the person's words to the loop word for word (pause, stop, a new decision, feedback) and the loop's reports back. Pause and stop cover the loop and every builder under it. `routing` splits the row: the live thread is Everyday · low, the loop coordinator Everyday · medium, with a new `loop` job under "Where a job runs"; the README, the cheat sheet and the profile template match. `/back` restarts the loop as a sub-thread, and `/afk` leaves it running with the live thread idle. A new opt-in eval, `live-thread-loop`, and the eval runner lets a scenario allow extra tools (`export const tools`).
+
 ## [0.7.1] - 2026-11-27
 
 ### Added

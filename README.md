@@ -143,7 +143,7 @@ Plan once. Each step saves to files, so you can stop any time and pick up with `
 | 7 | **Plan** | On the strongest model (below Full, after you approve it), it outlines three passes, cuts the first into steps you can try, and designs the schema and API from the approved screens. A script checks the steps. | `pyramid.md`, `design.md` |
 | 8 | **Issues** | One per step in the current pass. Each says what to try, gives WHEN/THEN checks with IDs, and lists scope limits, dependencies, risks, a lane and a complexity score. A read-only check looks for gaps in the plan. | GitHub issues |
 | 9 | **Keys** | It lists the accounts and keys for the first deploy and helps you set them up in about 10 minutes. | |
-| 10 | **Build loop** | Say "start the loop". Slice 0 sets up the app, the local checks and the test deploy. Then one fresh agent builds each issue, three in flight at most (one on Hands-on). | `state.md`, a line on what to try per merge |
+| 10 | **Build loop** | Say "start the loop". The thread you talk to starts the loop in the background and stays free to answer you. Slice 0 sets up the app, the local checks and the test deploy. Then one fresh agent builds each issue, three in flight at most (one on Hands-on). | `state.md`, a line on what to try per merge |
 | 11 | **Pass gate** | The loop keeps going. A fresh audit checks the code against the plan and screens. The loop fixes what it finds and does some cleanup. Try it when you can, then the agent plans the next pass. | `pyramid.md` |
 
 **What each pull request goes through:** build → the local gate (every check on the exact commit, from the session) → code review → QA on the preview → security review (risky changes only) → merge the exact commit that was checked → deploy to the test site → smoke test. A failed check goes back to a fresh builder. After two rejected rounds (three for a complex issue), below Full the issue is parked and you're asked. On Full, nothing waits: one more round on a stronger model, then the issue is split into smaller ones, with an FYI.
@@ -325,7 +325,8 @@ The strongest model at high effort takes more time and usage. The cheapest model
 
 | Job | Tier · effort | Example model |
 |---|---|---|
-| The thread you talk to all day (the loop) | Everyday · low | Claude Opus 5.5 |
+| The live thread: the one you talk to all day | Everyday · low | Claude Opus 5.5 |
+| The loop: the coordinator the live thread starts in the background | Everyday · medium | Claude Opus 5.5 |
 | Grill and planning chat | Everyday · medium | Claude Opus 5.5 |
 | Wireframes, stage 1: grey-box layout | Everyday · medium | Claude Opus 5.5 |
 | **CTO work:** research, the pyramid, schema, API design, wireframes stage 2 (the detailed design) | **Strongest · high** | Claude Fable 5.2 |

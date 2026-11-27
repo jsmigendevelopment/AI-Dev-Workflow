@@ -3,7 +3,8 @@
 // The test copies it as `claude` into a temp bin folder on PATH, next to a plan.json:
 //   { "<scenario>": { "with": <plan>, "without": <plan> }, "*": {...} }
 // A plan: { steps: [step], cost, tokens: { input, output, cacheRead, cacheWrite }, sleep, exit, noResult }
-// A step: { text } | { write: path, content } | { bash: command } | { tool: name, input, ok }.
+// A step: { text } | { write: path, content } | { bash: command } | { tool: name, input, ok }. Any step may add
+// `parent`: a tool_use id, so it shows as a sub-agent's step (parent_tool_use_id), as Claude Code streams them.
 // A tool step's result is an error ("denied") unless ok is true; nothing runs either way.
 // A bash step runs for real, with CLAUDE_CODE_SESSION_ID set as Claude Code sets it, so the process
 // registry's `stop mine` finds what the step started.
@@ -36,7 +37,7 @@ let n = 0;
 let lastText = "";
 for (const step of plan.steps ?? []) {
   const id = `toolu_${++n}`;
-  const message = (content) => emit({ type: "assistant", message: { id: `msg_${n}`, role: "assistant", content, usage: { input_tokens: 10, output_tokens: 5 } } });
+  const message = (content) => emit({ type: "assistant", parent_tool_use_id: step.parent ?? null, message: { id: `msg_${n}`, role: "assistant", content, usage: { input_tokens: 10, output_tokens: 5 } } });
   if (step.text !== undefined) {
     lastText = step.text;
     message([{ type: "text", text: step.text }]);

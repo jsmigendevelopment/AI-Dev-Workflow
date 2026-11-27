@@ -130,7 +130,7 @@ prefer = "cloud"                # cloud | local. Unattended work (overnight, res
 # account. Providers' terms can treat that as account rotation, and it puts your accounts at risk.
 # Empty: every job runs on the account you're signed in with. /idea and /join ask, and walk you
 # through signing each one in (the routing skill's references/accounts.md).
-# One table per account. jobs: live, cto, research, build, review, evals, overnight, or "*".
+# One table per account. jobs: live, loop, cto, research, build, review, evals, overnight, or "*".
 # projects: repo names, or "*" for every project no other account names.
 #
 # [accounts.personal]
