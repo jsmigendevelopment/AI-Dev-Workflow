@@ -17,14 +17,17 @@ const FILES = ["run.test.mjs", "decision-lifts-gate.test.mjs"].map((name) => joi
 const MAKERS = ["harness.mjs", "failed-checks.mjs"];
 // npm's own compile cache: one fixed folder every npm command on the machine shares and reuses. Not a test's.
 const NPM_CACHE = "node-compile-cache";
+// The nested run's env leaves these out: the parent's test context and colour switches.
+const NOT_PASSED = ["NODE_TEST_CONTEXT", "FORCE_COLOR", "NO_COLOR"];
 const skipWin = process.platform === "win32" ? "the fake claude is a shebang script" : false;
 
 test("AC-142-2: WHEN a sample of the eval tests runs with TMPDIR set to an empty folder THEN the folder is empty afterwards", { skip: skipWin }, (t) => {
   const dir = mkdtempSync(join(tmpdir(), "evals-empty-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  // The nested runner must not think it's a child of this one, or it reports in the parent's format.
-  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "NODE_TEST_CONTEXT"));
-  const args = ["--test", ...SAMPLE.map((p) => `--test-name-pattern=${p}`), ...FILES];
+  // The nested runner must not think it's a child of this one, or it reports in the parent's format. TAP, uncoloured,
+  // because newer Node prints the spec report when piped and FORCE_COLOR colours it (#277).
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !NOT_PASSED.includes(name)));
+  const args = ["--test", "--test-reporter=tap", ...SAMPLE.map((p) => `--test-name-pattern=${p}`), ...FILES];
   const r = spawnSync(process.execPath, args, { encoding: "utf8", env: { ...env, TMPDIR: dir, TMP: dir, TEMP: dir }, timeout: 120_000 });
   assert.equal(r.status, 0, r.stdout.slice(-2000));
   assert.match(r.stdout, new RegExp(`^# pass ${SAMPLE.length}$`, "m"), "every sample test ran");
