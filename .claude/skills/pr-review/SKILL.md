@@ -67,4 +67,12 @@ Post **one comment** on the pull request. Don't use GitHub's approve button: the
 - **Briefed as the weakening review** (Full automation)? Follow "The weakening review" in `../automation/references/full.md`: one question, then the exact pass or fail comment. The comment is all: `coordinate` runs the guard from the session before the merge, so no label and no re-run.
 - Then numbered findings: the file and line, what's wrong, the fix. Mark each one **must fix** or **nice to have.** Only must-fix findings block the merge.
 
-A verdict covers that commit only. Then add a board event: `node .agents/skills/coordinate/scripts/board.mjs event review pr=<n> verdict="code review: approve @ <sha>"`. A critical security hole goes through the `ask` skill as a 🛑 blocker.
+A verdict covers that commit only. Then add a board event: `node .agents/skills/coordinate/scripts/board.mjs event review pr=<n> verdict="code review: approve @ <sha>"`.
+
+End the verdict comment with the output of two commands, pasted as printed (never type the JSON by hand):
+- `node .agents/skills/coordinate/scripts/insights.mjs line job job=review-code pr=<pr> sha=<sha> outcome=<pass|fail> model=<model> effort=<effort> tool=<tool>`
+- `node .agents/skills/coordinate/scripts/insights.mjs line review pr=<pr> sha=<sha> round=<round> verdict=<pass|changes> must=<must> nice=<nice> categories=<categories> model=<model> effort=<effort> tool=<tool>`
+
+`<sha>` is the commit you reviewed. `outcome` is `pass` for approve, `fail` for request changes; `verdict` is `pass` or `changes` the same way. `<round>` counts your reviews of this pull request, from 1. `<must>` and `<nice>` count your findings. `<categories>` is a comma list of the Check headings your findings fall under (`tests`, `weakened`, `fence`, `architecture`, `code-rules`, `conventions`, `bugs`, `instructions`), or leave `categories=` out with no findings. `<model>` and `<effort>` are what your own session shows, else `unknown`.
+
+A critical security hole goes through the `ask` skill as a 🛑 blocker.
