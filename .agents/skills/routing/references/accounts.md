@@ -6,6 +6,7 @@ Some people have more than one subscription account: a work one and a personal o
 
 - **Never rotate accounts.** Never spread, balance or move work between subscription accounts because one is near or at its usage limit. Never fall back to another account.
 - **At a limit, that account's work waits** for its reset. Say so in an ℹ️ FYI with the reset time. Keep doing work that belongs to other accounts as normal.
+- **Each app has a home account.** When it's out, the app waits. The one exception the person set: Codex-able work (non-security builds) may go to ChatGPT, when the person uses Codex. Never to a second Claude account.
 - **Why:** providers' terms can treat moving work to dodge a limit as account rotation or limit evasion. That risks a suspended account, and losing the account you build with stops everything.
 
 ## Ask once
