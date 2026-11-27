@@ -4,7 +4,7 @@
 import { lstatSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
-import { notOwnFolder, othersCanSwapIn, othersCanWrite } from "./preflight-sys.mjs";
+import { notOwnFolder, othersCanSwapIn, othersCanWrite } from "./preflight-owner.mjs";
 
 /** Something about the layout can't be read or isn't what git writes: the caller fails closed. */
 class Unknown extends Error {}
@@ -212,7 +212,7 @@ export function pathOutside(dir, platform, env, layout = repoLayout(dir), droppe
 // The session's TMPDIR can point into the repo, and git or npm run from a folder inside it read the repo's settings.
 // Another local user who can write a temp folder, or swap it, could put hooks or a project's settings there (#232).
 /** The session's temp folder, then the system's (not on Windows), then the home folder: where tempFolders looks. */
-const BASES = (platform) => [tmpdir(), platform === "win32" ? null : "/tmp", homedir()];
+export const tempBases = (platform) => [tmpdir(), platform === "win32" ? null : "/tmp", homedir()];
 
 /**
  * A new empty folder in base, only this user's, or null. The base's real path is checked first, so that no other user
@@ -241,7 +241,7 @@ function makeIn(base, platform) {
  * checkout of the repo, with a git that searches no folder above it; or null, also when the layout can't be read.
  * With none, the rows that need one wait for the read.
  */
-export function tempFolders(dir, platform = process.platform, layout = repoLayout(dir), bases = BASES(platform)) {
+export function tempFolders(dir, platform = process.platform, layout = repoLayout(dir), bases = tempBases(platform)) {
   let hooks = null, outside = null;
   for (const base of bases) {
     if ((hooks && (outside || !layout)) || !base) continue;

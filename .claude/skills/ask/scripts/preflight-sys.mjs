@@ -1,6 +1,6 @@
 // Preflight's system layer (#169): how it starts commands, finds them on PATH, stops them, and knows whether
-// the person's own session has read this repo. preflight.mjs holds the probes and the output, and
-// preflight-layout.mjs which folders are the repo before the read (#182).
+// the person's own session has read this repo. preflight.mjs holds the probes and the output, preflight-layout.mjs
+// which folders are the repo before the read (#182), and preflight-owner.mjs who may write a folder (#232, #246).
 // The master copy is scripts/preflight-sys.mjs in the kit; sync-skills.mjs copies it next to each preflight.mjs.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -8,96 +8,7 @@ import { accessSync, constants, existsSync, lstatSync, readFileSync, realpathSyn
 import { connect, createServer } from "node:net";
 import { hostname } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { realSys as machine } from "./procs-sys.mjs";
-import { groupProblem } from "./procs-store.mjs";
-
-// Who may write a folder preflight runs from or reads (#232). The rule is the process registry's for a repo's root
-// (procs-store.mjs, row 69): this user's or root's, no write bit for others, and the group's only when the group is this
-// user's alone with no ACL. The sticky bit doesn't count for the folder itself: it stops renames, not new names, such as
-// a .git, a package.json or a git another user puts there. It counts for a folder above: there it stops another user from
-// swapping a folder this user or root owns for one of theirs. Windows isn't checked yet (#246).
-let user;
-const mine = () => (user ??= machine());
-
-/** Why another local user could write the folder at path itself (s its lstat), or null. */
-function writers(sys, path, s) {
-  if (s.uid !== sys.uid && s.uid !== 0) return `${path} belongs to another user`;
-  if (s.mode & 0o002) return `others can write ${path}`;
-  return groupProblem(sys, s, path, `the group can write ${path}`);
-}
-
-const isLink = (s) => (s.mode & constants.S_IFMT) === constants.S_IFLNK;
-
-/**
- * Why another local user could add, rename or replace an entry in the folder at, or in a folder above it, or null.
- * child names the entry below at. The folders are looked at with lstat, so a symlink on the way counts as unsafe:
- * when this passes, the path checked is the path the system follows, and nobody else can change it.
- */
-function swaps(sys, look, at, child) {
-  for (; ; child = at, at = dirname(at)) {
-    const s = look(at);
-    if (isLink(s)) return `${at} is a symlink, which could be pointed somewhere else`;
-    if (s.uid !== sys.uid && s.uid !== 0) return `${at} belongs to another user, who could swap ${child}`;
-    const shared = writers(sys, at, s);
-    if (shared && !(s.mode & 0o1000)) return `${at} has no sticky bit to stop a swap of ${child}, and ${shared}`;
-    if (dirname(at) === at) return null;
-  }
-}
-
-/** sys and lstat for a check, or a reason it can't run; null on Windows, which isn't checked yet (#246). */
-function checker(platform, sys) {
-  if (platform === "win32") return null;
-  if (!Number.isInteger(sys.uid)) return { why: "this user's id can't be read" };
-  return { look: sys.lstat ?? lstatSync };
-}
-const unchecked = (path, error) => `${path} can't be checked (${error.code ?? "an error"})`;
-
-/**
- * Why another local user could write the folder at path, or swap it or a folder above it, or null when only this user
- * (or root) can. A folder that can't be checked counts as written by others. sys gives uid, gid, acl and privateGroup,
- * and a test's sys may give lstat in place of the real one.
- */
-export function othersCanWrite(path, { platform = process.platform, sys = mine() } = {}) {
-  const how = checker(platform, sys);
-  if (!how?.look) return how?.why ?? null;
-  try {
-    const real = realpathSync.native(path);
-    // Each folder above is checked as one that holds the folder below it, so this user or root owns each of them.
-    return writers(sys, real, how.look(real)) ?? (dirname(real) === real ? null : swaps(sys, how.look, dirname(real), real));
-  } catch (error) {
-    return unchecked(path, error);
-  }
-}
-
-/**
- * Why another local user could add, rename or replace an entry in the real folder at path, or swap a folder above it,
- * or null. A folder this user makes in it then stays the one this user made (#232). The sticky bit counts here, for
- * the folder itself too. path is never resolved: a symlink on it counts as unsafe.
- */
-export function othersCanSwapIn(path, { platform = process.platform, sys = mine() } = {}) {
-  const how = checker(platform, sys);
-  if (!how?.look) return how?.why ?? null;
-  if (!isAbsolute(path)) return `${path} isn't a full path`;
-  try {
-    return swaps(sys, how.look, path, "a folder made in it");
-  } catch (error) {
-    return unchecked(path, error);
-  }
-}
-
-/** Why the entry at path isn't a plain folder this user owns and only this user can write (path not followed), or null. */
-export function notOwnFolder(path, { platform = process.platform, sys = mine() } = {}) {
-  const how = checker(platform, sys);
-  if (!how?.look) return how?.why ?? null;
-  try {
-    const s = how.look(path);
-    if ((s.mode & constants.S_IFMT) !== constants.S_IFDIR) return `${path} isn't a plain folder`;
-    if (s.uid !== sys.uid) return `${path} belongs to another user`;
-    return writers(sys, path, s);
-  } catch (error) {
-    return unchecked(path, error);
-  }
-}
+import { othersCanWrite } from "./preflight-owner.mjs";
 
 /** True for a regular file this process may start. On POSIX a file without its run bit is passed over, as the shell does. */
 function runnable(file, win) {

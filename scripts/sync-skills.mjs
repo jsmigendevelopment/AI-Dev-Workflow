@@ -20,11 +20,12 @@ const CHECKER = join("scripts", "check-research.mjs");
 const LIBRARY = join("scripts", "research-library.mjs");
 const TEMPLATE = join("templates", "research-library");
 // Preflight ships inside the ask skill, so an agent can run it with plain node, and in the CLI (a global onrails preflight).
-// preflight-sys.mjs is its system layer (#169), preflight-layout.mjs finds the repo's checkouts (#182), and preflight-ci.mjs
-// finds workflow files and Actions left on (#133; doctor and ci local use it too): they go wherever preflight.mjs goes.
-// preflight-sys.mjs also imports procs-sys.mjs and procs-store.mjs (#232): it works only because PROCS below ships to
-// the same folders, so a new home for preflight needs those two as well.
-const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs", "preflight-layout.mjs", "preflight-ci.mjs"];
+// preflight-sys.mjs is its system layer (#169), preflight-owner.mjs says who may write a folder (#232, #246),
+// preflight-layout.mjs finds the repo's checkouts (#182), and preflight-ci.mjs finds workflow files and Actions left on
+// (#133; doctor and ci local use it too): they go wherever preflight.mjs goes. preflight-owner.mjs also imports
+// procs-sys.mjs, procs-winacl.mjs and procs-store.mjs (#232, #248): it works only because PROCS below ships to the same
+// folders, so a new home for preflight needs those three as well.
+const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs", "preflight-owner.mjs", "preflight-layout.mjs", "preflight-ci.mjs"];
 // The process registry ships the same way: the ask skill for agents and the hooks, the CLI for npx onrails ps.
 const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-winacl.mjs", "procs-store.mjs", "procs-path.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
 const COPIES = [
