@@ -4,6 +4,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-27
+
 ### Added
 
 - **`coordinate` checks the overlap before every start (#255).** `.agents/skills/coordinate/scripts/overlap.mjs <n> --in-flight <n,n,...> --repo <owner>/<repo>` exits 1, naming each clash, when the candidate shares a module with an issue in flight (or one picked earlier in the same sweep) or an in-flight branch already changes a file in one of its modules. An issue with no Modules line starts only alone. Shared hot spots (`AGENTS.md`, `docs/decisions.md`, `CHANGELOG.md`, lockfiles, generated files) don't clash on their own. Step 2 runs it, and a clash means the next ready issue is tried.
@@ -275,7 +277,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - The first kit: `AGENTS.md`, skills for the product grill, the tech grill, research, the tracer-bullet pyramid, issues, model routing, the build loop, reviews and browser tests, plus templates and a guide.
 - Skills live in `.agents/skills` for Codex and are copied to `.claude/skills` for Claude Code. CI checks the copies match.
 
-[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.2...v0.5.3
