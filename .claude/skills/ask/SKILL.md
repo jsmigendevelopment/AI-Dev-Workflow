@@ -145,6 +145,13 @@ Stuck? <the one most likely problem and its fix>.
 - For a secret value, follow the `secrets` skill's checklist. The person types the value into a file or a hidden prompt, never into chat.
 - **A key?** Do every step you can first (`secrets`, "Keys on Full"): open the page, make the key, open where it goes. The step you write holds only the sign-in and the paste.
 
+## A check only the person can run
+
+Some checks need what only the person has: real hardware, an init system or a device the sandbox can't run.
+- **Ask last, once.** Only after every review pass is green and the head is checked on main merged in (`coordinate`, step 7). Name the exact sha: `Try <check> on <sha>`. A new commit makes the ask stale: don't ask again until the head stops moving.
+- **Below Full:** one ⏳ decision. The pull request waits for the result; other work goes on.
+- **On Full:** nothing waits on it (decision 263-1). Merge on the agents' checks, and put the check, with the merged sha, in the next ℹ️ FYI. A failure the person reports is a bug issue.
+
 ## Steps
 
 Steps 2 and 3 happen in the same turn you find the problem. A blocker said only in chat is lost: nobody hears of it again.
