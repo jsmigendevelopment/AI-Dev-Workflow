@@ -14,12 +14,15 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const SAMPLE = ["rename", "update", "fix", "local-gate", "procs", "presence"].map((name) => `${HERE}${name}.test.mjs`);
 // npm's own compile cache: one fixed folder every npm command on the machine shares and reuses. Not a test's.
 const NPM_CACHE = "node-compile-cache";
+// A nested run reports in TAP, uncoloured: newer Node prints the spec report when piped, and FORCE_COLOR colours it (#277).
+const TAP = "--test-reporter=tap";
+const NESTED = { NODE_TEST_CONTEXT: undefined, FORCE_COLOR: undefined, NO_COLOR: undefined };
 
 test("AC-142-1: WHEN a sample of the CLI suite runs with TMPDIR set to an empty folder THEN the folder is empty afterwards", () => {
   const dir = tmp("onrails-empty-");
   // The nested runner must not think it's a child of this one, or it reports in the parent's format.
-  const env = safeEnv({ NODE_TEST_CONTEXT: undefined, TMPDIR: dir, TMP: dir, TEMP: dir });
-  const r = spawnSync(process.execPath, ["--test", ...SAMPLE], { encoding: "utf8", env, timeout: 120_000 });
+  const env = safeEnv({ ...NESTED, TMPDIR: dir, TMP: dir, TEMP: dir });
+  const r = spawnSync(process.execPath, ["--test", TAP, ...SAMPLE], { encoding: "utf8", env, timeout: 120_000 });
   assert.equal(r.status, 0, r.stdout.slice(-2000));
   assert.match(r.stdout, /^# pass [1-9]/m, "the sample ran");
   assert.deepEqual(readdirSync(dir).filter((name) => name !== NPM_CACHE), []);
@@ -156,9 +159,9 @@ function runCounted(dir, log, files) {
   const counter = join(dirname(log), "count-removals.cjs");
   put(dirname(log), "count-removals.cjs", COUNT_REMOVALS);
   // The nested runner must not think it's a child of this one, or it reports in the parent's format.
-  const env = safeEnv({ NODE_TEST_CONTEXT: undefined, TMPDIR: dir, TMP: dir, TEMP: dir, ONRAILS_RM_LOG: log });
+  const env = safeEnv({ ...NESTED, TMPDIR: dir, TMP: dir, TEMP: dir, ONRAILS_RM_LOG: log });
   const preload = join(HERE, "safe-path-preload.mjs");
-  return spawnSync(process.execPath, ["--require", counter, "--require", preload, "--test", ...files], { encoding: "utf8", env, timeout: 120_000 });
+  return spawnSync(process.execPath, ["--require", counter, "--require", preload, "--test", TAP, ...files], { encoding: "utf8", env, timeout: 120_000 });
 }
 
 // Each registration removes its folder once when the file ends, so a folder removed twice was registered twice.
