@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **`npx onrails lesson check` (#321).** Refuses a kit lesson that isn't a closed record of known-safe values: fixed keys and lists, components from the kit's manifest, and one-sentence lessons whose words come from the kit glossary or a common-word list (decision 321-1). Prints only the field and the rule, never the refused text. Reads local files only.
 - `build` branches from a fresh `origin/main`, merges main again before the push and reads every issue comment; `pr-review` also diffs the head against current main (#361).
 - **Merge-behind check (#263).** `coordinate` step 7 checks main merged into a pull request whose base is behind before merging, and asks for a check only the person can run last, once, naming the exact sha. `ask` says what that ask does on each level (decision 263-1).
 - **PostHog provider file (#258).** `secrets/providers/posthog.md` lists the project token and host, with a "Make each key" table checked against PostHog's docs on 2026-11-27 and a connect block, so `pnpm connect` asks for them.
