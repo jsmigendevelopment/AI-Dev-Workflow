@@ -2,7 +2,7 @@
 // bare remote with the coordinator's clone (insights-land-fakes.mjs), carry run as is or under a fake git older than
 // 2.38, and the checkout state carry must leave as it was.
 import assert from "node:assert/strict";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "./child.mjs";
 import { fake, safeEnv, tmp } from "./helpers.mjs";
@@ -99,15 +99,17 @@ export function refuses(why, names, make, opts, runner = carry) {
 /**
  * carry under a git older than 2.38: a fake git that refuses `merge-tree --write-tree` (exit 129, as git 2.34 does)
  * and passes every other call through to the real git. `env` adds variables (a GIT_DIR, a global config).
- * `refuseClone` makes `clone` fail; `killOnMerge` makes a plain `merge` send SIGTERM to carry. `fallback: false` is for
- * a case refused before any merge. Returns the result and `tmp`, carry's own TMPDIR, to look for leftovers in.
+ * `refuseClone` makes `clone` fail; `killOnMerge` makes a plain `merge` send SIGTERM to carry; `logFetchEnv` keeps the
+ * fetch's GIT_ variables as `fetchEnv`. `fallback: false` is for a case refused before any merge. Returns the result
+ * and `tmp`, carry's own TMPDIR, with `left`, what is still in it.
  */
-export function oldGitCarry(dir, from, to, { env = {}, refuseClone = false, killOnMerge = false, fallback = true } = {}) {
+export function oldGitCarry(dir, from, to, { env = {}, refuseClone = false, killOnMerge = false, logFetchEnv = false, fallback = true } = {}) {
   const bin = tmp("onrails-old-git-");
   const log = join(bin, "refused.log");
   fake(bin, "git", `#!/bin/sh
-tree=no; write=no; clone=no; merge=no
+tree=no; write=no; clone=no; merge=no; fetch=no
 for a in "$@"; do
+  [ "$a" = fetch ] && fetch=yes
   [ "$a" = merge-tree ] && tree=yes
   [ "$a" = --write-tree ] && write=yes
   [ "$a" = clone ] && clone=yes
@@ -116,11 +118,13 @@ done
 if [ $tree = yes ] && [ $write = yes ]; then echo "merge-tree $*" >> '${log}'; echo "usage: git merge-tree <base> <a> <b>" >&2; exit 129; fi
 ${refuseClone ? `if [ $clone = yes ]; then echo "fatal: could not create work tree dir" >&2; exit 128; fi` : ""}
 ${killOnMerge ? "if [ $merge = yes ]; then kill -TERM $PPID; exit 1; fi" : ""}
+${logFetchEnv ? `if [ $fetch = yes ]; then env | grep '^GIT_' | sort > '${join(bin, "fetch.env")}'; fi` : ""}
 exec '${findCommand("git")}' "$@"
 `);
   const own = tmp("onrails-carry-tmp-");
   const childEnv = safeEnv({ ...GIT_ENV, ONRAILS_NOW: "2026-11-27T14:32:00Z", TMPDIR: own, ...env }, { bins: [bin] });
   const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "insights.mjs"), "carry", "--pr", "40", "--from", from, "--to", to], { cwd: dir, encoding: "utf8", env: childEnv });
   assert.equal(existsSync(log), fallback, fallback ? "the fake refused merge-tree --write-tree" : "refused before any merge");
-  return { ...r, tmp: own, left: readdirSync(own) };
+  const fetchEnv = existsSync(join(bin, "fetch.env")) ? readFileSync(join(bin, "fetch.env"), "utf8") : "";
+  return { ...r, tmp: own, left: readdirSync(own), fetchEnv };
 }

@@ -2,12 +2,13 @@
 //   carry --pr <n> --from <reviewed sha> --to <merge sha>   when the loop merged main into a reviewed branch
 //       (`coordinate` step 7, decision 333-2): exit 0 only when <to> has exactly two parents, the first is <from>,
 //       the second is on refs/remotes/origin/main (fetched first, never read by its short name, which a tag or a
-//       local branch can shadow), no .gitattributes differs between the two (a branch's merge attributes would
-//       decide its own merge), a merge of the two has no conflict and gives exactly <to>'s tree, <from> has its job
+//       local branch can shadow), a merge of the two with main's merge attributes, never the branch's, has no
+//       conflict and gives exactly <to>'s tree, <from> has its job
 //       and review records here, every review passed and every review job passed, and no review or review job at <to>
 //       failed. The merge is `git merge-tree --write-tree`; a git before 2.38 has no --write-tree, so it merges in a
-//       throwaway clone in TMPDIR that borrows this checkout's objects and changes none of its refs, index or files.
-//       Every git call is isolated (see SAFE_GIT), and the temp folder goes on exit and on SIGHUP, SIGINT or SIGTERM.
+//       throwaway clone in TMPDIR that borrows this checkout's objects and changes none of its refs, index or files;
+//       its .git/info/attributes holds `* merge=text` and then this checkout's .gitattributes, which outrank the
+//       branch's files, as merge-tree reads this checkout's. Every git call is isolated (see SAFE_GIT), and the temp folder goes on exit and on SIGHUP, SIGINT or SIGTERM.
 //       Then it writes a job record (job=carry-review, outcome=pass) and a copy of <from>'s latest review, both at
 //       <to>, through the writer. A rerun writes nothing new. Exit 1 says why, and the merge commit goes to a fresh
 //       pr-review. Exit 2: a usage or git error, or a sha that isn't a commit in this checkout.
@@ -64,6 +65,12 @@ export function save(root, record) {
 const UNSAFE_ENV = /TOKEN|SECRET|PASSWORD|API_KEY|^GIT_|^GH_|^GITHUB_/i;
 const SAFE_GIT = ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "core.attributesFile=/dev/null"];
 const SIGNALS = { SIGHUP: 1, SIGINT: 2, SIGTERM: 15 };
+// What the fetch drops: the variables that move the repository, and config given through the environment.
+const MOVES_REPO = /^GIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE|CEILING_DIRECTORIES|COMMON_DIR|CONFIG.*)$/;
+
+// The checkout carry runs in. The isolated calls name it safe.directory: without the global config, a safe.directory
+// listed there (a dev container's mounted folder) would be ignored and every call would fail on ownership.
+let checkoutRoot;
 
 let work;
 /** This run's temp folder: HOME for its git, and the throwaway clone's parent. Removed on exit and on a signal. */
@@ -77,12 +84,14 @@ function workDir() {
 
 const without = (pattern) => Object.fromEntries(Object.entries(process.env).filter(([name]) => !pattern.test(name)));
 const isolated = () => ({ ...without(UNSAFE_ENV), GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_ATTR_NOSYSTEM: "1", HOME: workDir(), XDG_CONFIG_HOME: workDir() });
-// The fetch alone keeps HOME, the global config and tokens: its credential helper lives there. It merges nothing.
-const forFetch = () => (workDir(), without(/^GIT_/));
+// The fetch alone keeps HOME, the global config, tokens and transport variables (GIT_SSH_COMMAND, GIT_ASKPASS, a CA
+// bundle): its login lives there. It merges nothing, and a missing login fails at once instead of waiting on a prompt.
+const forFetch = () => (workDir(), { ...without(MOVES_REPO), GIT_TERMINAL_PROMPT: "0" });
 
 /** Isolated git in cwd, for a command whose exit code is the answer: { status, out, err }. */
 function ask(cwd, args, env = isolated()) {
-  const r = spawnSync("git", [...SAFE_GIT, ...args], { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const safe = checkoutRoot ? ["-c", `safe.directory=${checkoutRoot}`] : [];
+  const r = spawnSync("git", [...SAFE_GIT, ...safe, ...args], { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   if (r.error) throw r.error;
   return { status: r.status, out: r.stdout.trim(), err: r.stderr.trim() };
 }
@@ -107,6 +116,10 @@ function mergeInClone(root, from, second) {
   const clone = join(workDir(), "clone");
   try {
     git(workDir(), ["clone", "-q", "--shared", "--no-checkout", "--", root, clone]);
+    // Main's merge rules, never the branch's: info/attributes outranks every .gitattributes in the tree.
+    const main = join(root, ".gitattributes");
+    mkdirSync(join(clone, ".git", "info"), { recursive: true });
+    writeFileSync(join(clone, ".git", "info", "attributes"), `* merge=text\n${existsSync(main) ? readFileSync(main, "utf8") : ""}`);
     git(clone, ["checkout", "-q", "--detach", from]);
     const id = ["-c", "user.name=onrails carry", "-c", "user.email=carry@onrails.invalid"];
     const merged = ask(clone, [...id, "merge", "-q", "--no-ff", "--no-commit", second]);
@@ -142,10 +155,6 @@ function notCleanMerge(root, from, to) {
   const onMain = ask(root, ["merge-base", "--is-ancestor", "--end-of-options", parents[1], MAIN]);
   if (onMain.status === 1) return `${to}'s second parent ${parents[1]} isn't on origin/main`;
   if (onMain.status !== 0) throw new Error(onMain.err || "git merge-base failed");
-  // Fail closed (decision 333-2): a merge whose sides differ in any .gitattributes goes to a fresh review.
-  const attributes = git(root, ["diff-tree", "-r", "-z", "--name-only", "--end-of-options", from, parents[1]]).split("\0")
-    .filter((path) => path === ".gitattributes" || path.endsWith("/.gitattributes"));
-  if (attributes.length) return `${attributes.join(", ")}: a .gitattributes differs between the reviewed sha and main's side, so the merge's attributes can't be trusted`;
   const merged = merge(root, from, parents[1]);
   if (merged.conflict) return "merging main into the reviewed sha conflicts, so the merge commit holds a conflict fix";
   if (merged.why) return `git couldn't redo the merge to prove it (${merged.why})`;
@@ -164,6 +173,7 @@ export function carry(root, args) {
   const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
   const [pr, from, to] = ["--pr", "--from", "--to"].map(flag);
   if (args.length !== 6 || !/^\d+$/.test(pr ?? "") || !SHA.test(from ?? "") || !SHA.test(to ?? "")) throw new Error(USAGE);
+  checkoutRoot = root;
   git(root, ["fetch", "-q", "origin", `+refs/heads/main:${MAIN}`], forFetch());
   const why = notCleanMerge(root, from, to);
   if (why) refuse(why);
