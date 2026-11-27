@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **clean-up-server reads more negations and rarer background forms (#192).** `AC-151-3-says-so` accepts "isn't", "never" and "neither … nor"; `AC-6-nothing-left` catches `{ npm run dev & }` and `&# note` and ignores a quoted `&`; a `server.pids` line with no start time counts only a PID running `server.mjs`.
 - **short-on-memory catches every stop that hits more than one record (#176).** Its two stopped-processes checks now also see `procs.mjs ps --stop mine`, `ps --stop all` and `npx onrails ps --stop all --yes`, with a test for each form.
 
 - **test-by-hand-zero's checks close four holes (#147).** A load with `--length=2m` no longer counts as trying 2m, a Generate press after `cd scripts` is caught, "Nothing wrong… 0 min" no longer counts as calling 0 min wrong, and a prediction in words ("about 30 seconds, 1, 2, 3 and 5 minutes") passes. A "Predicted" column counts, the run's summary lists the opt-in scenarios it left out, the skill fails only a 0 the prediction didn't expect, and README's standing-rule count matches `AGENTS.md`, with a test. Decision 147-1.
