@@ -19,7 +19,7 @@ import { randomBytes } from "node:crypto";
 import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
-import { above, aclProblem, forgetAcls, pathProblem, readAcls, winAboveProblem } from "./procs-path.mjs";
+import { above, aclProblem, forgetAcls, linkOnWay, pathProblem, readAcls, winAboveProblem } from "./procs-path.mjs";
 
 const readText = (p) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
 const IGNORE = "*\n";
@@ -189,8 +189,9 @@ function readIndex(sys, kept = false) {
 // Not JSON: the same as no index.
 const listOf = (text) => { try { const l = JSON.parse(text ?? "{}").registries; return Array.isArray(l) ? l.filter((p) => typeof p === "string") : []; } catch { return []; } };
 // The index's list, read unchecked only to know which ACLs to ask for at once (#248). Never trusted, so only a registry path on
-// a local drive: nothing another account wrote makes Windows look up a UNC or device path first. Tests pass path.win32.
-const peek = (sys) => listOf(readChecked(sys, indexPath(sys), false, false).text).filter((p) => localRegistry(p));
+// a local drive with no link on the way: nothing another account wrote makes Windows look up a UNC or device path, or
+// follow a link off the machine, first (#267). Tests pass path.win32.
+const peek = (sys) => listOf(readChecked(sys, indexPath(sys), false, false).text).filter((p) => localRegistry(p) && !linkOnWay(sys, p));
 export const localRegistry = (p, { isAbsolute: abs, resolve: res, sep: s } = { isAbsolute, resolve, sep }) => abs(p) && res(p) === p && p.endsWith(`${s}.onrails${s}procs.json`) && (s === "/" ? !p.startsWith("//") : /^[A-Za-z]:\\[^\\]/.test(p));
 
 function candidates(sys, dir) {
