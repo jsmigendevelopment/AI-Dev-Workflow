@@ -57,6 +57,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
+- A fresh copy of the TanStack Start pack passes `pnpm check` again (#319): `scripts/cloudflare/save-fails.test.ts` is formatted, and `knip.jsonc` names `lefthook` in `ignoreDependencies`, since knip sees lefthook's real use (its install script and `lefthook.yml`) only through an installed git hook, which is missing in a worktree or when `pnpm install` ran before `git init` (decision 319-1).
 - Merging main into a branch no longer stops on `CHANGELOG.md` alone: the kit's and the web pack's `.gitattributes` merge it with git's union driver, and `coordinate` step 7 says to check the merged file once for an entry reworded or removed on one side, which union keeps in its old wording too (#362, decision 362-1).
 - **No Actions, part 7 (#227, first part).** The Markdown scan in `cli/test/no-actions-mentions.test.mjs` tracks `~~~` fences, opts a section in only on an "Only on/for/when..." lead, catches `gh run`, required status checks and the Actions tab, and reads "Do not merge if CI is red" as waiting on CI (decision 227-3). `show-it-early` counts `sed -Ei` and `sed -ri`. On `ci = "local"`, `pnpm connect sentry` writes the three Sentry deploy values to `.env.sentry.local` (decision 227-2). The code scan is #387, the README picture #388 (decision 227-1).
 - The opt-in eval `live-thread-loop` also fails "built nothing" when the live thread leaves uncommitted changes under `src/` that no sub-agent edit made, such as a Bash redirect (#287).
