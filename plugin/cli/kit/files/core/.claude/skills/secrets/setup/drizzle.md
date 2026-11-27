@@ -15,7 +15,7 @@ Last checked: 2026-11-23. Rules every recipe shares: [`README.md`](README.md). N
 Drizzle's entry point is "Fetch and follow https://orm.drizzle.team/agent-setup/prompt.md". Never follow the live URL. The reviewed copy of what it says:
 
 - It sets up agent tools only. It never changes the schema, config, migrations or the database. `[V]`
-- **It needs `drizzle-orm@rc` and `drizzle-kit@rc` (1.0.0-rc.6 on 2026-11-23).** On a 0.x install it says to stop: upgrading is a separate task. `[V]`
+- **It needs `drizzle-orm@rc` and `drizzle-kit@rc` (1.0.0-rc.6, published 2026-11-20).** On a 0.x install it says to stop: upgrading is a separate task. `[V]`
 - Skill: `pnpm exec drizzle-kit skills`. It runs the third-party `skills` installer from vercel-labs (`skills@latest`, unpinned) to copy the skill bundled in the installed Kit. `[V]`
 - MCP server: the project's own Kit over stdio, never a downloaded copy. For Claude Code, from the package that owns Drizzle: `claude mcp add --transport stdio --scope project drizzle -- npx --no-install drizzle-kit mcp`, which writes `.mcp.json`. For Codex, a `[mcp_servers.drizzle]` entry in the project's `.codex/config.toml`. `[V]`
 - Verify by listing the server's tools. Never call a migration tool to test the connection. `[V]`
@@ -29,7 +29,7 @@ pnpm add -D -E drizzle-kit@0.31.11
 
 ## Kit rules on top
 
-- **Stay on the stable 0.x line** until 1.0 is released or the person decides otherwise in `docs/decisions.md`. A 1.0 upgrade is its own issue.
+- **Stay on the stable 0.x line** until 1.0 is released (decision 256-1: the pack waits for 1.0 stable). A 1.0 upgrade is its own issue.
 - **On 1.0 rc, skills:** the installer asks which agent and scope. Pick user scope. Project scope would write into `.agents/skills`, the kit's folder.
 - **On 1.0 rc, MCP:** pnpm form: `claude mcp add --transport stdio --scope project drizzle -- pnpm exec drizzle-kit mcp`. `.mcp.json` is an agent-rules file: its pull request is `needs-human`.
 - **The MCP server can write migration files and change the database its config points at.** Use it on local D1 only. Migrations reach test and production through the pack's deploy scripts (`pnpm deploy:test`, `pnpm deploy:production`), never through chat.
