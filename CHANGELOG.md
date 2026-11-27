@@ -27,6 +27,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
+- **Windows process registry: no link followed on a peeked index path (#267).** Before the index is checked, a path it lists with a symlink or junction on the way, found with `lstat` from the root down, stays out of the one ACL batch, so neither `existsSync` nor `Get-Acl` follows it. Decision 267-1.
+
 - Preflight: before the read, the folder that holds a bare repo (`~/proj.git`) no longer counts as a checkout, so tools under it stay on PATH; a PATH folder left off because a `.git` above it can't be read gives a limited row, not "isn't installed"; `preflight.mjs` is split into `preflight-output.mjs` and `preflight-versions.mjs`, each under 300 lines (#195).
 - **auto-grill-door's checks close four gaps (#189).** "a floating add button" is no longer money; a money Pick must open with the whole stored unit ("Integer cents", "Cents stored as an integer"), so "Whole dollars, rounded to cents" fails; "anything else?" and "rest look ok?" are blanket questions, while "the items table" in a door's own question passes. The `grill-log.md` label list and `grill`'s "Keep the record" name "person (pitch)" and "AI pick, not reviewed".
 - **`ci local` stops cleanly (#203).** After a SIGINT or SIGTERM it prints only `Stopped by <signal>`, with no failure line for the step it skipped. `update` and `update --all` end with that same code and run nothing after it, `doctor` included. `docs/stack.md` committed as a folder stops with a plain message instead of an `EISDIR` stack trace. Decision 203-1.

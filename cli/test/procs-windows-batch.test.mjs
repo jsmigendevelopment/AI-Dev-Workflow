@@ -3,7 +3,7 @@
 // answers PowerShell and git and counts the starts. No process is started and no signal is sent.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, win32 } from "node:path";
 import { realSys, windowsProcs } from "../src/procs-sys.mjs";
 import { localRegistry } from "../src/procs-store.mjs";
@@ -194,4 +194,22 @@ test("#248 round 2: WHEN the index lists a path THEN only a plain registry path 
   for (const p of bad) assert.equal(localRegistry(p, win32), false, p);
   assert.equal(localRegistry("/home/me/repo/.onrails/procs.json"), process.platform !== "win32");
   for (const p of ["//srv/repo/.onrails/procs.json", "/home/me/../me/.onrails/procs.json", "home/.onrails/procs.json"]) assert.equal(localRegistry(p), false, p);
+});
+
+test("AC-267-1: WHEN a peeked registry path has a link on the way, at any folder from the root down THEN that path and the folders below the link are left out of the ACL batch", async () => {
+  // A link (as a junction is on Windows) high up, to a repo's folder above, and one at the registry's own folder.
+  const links = [];
+  const more = (repos) => {
+    const high = join(tmp("procs-link-"), "via"), low = join(tmp("procs-link-"), "repo");
+    symlinkSync(dirname(repos[0]), high);
+    mkdirSync(low);
+    symlinkSync(join(repos[1], ".onrails"), join(low, ".onrails"));
+    links.push(high, join(low, ".onrails"));
+    return [join(high, "repo", ".onrails", "procs.json"), join(low, ".onrails", "procs.json")];
+  };
+  const w = windows({ more });
+  const r = await run(w.sys, ["session-end"]);
+  const asked = w.acls()[0].paths;
+  assert.deepEqual(asked.filter((a) => links.some((l) => a === l || a.startsWith(`${l}/`))), [], "no link, and nothing below one, is asked");
+  assert.ok(asked.includes(w.files[0]), r.out);
 });
