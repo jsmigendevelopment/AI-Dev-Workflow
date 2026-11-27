@@ -34,16 +34,17 @@ export async function update(dir = ".", { dryRun = false, kitDir, ask, yes = fal
   apply(projectDir, kit, actions, oldName && !rename ? OLD_PROJECT_MANIFEST : PROJECT_MANIFEST);
   if (rename) rmSync(toNative(projectDir, OLD_PROJECT_MANIFEST));
   nextSteps(projectDir, actions, log);
-  await offActions(projectDir, { dryRun, ask, yes, log, run });
-  return 0;
+  return offActions(projectDir, { dryRun, ask, yes, log, run });
 }
 
 // A repo on ci = "local" that still has workflow files moves off Actions (#133). Its result is shown, and the kit
-// update stands either way: the kit's files are already written.
+// update stands either way: the kit's files are already written. A stop by a signal (128 + its number) is the one
+// result update passes on, so nothing runs after it (#203).
 async function offActions(projectDir, opts) {
-  if (ciMode(projectDir) !== "local" || !workflowFiles(projectDir).length) return;
+  if (ciMode(projectDir) !== "local" || !workflowFiles(projectDir).length) return 0;
   opts.log(`\nThis repo is on ci = "local" and still has workflow files, so update runs ${CI_FIX}:`);
-  await ciLocal(projectDir, opts);
+  const code = await ciLocal(projectDir, opts);
+  return code > 128 ? code : 0;
 }
 
 async function offerManifestRename({ ask, yes, log }) {
