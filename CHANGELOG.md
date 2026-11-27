@@ -7,6 +7,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 ### Added
 
 - **Insights record format (#329).** `coordinate/scripts/insights.mjs write|line <kind> key=value ...` writes one JSON record per event to `docs/insights/<yyyy-mm-dd>/` (or prints its comment form for a reviewer), from the master `scripts/insights-record.mjs` (`validate`, `fileName`, `parseLine`), copied to the skill and the CLI. Twelve kinds, `references/insights.md`, and both subcommands allowed without a prompt (decision 329-1).
+- `coordinate`'s overlap check treats `docs/decisions/` as a hot spot and ignores "synced copies" in a Modules line; `issues` spells out the Modules line format, and every open kit issue now carries one (#269).
+- `build` branches from a fresh `origin/main`, merges main again before the push and reads every issue comment; `pr-review` also diffs the head against current main (#361).
 - **Merge-behind check (#263).** `coordinate` step 7 checks main merged into a pull request whose base is behind before merging, and asks for a check only the person can run last, once, naming the exact sha. `ask` says what that ask does on each level (decision 263-1).
 - **PostHog provider file (#258).** `secrets/providers/posthog.md` lists the project token and host, with a "Make each key" table checked against PostHog's docs on 2026-11-27 and a connect block, so `pnpm connect` asks for them.
 

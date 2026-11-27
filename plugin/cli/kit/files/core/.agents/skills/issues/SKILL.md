@@ -51,6 +51,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    - `no-issue`, the only way a pull request skips the issue link. Dependabot gets it.
 9. **Dependencies both ways:** "Depends on #N" here, and "Blocks #M" on the other one.
 10. **Modules touched,** and whether the issue is **decoupled.** That's how `coordinate` knows what can run in parallel.
+   - **Write it as `- **Modules:** <path>, <path>`,** one comma-separated list of the folders or files the change touches, as precise as you can: `.agents/skills/qa/SKILL.md`, not `.agents/skills`. No Modules line means "unknown", and an unknown issue builds alone. In the kit's own repo, name the skill folders and `cli/` files; "synced copies" may end the line and counts as no module.
    - **A slice that creates a module:** write "Use the generator: `<command>`" in the goal, with the command from "Commands that work here" in `AGENTS.md` (for example `pnpm new:module <name>`). No generator yet? Write "Copy `<the nearest existing module>`" instead.
 11. **Skills line:** `build`, plus at most two more, named exactly. A skill named in the issue gets loaded. One that's only installed may not be. Pick the know-how the work needs:
    - `stack-<name>` for the project's stack;

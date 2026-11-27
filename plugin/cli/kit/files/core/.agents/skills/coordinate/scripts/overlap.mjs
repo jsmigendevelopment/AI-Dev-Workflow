@@ -18,6 +18,7 @@ import { LOCKFILES, generated } from "./pr-rules.mjs";
 export const HOT_SPOTS = [
   [/(?:^|\/)(?:AGENTS|CLAUDE)\.md$/, "agent rules: changes add or edit separate lines"],
   [/^docs\/decisions\.md$/, "one appended row per decision"],
+  [/^docs\/decisions(?:\/|$)/, "one new file per decision since #165"],
   [/^docs\/state\.md$/, "the loop's own notes, rewritten each sweep"],
   [/(?:^|\/)CHANGELOG\.md$/, "one line per change under Unreleased"],
   [LOCKFILES, "a lockfile: the package manager regenerates it"],
@@ -29,7 +30,9 @@ const MODULES = /^\s*(?:[-*]\s+)?(?:\*\*)?modules(?: touched)?(?:\*\*)?\s*:\s*(?
 const COMPARE_CAP = 300;
 
 const hot = (path, isGenerated) => HOT_SPOTS.some(([pattern]) => pattern.test(path)) || isGenerated.has(path);
-const clean = (name) => name.replace(/[`*]/g, "").replace(/^\.\//, "").replace(/\/+$/, "").trim();
+// Words a Modules line may end with that name no path, such as "and synced copies" (#269).
+const NOT_A_PATH = /(?:^|\s+)(?:and\s+)?(?:its\s+|the\s+)?synced copies$/i;
+const clean = (name) => name.replace(/[`*]/g, "").replace(NOT_A_PATH, "").replace(/^\.\//, "").replace(/\/+$/, "").trim();
 
 /** The modules an issue's body names, or null when it has no Modules line or the line is empty (unknown). */
 export function modulesOf(body) {
