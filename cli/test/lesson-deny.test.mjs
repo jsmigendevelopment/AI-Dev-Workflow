@@ -253,12 +253,13 @@ test("AC-392-3: WHEN a doc is over 1 MB THEN it adds nothing, and a doc just und
 test("AC-392-3: WHEN a doc inside the project is a named pipe THEN it is skipped at once and never opened", unixLinks, () => {
   const dir = repo({ "docs/mvp.md": "# Pebble\n" }, { links: { "docs/decisions.md": "vision.md" } });
   const fifo = join(dir, "docs/vision.md");
-  assert.equal(spawnSync("mkfifo", [fifo]).status, 0);
   const folder = tmp("onrails-lesson-");
+  const env = safeEnv({ HOME: folder, USERPROFILE: folder });
+  assert.equal(spawnSync("mkfifo", [fifo], { env }).status, 0);
   put(folder, "lesson.json", JSON.stringify({ lesson: "x" }));
   // The CLI first, in a child with a time limit: opening a pipe that has no writer waits for one.
   const r = spawnSync(process.execPath, [CLI, "lesson", "check", join(folder, "lesson.json"), "--project", dir],
-    { encoding: "utf8", env: safeEnv({ HOME: folder, USERPROFILE: folder }), timeout: 20000 });
+    { encoding: "utf8", env, timeout: 20000 });
   assert.equal(r.signal, null, "the check waited on the pipe");
   assert.equal(r.status, 1, r.stderr);
   const { set, opened } = watchOpens([fifo], () => terms(dir));
