@@ -46,7 +46,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 
    Commit it. If the session dies at 3 a.m., this note is all `/back` will have. Stop what this session started for the person, the dev server first: `node .agents/skills/ask/scripts/procs.mjs list --mine`, then `procs.mjs stop <id>` for each.
 
-6. **Run the loop** (`coordinate`) under the rules below. For every merge, add one line to "Merged while away" in `docs/state.md`, next to the "To try" line `coordinate` writes.
+6. **Leave the loop running** under the rules below. It runs as a background sub-agent or session (`coordinate`, "Where this runs"); none yet? Start one. This thread, the live thread, goes idle: it starts no work of its own while the person is away. For every merge, add one line to "Merged while away" in `docs/state.md`, next to the "To try" line `coordinate` writes.
 
 ## Unattended rules (long)
 
@@ -68,7 +68,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 
 ## Watchdog and hard stop (long)
 
-- **The watchdog rides the sweep:** one timer, the sweep timer. Before you go, `node .agents/skills/coordinate/scripts/timer.mjs should-arm` must exit 1 (a live timer). Exit 0 (none, or dead)? Start `coordinate`: it cancels a dead one and arms one. Every second sweep (about 20 minutes), `coordinate` runs these checks:
+- **The watchdog rides the sweep:** one timer, the sweep timer. Before you go, `node .agents/skills/coordinate/scripts/timer.mjs should-arm` must exit 1 (a live timer). Exit 0 (none, or dead)? Start the loop (`coordinate`, "Where this runs"): it cancels a dead one and arms one. Every second sweep (about 20 minutes), `coordinate` runs these checks:
   - any builder with no new commit in 20 minutes is stuck: below Full, park its issue (don't blindly restart it);
     - **On Full:** stop the stuck builder and count it as one failed round toward the review cap: before the cap, a fresh builder on the same tier; at the cap, follow `coordinate`'s review cap. A strongest-tier builder is never stopped on your own call (the always-stop list; `ask`, "A running job"): its issue waits for its result, with an ℹ️ FYI, and the loop goes on with other issues;
   - check usage;

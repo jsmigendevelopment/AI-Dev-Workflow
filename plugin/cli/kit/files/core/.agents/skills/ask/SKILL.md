@@ -87,10 +87,12 @@ The person's two words do different things. `P` is `node .agents/skills/ask/scri
 
 Unclear which? Take the lighter one, pause, and say that "stop" also frees the resources.
 
+Both cover the loop and every builder under it. The live thread relays the word to the loop word for word, and the loop stops its builders and its timer (`coordinate`, "Where this runs").
+
 Then, for both:
 
 1. Write the resume note in `docs/state.md`: what was in flight and the next step, so `/back` can pick up from the repo alone.
-2. Show the proof: `P list --mine`, and `timer.mjs status` if you armed a timer. After a stop: `Nothing this session started is running.` and `none`.
+2. Show the proof: `P list --mine`, `timer.mjs status` if you or the loop armed a timer, and the loop's own list. After a stop: `Nothing this session started is running.` and `none`.
 3. Touch only what this session started. Another thread's processes, other projects and the person's own servers stay. Below Full, to stop one, ask first: `P stop all`, another live session's id and a PID the registry didn't record are refused without `--yes`, which you add only after the person's yes. On Full, leave it running and put it in the FYI.
 
 Back from a pause: `P resume`. **Done when** the proof shows only paused items (pause) or nothing (stop), and the resume note is written.
