@@ -5,10 +5,12 @@
 // claude and codex log any call, and none is expected.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { spawnSync } from "./child.mjs";
-import { safeEnv, unixOnly } from "./helpers.mjs";
+import { fake, safeEnv, tmp, unixOnly } from "./helpers.mjs";
 import { validate } from "../src/insights-record.mjs";
-import { JOB, REVIEW, branch, git, json, pathOf, put, record, records, run, setup } from "./insights-land-fakes.mjs";
+import { findCommand } from "../src/system.mjs";
+import { JOB, REVIEW, SCRIPTS, branch, git, json, pathOf, put, record, records, run, setup } from "./insights-land-fakes.mjs";
 
 const FEAT = "feat/40-share";
 const GIT_ENV = {
@@ -18,18 +20,18 @@ const GIT_ENV = {
 
 /**
  * A reviewed branch (`from`) and main moved on after it. `feature` and `onMain` are the files each side adds; the
- * coordinator's clone has fetched both and holds the reviewer's job and review records for `from`, unless `reviewed`
- * is false (then only the job record).
+ * coordinator's clone has fetched both and holds the reviewer's job and review records for `from`, unless `records`
+ * is false (then only the job record). `held` replaces those two records, each given at `from`.
  */
-function reviewed({ feature = { "app.txt": "feature\n" }, onMain = { "main.txt": "main\n" }, records: keep = true } = {}) {
+function reviewed({ feature = { "app.txt": "feature\n" }, onMain = { "main.txt": "main\n" }, records: keep = true, held } = {}) {
   const { dir, seed } = setup();
   const from = branch(seed, FEAT, feature);
   branch(seed, "main", onMain);
   git(seed, "checkout", "-q", FEAT);
   git(seed, "fetch", "-q", "origin");
   const at = (r) => ({ ...r, sha: from });
-  put(dir, pathOf(at(JOB), "a00001"), json(at(JOB)));
-  if (keep) put(dir, pathOf(at(REVIEW), "a00002"), json(at(REVIEW)));
+  const mine = held ?? (keep ? [JOB, REVIEW] : [JOB]);
+  mine.forEach((r, i) => put(dir, pathOf(at(r), `a0000${i}`), json(at(r))));
   return { dir, seed, from };
 }
 
@@ -143,6 +145,59 @@ test("carry: a reviewed sha with no review record exits 1", unixOnly, () => {
   refuses("no review at from", /no job and review records/, mergeMain, { records: false });
 });
 
+const CHANGES = { ...REVIEW, verdict: "changes", must: 1 };
+
+test("carry: a reviewed sha whose review asked for changes exits 1 and writes nothing", unixOnly, () => {
+  refuses("a changes review", /review didn't pass/, mergeMain, { held: [{ ...JOB, outcome: "fail" }, CHANGES] });
+});
+
+test("carry: a pass that follows a changes review at the same sha still exits 1: every review there counts", unixOnly, () => {
+  const earlier = { ...CHANGES, at: "2026-11-27T14:00:00.000Z" };
+  refuses("a pass after a changes", /review didn't pass/, mergeMain, { held: [JOB, earlier, REVIEW] });
+});
+
+test("carry: a failed review job at the reviewed sha exits 1, even next to a passing review", unixOnly, () => {
+  refuses("a failed review job", /review didn't pass/, mergeMain, { held: [{ ...JOB, outcome: "fail" }, REVIEW] });
+});
+
+test("carry: a merge of three parents exits 1", unixOnly, () => {
+  refuses("an octopus merge", /3 parent/, (fx) => {
+    branch(fx.seed, "side", { "side.txt": "side\n" }, "origin/main~1");
+    git(fx.seed, "checkout", "-q", FEAT);
+    git(fx.seed, "merge", "-q", "--no-edit", "origin/main", "side");
+    return push(fx);
+  });
+});
+
+/** A merge of a side commit that isn't on main, with a `kind` (tag or branch) named origin/main on it in the clone. */
+function shadowed(kind) {
+  refuses(`a ${kind} named origin/main`, /isn't on origin\/main/, (fx) => {
+    const side = branch(fx.seed, "side", { "side.txt": "side\n" }, fx.from);
+    git(fx.seed, "checkout", "-q", FEAT);
+    git(fx.seed, "merge", "-q", "--no-ff", "--no-edit", "side");
+    const to = push(fx);
+    git(fx.dir, kind, "origin/main", side);
+    return to;
+  });
+}
+
+test("carry: a tag named origin/main on a commit that isn't on main doesn't count as main", unixOnly, () => shadowed("tag"));
+test("carry: a local branch named origin/main on a commit that isn't on main doesn't count as main", unixOnly, () => shadowed("branch"));
+
+test("carry: a git that can't prove the merge (no merge-tree --write-tree) exits 1, so a fresh review takes it", unixOnly, () => {
+  const fx = reviewed();
+  const to = mergeMain(fx);
+  const bin = tmp("onrails-old-git-");
+  fake(bin, "git", `#!/bin/sh\nfor a in "$@"; do [ "$a" = merge-tree ] && { echo "usage: git merge-tree <base> <a> <b>" >&2; exit 129; }; done\nexec '${findCommand("git")}' "$@"\n`);
+  const env = safeEnv({ ...GIT_ENV, ONRAILS_NOW: "2026-11-27T14:32:00Z" }, { bins: [bin] });
+  const before = Object.keys(records(fx.dir)).length;
+  const r = spawnSync(process.execPath, [join(fx.dir, SCRIPTS, "insights.mjs"), "carry", "--pr", "40", "--from", fx.from, "--to", to], { cwd: fx.dir, encoding: "utf8", env });
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stderr, /can't prove a clean merge/);
+  assert.match(r.stderr, /fresh pr-review/);
+  assert.equal(Object.keys(records(fx.dir)).length, before, "writes nothing");
+});
+
 test("carry: a usage error or an unknown commit exits 2 and writes nothing", unixOnly, () => {
   const fx = reviewed();
   const to = mergeMain(fx);
@@ -158,6 +213,8 @@ test("carry: a usage error or an unknown commit exits 2 and writes nothing", uni
   for (const args of cases) {
     const r = run(fx.dir, args);
     assert.equal(r.status, 2, `${args.join(" ")}: ${r.stdout}${r.stderr}`);
+    const unknown = args.at(-1) === "d".repeat(40);
+    assert.match(r.stderr, unknown ? /isn't a commit/ : /insights\.mjs carry --pr <n> --from/, `${args.join(" ")}: carry's own message`);
   }
   assert.equal(Object.keys(records(fx.dir)).length, before);
 });

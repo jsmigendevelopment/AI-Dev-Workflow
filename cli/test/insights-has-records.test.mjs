@@ -142,3 +142,7 @@ test("AC-333-4: WHEN the merge step merged main into the branch THEN carry runs 
   assert.match(step, /carry[^\n]*[Ee]xit 1[^\n]*fresh `pr-review`/, "a merge carry refuses goes to a fresh review");
   assert.doesNotMatch(step, /conflict fix or not/, "a clean merge of main needs no fresh review (decision 333-2)");
 });
+
+test("AC-333-4: WHEN carry exits 2 a second time on the same merge sha THEN the merge step sends it to a fresh review with one FYI, so it never retries forever", () => {
+  assert.match(mergeStep(), /carry[^\n]*second exit 2 on the same merge sha[^\n]*fresh `pr-review`[^\n]*FYI/);
+});

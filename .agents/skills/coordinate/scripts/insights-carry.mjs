@@ -1,11 +1,13 @@
 // The merge step's records (#333), run through insights.mjs from the coordinator's checkout of main:
 //   carry --pr <n> --from <reviewed sha> --to <merge sha>   when the loop merged main into a reviewed branch
 //       (`coordinate` step 7, decision 333-2): exit 0 only when <to> has exactly two parents, the first is <from>,
-//       the second is on origin/main, `git merge-tree --write-tree` of the two has no conflict and gives exactly
-//       <to>'s tree, and <from> has its job and review records here. Then it writes a job record (job=carry-review,
-//       outcome=pass) and a copy of <from>'s review, both at <to>, through the writer. A rerun writes nothing new.
-//       Exit 1 says why, and the merge commit goes to a fresh pr-review. Exit 2: a usage or git error, or a sha that
-//       isn't a commit in this checkout.
+//       the second is on refs/remotes/origin/main (fetched first, never read by its short name, which a tag or a
+//       local branch can shadow), `git merge-tree --write-tree` of the two has no conflict and gives exactly <to>'s
+//       tree, and <from> has its job and review records here, every review passed and every review job passed. Then
+//       it writes a job record (job=carry-review, outcome=pass) and a copy of <from>'s latest review, both at <to>,
+//       through the writer. A rerun writes nothing new. Exit 1 says why, and the merge commit goes to a fresh
+//       pr-review; so does a git too old to prove the merge (--write-tree needs git 2.38). Exit 2: a usage or git
+//       error, or a sha that isn't a commit in this checkout.
 // heldRecords() is what has-records and carry count: a file only when `land` would land it as it is.
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -14,6 +16,9 @@ import { CAP, canonical, git, recordProblem } from "./insights-land.mjs";
 import { VERSION, dayFolder, fileName, validate } from "./insights-record.mjs";
 
 const SHA = /^[0-9a-f]{40}$/;
+const MAIN = "refs/remotes/origin/main";
+/** The jobs that review a head; each must have passed for its review to carry. */
+const REVIEW_JOBS = ["review-code", "carry-review"];
 const USAGE = "usage: insights.mjs carry --pr <n> --from <reviewed sha> --to <merge sha> (full 40-character shas)";
 
 /**
@@ -48,7 +53,7 @@ export function save(root, record) {
   return path;
 }
 
-/** git in root, for a command whose exit code is the answer: { status, out }. */
+/** git in root, for a command whose exit code is the answer: { status, out, err }. */
 function ask(root, args) {
   const r = spawnSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   if (r.error) throw r.error;
@@ -70,12 +75,13 @@ function notCleanMerge(root, from, to) {
   const parents = git(root, ["rev-list", "--parents", "-n", "1", "--end-of-options", to]).split(" ").slice(1);
   if (parents.length !== 2) return `${to} has ${parents.length} parent(s), so it isn't a merge of main`;
   if (parents[0] !== from) return `${to}'s first parent is ${parents[0]}, not the reviewed ${from}`;
-  const onMain = ask(root, ["merge-base", "--is-ancestor", "--end-of-options", parents[1], "origin/main"]);
+  const onMain = ask(root, ["merge-base", "--is-ancestor", "--end-of-options", parents[1], MAIN]);
   if (onMain.status === 1) return `${to}'s second parent ${parents[1]} isn't on origin/main`;
   if (onMain.status !== 0) throw new Error(onMain.err || "git merge-base failed");
   const merged = ask(root, ["merge-tree", "--write-tree", "--end-of-options", from, parents[1]]);
   if (merged.status === 1) return "merging main into the reviewed sha conflicts, so the merge commit holds a conflict fix";
-  if (merged.status !== 0) throw new Error(merged.err || "git merge-tree failed");
+  // Any other status: no --write-tree here (git before 2.38) or a failure. Either way nothing proves the merge.
+  if (merged.status !== 0) return `this git can't prove a clean merge (merge-tree --write-tree needs git 2.38 or later): ${merged.err.split("\n")[0] || `exit ${merged.status}`}`;
   const tree = git(root, ["rev-parse", "--verify", "--end-of-options", `${to}^{tree}`]);
   return merged.out.split("\n")[0] === tree ? null : `${to}'s tree isn't the clean merge of main: it holds a change of its own`;
 }
@@ -85,13 +91,18 @@ export function carry(root, args) {
   const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
   const [pr, from, to] = ["--pr", "--from", "--to"].map(flag);
   if (args.length !== 6 || !/^\d+$/.test(pr ?? "") || !SHA.test(from ?? "") || !SHA.test(to ?? "")) throw new Error(USAGE);
-  git(root, ["fetch", "-q", "origin", "main"]);
+  git(root, ["fetch", "-q", "origin", `+refs/heads/main:${MAIN}`]);
   const why = notCleanMerge(root, from, to);
   if (why) refuse(why);
   const held = heldRecords(root).filter((r) => r.pr === Number(pr));
   const kinds = (sha) => new Set(held.filter((r) => r.sha === sha).map((r) => r.kind));
-  const review = held.filter((r) => r.sha === from && r.kind === "review").sort((a, b) => a.at.localeCompare(b.at)).at(-1);
-  if (!kinds(from).has("job") || !review) refuse(`#${pr} has no job and review records at the reviewed ${from} here: harvest first`);
+  const atFrom = held.filter((r) => r.sha === from);
+  const reviews = atFrom.filter((r) => r.kind === "review").sort((a, b) => a.at.localeCompare(b.at));
+  if (!kinds(from).has("job") || !reviews.length) refuse(`#${pr} has no job and review records at the reviewed ${from} here: harvest first`);
+  // Every review at that sha counts, not only the latest: a second review the dial added can't be outvoted.
+  const failed = [...reviews.filter((r) => r.verdict !== "pass"), ...atFrom.filter((r) => r.kind === "job" && REVIEW_JOBS.includes(r.job) && r.outcome !== "pass")];
+  if (failed.length) refuse(`the reviewed sha's review didn't pass (${failed.map((r) => r.kind === "review" ? `review round ${r.round}: ${r.verdict}` : `${r.job} job: ${r.outcome}`).join(", ")})`);
+  const review = reviews.at(-1);
   const at = new Date(process.env.ONRAILS_NOW || Date.now()).toISOString();
   const made = {
     job: { v: VERSION, kind: "job", at, issue: review.issue, pr: Number(pr), sha: to, job: "carry-review", tool: null, model: "unknown", effort: "unknown", outcome: "pass" },
