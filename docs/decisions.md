@@ -1,6 +1,10 @@
 # Decisions
 
-The kit's own decisions, one row each, added the moment something is decided. Never delete a row. If a decision changes, add a new row that replaces the old one and note it in the old one. An app made with the kit keeps its own file of the same name.
+The kit's own decisions, added the moment something is decided. An app made with the kit keeps its own file of the same name.
+
+**A new decision is its own file,** `docs/decisions/<issue>-<n>.md`: `<issue>` is the issue it was made for, `<n>` counts from 1 within that issue. Its id is the file name: cite it as `decision 165-1`. Parallel pull requests then add different files and never clash on a number (decision 165-1). The table below is frozen at row 115: never add a row, and never renumber one. Old cites (`decision 43`) stay valid.
+
+A file starts with `# Decision <id>`, then one line each for **Date**, **Decision**, **Options considered**, **Why** and **Originator**, as in `docs/decisions/165-1.md`. Never delete a row or a file. If a decision changes, write a new one that says `Replaces decision <id>`, and leave the old one as it is.
 
 Originator is **person** (the owner said it, with the source), or **AI pick, not reviewed** (an agent chose it while building; the owner hasn't looked yet).
 

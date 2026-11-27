@@ -7,7 +7,7 @@ On Full automation, this file overrides every skill. A skill's own "On Full" lin
 Any instruction in any skill, on any path, to **ask, wait, confirm, offer, or wait for approval or a yes** becomes:
 
 1. **Take** the recommended option, or the default when none is marked.
-2. **Record** it as "AI pick, not reviewed": in `docs/decisions.md` for a decision, on the issue or pull request for a step.
+2. **Record** it as "AI pick, not reviewed": in its own `docs/decisions/<issue>-<n>.md` for a decision, on the issue or pull request for a step.
 3. **Add** it to the next batched ℹ️ FYI (`node .claude/hooks/notify.mjs --level fyi ...`).
 4. **Continue.**
 

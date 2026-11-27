@@ -51,7 +51,7 @@ test("AC-143-3: WHEN the coordinator hands the loop to a sub-agent THEN the brie
 test("#143 item 1: rule 16 says recorded decisions outrank a skill's gate, in every AGENTS.md, and rule numbers stay unique", () => {
   for (const file of AGENTS) {
     const text = read(file);
-    assert.match(text, /^16\. \*\*The person's recorded decisions outrank a skill's default gate\.\*\* A gate is a wait for permission or a choice\..*search `docs\/decisions\.md` and `docs\/stack\.md` for a standing answer \(`ask`, step 0\)\..*`Covered by decision <n>`/m, file);
+    assert.match(text, /^16\. \*\*The person's recorded decisions outrank a skill's default gate\.\*\* A gate is a wait for permission or a choice\..*search `docs\/decisions\.md`, `docs\/decisions\/` and `docs\/stack\.md` for a standing answer \(`ask`, step 0\)\..*`Covered by decision <n>`/m, file);
     // #159 round 2, must 2, option (a), and round 3, must 2: a row never lifts an always-stop item; a row that names one
     // lifts only the repeated asks, and it stays one 🛑 that pings.
     assert.ok(rule16(text).includes(ALWAYS_STOP), `${file}: no row lifts an always-stop item`);
@@ -70,10 +70,10 @@ test("#143 item 1: rule 16 says recorded decisions outrank a skill's gate, in ev
   assert.ok(read(".agents/skills/automation/references/full.md").includes(`A decision row that names one of these doesn't lift it: the row ${NAMING_ROW}, and the person still gives the go-ahead themselves`), "full.md");
 });
 
-test("#143 item 2: ask's step 0 searches decisions.md and stack.md before any ask, and cites the row", () => {
+test("#143 item 2: ask's step 0 searches decisions.md, decisions/ and stack.md before any ask, and cites the row", () => {
   const ask = read(".agents/skills/ask/SKILL.md");
   const steps = ask.slice(ask.indexOf("## Steps"));
-  assert.match(steps, /^0\. \*\*Is it already answered\?\*\*.*docs\/decisions\.md docs\/stack\.md/m);
+  assert.match(steps, /^0\. \*\*Is it already answered\?\*\*.*docs\/decisions\.md docs\/decisions\/ docs\/stack\.md/m);
   assert.match(steps, /Don't ask\. Write `Covered by decision <n>: "<the row's words>"`/);
   assert.ok(steps.indexOf("0. **Is it already answered?**") < steps.indexOf("1. **Pick the level**"), "step 0 comes before picking a level");
 });

@@ -35,7 +35,7 @@ description: Use when implementing one issue ("implement issue 12", "build this 
    - the UI kit's components and design tokens. No one-off colours, spacing or font sizes. A new token is the person's call, so ask (on Full: add it, "AI pick, not reviewed", in the FYI);
    - the app conventions in "App rules" below.
 8. **Write it the owner's way:** follow "Code rules" below. Installing a package? Open the `dependencies` skill and verify it first.
-9. **Update the docs** your change makes wrong, in the same pull request.
+9. **Update the docs** your change makes wrong, in the same pull request. Record each choice you make as its own file, `docs/decisions/<issue>-<n>.md`, never as a new row in the table in `docs/decisions.md` (its header has the format). Two pull requests then never clash on a number.
 10. **Run every check** in "Commands that work here" in `AGENTS.md`: lint, typecheck, the boundary check, tests and build. All of it must pass.
 11. **Show it.** Did the step change what the person sees? Follow "Show it" below, and put the look in your report and the pull request.
     - **Checking it in a browser yourself?** Load `test-by-hand-as-the-user`: predict every output first, move every input, and put its table in your report.
