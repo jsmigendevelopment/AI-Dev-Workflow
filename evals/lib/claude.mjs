@@ -10,8 +10,9 @@ export const ALLOWED_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "Skill", 
 // No network from a fixture: no web, no GitHub, no downloads.
 export const DISALLOWED_TOOLS = ["WebFetch", "WebSearch", "Bash(gh *)", "Bash(curl *)", "Bash(wget *)"];
 
-/** The argv for one run. The prompt goes on stdin, so the variadic tool lists can't swallow it. */
-export function claudeArgs({ model, maxTurns, maxBudgetUsd }) {
+/** The argv for one run. The prompt goes on stdin, so the variadic tool lists can't swallow it. `tools` adds to
+ * ALLOWED_TOOLS for one scenario, such as `Agent` for a scenario that starts a background sub-agent (#280). */
+export function claudeArgs({ model, maxTurns, maxBudgetUsd, tools = [] }) {
   return [
     "-p",
     "--output-format", "stream-json",
@@ -24,7 +25,7 @@ export function claudeArgs({ model, maxTurns, maxBudgetUsd }) {
     "--setting-sources", "project,local",
     "--strict-mcp-config", // no MCP servers from anywhere
     "--no-session-persistence",
-    "--allowedTools", ALLOWED_TOOLS.join(","),
+    "--allowedTools", [...ALLOWED_TOOLS, ...tools].join(","),
     "--disallowedTools", DISALLOWED_TOOLS.join(","),
   ];
 }

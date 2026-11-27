@@ -81,7 +81,8 @@ You rarely need these. The four commands call them for you.
 
 | Job | Tier · effort | Example |
 |---|---|---|
-| 🗣️ Your live thread (the loop) | Everyday · low | Opus 5.5 low |
+| 🗣️ Your live thread (you talk to it) | Everyday · low | Opus 5.5 low |
+| 🔁 The loop (a background sub-agent) | Everyday · medium | Opus 5.5 medium |
 | 🔥 Grill, planning chat | Everyday · medium | Opus 5.5 medium |
 | ✏️ Wireframes stage 1, layout | Everyday · medium | Opus 5.5 medium |
 | 🏛️ CTO: research, pyramid, schema, API, wireframes stage 2 | **Strongest · high** | Fable 5.2 high |
