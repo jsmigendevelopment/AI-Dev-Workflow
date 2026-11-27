@@ -3,12 +3,13 @@
 // `pnpm pr:rules` use too.
 //   node pr-size.mjs <n> --repo <owner>/<name>   a pull request, read from GitHub's REST API
 //   node pr-size.mjs --base <ref>                this checkout's committed branch against <ref>, such as origin/main
-// It counts lines added plus removed. Lockfiles, test fixtures (data files in a fixtures folder under a test folder)
-// and files the base's committed .gitattributes mark `linguist-generated` (the kit's synced copies, each pack's list)
+// It counts lines added plus removed. Lockfiles, test fixtures (data files, such as JSON, in a fixtures folder under a
+// top-level test folder, and `__snapshots__/*.snap` anywhere) and files the base's committed .gitattributes mark `linguist-generated` (the kit's synced copies, each pack's list)
 // don't count. The base is <ref>, or the pull request's base commit, which must be in this checkout: the branch's own
 // .gitattributes never decide what counts, and a local diff counts every text file as text, whatever they say. A
 // rename is skipped only when its old and new names both are. It prints the total, the excluded total and the biggest
-// counted files. 1,000 or more fails, unless the pull request has the `size-exception` label and a visible
+// counted files, then the binary files, which count 0. A source file that shows as binary can't be counted: exit 2.
+// 1,000 or more fails, unless the pull request has the `size-exception` label and a visible
 // `Size exception: <reason>` line in its description. A local diff has no label, so it can't pass that way.
 // Exit 0: under the limit, or an exception with its reason. 1: at or over it. 2: a usage, git or API error, or a count
 // that isn't a whole number. Never a pass.
@@ -24,12 +25,18 @@ export const MAX_CHANGED_LINES = 1000;
 export const EXCEPTION_LABEL = "size-exception";
 export const LOCKFILES = /(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|bun\.lockb?|deno\.lock|Cargo\.lock|poetry\.lock|uv\.lock|Pipfile\.lock|Gemfile\.lock|composer\.lock|go\.sum|Podfile\.lock|pubspec\.lock|flake\.lock|mix\.lock|packages\.lock\.json|gradle\.lockfile)$/;
 const TEST_DIRS = new Set(["test", "tests", "__tests__", "e2e", "spec"]);
-const FIXTURE_DIRS = new Set(["fixture", "fixtures", "__fixtures__", "testdata", "__snapshots__"]);
-// Source code never counts as a fixture, wherever it sits: a reviewer reads it.
+const FIXTURE_DIRS = new Set(["fixture", "fixtures", "__fixtures__", "testdata"]);
+// Data a test reads. Any other type, a file with no extension included, counts: a reviewer may have to read it.
+const DATA = /\.(?:json|jsonc|json5|jsonl|ndjson|ya?ml|toml|txt|csv|tsv|xml|snap|golden|log|png|jpe?g|gif|webp|avif|ico|pdf)$/i;
+// A Jest or Vitest snapshot, stored next to its test.
+const SNAPSHOT = /(?:^|\/)__snapshots__\/[^/]+\.snap$/;
+// Source code that git or GitHub shows as binary (a NUL byte) can't be counted.
 const SOURCE = /\.(?:[cm]?[jt]sx?|py|go|rs|rb|java|kts?|swift|c|h|cc|cpp|hpp|cs|php|scala|sh|bash|ps1|vue|svelte|astro|sql|dart|exs?|lua|mm?)$/i;
 const EXCEPTION = /^(?:[-*][ \t]+)?(?:\*\*)?Size exception:(?:\*\*)?[ \t]*(\S.*?)[ \t]*$/m;
 const SAFE_REF = /^(?!-)[\w./@^~-]+$/;
 const BIGGEST = 5;
+// git and GitHub call a file binary when its first 8000 bytes hold a NUL.
+const NUL_WINDOW = 8000;
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // git never gets a token, and starts nothing the checkout's config names: a command a pull request ran may have
@@ -89,20 +96,23 @@ export function generated(paths, tree = "HEAD") {
   }
 }
 
-/** A data file in a fixtures folder somewhere under a test folder, such as test/fixtures/page.json. */
+/** A data file in a fixtures folder under a top-level test folder, such as test/fixtures/page.json, or a snapshot. */
 export function isFixture(path) {
+  if (SNAPSHOT.test(path)) return true;
   const dirs = path.split("/").slice(0, -1);
-  const test = dirs.findIndex((dir) => TEST_DIRS.has(dir));
-  return test !== -1 && dirs.slice(test + 1).some((dir) => FIXTURE_DIRS.has(dir)) && !SOURCE.test(path);
+  return TEST_DIRS.has(dirs[0]) && dirs.slice(1).some((dir) => FIXTURE_DIRS.has(dir)) && DATA.test(path);
 }
 
 const isCount = (n) => Number.isInteger(n) && n >= 0;
 
-/** { total, excluded, biggest }: counted lines, skipped lines, and the biggest counted files ({ filename, lines }).
- * Throws on a count that isn't a whole number of 0 or more: what it can't read never passes. */
+/** { total, excluded, biggest, binaries }: counted lines, skipped lines, the biggest counted files ({ filename, lines })
+ * and the files marked `binary`. Throws on a count that isn't a whole number of 0 or more, or on a source file marked
+ * `binary`: what it can't read never passes. */
 export function measure(files, isGenerated) {
   const bad = files.find((f) => !isCount(f.additions) || !isCount(f.deletions));
   if (bad) throw new Error(`${bad.filename} has a line count that isn't a whole number of 0 or more.`);
+  const hidden = files.find((f) => f.binary && SOURCE.test(f.filename));
+  if (hidden) throw new Error(`${hidden.filename} is source code that shows as binary (it holds a NUL byte), so its lines can't be counted. Take the NUL byte out.`);
   const skippedPath = (path) => LOCKFILES.test(path) || isFixture(path) || isGenerated.has(path);
   const skipped = (f) => skippedPath(f.filename) && (!f.previous_filename || skippedPath(f.previous_filename));
   const lines = (f) => f.additions + f.deletions;
@@ -110,14 +120,16 @@ export function measure(files, isGenerated) {
   const sum = (list) => list.reduce((total, f) => total + lines(f), 0);
   const biggest = counted.map((f) => ({ filename: f.filename, lines: lines(f) })).filter((f) => f.lines > 0)
     .sort((a, b) => b.lines - a.lines || a.filename.localeCompare(b.filename)).slice(0, BIGGEST);
-  return { total: sum(counted), excluded: sum(files) - sum(counted), biggest };
+  const binaries = files.filter((f) => f.binary).map((f) => f.filename).sort();
+  return { total: sum(counted), excluded: sum(files) - sum(counted), biggest, binaries };
 }
 
 /** The description as the reader sees it: no HTML comments, fenced code blocks or indented code blocks. */
 function shown(body) {
   return String(body ?? "").replace(/\r\n?/g, "\n")
     .replace(/<!--[\s\S]*?(?:-->|$)/g, "")
-    .replace(/^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1[`~]*[ \t]*$|(?![\s\S]))/gm, "")
+    // A fence closes only on its own character, at least as many, then nothing but spaces (CommonMark 4.5).
+    .replace(/^ {0,3}((`|~)\2{2,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1\2*[ \t]*$|(?![\s\S]))/gm, "")
     .split("\n").filter((line) => !/^(?: {4}|\t)/.test(line)).join("\n");
 }
 
@@ -138,15 +150,15 @@ export function sizeProblem(total, { labels = [], body = "" } = {}) {
   return `${over} Split the pull request, or add the ${EXCEPTION_LABEL} label and a "Size exception: <reason>" line to its description.`;
 }
 
-/** `git diff --numstat -z -M` output as GitHub's file list: { filename, additions, deletions, previous_filename }.
- * A binary file is `-`, and counts 0. */
+/** `git diff --numstat -z -M` output as GitHub's file list: { filename, additions, deletions, previous_filename,
+ * binary }. A binary file is `-`, and counts 0. */
 export function numstatFiles(text) {
   const parts = text.split("\0");
   const files = [];
   for (let i = 0; i < parts.length; i++) {
     const [added, removed, path] = parts[i].split("\t");
     if (removed === undefined) continue;
-    const counts = { additions: Number(added) || 0, deletions: Number(removed) || 0 };
+    const counts = { additions: Number(added) || 0, deletions: Number(removed) || 0, binary: added === "-" };
     // A rename leaves the path empty, then gives the old and the new name as the next two fields.
     if (path) files.push({ filename: path, ...counts });
     else files.push({ filename: parts[i + 2], previous_filename: parts[i + 1], ...counts }), (i += 2);
@@ -154,9 +166,37 @@ export function numstatFiles(text) {
   return files;
 }
 
-function report({ total, excluded, biggest }, what) {
+function report({ total, excluded, biggest, binaries }, what) {
   console.log(`${what}: ${total} changed lines counted, ${excluded} not counted (lockfiles, generated files, test fixtures).`);
   if (biggest.length) console.log(`Biggest files:\n${biggest.map((f) => `  ${f.lines}\t${f.filename}`).join("\n")}`);
+  if (binaries.length) console.log(`Binary files, not counted:\n${binaries.map((name) => `  ${name}`).join("\n")}`);
+}
+
+/** True when GitHub's copy of a source file at `head` holds a NUL byte near its start. Empty is false. */
+function holdsNul(repo, head, path) {
+  const file = JSON.parse(gh(`repos/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${head}`));
+  if (file.size === 0) return false;
+  if (file.type !== "file" || file.encoding !== "base64" || !file.content) throw new Error(`GitHub didn't send ${path}'s content, so its lines can't be counted.`);
+  return Buffer.from(file.content, "base64").subarray(0, NUL_WINDOW).includes(0);
+}
+
+/** GitHub lists a binary file as 0 added, 0 removed and no patch. Marks each such file that still exists `binary`. A
+ * source file's content at `head` decides, so an empty one, a mode change or a pure rename isn't marked. */
+export function markBinaries(repo, head, files) {
+  return files.map((f) => {
+    if (f.additions !== 0 || f.deletions !== 0 || f.patch || f.status === "removed") return f;
+    if (!SOURCE.test(f.filename)) return { ...f, binary: true };
+    return holdsNul(repo, head, f.filename) ? { ...f, binary: true } : f;
+  });
+}
+
+/** The size in bytes of a file at HEAD, or 0 when HEAD doesn't have it. */
+function sizeAtHead(root, path) {
+  try {
+    return Number(git(["cat-file", "-s", `HEAD:${path}`], { cwd: root }));
+  } catch {
+    return 0; // Not at HEAD: the change deletes it, which hides no code.
+  }
 }
 
 /** True when `rev` names a commit in the checkout. */
@@ -177,7 +217,9 @@ function readPull(repo, pr) {
   const base = pull.base?.sha ?? "";
   if (!/^[0-9a-f]{40}$/.test(base)) throw new Error(`#${pr} has no base commit sha.`);
   if (!hasCommit(checkoutRoot(), base)) throw new Error(`The base ${base} isn't in this checkout: git fetch origin ${pull.base.ref}`);
-  return { files, tree: base, labels: (pull.labels ?? []).map((l) => l.name), body: pull.body ?? "" };
+  const head = pull.head?.sha ?? "";
+  if (!/^[0-9a-f]{40}$/.test(head)) throw new Error(`#${pr} has no head commit sha.`);
+  return { files: markBinaries(repo, head, files), tree: base, labels: (pull.labels ?? []).map((l) => l.name), body: pull.body ?? "" };
 }
 
 // The branch's own .gitattributes could mark its text as binary (`binary`, `-diff`), which shows as `-` with no lines.
@@ -192,7 +234,8 @@ function readLocal(base) {
   const empty = mkdtempSync(join(tmpdir(), "onrails-diff-"));
   try {
     const args = [`--git-dir=${gitDir}`, `--work-tree=${empty}`, "diff", "--numstat", "-z", "-M", "--no-textconv", "--no-ext-diff", from, "HEAD", "--"];
-    const files = numstatFiles(git(args, { cwd: empty, env: { GIT_INDEX_FILE: join(empty, "index") } }));
+    const listed = numstatFiles(git(args, { cwd: empty, env: { GIT_INDEX_FILE: join(empty, "index") } }));
+    const files = listed.map((f) => (f.binary && !sizeAtHead(root, f.filename) ? { ...f, binary: false } : f));
     return { files, tree, labels: [], body: "" };
   } finally {
     rmSync(empty, { recursive: true, force: true });

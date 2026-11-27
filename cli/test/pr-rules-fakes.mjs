@@ -46,9 +46,9 @@ const total = (files, i) => files.reduce((sum, f) => sum + f[i], 0);
 /** Runs main's pr-rules.mjs on pull request 9: from `branch`, with `body`, `labels` and the files changed ([name,
  * additions, deletions, old name of a rename]). `changed`, `additions` and `deletions` are GitHub's totals, from the
  * list by default. `again` changes the answers from the second read on ({ pull, files }). `env` adds variables, and
- * `logGit` puts the fake git first on PATH; `gitCalls()` reads its log. `ignorecase` puts it there too, and makes its
+ * `api` adds fake gh answers. `logGit` puts the fake git first on PATH; `gitCalls()` reads its log. `ignorecase` puts it there too, and makes its
  * `init` set core.ignorecase=true. */
-export function rules({ body = "Adds sharing.\n\nCloses #5", branch = "feat/5-share", labels = [], author = "builder", files = [["src/a.ts", 10, 5]], changed, additions, deletions, sha = HEAD, attributes = "", args = ["9", "--repo", "acme/app", "--head", HEAD], again, dir = checkout(attributes), cwd = dir, env = {}, logGit = false, ignorecase = false } = {}) {
+export function rules({ body = "Adds sharing.\n\nCloses #5", branch = "feat/5-share", labels = [], author = "builder", files = [["src/a.ts", 10, 5]], changed, additions, deletions, sha = HEAD, attributes = "", args = ["9", "--repo", "acme/app", "--head", HEAD], again, dir = checkout(attributes), cwd = dir, env = {}, logGit = false, ignorecase = false, api = {} } = {}) {
   const pull = {
     number: 9, body, user: { login: author }, labels: labels.map((name) => ({ name })), head: { ref: branch, sha },
     changed_files: changed === undefined ? files.length : changed,
@@ -61,6 +61,7 @@ export function rules({ body = "Adds sharing.\n\nCloses #5", branch = "feat/5-sh
   const fake = fakeGh(fakes, {
     "repos/acme/app/pulls/9": again?.pull ? { sequence: [pull, { ...pull, ...again.pull }] } : pull,
     "repos/acme/app/pulls/9/files": again?.files ? { sequence: [listed(files), listed(again.files)] } : listed(files),
+    ...api,
   }, { ...env, ...(fakeGit ? { FAKE_GIT_LOG: gitLog, REAL_GIT: join(git(fakes, "--exec-path").trim(), "git") } : {}), ...(ignorecase ? { FAKE_GIT_IGNORECASE: "1" } : {}) });
   if (fakeGit) {
     writeFileSync(join(fakes, "bin", "git"), FAKE_GIT);

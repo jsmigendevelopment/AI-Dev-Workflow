@@ -14,7 +14,7 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MAX_FILES, changedPaths, gh, pages, prArgs } from "./agent-files.mjs";
-import { generated, measure, sizeProblem } from "./pr-size.mjs";
+import { generated, markBinaries, measure, sizeProblem } from "./pr-size.mjs";
 
 const CLOSES = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/i;
 const BRANCH = /^(?:feat|fix)\/(\d+)-[a-z0-9][a-z0-9-]*$/;
@@ -89,9 +89,9 @@ export function main(argv) {
   const problems = linkProblems({ body: pull.body ?? "", branch, labels, author: pull.user?.login });
   let lines;
   try {
-    lines = measure(files, generated(changedPaths(files))).total;
+    lines = measure(markBinaries(repo, head, files), generated(changedPaths(files))).total;
   } catch (error) {
-    console.error(`The size can't be counted (main's .gitattributes or a line count): ${error.message}`);
+    console.error(`The size can't be counted: ${error.message}`);
     return 2;
   }
   const tooBig = sizeProblem(lines, { labels, body: pull.body ?? "" });
