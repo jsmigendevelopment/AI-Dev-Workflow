@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fake, safeEnv, tmp, unixOnly } from "./helpers.mjs";
-import { bwrapArgs, main, profile } from "../../.agents/skills/coordinate/scripts/fence.mjs";
+import { bwrapArgs, main, places, probe, profile, runtimeDir } from "../../.agents/skills/coordinate/scripts/fence.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/coordinate/scripts/fence.mjs", import.meta.url));
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -53,7 +53,7 @@ test("AC-245-1: WHEN step 6.1.3 runs the head's commands THEN bubblewrap limits 
   const s = setup();
   const r = fenced(s, ESCAPE(s));
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stderr.split("\n")[0], /^Fence: bubblewrap \(checked: writes reach only the clone and <home>; your checkout of main and your stored logins can't be read\)$/);
+  assert.match(r.stderr.split("\n")[0], /^Fence: bubblewrap \(checked: writes reach only the clone and <home>; your checkout of main, your stored logins and the runtime folder can't be read\)$/);
   assert.equal(existsSync(join(s.you, "planted")), false, "no write to your home folder");
   assert.equal(existsSync(join(dirname(s.dir), `planted-${s.dir.split("/").pop()}`)), false, "no write beside the clone");
   assert.equal(existsSync(join(ROOT, "planted-245")), false, "no write to your checkout of main");
@@ -81,6 +81,32 @@ test("AC-245-1: bubblewrap's arguments: the system read-only, a private /tmp, th
   assert.match(args, /^--die-with-parent --new-session --ro-bind \/ \/ --dev \/dev --proc \/proc --tmpfs \/tmp /);
   assert.match(args, /--bind \/w\/clone \/w\/clone --bind \/w\/home \/w\/home --tmpfs \/m --tmpfs \/u\/\.ssh --ro-bind \/dev\/null \/u\/\.netrc --chdir \/w\/clone --$/);
   assert.doesNotMatch(args, /--share-|--bind \/ |--bind \/u /, "nothing else writable");
+});
+
+test("AC-245-1: the per-user runtime folder is hidden inside the fence, found from XDG_RUNTIME_DIR or /run/user/<uid>", unixOnly, () => {
+  const s = setup();
+  const rt = tmp("onrails-runtime-");
+  writeFileSync(join(rt, "bus"), "");
+  assert.deepEqual(places({ dir: s.dir, home: s.home, you: s.you, runtime: rt }).hidden.at(-1), { path: rt, folder: true });
+  const p = { dir: "/w/clone", home: "/w/home", main: "/m", you: "/u", hidden: [{ path: "/m", folder: true }, { path: "/run/user/1000", folder: true }] };
+  assert.match(bwrapArgs(p).join(" "), /--tmpfs \/m --tmpfs \/run\/user\/1000 --chdir /, "the runtime folder is an empty tmpfs inside");
+  assert.equal(runtimeDir({ XDG_RUNTIME_DIR: rt }, 1000), rt);
+  assert.equal(runtimeDir({}, 0), existsSync("/run/user/0") ? "/run/user/0" : null);
+  assert.equal(runtimeDir({ XDG_RUNTIME_DIR: join(rt, "gone") }, undefined), null);
+});
+
+test("AC-245-1: a fence that keeps writes in but leaves the runtime folder readable counts as none", unixOnly, () => {
+  const s = setup();
+  const rt = tmp("onrails-runtime-");
+  writeFileSync(join(rt, "bus"), "");
+  const p = places({ dir: s.dir, home: s.home, you: tmp("onrails-you-"), main: tmp("onrails-main-"), runtime: rt });
+  // Lets only the writes to the clone and <home> through, and every read: a fence that forgot the runtime folder.
+  const leaky = { name: "leaky", wrap: (argv) => {
+    const spec = JSON.parse(argv.at(-1));
+    spec.writes = spec.writes.filter((w) => w.startsWith(p.dir) || w.startsWith(p.home));
+    return [...argv.slice(0, -1), JSON.stringify(spec)];
+  } };
+  assert.equal(probe(p, leaky, { PATH: process.env.PATH ?? "" }), `leaky let ${p.hidden.at(-1).path} be read`);
 });
 
 test("AC-245-1: the macOS profile denies writes outside the clone and <home>, reads of your checkout and logins, and the Keychain", () => {

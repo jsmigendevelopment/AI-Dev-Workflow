@@ -3,9 +3,9 @@
 // enforces. Run it from the head's clone (`<dir>`, its working folder), as main's copy from your checkout of main:
 //   node <main>/.agents/skills/coordinate/scripts/fence.mjs run --home <home> [--unfenced] -- <command> [args...]
 // The fence is bubblewrap on Linux and sandbox-exec on macOS (decision 245-1). Inside it the command can write only to
-// the clone and `<home>`, and can't read your checkout of main or the stored logins in your home folder. Before each
-// command it tests the fence from outside (a write that landed, a login file that could be read), so a fence that is
-// missing, broken or faked is never trusted. The command gets only PATH from here: every other variable comes from the
+// the clone and `<home>`, and can't read your checkout of main, the stored logins in your home folder or the per-user
+// runtime folder. Before each command it tests the fence from outside (a write that landed, a login file or the runtime
+// folder that could be read), so a fence that is missing, broken or faked is never trusted. The command gets only PATH from here: every other variable comes from the
 // `env -i` line in the command itself.
 // Prints `Fence: <name>` on stderr first, for the `Checks:` comment. Exit: the command's own code when it ran;
 // 3: no working fence and no --unfenced, so nothing ran; 2: a usage error.
@@ -23,6 +23,15 @@ export const LOGIN_STORES = [
   ".codex", ".onrails", ".local/share/keyrings", ".password-store", ".pypirc", ".cargo/credentials.toml",
   ".terraform.d", "Library/Keychains",
 ];
+/** The per-user runtime folder (`/run/user/<uid>`): on Linux it holds the session's sockets, the keyring's among them. */
+export function runtimeDir(env = process.env, uid = process.getuid?.()) {
+  const dir = env.XDG_RUNTIME_DIR || (uid === undefined ? "" : `/run/user/${uid}`);
+  try {
+    return dir.startsWith("/") && statSync(dir).isDirectory() ? dir : null;
+  } catch {
+    return null;
+  }
+}
 // The services macOS answers Keychain requests on.
 const KEYCHAIN = ["com.apple.SecurityServer", "com.apple.securityd", "com.apple.security.agent"];
 const USAGE = "Usage: fence.mjs run --home <home> [--unfenced] -- <command> [args...] (run it in the head's clone)";
@@ -48,8 +57,8 @@ function onPath(name, path = process.env.PATH ?? "") {
   return null;
 }
 
-/** The paths the fence keeps: the clone, `<home>`, your checkout of main and the login stores that exist. */
-export function places({ dir, home, you = homedir(), main = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..") }) {
+/** The paths the fence keeps: the clone, `<home>`, your checkout of main, the login stores and the runtime folder. */
+export function places({ dir, home, you = homedir(), main = resolve(dirname(fileURLToPath(import.meta.url)), "../../../.."), runtime = runtimeDir() }) {
   const p = { dir: real(dir), home: real(home), you: real(you), main: real(main) };
   const stores = LOGIN_STORES.map((s) => join(p.you, s)).filter((s) => {
     try {
@@ -59,7 +68,8 @@ export function places({ dir, home, you = homedir(), main = resolve(dirname(file
       return false;
     }
   }).map((s) => ({ path: real(s), folder: statSync(s).isDirectory() }));
-  p.hidden = [{ path: p.main, folder: true }, ...stores];
+  const run = runtime ? [{ path: real(runtime), folder: true }] : [];
+  p.hidden = [{ path: p.main, folder: true }, ...stores, ...run];
   return p;
 }
 
@@ -189,7 +199,7 @@ export function main(argv, { platform, path } = {}) {
     }
     console.error(`Fence: none (${why}). Running unfenced, as --unfenced asks: the command can read and change what your OS user can.`);
   } else {
-    console.error(`Fence: ${fence.name} (checked: writes reach only the clone and <home>; your checkout of main and your stored logins can't be read)`);
+    console.error(`Fence: ${fence.name} (checked: writes reach only the clone and <home>; your checkout of main, your stored logins and the runtime folder can't be read)`);
     argvRun = fence.wrap(command);
   }
   const r = spawnSync(argvRun[0], argvRun.slice(1), { cwd: p.dir, env, stdio: "inherit" });
