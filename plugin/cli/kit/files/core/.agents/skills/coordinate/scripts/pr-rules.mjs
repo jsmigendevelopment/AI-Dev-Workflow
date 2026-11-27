@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { MAX_FILES, changedPaths, gh, pages, prArgs } from "./agent-files.mjs";
 
 const MAX_CHANGED_LINES = 400;
-const LOCKFILES = /(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|bun\.lockb?|deno\.lock|Cargo\.lock|poetry\.lock|uv\.lock|Pipfile\.lock|Gemfile\.lock|composer\.lock|go\.sum)$/;
+export const LOCKFILES = /(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|bun\.lockb?|deno\.lock|Cargo\.lock|poetry\.lock|uv\.lock|Pipfile\.lock|Gemfile\.lock|composer\.lock|go\.sum)$/;
 const CLOSES = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/i;
 const BRANCH = /^(?:feat|fix)\/(\d+)-[a-z0-9][a-z0-9-]*$/;
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -57,7 +57,7 @@ function mainAttributes() {
 
 /** The paths main's committed .gitattributes mark `linguist-generated`. They're copied into an empty repo and checked
  * there, so no info/attributes, global or system attributes file, working folder or head can add to them. */
-function generated(paths) {
+export function generated(paths) {
   if (!paths.length) return new Set();
   const scratch = mkdtempSync(join(tmpdir(), "onrails-attributes-"));
   try {
