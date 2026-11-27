@@ -1,7 +1,7 @@
 // Tests for scripts/check-research.mjs, the research folder checker (the master copy).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "./child.mjs";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

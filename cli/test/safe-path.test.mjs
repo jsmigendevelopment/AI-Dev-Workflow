@@ -5,8 +5,8 @@
 // child that would get the shell's PATH. The scan reads this file too, so its samples are built from pieces.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
+import { spawn, spawnSync } from "./child.mjs";
+import { chmodSync, existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { basename, delimiter, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { checkPath, fake, nodeOnly, put, safeEnv, safePath, tmp, unixOnly } from "./helpers.mjs";
@@ -74,7 +74,8 @@ const PATH_KEY = /\bPath\s*:|["'`][Pp]ath["'`]\s*:/;
 // nothing, so its Path key is a test of Windows casing.
 const STRIPS = "PATH_KEY.test(";
 const LOOKUP = /\b(?:findCommand|commandFor)\(/;
-const CHILD_PROCESS = /["'](?:node:)?child_process["']/;
+const CHILD_PROCESS = /["'](?:node:)?child_process["']|["']\.\/child\.mjs["']/;
+const STARTS = /^(?:spawn|spawnSync|execFile|execFileSync|exec|execSync|fork)$/;
 // A claude or codex named by its path in node's own folder, which no PATH reaches (#197).
 const TOOL_FILE = String.raw`[/\\"'\x60](?:claude|codex)(?:\.cmd|\.exe)?["'\x60]`;
 const NEXT_TO_NODE = new RegExp(String.raw`\bexecPath\b.*${TOOL_FILE}|${TOOL_FILE}.*\bexecPath\b`, "i");
@@ -96,6 +97,9 @@ function inherits(text) {
     if (NEXT_TO_NODE.test(line)) found.push(`line ${i + 1}: names a claude or codex next to node`);
   });
   const imports = [...text.matchAll(/import\s*(\{[^}]*\}|\*\s*as\s+\w+)\s*from\s*(["'][^"']+["'])/g)].filter((m) => CHILD_PROCESS.test(m[2]));
+  // #229: a child starts through child.mjs, which checks its env in the spawn's own working folder.
+  const starts = imports.filter((m) => !m[1].startsWith("*") && !m[2].includes("child.mjs")).flatMap((m) => m[1].slice(1, -1).split(",")).map((n) => n.trim().split(/\s+as\s+/)[0]);
+  for (const name of starts.filter((n) => STARTS.test(n))) found.push(`${name} comes from child_process, not child.mjs`);
   if (imports.some((m) => m[1].startsWith("*")) || /require\(\s*["'](?:node:)?child_process["']\s*\)/.test(text)) {
     found.push("child_process isn't imported by name, so its calls can't be checked");
   }
@@ -127,15 +131,18 @@ test("AC-191-2: WHEN a test file spawns the CLI with the inherited PATH THEN the
     `import * as cp from ${CP};\ncp.${S}(process.execPath, [CLI]);`,
   ];
   for (const form of bad) assert.notDeepEqual(inherits(form), [], form);
+  // Good forms import from child.mjs (#229); the same call from child_process is flagged by AC-229-2.
+  const mine = `import { ${S} } from "./child.mjs";\n`;
   const good = [
-    `${imp}${S}(process.execPath, [CLI, "doctor"], { encoding: "utf8", env: safeEnv() });`,
-    `${imp}const env = safeEnv({ HOME: h });\n${S}(process.execPath, [CLI], { cwd, env, input: "" });`,
-    `${imp}${S}(process.execPath, [CLI], { env: checkPath({ PATH: bin, HOME: h }) });`,
+    `${mine}${S}(process.execPath, [CLI, "doctor"], { encoding: "utf8", env: safeEnv() });`,
+    `${mine}const env = safeEnv({ HOME: h });\n${S}(process.execPath, [CLI], { cwd, env, input: "" });`,
+    `${mine}${S}(process.execPath, [CLI], { env: checkPath({ PATH: bin, HOME: h }) });`,
     `const log = ${E}.FAKE_LOG;`,
     `assert.equal(findCommand("codex", { env: { ${"Pa" + "th"}: bin } }), null);`,
   ];
   for (const form of good) assert.deepEqual(inherits(form), [], form);
-  const files = readdirSync(HERE).filter((name) => name.endsWith(".mjs"));
+  // child.mjs is the one file that calls node:child_process itself.
+  const files = readdirSync(HERE).filter((name) => name.endsWith(".mjs") && name !== "child.mjs");
   assert.ok(files.includes(basename(fileURLToPath(import.meta.url))), "the scan reads this file too");
   const leaks = files.flatMap((name) => inherits(readFileSync(join(HERE, name), "utf8")).map((why) => `${name}: ${why}`));
   assert.deepEqual(leaks, [], "give each child env: safeEnv(...) from helpers.mjs");
@@ -153,6 +160,28 @@ test("#197: the scan flags a claude or codex started by its path in node's own f
   for (const form of bad) assert.notDeepEqual(inherits(form), [], form);
   const good = [run(X), run(`join(dirname(${X}), "npm")`), `const env = safeEnv({ CLAUDE_PROJECT_DIR: dirname(${X}) });`];
   for (const form of good) assert.deepEqual(inherits(form), [], form);
+});
+
+test("AC-229-1: WHEN a test checks folder A and spawns in folder B holding a claude reachable through an empty or relative PATH item THEN the helper throws and nothing runs", unixOnly, () => {
+  const a = tmp(), b = tmp(), log = join(tmp(), "calls.log");
+  put(b, "claude", `#!/bin/sh\necho ran >> '${log}'\n`);
+  chmodSync(join(b, "claude"), 0o755);
+  for (const entry of ["", ".", "./"]) {
+    const env = safeEnv({ PATH: [entry, safePath()].join(delimiter) }, { cwd: a });
+    assert.throws(() => spawnSync("claude", ["--version"], { cwd: b, env }), /isn't one of this test's fakes/, JSON.stringify(entry));
+    assert.throws(() => spawn("claude", [], { cwd: b, env }), /isn't one of this test's fakes/, `spawn ${JSON.stringify(entry)}`);
+  }
+  assert.equal(existsSync(log), false, "the claude in folder B ran");
+});
+
+test("AC-229-2: WHEN a CLI test file starts a child without the helper THEN the safe-PATH scan flags it", () => {
+  const CP = '"node:child' + '_process"', S = "spawn" + "Sync", run = `(process.execPath, [CLI], { env: safeEnv() });`;
+  for (const name of [S, "spawn", "execFile" + "Sync", "execFile"]) {
+    assert.notDeepEqual(inherits(`import { ${name} } from ${CP};\n${name}${run}`), [], name);
+    assert.notDeepEqual(inherits(`import { ${name} as go } from ${CP};\ngo${run}`), [], `${name} renamed`);
+    assert.deepEqual(inherits(`import { ${name} } from "./child.mjs";\n${name}${run}`), [], `${name} from child.mjs`);
+  }
+  assert.deepEqual(inherits(`import { ${S} } from "./child.mjs";\n${S}("git", ["init"]);`), [`${S}() with no env inherits the shell's PATH`]);
 });
 
 // #197: `npm test` loads the safe PATH before any test file. These run test files the way it does: node with the

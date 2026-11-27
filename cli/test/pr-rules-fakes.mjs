@@ -1,7 +1,7 @@
 // The fixture for pr-rules.mjs (#225): main's checkout as a temp git repo whose one commit holds copies of the
 // coordinate scripts and `attributes` as its .gitattributes, and a fake gh that answers for pull request 9 of acme/app.
 // The script reads main's attributes from the checkout that holds it, so each run copies it into one.
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "./child.mjs";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

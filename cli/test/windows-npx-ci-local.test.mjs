@@ -3,7 +3,8 @@
 // the current folder. A fake win32 and a recorded spawn: nothing runs, and there is no Windows machine here.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import childProcess, { spawnSync } from "node:child_process";
+import childProcess from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { basename, delimiter, join } from "node:path";

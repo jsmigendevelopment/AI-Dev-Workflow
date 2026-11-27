@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { fileURLToPath } from "node:url";
 import { runChecks } from "../src/checks.mjs";
 import { initGlobal } from "../src/global.mjs";

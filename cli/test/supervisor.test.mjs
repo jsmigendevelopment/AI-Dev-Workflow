@@ -4,7 +4,7 @@
 // AC-206-7 is an agent check: a session on a scratch repo arms both timers and "stop" cancels both.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

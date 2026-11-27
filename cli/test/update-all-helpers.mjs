@@ -1,7 +1,7 @@
 // Shared by the `update --all` tests (#178). Each test runs the CLI binary with a temp HOME and a PATH of temp
 // folders that hold only fake `claude` and `codex` (they record every call) and a copy of node. Never Node's own
 // folder: an npm-installed claude sits there. run() checks every child's PATH before it starts (#191: helpers.mjs).
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
