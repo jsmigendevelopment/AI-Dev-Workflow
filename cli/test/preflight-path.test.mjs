@@ -10,6 +10,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRead, markRead, realSys } from "../src/preflight-sys.mjs";
+import { findCommand } from "../src/system.mjs";
 import { put, safeEnv } from "./helpers.mjs";
 import { fakes, gitRepo, pathWith, PLAYWRIGHT, project, ran, runScript, sh, status, temp } from "./preflight-fakes.mjs";
 
@@ -88,14 +89,24 @@ test("AC-182-2: WHEN a PATH entry names a folder outside the repo by a route the
 
 // The tools to make a bind mount in a namespace of its own, which ends with the process. Linux only.
 const tool = (cmd) => spawnSync("sh", ["-c", `command -v ${cmd}`], { encoding: "utf8", env: safeEnv() }).stdout.trim();
-function canMount() {
-  if (process.platform !== "linux" || !tool("unshare") || !tool("mount")) return false;
+/** Why the bind-mount test can't run here, or false when it can. */
+function mountSkip() {
+  const why = "needs unshare and a bind mount (Linux)";
+  if (process.platform !== "linux" || !tool("unshare") || !tool("mount")) return why;
   const at = temp("onrails-path-probe-");
-  return spawnSync(tool("unshare"), ["-rm", tool("mount"), "--bind", at, at], { env: safeEnv() }).status === 0;
+  if (spawnSync(tool("unshare"), ["-rm", tool("mount"), "--bind", at, at], { env: safeEnv() }).status !== 0) return why;
+  // #276: in the namespace only this user maps (to 0), so for a non-root user the real git's folder shows as nobody,
+  // and preflight rightly won't run it. Skip then; never loosen the ownership rule to pass.
+  const dirs = [dirname(realpathSync(findCommand("git")))];
+  while (dirname(dirs.at(-1)) !== dirs.at(-1)) dirs.push(dirname(dirs.at(-1)));
+  const out = spawnSync(tool("unshare"), ["-rm", tool("stat"), "-c", "%u", ...dirs], { encoding: "utf8", env: safeEnv() }).stdout ?? "";
+  const owners = out.trim().split("\n");
+  const trusted = owners.length === dirs.length && owners.every((uid) => uid === "0");
+  return trusted ? false : "the real git's folder, or one above it, shows as nobody inside an unprivileged user namespace";
 }
-const mounts = canMount();
+const skipMount = mountSkip();
 
-test("AC-182-2: WHEN a PATH folder is the repo mounted at another path THEN preflight runs no command from it", { skip: mounts ? false : "needs unshare and a bind mount (Linux)" }, () => {
+test("AC-182-2: WHEN a PATH folder is the repo mounted at another path THEN preflight runs no command from it", { skip: skipMount }, () => {
   const mark = temp("onrails-path-mark-");
   const dir = gitRepo("", PLAYWRIGHT);
   fakes(join(dir, "bin"), ["git", "gh", "npm"], mark);
