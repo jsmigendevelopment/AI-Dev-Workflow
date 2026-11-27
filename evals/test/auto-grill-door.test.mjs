@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { AUTO_GRILL_PLAN, REVIEWS, REVIEWS_108, reviewPlan } from "./auto-grill-reviews.mjs";
+import { AUTO_GRILL_PLAN, REVIEWS, REVIEWS_108, REVIEWS_189, reviewPlan } from "./auto-grill-reviews.mjs";
 import { failedChecks } from "./failed-checks.mjs";
 import { setup, skipWin } from "./harness.mjs";
 
@@ -32,6 +32,19 @@ test("#108 item 5: the grill-log template leaves every Source blank, and says wh
   assert.ok(sources?.length > 0, "the template has Source lines");
   for (const line of sources) assert.equal(line.trimEnd(), "**Source:**", "no default source");
   assert.match(template, /Below Full, the person's own answer is "person"\. On Full.*"person \(pitch\)".*"AI pick, not reviewed"/);
+});
+
+test("#189 AC-1 to AC-3: floating isn't money, whole-unit picks, blanket questions and the door's own table", { skip: skipWin }, (t) => {
+  const got = Object.fromEntries(Object.entries(REVIEWS_189).map(([name, { review }]) => [name, failedFor(t, review)]));
+  assert.deepEqual(got, Object.fromEntries(Object.entries(REVIEWS_189).map(([name, { fails }]) => [name, fails])));
+});
+
+test("#189 AC-4: the grill-log template and grill both list \"person (pitch)\" and \"AI pick, not reviewed\"", () => {
+  for (const file of [".agents/skills/idea/templates/grill-log.md", ".agents/skills/grill/SKILL.md"]) {
+    const text = read(file);
+    assert.match(text, /person \(pitch\)/, file);
+    assert.match(text, /AI pick, not reviewed/, file);
+  }
 });
 
 // AC-6 of #102: the reviewers' transcripts. Each bad one fails exactly its listed checks; each good one passes.

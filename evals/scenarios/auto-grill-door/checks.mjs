@@ -6,12 +6,18 @@ import { result } from "../../lib/checks.mjs";
 import { DECISIONS } from "./fixture.mjs";
 
 const REVIEW = "kickoff/review.md";
-const MONEY = /\bmoney\b|\bfloat|\bcents\b|\bpenn(?:y|ies)\b|minor units|\bdollars?\b/i;
-// A fixed pick names a whole-number type and a minor unit: "rounded to cents" alone is still a float.
-const WHOLE = /\b(?:integers?|whole)\b/i;
-const UNIT = /minor units|\bcents\b|\bpenn(?:y|ies)\b/i;
-const FLOAT = /\bfloat|floating[- ]point/i;
-const BLANKET = /\b(?:everything|all|every row|the rest|looks good|table|below|too)\b/i;
+// "floating" alone is a button, not money (#189).
+const MONEY = /\bmoney\b|\bfloats?\b|floating[- ]point|\bcents\b|\bpenn(?:y|ies)\b|minor units|\bdollars?\b/i;
+// A fixed pick opens with the stored type: the whole-number word right before a minor unit, or the unit
+// stored as an integer. "Whole dollars, rounded to cents" and "a JS number, shown in whole cents" don't (#189).
+const UNIT = String.raw`(?:minor units?|cents?|penn(?:y|ies))`;
+const WHOLE_UNIT = new RegExp(
+  String.raw`^(?:stored?\s+(?:as\s+)?)?(?:(?:integers?|whole)(?:\s+numbers?\s+of)?\s+${UNIT}\b|${UNIT}\s+(?:stored\s+)?as\s+(?:an?\s+)?integers?\b)`,
+  "i",
+);
+const FLOAT = /\bfloats?\b|floating[- ]point/i;
+// "table" counts only as "the table", the rest of the review: "the items table" is this door's own (#189).
+const BLANKET = /\b(?:everything|all|every row|rest|anything else|looks good|the table|below|too)\b/i;
 // A door field, bare or as "**Pick:**", "**Pick**:", "- Pick:" or "- **Pick:**".
 const FIELD = /^(?:[-*]\s+)?(?:\*\*)?(Pick|Why|Alternatives|Question|Cost to change later)(?::\*\*|\*\*:|:)\s*(.*)$/i;
 
@@ -74,7 +80,7 @@ export const checks = [
     description: "The money door's Pick says integer or whole minor units, cents or pennies, and not float",
     check: (t) => {
       const pick = review(t)?.money?.fields.pick ?? "";
-      return result(WHOLE.test(pick) && UNIT.test(pick) && !FLOAT.test(pick), `Pick: "${pick}"`);
+      return result(WHOLE_UNIT.test(pick) && !FLOAT.test(pick), `Pick: "${pick}"`);
     },
   },
   {

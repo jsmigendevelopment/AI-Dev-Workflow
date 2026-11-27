@@ -71,16 +71,17 @@ function globalSkills({ kitDir, sys, dryRun, version, log }) {
 }
 
 // Step 3: the project's kit, as plain update does it.
-async function projectKit(projectDir, given, { kitDir, dryRun, ask, yes, log }) {
+async function projectKit(projectDir, given, { kitDir, dryRun, ask, yes, log, run }) {
   const old = readProjectManifest(projectDir);
   if (!old) {
     log(`3. Project kit: skipped, this folder isn't an onRails project (no ${PROJECT_MANIFEST})`);
     return [];
   }
   log(projectDir === given ? "3. Project kit" : `3. Project kit: ${projectDir}, the nearest folder above with ${PROJECT_MANIFEST}`);
-  const code = await update(projectDir, { dryRun, kitDir, ask, yes, log });
+  const code = await update(projectDir, { dryRun, kitDir, ask, yes, log, run });
   const now = readProjectManifest(projectDir);
-  return [{ part: "Project kit", before: `v${old.kitVersion}`, after: `v${now?.kitVersion}`, failed: code !== 0, note: code !== 0 && "FAILED: see above" }];
+  return [{ part: "Project kit", before: `v${old.kitVersion}`, after: `v${now?.kitVersion}`, failed: code !== 0, note: code !== 0 && "FAILED: see above",
+    stopped: code > 128 && code }];
 }
 
 function summary(rows, log) {
@@ -106,7 +107,7 @@ async function part(name, run, log) {
 }
 
 /** Runs all four parts, each on its own; exit 1 when any part, plugin command or the project update failed. */
-export async function updateAll(dir = ".", { dryRun = false, kitDir, ask, yes = false, sys: callerSys, log = console.log } = {}) {
+export async function updateAll(dir = ".", { dryRun = false, kitDir, ask, yes = false, sys: callerSys, log = console.log, run } = {}) {
   // The project is the given folder, or the nearest one above it with a kit record: a terminal is often in a subfolder.
   const given = resolve(dir);
   const projectDir = projectManifestName(given) ? given : nearestProject(given) ?? given;
@@ -117,8 +118,11 @@ export async function updateAll(dir = ".", { dryRun = false, kitDir, ask, yes = 
   const rows = [
     ...(await part("Plugins", () => plugins(sys, projectDir, dryRun, log), log)),
     ...(await part("Global entry skills", () => globalSkills({ kitDir, sys, dryRun, version, log }), log)),
-    ...(await part("Project kit", () => projectKit(projectDir, given, { kitDir, dryRun, ask, yes, log }), log)),
+    ...(await part("Project kit", () => projectKit(projectDir, given, { kitDir, dryRun, ask, yes, log, run }), log)),
   ];
+  // A stop by a signal during ci local ends the run with its code: no doctor, no summary (#203).
+  const stopped = rows.find((r) => r.stopped)?.stopped;
+  if (stopped) return stopped;
   const code = () => (rows.some((r) => r.failed) ? 1 : 0);
   if (dryRun) {
     log("4. doctor: would run after the updates");
