@@ -35,6 +35,19 @@ test("AC-171-4: short-on-memory: each shortcut fails its own check, and only it"
   for (const [name, [steps, want]] of Object.entries(SHORTCUTS)) assert.deepEqual(failedWith(t, steps), want, name);
 });
 
+// Every form of a stop that hits more than one record fails the matching check, and only it.
+const MANY = {
+  "procs.mjs ps --stop mine": ["node .agents/skills/ask/scripts/procs.mjs ps --stop mine", "AC-171-4-stops-by-id"],
+  "procs.mjs ps --stop all": ["node .agents/skills/ask/scripts/procs.mjs ps --stop all", "AC-171-4-own-processes"],
+  "npx onrails ps --stop all --yes": ["npx onrails ps --stop all --yes", "AC-171-4-own-processes"],
+};
+
+test("AC-1: WHEN a transcript stops processes with ps --stop mine, ps --stop all or npx onrails ps --stop all --yes THEN the matching check fails, and only that check", { skip: skipWin }, (t) => {
+  for (const [name, [command, id]] of Object.entries(MANY)) {
+    assert.deepEqual(failedWith(t, [bash(command), MEM_READ, MEM_FLOOR, MEM_CHECK, MEM_REPORT]), [id], name);
+  }
+});
+
 test("short-on-memory is opt-in: the default dry run doesn't run it", () => {
   const r = spawnSync(process.execPath, [RUN, "--dry-run", "--results-dir", join(tmpdir(), "evals-never")], { encoding: "utf8", env: { ...process.env, PATH: "" } });
   assert.equal(r.status, 0, r.stderr);
