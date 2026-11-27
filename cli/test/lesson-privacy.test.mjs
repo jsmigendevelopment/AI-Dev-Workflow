@@ -35,11 +35,23 @@ const PLANTED = {
   pluralApp: "notes",
 };
 
-function git(dir, args) {
-  const author = { GIT_AUTHOR_NAME: PLANTED.person, GIT_AUTHOR_EMAIL: PLANTED.email,
-    GIT_COMMITTER_NAME: PLANTED.person, GIT_COMMITTER_EMAIL: PLANTED.email };
+function git(dir, args, { name = PLANTED.person, email = PLANTED.email } = {}) {
+  const author = { GIT_AUTHOR_NAME: name, GIT_AUTHOR_EMAIL: email, GIT_COMMITTER_NAME: name, GIT_COMMITTER_EMAIL: email };
   const r = spawnSync("git", args, { cwd: dir, encoding: "utf8", env: gitEnv(dir, author) });
   assert.equal(r.status, 0, r.stderr);
+}
+
+// A small project of its own, so one planted detail is the only project term a lesson could hit. The author's
+// domain is reserved, so it adds no domain.
+function small(repoName, files) {
+  const dir = tmp("onrails-small-");
+  for (const [path, text] of Object.entries(files)) put(dir, path, text);
+  const author = { name: "Ada Quill", email: "ada@quill.test" };
+  git(dir, ["init", "-q"], author);
+  git(dir, ["remote", "add", "origin", `https://github.com/cedar-lane/${repoName}.git`], author);
+  git(dir, ["add", "-A"], author);
+  git(dir, ["commit", "-q", "-m", "start"], author);
+  return dir;
 }
 
 function fixture({ repoName = PLANTED.appName, packageName = PLANTED.appName } = {}) {
@@ -192,6 +204,51 @@ test("lesson check: an app named after a kit file name (board, vision-flow) is s
   const grill = fixture({ repoName: "grill", packageName: "grill" });
   const r = check(good({ lesson: "The builder ran grill before the merge." }), grill);
   assert.equal(r.status, 0, r.stderr);
+});
+
+test("AC-385-1: WHEN the project is brightpaper THEN a lesson saying bright paper or bright-paper is refused", () => {
+  const dir = small("brightpaper", { "package.json": JSON.stringify({ name: "brightpaper" }) });
+  for (const lesson of ["The builder broke the bright paper check before the merge.",
+    "The builder broke the bright-paper check before the merge."]) {
+    assert.equal(checkLesson(good({ lesson }), { manifest }).ok, true, "the allowlist alone passes it");
+    const r = check(good({ lesson }), dir);
+    assert.equal(r.status, 1, lesson);
+    assert.match(r.stderr, /^ {2}lesson: contains a project term \((git remote|package name)\)$/m);
+    assert.doesNotMatch(r.stdout + r.stderr, /bright|paper/i);
+  }
+  // Each word alone is no part of the name: only the run of words that joins into it is.
+  for (const lesson of ["The builder broke the paper check.", "The builder saw a bright light before the merge."]) {
+    assert.equal(check(good({ lesson }), dir).status, 0, lesson);
+  }
+});
+
+test("AC-385-2: WHEN .env.example names RIVER_SIGNAL_TOKEN THEN river signal token is refused", () => {
+  const dir = small("cedar", { ".env.example": "RIVER_SIGNAL_TOKEN=\n" });
+  for (const lesson of ["The builder lost the river signal token on the branch.",
+    "The builder lost the river-signal-token on the branch."]) {
+    assert.equal(checkLesson(good({ lesson }), { manifest }).ok, true, "the allowlist alone passes it");
+    const r = check(good({ lesson }), dir);
+    assert.equal(r.status, 1, lesson);
+    assert.match(r.stderr, /^ {2}lesson: contains a project term \(env name\)$/m);
+    assert.doesNotMatch(r.stdout + r.stderr, /river|signal/i);
+  }
+  // An env name stays whole (decision 322-1): its words alone don't block a lesson.
+  assert.equal(check(good({ lesson: "The builder lost the token by the river on the branch." }), dir).status, 0);
+});
+
+test("AC-385-3: WHEN --project is given THEN issue 41 and #41 are refused, and the error never prints the number", () => {
+  for (const lesson of ["The builder closed issue 41 on the branch.", "The builder closed #41 on the branch.",
+    "The builder closed issue 57 on the branch.", "The builder closed PR 41 on the branch.",
+    "The builder closed pull request 41 on the branch."]) {
+    const r = check(good({ lesson }));
+    assert.equal(r.status, 1, lesson);
+    assert.match(r.stderr, /^ {2}lesson: (contains a project term \(issue number\)|issue-number)$/m);
+    assert.doesNotMatch(r.stdout + r.stderr, /41|57/);
+  }
+  const bare = good({ lesson: "The builder closed issue 41 on the branch." });
+  assert.equal(checkLesson(bare, { manifest }).ok, true, "without a project, the allowlist alone passes it");
+  // A small number that isn't an issue's still passes.
+  assert.equal(check(good({ lesson: "The coordinator ran the test 3 times before it passed." })).status, 0);
 });
 
 test("AC-322-7: WHEN a record is refused for a project term THEN the output names the field and the source kind, never the term", () => {

@@ -92,15 +92,16 @@ function readCapped(path) {
   }
 }
 
-// A term, each of its parts, and the parts joined by `-` and by a space. Kit words never enter, nor a term whose
-// singular or plural is one: `review` or `reviews` in a repo name can't block every lesson.
+// A term, each of its parts, and the parts joined by `-` and by a space. A term kept whole (an env name, a full host)
+// still gives the joins, so RIVER_SIGNAL_TOKEN gives `river signal token`, but not its parts. Kit words never enter,
+// nor a term whose singular or plural is one: `review` or `reviews` in a repo name can't block every lesson.
 function adder(terms, kitWords) {
   const isKit = (word) => [word, `${word}s`, `${word}es`, singular(word)].some((form) => form && kitWords.has(form));
   const add = (raw, kind, { split = true } = {}) => {
     const clean = trimEnds(raw);
-    const parts = split ? clean.split(PART_BREAK).map((part) => trimEnds(part.toLowerCase())).filter(Boolean) : [];
+    const parts = clean.split(PART_BREAK).map((part) => trimEnds(part.toLowerCase())).filter(Boolean);
     const joined = parts.length > 1 ? [parts.join("-"), parts.join(" ")] : [];
-    for (const word of [norm(clean), ...parts, ...joined]) {
+    for (const word of [norm(clean), ...(split ? parts : []), ...joined]) {
       if (word.length >= 2 && !isKit(word) && !terms.has(word)) terms.set(word, kind);
     }
   };
@@ -235,14 +236,38 @@ function matcher(terms) {
   const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll(" ", "\\s+");
   const alternatives = [...forms.keys()].sort((a, b) => b.length - a.length).map(escape);
   const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(${alternatives.join("|")})(?:e?s)?(?![\\p{L}\\p{N}])`, "u");
-  return { forms, pattern };
+  // Single-word forms, for a name written as one word (brightpaper) that a lesson splits into several.
+  const joined = new Map([...forms].filter(([form]) => /^[\p{L}\p{N}]+$/u.test(form)));
+  const longest = Math.max(0, ...[...joined.keys()].map((form) => form.length)) + 2;
+  return { forms, pattern, joined, longest };
 }
 
-/** The source kind of the first project term in text, whole-word, case-blind and in either number, or null. */
+// The kind of a single-word form that a run of two or more words spells with the spaces and hyphens between them
+// removed (`bright paper` or `bright-paper` for `brightpaper`), in either number, or null.
+function joinedTerm(text, { joined, longest }) {
+  for (const chunk of text.split(/[^\p{L}\p{N}\s-]+/u)) {
+    const words = chunk.split(/[\s-]+/).filter(Boolean);
+    for (let i = 0; i < words.length; i++) {
+      let run = words[i];
+      for (let j = i + 1; j < words.length && run.length < longest; j++) {
+        run += words[j];
+        const form = [run, run.replace(/s$/, ""), run.replace(/es$/, "")].find((f) => joined.has(f));
+        if (form) return joined.get(form);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The source kind of the first project term in text, whole-word, case-blind and in either number, or null. A
+ * one-word term also matches the same letters split by spaces or hyphens.
+ */
 export function projectTerm(text, terms) {
   if (terms.size === 0) return null;
   if (!matchers.has(terms)) matchers.set(terms, matcher(terms));
-  const { forms, pattern } = matchers.get(terms);
-  const found = pattern.exec(norm(text));
-  return found ? forms.get(found[1].replace(/\s+/g, " ")) : null;
+  const match = matchers.get(terms);
+  const lower = norm(text);
+  const found = match.pattern.exec(lower);
+  return found ? match.forms.get(found[1].replace(/\s+/g, " ")) : joinedTerm(lower, match);
 }
