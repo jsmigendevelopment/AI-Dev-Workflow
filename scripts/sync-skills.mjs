@@ -42,6 +42,9 @@ const COPIES = [
   // The insights record format (#329): next to the coordinate skill's writer, and in the CLI for the readers.
   [join("scripts", "insights-record.mjs"), join(SRC, "coordinate", "scripts", "insights-record.mjs")],
   [join("scripts", "insights-record.mjs"), join("cli", "src", "insights-record.mjs")],
+  // The weekly report (#381) reads the records with the format's validate, so it goes wherever that goes.
+  [join("scripts", "insights-week.mjs"), join(SRC, "coordinate", "scripts", "insights-week.mjs")],
+  [join("scripts", "insights-week.mjs"), join("cli", "src", "insights-week.mjs")],
   // push-secrets' rule for starting gh and npx, also for setup-github's gh (#238): skill scripts can't import each other.
   // Also next to every research-library.mjs copy and agent-files.mjs, which start gh the same way (#274).
   ...[join(SRC, "name", "scripts"), join(SRC, "coordinate", "scripts"), join(SRC, "research", "scripts"), "scripts", join("cli", "src"), join(TEMPLATE, "scripts")]

@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-27T22:41:07.235Z",
+  "issue": 320,
+  "pr": 426,
+  "sha": "00d1f1efd19fe54c67722eb551eace598e949668",
+  "job": "build",
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "outcome": "finished"
+}
