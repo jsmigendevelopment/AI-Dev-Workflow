@@ -30,7 +30,8 @@ const escape = (t) => t.replace(/[\s\S]/g, (u) => `\\u${u.charCodeAt(0).toString
 // A record's id or command made safe to print on one line (#233, #231): JSON-quoted, each UNSAFE character, each
 // mark past MARKS in a row and each mark right after an escape or the opening quote escaped as \uXXXX, and cut to
 // max characters, the last one an ellipsis. With bare, text that needs no escape and no cut prints as it is.
-function printable(id, { bare = false, max = ID_CHARS, none = "no id" } = {}) {
+// list, ps and doctor print through it too, with no max, so a plain record prints as before (#250).
+export function printable(id, { bare = false, max = ID_CHARS, none = "no id" } = {}) {
   let marks = 0, last = "";
   const tokens = (JSON.stringify(id) ?? none).match(TOKEN).map((t, i) => {
     const mark = MARK.test(t);

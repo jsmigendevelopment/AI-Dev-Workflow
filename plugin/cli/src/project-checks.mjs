@@ -10,6 +10,7 @@ import { projectManifestName, readProjectManifest } from "./sync.mjs";
 import { MARKS } from "./marks.mjs";
 import { CI_FIX, actionsOn, ciMode, githubRepo, workflowFiles } from "./preflight-ci.mjs";
 import { personalValues } from "./research-library.mjs";
+import { printable } from "./procs-hooks.mjs";
 import { staleSummary } from "./procs.mjs";
 import { realSys } from "./procs-sys.mjs";
 
@@ -101,6 +102,8 @@ const OTHER_FIX = "Do what it says: until then its processes aren't listed or st
 // each such reason ends with where processes are still tracked (procs-path.mjs's HOME_OFF and fsProblem).
 const SET_UP = "still tracks its processes";
 const SET_UP_FIX = "Nothing to fix: this is how the machine is set up. Start background processes from inside a repo, whose own registry still lists and stops them";
+// A stale record's id and command, escaped and quoted when they aren't plain, never cut (#250).
+const shown = (text, none) => printable(text, { bare: true, max: Infinity, none });
 export function processChecks(projectDir, { sys }) {
   const { total, stale, skipped, unreadable } = staleSummary(projectDir, { sys });
   const notRead = skipped.map((why) => ({
@@ -110,7 +113,7 @@ export function processChecks(projectDir, { sys }) {
   if (!total) return notRead;
   if (!stale.length) return [...notRead, { status: MARKS.OK, label: `${total} registered background process(es), none stale` }];
   return [...notRead, {
-    status: MARKS.FAIL, required: false, label: `${stale.length} stale background process(es): ${stale.map((r) => `${r.id} ${r.command} (${r.stale})`).join(", ")}`,
+    status: MARKS.FAIL, required: false, label: `${stale.length} stale background process(es): ${stale.map((r) => `${shown(r.id, "no id")} ${shown(r.command, "no command")} (${r.stale})`).join(", ")}`,
     fix: "Run: npx onrails ps --stop stale",
   }];
 }
