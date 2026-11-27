@@ -15,6 +15,8 @@
     "allow": [
       "Bash(node .claude/hooks/notify.mjs:*)",
       "Bash(node .agents/skills/coordinate/scripts/board.mjs:*)",
+      "Bash(node .agents/skills/coordinate/scripts/insights.mjs write:*)",
+      "Bash(node .agents/skills/coordinate/scripts/insights.mjs line:*)",
       "Bash(node .agents/skills/afk/scripts/worklog.mjs:*)"
     ]
   },
