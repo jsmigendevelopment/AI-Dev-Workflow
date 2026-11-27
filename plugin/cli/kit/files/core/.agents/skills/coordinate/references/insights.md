@@ -12,8 +12,8 @@ Exit 2 names the bad field and writes nothing. Exit 1 is any other failed write.
 ## Where each lands
 
 - **A builder** writes its own records on its branch and commits them with the work.
-- **A reviewer** commits nothing: it runs `line` and puts the printed `<!-- onrails-insights {...} -->` at the end of its verdict comment. #332 harvests it.
-- **The coordinator** writes the rest in its own checkout of main.
+- **A reviewer** commits nothing: it runs `line` and puts the printed `<!-- onrails-insights {...} -->` at the end of its verdict comment.
+- **The coordinator** writes the rest in its own checkout of main. After each merge, `insights.mjs harvest --pr <n> --repo <owner>/<repo>` saves the reviewers' lines there: only from its own login or one under `[insights] writers = ["<login>"]` in `docs/profile.toml`. At the end of each sweep, `insights.mjs land` opens one records-only pull request, and `land --verify <pr>` is its review (`coordinate` step 10, decision 332-1).
 
 ## The file name
 
