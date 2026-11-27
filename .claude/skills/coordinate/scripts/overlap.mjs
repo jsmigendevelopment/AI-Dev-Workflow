@@ -2,6 +2,7 @@
 // No two issues in flight share a module (#255). `coordinate` step 2 runs it from your checkout of main before
 // every start:
 //   node overlap.mjs <issue> --in-flight <n,n,...> --repo owner/name
+// --in-flight is required: pass "" when nothing is in flight, so a forgotten flag is an error, never a pass.
 // It reads each issue's "Modules" (or "Modules touched") line, as the `issues` skill writes it, and the files each
 // in-flight issue's branch (feat/<n>-name or fix/<n>-name) changes so far against the default branch. A clash is a
 // module both issues name, or a file an in-flight branch changes inside one of the candidate's modules. An issue
@@ -74,7 +75,7 @@ export function clashes(candidate, inFlight, isGenerated = new Set()) {
   return [...new Set(found)];
 }
 
-/** The in-flight issue numbers from `--in-flight 5,8` (or none), without the candidate; null when one isn't a number. */
+/** The in-flight issue numbers from `--in-flight 5,8` (or `""` for none), without the candidate; null when one isn't a number. */
 function inFlightArg(value, candidate) {
   const parts = String(value ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   if (parts.some((s) => !/^\d+$/.test(s))) return null;
@@ -87,7 +88,7 @@ function readInFlight(repo, numbers) {
   const base = JSON.parse(gh(`repos/${repo}`)).default_branch;
   if (!base) throw new Error(`GitHub gave no default branch for ${repo}`);
   const branches = new Map();
-  for (const { ref } of pages(`repos/${repo}/git/matching-refs/heads/`)) {
+  for (const { ref } of pages(`repos/${repo}/git/matching-refs/heads`)) {
     const [, branch, n] = BRANCH.exec(ref ?? "") ?? [];
     if (n && numbers.includes(n)) branches.set(n, [...(branches.get(n) ?? []), branch]);
   }
@@ -108,7 +109,8 @@ export function main(argv) {
   const flag = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
   const n = /^\d+$/.test(argv[0] ?? "") ? argv[0] : null;
   const repo = flag("--repo");
-  const numbers = inFlightArg(flag("--in-flight"), n);
+  const listed = flag("--in-flight");
+  const numbers = listed === undefined ? null : inFlightArg(listed, n);
   if (!n || !repo || !numbers) {
     console.error("Usage: overlap.mjs <issue> --in-flight <n,n,...> --repo <owner>/<name>");
     return 2;

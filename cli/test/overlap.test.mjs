@@ -17,7 +17,8 @@ function overlap({ issues = {}, inFlight = "5", refs = [], compares = {}, args, 
   const dir = tmp("onrails-overlap-");
   const fake = fakeGh(dir, {
     "repos/acme/app": { default_branch: "main" },
-    "repos/acme/app/git/matching-refs/heads/": refs.map(ref),
+    // The exact path: the real API answers HTTP 400 to matching-refs/heads/ with a trailing slash.
+    "repos/acme/app/git/matching-refs/heads": refs.map(ref),
     ...Object.fromEntries(Object.entries(issues).map(([n, modules]) => [`repos/acme/app/issues/${n}`, issue(modules)])),
     ...Object.fromEntries(Object.entries(compares).map(([branch, files]) => [`repos/acme/app/compare/main...${branch}`, compare(...files)])),
     ...api,
@@ -43,6 +44,7 @@ test("AC-255-1: issues on different modules both start; coordinate step 2 runs t
   const step2 = read(".agents/skills/coordinate/SKILL.md");
   assert.match(step2, /node \.agents\/skills\/coordinate\/scripts\/overlap\.mjs <n> --in-flight <n,n,\.\.\.> --repo <owner>\/<repo>/);
   assert.match(step2, /Exit 1 is a clash: the candidate waits, and you try the next ready issue/);
+  assert.match(step2, /every issue already picked earlier in this sweep, so two ready issues are checked against each other too/);
 });
 
 test("AC-255-1: an issue with no Modules line is unknown and starts only when nothing else is in flight", unixOnly, () => {
@@ -68,6 +70,7 @@ test("AC-255-2: a file an in-flight branch changes inside the candidate's module
   assert.equal(r.status, 1, r.stderr);
   assert.match(r.stderr, /#5's branch feat\/5-sign-in already changes src\/features\/lists\/share\.ts, inside #7's module features\/lists/);
   assert.doesNotMatch(r.calls, /feat\/55-other/, "only the in-flight issue's branch is read");
+  assert.match(r.calls, /^api --paginate --slurp repos\/acme\/app\/git\/matching-refs\/heads$/m, "the refs path has no trailing slash");
   const lookalike = overlap({ issues: { 7: "features/lists", 5: "features/auth" }, refs: ["fix/5-x"], compares: { "fix/5-x": ["src/features/listsx/a.ts"] } });
   assert.equal(lookalike.status, 0, "a module matches whole path segments only");
 });
@@ -88,11 +91,13 @@ test("AC-255-3: when the only overlap is a shared hot spot, both start", unixOnl
 test("a usage or API error exits 2 and passes nothing", unixOnly, () => {
   assert.equal(overlap({ args: ["7", "--in-flight", "5"] }).status, 2, "no --repo");
   assert.equal(overlap({ args: ["7", "--in-flight", "5,x", "--repo", "acme/app"] }).status, 2, "a bad number");
+  assert.equal(overlap({ args: ["7", "--repo", "acme/app"] }).status, 2, "no --in-flight: a forgotten flag never passes");
+  assert.equal(overlap({ args: ["7", "--repo", "acme/app", "--in-flight"] }).status, 2, "--in-flight with no value");
   const missing = overlap({ issues: { 7: "features/lists" } });
   assert.equal(missing.status, 2, "issue 5 can't be read");
   assert.equal(missing.stdout, "");
   assert.match(missing.stderr, /Couldn't read the issues or branches from the API/);
-  const refused = overlap({ issues: { 7: "a", 5: "b" }, api: { "repos/acme/app/git/matching-refs/heads/": { ghError: "HTTP 403: forbidden" } } });
+  const refused = overlap({ issues: { 7: "a", 5: "b" }, api: { "repos/acme/app/git/matching-refs/heads": { ghError: "HTTP 403: forbidden" } } });
   assert.equal(refused.status, 2);
   assert.doesNotMatch(refused.calls, /graphql/);
 });
