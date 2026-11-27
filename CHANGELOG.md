@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- The agent-file guard counts package-manager settings (`.npmrc`, `.yarnrc*`, `pnpm-workspace.yaml`, `.pnpmfile.cjs`), `package.yaml`, `package.json5`, `.gitattributes` and the `package.json` keys `eslintIgnore`, `stylelint`, `workspaces`, `pnpm`, `overrides` and `resolutions` as check code (#220).
 - **clean-up-server reads more negations and rarer background forms (#192).** `AC-151-3-says-so` accepts "isn't", "never" and "neither … nor"; `AC-6-nothing-left` catches `{ npm run dev & }` and `&# note` and ignores a quoted `&`; a `server.pids` line with no start time counts only a PID running `server.mjs`.
 - **The local merge gate drops what it can't check, and only that (#158).** A claim or a weakening-review pass from a login whose access has no answer is dropped instead of stopping the run: `own-branch.mjs` exits 2 only when no checked writer claims the branch, and the guard fails only on an unchecked fail. gh's status is read from its trailing `(HTTP nnn)`, so a 403 that quotes "HTTP 404" exits 2. A second identical exit 2 on one pull request sends one FYI. Decision 158-1 words pause like `AGENTS.md` rule 15.
 - **short-on-memory catches every stop that hits more than one record (#176).** Its two stopped-processes checks now also see `procs.mjs ps --stop mine`, `ps --stop all` and `npx onrails ps --stop all --yes`, with a test for each form.
