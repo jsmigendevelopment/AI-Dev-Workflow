@@ -195,10 +195,15 @@ export const failure = (error: unknown, when: string) =>
     ? error.message
     : `the deploy script crashed ${when}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
 
+/** Which site a deploy is for: the advice for a first deploy differs. */
+export type Site = 'test' | 'production'
+
 /** What to do with a Worker's first version when it can't be rolled back: there is none before it. */
-export const noEarlierVersion = (worker: string) =>
+export const noEarlierVersion = (worker: string, site: Site) =>
   `there is no earlier version to roll back to: this was the first deploy of ${worker}. ` +
-  `Keep the site on its Coming soon page (LAUNCHED "false") until a deploy passes its smoke test, ` +
+  (site === 'production'
+    ? `Keep the site on its Coming soon page (LAUNCHED "false") until a deploy passes its smoke test, `
+    : `The test Worker ships launched (LAUNCHED "true"), so fix the failure and deploy again, `) +
   `or delete the Worker after the person's yes: pnpm exec wrangler delete --name ${worker}`
 
 /**
@@ -209,7 +214,7 @@ export const noEarlierVersion = (worker: string) =>
  */
 export async function afterDeploy(
   deps: DeployDeps,
-  at: { env: ChildEnv; worker: string; sha: string; after: string; first?: boolean },
+  at: { env: ChildEnv; worker: string; sha: string; after: string; site: Site; first?: boolean },
   verify: () => Promise<void>,
 ) {
   try {
@@ -217,7 +222,7 @@ export async function afterDeploy(
   } catch (error) {
     const why = failure(error, 'after the deploy')
     const back = at.first
-      ? `The new version (${at.sha}) is live on ${at.worker} and failed its check, and ${noEarlierVersion(at.worker)}.`
+      ? `The new version (${at.sha}) is live on ${at.worker} and failed its check, and ${noEarlierVersion(at.worker, at.site)}.`
       : await rollBack(deps, at.env, at.worker, at.sha)
     throw new Stop(`${why}\n\n${back}\n${at.after}`)
   }

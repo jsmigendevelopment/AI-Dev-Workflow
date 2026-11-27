@@ -101,6 +101,7 @@ async function deploy(deps: DeployDeps) {
       env: PRODUCTION,
       worker: production.worker,
       sha,
+      site: 'production' as const,
       message: `production ${sha}`,
       what: 'deploy the production Worker',
       after: afterText(bookmark),

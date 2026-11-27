@@ -7,7 +7,7 @@
 // rolled back: that would replace the good live version with the one before it.
 import type { CommandResult } from '../cloudflare/deps.ts'
 import type { ChildEnv, DeployDeps } from './deps.ts'
-import { afterDeploy, failure, noEarlierVersion, Stop, tail } from './shared.ts'
+import { afterDeploy, failure, noEarlierVersion, type Site, Stop, tail } from './shared.ts'
 
 export interface Release {
   env: ChildEnv
@@ -15,6 +15,8 @@ export interface Release {
   sha: string
   /** The deploy's `--message`: the newest deployment carries it once this version is live. */
   message: string
+  /** The site it deploys: what to do with a failed first deploy differs. */
+  site: Site
   /** The step's name in the log, such as "deploy the test Worker". */
   what: string
   /** What every stop message ends with: what a rollback doesn't undo, and what to do next. */
@@ -28,10 +30,11 @@ interface Deployment {
 }
 
 /** The newest deployment, or that the Worker or its deployments aren't there, or why it can't be read. */
-type Newest = { id: string; message: string } | 'no worker' | 'no deployment' | { unreadable: string }
+type Newest = { id?: string; message: string } | 'no worker' | 'no deployment' | { unreadable: string }
 
 const unreadable = (n: Newest): n is { unreadable: string } => typeof n === 'object' && 'unreadable' in n
-const deployment = (n: Newest): n is { id: string; message: string } => typeof n === 'object' && 'id' in n
+const deployment = (n: Newest): n is { id?: string; message: string } =>
+  typeof n === 'object' && 'message' in n
 
 /** wrangler's "This Worker does not exist on your account". */
 const NO_WORKER = /\[code: 10007\]/
@@ -45,18 +48,20 @@ async function newest(deps: DeployDeps, at: Release): Promise<Newest> {
     const all = JSON.parse(listed.stdout.slice(listed.stdout.indexOf('['))) as Deployment[]
     const last = all.sort((a, b) => (a.created_on ?? '').localeCompare(b.created_on ?? '')).at(-1)
     if (!last) return 'no deployment'
-    return { id: last.id ?? '', message: last.annotations?.['workers/message'] ?? '' }
+    return { id: last.id || undefined, message: last.annotations?.['workers/message'] ?? '' }
   } catch (error) {
     return { unreadable: `wrangler deployments list didn't print JSON (${String(error)})` }
   }
 }
 
+// A first deploy may go live without its message, so then the check can't ask for it.
 const unknown = (at: Release, why: string, first: boolean) =>
   `Couldn't tell whether this run's version went live: ${why}\nNothing was rolled back. ` +
-  `Check: pnpm exec wrangler deployments list --name ${at.worker}. If its newest deployment is "${at.message}" ` +
-  `and was made after this run started, it is live and untested: smoke-test it` +
+  `Check: pnpm exec wrangler deployments list --name ${at.worker}. If its newest deployment ` +
+  (first ? '' : `is "${at.message}" and `) +
+  `was made after this run started, it is live and untested: smoke-test it` +
   (first
-    ? `. If it fails, ${noEarlierVersion(at.worker)}.`
+    ? `. If it fails, ${noEarlierVersion(at.worker, at.site)}.`
     : `, or roll it back with pnpm exec wrangler rollback --name ${at.worker}.`)
 
 /** Why this run's version doesn't count as live after a failed deploy; undefined when it does. */
@@ -79,6 +84,12 @@ function notLive(at: Release, before: Newest, after: Newest): string | undefined
     return unknown(
       at,
       `the deployments couldn't be read before the deploy, so this run can't be told apart from an earlier run of the same commit:\n${before.unreadable}`,
+      false,
+    )
+  if (deployment(before) && (before.id === undefined || after.id === undefined))
+    return unknown(
+      at,
+      `a deployment of ${at.worker} has no id, so this run's can't be told apart from an earlier run of the same commit.`,
       false,
     )
   if (deployment(before) && before.id === after.id)
