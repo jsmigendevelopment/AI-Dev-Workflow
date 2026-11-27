@@ -33,7 +33,7 @@ export function summarize(events, dir) {
     if (!Array.isArray(content)) continue;
     for (const block of content) {
       if (e.type === "assistant" && block.type === "text") texts.push(block.text);
-      if (e.type === "assistant" && block.type === "tool_use") toolUses.push({ id: block.id, name: block.name, input: block.input ?? {} });
+      if (e.type === "assistant" && block.type === "tool_use") toolUses.push({ id: block.id, name: block.name, input: block.input ?? {}, parent: e.parent_tool_use_id ?? null });
       if (e.type === "user" && block.type === "tool_result") {
         toolResults.push({ id: block.tool_use_id, text: textOf(block.content), isError: Boolean(block.is_error) });
       }

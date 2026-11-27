@@ -102,7 +102,7 @@ function mountSkip() {
   const out = spawnSync(tool("unshare"), ["-rm", tool("stat"), "-c", "%u", ...dirs], { encoding: "utf8", env: safeEnv() }).stdout ?? "";
   const owners = out.trim().split("\n");
   const trusted = owners.length === dirs.length && owners.every((uid) => uid === "0");
-  return trusted ? false : "the real git's folder shows as nobody inside an unprivileged user namespace";
+  return trusted ? false : "the real git's folder, or one above it, shows as nobody inside an unprivileged user namespace";
 }
 const skipMount = mountSkip();
 

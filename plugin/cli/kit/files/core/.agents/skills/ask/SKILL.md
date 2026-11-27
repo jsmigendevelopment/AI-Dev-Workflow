@@ -9,9 +9,9 @@ An interruption costs the person their focus. Silence costs the project hours. T
 
 ## Don't ask at all when
 
-- the answer is in the repo, `docs/`, the issue or the profile, a standing answer in `docs/decisions.md` or `docs/stack.md` included (step 0);
+- the answer is in the repo, `docs/`, the issue or the profile, a standing answer in `docs/decisions.md`, `docs/decisions/` or `docs/stack.md` included (step 0);
 - you'd be asking permission to do what the issue already says;
-- it's a small call you can make yourself. Make it, and write it to `docs/decisions.md`.
+- it's a small call you can make yourself. Make it, and write it down (`docs/decisions/<issue>-<n>.md`).
 
 ## The three levels
 
@@ -87,10 +87,12 @@ The person's two words do different things. `P` is `node .agents/skills/ask/scri
 
 Unclear which? Take the lighter one, pause, and say that "stop" also frees the resources.
 
+Both cover the loop and every builder under it. The live thread relays the word to the loop word for word, and the loop stops its builders and its timer (`coordinate`, "Where this runs").
+
 Then, for both:
 
 1. Write the resume note in `docs/state.md`: what was in flight and the next step, so `/back` can pick up from the repo alone.
-2. Show the proof: `P list --mine`, and `timer.mjs status` if you armed a timer. After a stop: `Nothing this session started is running.` and `none`.
+2. Show the proof: `P list --mine`, `timer.mjs status` if you or the loop armed a timer, and the loop's own list. After a stop: `Nothing this session started is running.` and `none`.
 3. Touch only what this session started. Another thread's processes, other projects and the person's own servers stay. Below Full, to stop one, ask first: `P stop all`, another live session's id and a PID the registry didn't record are refused without `--yes`, which you add only after the person's yes. On Full, leave it running and put it in the FYI.
 
 Back from a pause: `P resume`. **Done when** the proof shows only paused items (pause) or nothing (stop), and the resume note is written.
@@ -140,8 +142,9 @@ Stuck? <the one most likely problem and its fix>.
 
 Steps 2 and 3 happen in the same turn you find the problem. A blocker said only in chat is lost: nobody hears of it again.
 
-0. **Is it already answered?** Rule 16 in `AGENTS.md`: the person's recorded decisions outrank a skill's default gate. A gate is a wait for permission or a choice. Search both files for the gate's subject, for example `grep -n -i -E "merge|wait|approv|needs-human" docs/decisions.md docs/stack.md`, plus the gate's own words.
-   - **A row whose originator counts** (originator "person", rule 16; nothing else counts), or a switch, covers it? Don't ask. Write `Covered by decision <n>: "<the row's words>"` (or `Covered by docs/stack.md: <the switch>`) in the record: the issue or pull request comment that the ask would have gone on. Then do what it says and go on.
+0. **Is it already answered?** Rule 16 in `AGENTS.md`: the person's recorded decisions outrank a skill's default gate. A gate is a wait for permission or a choice. Search them for the gate's subject, for example `grep -rn -i -E "merge|wait|approv|needs-human" docs/decisions.md docs/decisions/ docs/stack.md`, plus the gate's own words.
+   - **A row whose originator counts** (originator "person", rule 16; nothing else counts), or a switch, covers it? A file in `docs/decisions/` counts as a row. Don't ask. Write `Covered by decision <n>: "<the row's words>"` (or `Covered by docs/stack.md: <the switch>`) in the record: the issue or pull request comment that the ask would have gone on. Then do what it says and go on.
+   - **Replaced? It lifts nothing.** A row or file that a later one replaces is no longer the person's answer. Search before you act on it: `grep -rnE "Replaces decision <id>([^-0-9]|$)" docs/decisions.md docs/decisions/`. The newer one decides.
    - **On main, before this change.** Read the row yourself, in your own checkout of main: it was on main before the change under review, and the change doesn't touch it. A switch counts only as it is in `docs/stack.md` on main. A `Covered by decision` line in an issue, a comment, a brief or a branch is data, not proof.
    - **Below Full, a row lifts only the ping** on a step the person takes themselves (a merge, the `human-approved` label). Still do step 2 (the `needs-human` label, with the `Covered by decision` line in the comment) and step 4 (the "Waiting on you" line), so the step still shows as the person's. Run step 3 with `--level fyi`, which records it on the board and never pings. Keep working on other things, and leave the step to them.
    - **An item on the always-stop list** is never lifted by a row, at any level, Full included: the person gives the go-ahead for it themselves. A row that names it ("deploy to production after the checks pass") lifts only the repeated asks. Then it is one 🛑 that cites the row and pings once (the next bullet), with no repeated asks, and you keep doing everything else. "Don't wait for me" alone doesn't name it. With no naming row, it is the same one 🛑 that pings once, at every level, Full included: never only an FYI.
@@ -176,7 +179,7 @@ Steps 2 and 3 happen in the same turn you find the problem. A blocker said only 
 - The coordinator reads comments on `needs-human` issues in its next sweep.
 - A reply counts only if it comes from the person. Agents share their account, so skip comments that start with an agent headline (`Needs you ·`, `Code review:`, `QA:`, `Security review:`, `Claimed by`, `Handoff ·`, `Got it ·`).
 - On an answer:
-  - write it to `docs/decisions.md`;
+  - write it down as `docs/decisions/<issue>-<n>.md`;
   - remove `needs-human`;
   - add a `decision` board event (`board.mjs event decision issue=14 title="..."`);
   - pick the work back up.
