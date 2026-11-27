@@ -2,18 +2,15 @@
 // them even where #321's allowlist passes them ("Notes" is a common word and an app name). Local files and local git
 // only, never the network. A term's source kind may be printed; the term never is.
 import { execFileSync } from "node:child_process";
-import { closeSync, constants, fstatSync, lstatSync, openSync, readdirSync, readSync, realpathSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, isAbsolute, join, relative, sep } from "node:path";
+import { basename } from "node:path";
 import { hash } from "./files.mjs";
 import { homeDir } from "./home.mjs";
+import { ENV_EXAMPLE, reader } from "./lesson-read.mjs";
 import { GLOSSARY } from "./lesson-words.mjs";
 
 const DOCS = ["docs/vision.md", "docs/mvp.md", "docs/decisions.md"];
-// Rule 9: .env and its siblings are never opened. .env.example is the one that may be, for its variable names.
-const ENV_FILE = /(^|\/)\.env(\.[^/]*)?$/;
-const ENV_EXAMPLE = ".env.example";
-const MAX_SCAN = 1024 * 1024;
 // The longest text scanned for split names, well past a lesson's 200 characters, so a huge field stays fast.
 const JOINED_MAX = 2000;
 // Hosts that are never a project's own (RFC 2606 and 6761), so `example` doesn't block every lesson. Any `example`
@@ -28,12 +25,22 @@ const trimEnds = (word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
 // Where a name breaks into parts: - . + _, a lower-to-upper step (GardenParty), the end of a capital run (APIKey) and
 // a letter-to-digit step (Tide4Lamp).
 const PART_BREAK = /[-.+_]|(?<=\p{Ll})(?=\p{Lu})|(?<=\p{Lu})(?=\p{Lu}\p{Ll})|(?<=\p{L})(?=\p{N})|(?<=\p{N})(?=\p{L})/u;
-const isEnvFile = (path) => ENV_FILE.test(path.replaceAll(sep, "/")) && basename(path) !== ENV_EXAMPLE;
 
-/** The singular of a plural term (notes to note, boxes to box), or null. Short words and -ss words keep their s. */
+/**
+ * The singular of a plural term (notes to note, boxes to box, parties to party), or null. Short words and -ss words
+ * keep their s.
+ */
 export function singular(word) {
-  const stem = /(s|x|z|ch|sh)es$/.test(word) ? word.slice(0, -2) : /[^s]s$/.test(word) ? word.slice(0, -1) : null;
+  const stem = /[^aeiou]ies$/.test(word) ? `${word.slice(0, -3)}y` : /(s|x|z|ch|sh)es$/.test(word) ? word.slice(0, -2)
+    : /[^s]s$/.test(word) ? word.slice(0, -1) : null;
   return word.length >= 4 && stem && stem.length >= 3 ? stem : null;
+}
+
+// A term's forms in the other number, beyond an `s` or `es` added after it: its singular, the -ies plural of a word
+// that ends in y (party to parties), and the plain -s singular of an -ies word (movies to movie, beside movy).
+function otherNumbers(word) {
+  return [singular(word), /[^aeiou]y$/.test(word) ? `${word.slice(0, -1)}ies` : null,
+    /ies$/.test(word) && word.length >= 4 ? word.slice(0, -1) : null].filter(Boolean);
 }
 
 function git(dir, args) {
@@ -45,77 +52,11 @@ function git(dir, args) {
   }
 }
 
-const inside = (root, path) => {
-  const rel = relative(root, path);
-  return rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
-};
-
-// Reads files under root. A link is followed only when its real path isn't an .env file and stays under root (or,
-// with `anywhere`, for the person's own profile kept in a dotfiles folder, goes anywhere); a folder, a device or a
-// pipe is never opened, and a file over MAX_SCAN gives nothing.
-function reader(root, { anywhere = false } = {}) {
-  let top;
-  try { top = realpathSync(root); } catch { return { text: () => "", folder: () => null }; } // No such folder: nothing to read.
-  const locate = (path) => {
-    if (isEnvFile(path)) return null;
-    const real = realpathSync(join(top, path));
-    return (anywhere || inside(top, real)) && !isEnvFile(real) ? real : null;
-  };
-  const text = (path) => {
-    try {
-      const real = locate(path);
-      return real && lstatSync(real).isFile() ? readCapped(real) : "";
-    } catch {
-      // A missing or unreadable file adds nothing.
-      return "";
-    }
-  };
-  const folder = (path) => {
-    try { return locate(path); } catch { return null; } // No such folder.
-  };
-  return { text, folder };
-}
-
-/**
- * A regular file of at most MAX_SCAN bytes, as text; anything else, a bigger file or a NUL byte gives "". With
- * `input` (the lesson file the person names), a link is followed, a pipe is read too, a bigger one gives
- * null, and anything else throws.
- */
-export function readCapped(path, { input = false } = {}) {
-  const fd = openSync(path, constants.O_RDONLY | (input ? 0 : constants.O_NOFOLLOW ?? 0));
-  try {
-    const info = fstatSync(fd);
-    if (!info.isFile() && !(input && info.isFIFO())) {
-      if (input) throw new Error("not a file or a pipe");
-      return "";
-    }
-    const bytes = readUpTo(fd, info.isFile() ? Math.min(info.size, MAX_SCAN) + 1 : 64 * 1024);
-    if (!bytes) return input ? null : "";
-    const text = bytes.toString("utf8");
-    return text.includes("\0") ? "" : text;
-  } finally {
-    closeSync(fd);
-  }
-}
-
-// Reads an open file or pipe in chunks of `chunk` bytes until it ends; null once it passes MAX_SCAN. A regular file's
-// first chunk is one byte past the size it says, so a file that grew past the cap is still caught.
-function readUpTo(fd, chunk) {
-  const buffer = Buffer.allocUnsafe(chunk);
-  const parts = [];
-  let size = 0;
-  for (let n; size <= MAX_SCAN && (n = readSync(fd, buffer, 0, chunk, null)) > 0;) {
-    parts.push(Buffer.from(buffer.subarray(0, n)));
-    size += n;
-  }
-  return size > MAX_SCAN ? null : Buffer.concat(parts);
-}
-
 // A term, each of its parts, and the parts joined by `-` and by a space. A term kept whole (an env name, a full host)
 // still gives the joins, so RIVER_SIGNAL_TOKEN gives `river signal token`, but not its parts. Kit words never enter,
 // nor a term whose singular or plural is one: `review` or `reviews` in a repo name can't block every lesson.
 function adder(terms, kitWords) {
-  const isKit = (word) => [word, `${word}s`, `${word}es`, singular(word)].some((form) => form && kitWords.has(form));
+  const isKit = (word) => [word, `${word}s`, `${word}es`, ...otherNumbers(word)].some((form) => kitWords.has(form));
   const add = (raw, kind, { split = true } = {}) => {
     const clean = trimEnds(raw);
     const parts = clean.split(PART_BREAK).map((part) => trimEnds(part.toLowerCase())).filter(Boolean);
@@ -155,7 +96,8 @@ function packageTerms(read, files, add) {
   }
 }
 
-// Capitalised words that aren't a sentence's first, and capitalised words in a level-one title.
+// Capitalised words that aren't a sentence's first, and capitalised words in a level-one title. A title also gives a
+// camelCase name that starts lower-case, such as iPhoneSync; in a sentence such a word is code, so it doesn't.
 function docWords(text) {
   const words = [];
   for (const line of text.split(/\r?\n/)) {
@@ -163,7 +105,7 @@ function docWords(text) {
     const tokens = (title ? title[1] : line).split(/\s+/).filter(Boolean);
     tokens.forEach((raw, i) => {
       const word = /[\p{L}\p{N}][\p{L}\p{N}_-]*/u.exec(raw)?.[0] ?? "";
-      if (!/^\p{Lu}/u.test(word)) return;
+      if (!/^\p{Lu}/u.test(word) && !(title && /^\p{Ll}+\p{Lu}/u.test(word))) return;
       // A quote or a bracket opens a sentence too, and a list marker such as (1) or a) or a closing bracket ends one.
       const before = (tokens[i - 1] ?? "").replace(/[*_\]"'`’”]+$/u, "");
       if (title || !/^["“‘'(`]/u.test(raw) && /[\p{Ll}\p{N},]$/u.test(before)) words.push(word);
@@ -246,11 +188,11 @@ export function denySet(projectDir, { home = homedir(), kitWords = GLOSSARY, kit
 
 const matchers = new WeakMap();
 
-// One pattern for every term and its singular, each with an optional plural `s` or `es` after it.
+// One pattern for every term and its other numbers, each with an optional plural `s` or `es` after it.
 function matcher(terms) {
   const forms = new Map();
   for (const [term, kind] of terms) {
-    for (const form of [term, singular(term)]) if (form && !forms.has(form)) forms.set(form, kind);
+    for (const form of [term, ...otherNumbers(term)]) if (!forms.has(form)) forms.set(form, kind);
   }
   const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll(" ", "\\s+");
   const alternatives = [...forms.keys()].sort((a, b) => b.length - a.length).map(escape);
