@@ -4,7 +4,7 @@
 // runs in a temp git repo standing in for that checkout, next to fake gh, claude and codex: no call is expected.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, readFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmp, unixOnly } from "./helpers.mjs";
 import { validate } from "../src/insights-record.mjs";
@@ -69,9 +69,46 @@ test("has-records: an invalid record file and a records folder that isn't there 
   assert.equal(empty.status, 1, empty.stdout + empty.stderr);
 });
 
+test("has-records: a record land would leave out counts as missing: a folder that isn't a day, another day's folder, or JSON not in the writer's bytes", unixOnly, () => {
+  const cases = [
+    ["a folder that isn't a day", (dir) => put(dir, "docs/insights/not-a-day/1410-review-40-abcdef.json", json(REVIEW))],
+    ["another day's folder", (dir) => put(dir, "docs/insights/2026-11-26/1410-review-40-abcdef.json", json(REVIEW))],
+    ["compact JSON", (dir) => put(dir, pathOf(REVIEW, "abcdef"), `${JSON.stringify(REVIEW)}\n`)],
+  ];
+  for (const [why, place] of cases) {
+    const dir = checkout([JOB, CHECK]);
+    place(dir);
+    const r = hasRecords(dir);
+    assert.equal(r.status, 1, `${why}: ${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /no review record/, why);
+  }
+});
+
+test("has-records: a board record doesn't stand in for the reviewer's line", unixOnly, () => {
+  const board = { v: 1, kind: "review", at: REVIEW.at, issue: 12, pr: 40, sha: SHA, job: null, tool: null, model: "unknown", effort: "unknown", source: "board" };
+  const r = hasRecords(checkout([JOB, CHECK, board]));
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stderr, /no review record/);
+});
+
+test("has-records: a broken checkout exits 2, not 1, so no job is re-run for nothing", unixOnly, () => {
+  const outside = tmp("onrails-no-git-");
+  cpSync(join(REPO, SCRIPTS), join(outside, SCRIPTS), { recursive: true });
+  const noGit = hasRecords(outside);
+  assert.equal(noGit.status, 2, `outside a git repo: ${noGit.stdout}${noGit.stderr}`);
+
+  const dir = checkout([]);
+  rmSync(join(dir, "docs/insights"), { recursive: true, force: true });
+  mkdirSync(join(dir, "docs"), { recursive: true });
+  writeFileSync(join(dir, "docs/insights"), "not a folder\n");
+  const notFolder = hasRecords(dir);
+  assert.equal(notFolder.status, 2, `docs/insights is a file: ${notFolder.stdout}${notFolder.stderr}`);
+  assert.doesNotMatch(notFolder.stderr, /at .*\.mjs:\d+/, "no stack trace");
+});
+
 test("has-records: a usage error exits 2 and names the usage", unixOnly, () => {
   const dir = checkout([JOB, CHECK, REVIEW]);
-  for (const args of [["has-records"], ["has-records", "--pr", "40"], ["has-records", "--pr", "x", "--sha", SHA], ["has-records", "--pr", "40", "--sha", "abc"]]) {
+  for (const args of [["has-records"], ["has-records", "--pr", "40"], ["has-records", "--pr", "x", "--sha", SHA], ["has-records", "--pr", "40", "--sha", "abc"], ["has-records", "--pr", "40", "--sha", SHA, "junk"]]) {
     const r = run(dir, args);
     assert.equal(r.status, 2, `${args.join(" ")}: ${r.stdout}${r.stderr}`);
     assert.match(r.stderr, /has-records --pr <n> --sha <sha>/);
@@ -89,10 +126,19 @@ function mergeStep() {
 test("AC-333-4: WHEN coordinate/SKILL.md's merge step is read THEN it runs has-records, merges only on exit 0, and says to re-run the missing job, never to write the record by hand", () => {
   const step = mergeStep();
   assert.match(step, /insights\.mjs has-records --pr <n> --sha <sha>/);
+  assert.match(step, /insights\.mjs harvest[\s\S]*insights\.mjs has-records/, "harvest comes first");
   assert.match(step, /[Mm]erge only on (its )?exit 0/);
   assert.match(step, /[Nn]ever write (a|the) (missing )?record/);
   assert.match(step, /run (the gate|step 6\.1)[^.]*again/i, "the gate makes a missing check record");
   assert.match(step, /fresh `pr-review`/, "a fresh review makes a missing job or review record");
   assert.match(step, /Full included/, "it holds on every level");
   assert.match(step, /records-only pull request/, "the records pull request is exempt");
+});
+
+test("AC-333-4: WHEN the merge step merged main into the branch THEN carry runs between harvest and has-records, the checks re-run on the merge commit, and only exit 1 sends it to a fresh review", () => {
+  const step = mergeStep();
+  assert.match(step, /run step 6\.1 again on that merge commit/, "the gate still runs on the merge commit");
+  assert.match(step, /insights\.mjs harvest[\s\S]*insights\.mjs carry --pr <n> --from <reviewed sha> --to <merge sha>[\s\S]*insights\.mjs has-records/);
+  assert.match(step, /carry[^\n]*[Ee]xit 1[^\n]*fresh `pr-review`/, "a merge carry refuses goes to a fresh review");
+  assert.doesNotMatch(step, /conflict fix or not/, "a clean merge of main needs no fresh review (decision 333-2)");
 });
