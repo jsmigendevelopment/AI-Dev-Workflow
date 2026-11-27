@@ -16,6 +16,7 @@ const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
 // A Tuesday in the week after the fixture week, so "last week" is 2026-W48.
 const NOW = "2026-12-01T09:00:00Z";
 const usage = (before, after) => ({ usage_before: before, usage_after: after, usage_from: "status-line" });
+const cc = (before, after) => ({ tool: "claude-code", ...usage(before, after) });
 
 /** A valid record with the envelope filled in, the way the writer fills it. */
 function rec(kind, at, fields) {
@@ -29,10 +30,10 @@ const review = (at, pr, outcome, more = {}) => rec("job", at, { job: "review-cod
 const WEEK = [
   // #10 on #50: sent back by review, escalated from sonnet to opus, then passed and merged. Every run has a reading.
   build("2026-11-23T08:50:00.000Z", 10, null, "sonnet", "medium", { outcome: "started" }),
-  build("2026-11-23T09:00:00.000Z", 10, 50, "sonnet", "medium", usage("10%", "14%")),
-  review("2026-11-23T10:00:00.000Z", 50, "fail", { send_back: "review-must", ...usage("14%", "15%") }),
-  build("2026-11-23T12:00:00.000Z", 10, 50, "opus", "medium", usage("15%", "20%")),
-  review("2026-11-23T13:00:00.000Z", 50, "pass", usage("20%", "21%")),
+  build("2026-11-23T09:00:00.000Z", 10, 50, "sonnet", "medium", cc("10%", "14%")),
+  review("2026-11-23T10:00:00.000Z", 50, "fail", { send_back: "review-must", ...cc("14%", "15%") }),
+  build("2026-11-23T12:00:00.000Z", 10, 50, "opus", "medium", cc("15%", "20%")),
+  review("2026-11-23T13:00:00.000Z", 50, "pass", cc("20%", "21%")),
   rec("merge", "2026-11-23T14:00:00.000Z", { pr: 50, conflicted: [] }),
   // #11 on #51: sent back for size (not a failed review or check, so the next build is no escalation), then merged.
   // Two of its three runs have no reading.
@@ -232,6 +233,13 @@ test("AC-381-1: WHEN the local gate goes red THEN it counts as a checks send-bac
   assert.ok(green.stdout.includes("| #20 | sonnet · medium | opus · medium | yes |"), green.stdout);
 });
 
+test("AC-381-1: WHEN a later escalation fixes it THEN fixed it is no for the escalation before, and yes for the one that fixed it", () => {
+  const r = report(project([...RED, build("2026-11-24T13:00:00.000Z", 20, 60, "opus", "high"), gate("2026-11-24T13:30:00.000Z", 60, "success"),
+    rec("merge", "2026-11-24T14:00:00.000Z", { pr: 60, conflicted: [] })]), "--week", "2026-W48");
+  assert.ok(r.stdout.includes("| #20 | sonnet · medium | opus · medium | no |"), r.stdout);
+  assert.ok(r.stdout.includes("| #20 | opus · medium | opus · high | yes |"), r.stdout);
+});
+
 test("AC-381-1: WHEN a merged pull request's runs ran on different tools THEN its plan usage is unknown, never a sum of two plans", () => {
   const r = report(project([
     build("2026-11-24T09:00:00.000Z", 21, 61, "gpt", "high", { tool: "codex", ...usage("80%", "95%") }),
@@ -240,6 +248,10 @@ test("AC-381-1: WHEN a merged pull request's runs ran on different tools THEN it
   ]), "--week", "2026-W48");
   assert.equal(r.status, 0, r.stderr);
   assert.ok(r.stdout.includes("| #61 | 2 | 2 | unknown |"), r.stdout);
+  // No tool on either run: they may still be two plans.
+  const none = report(project([build("2026-11-24T09:00:00.000Z", 23, 63, "opus", "high", usage("1%", "2%")),
+    review("2026-11-24T10:00:00.000Z", 63, "pass", usage("2%", "4%")), rec("merge", "2026-11-24T11:00:00.000Z", { pr: 63, conflicted: [] })]), "--week", "2026-W48");
+  assert.ok(none.stdout.includes("| #63 | 2 | 2 | unknown |"), none.stdout);
 });
 
 test("AC-381-1: WHEN a stray file is named like a day folder THEN it is skipped and counted, not a crash", () => {

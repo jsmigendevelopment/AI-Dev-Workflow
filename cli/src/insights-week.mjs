@@ -138,8 +138,10 @@ function sizes(ctx) {
 function fixedIt(ctx, b) {
   const passed = (r) => r.kind === "merge" || (r.kind === "review" && r.verdict === "pass") || (r.kind === "job" && r.outcome === "pass")
     || (r.kind === "check" && r.state === "success");
+  // From the issue's next build on another model or effort, the records belong to that escalation's row.
+  const next = ctx.builds.find((n) => n.issue === b.issue && Date.parse(n.at) > Date.parse(b.at) && who(n) !== who(b));
   const last = ctx.all.filter((r) => ctx.issueOf(r) === b.issue && Date.parse(r.at) > Date.parse(b.at)
-    && (FAILURES.has(reason(r)) || passed(r))).at(-1);
+    && (!next || Date.parse(r.at) < Date.parse(next.at)) && (FAILURES.has(reason(r)) || passed(r))).at(-1);
   return !last ? "unknown" : passed(last) ? "yes" : "no";
 }
 
@@ -159,8 +161,8 @@ function escalations(ctx) {
   return ["## Escalations", "",
     `Builds after a failed review or check: ${total}. Escalated: ${count.yes}. Not escalated: ${count.no}. Unknown: ${count.unknown}.`,
     ...(rows.length ? ["", ...table(["Issue", "From", "To", "Fixed it"], rows)] : []), "",
-    "An escalation is any new model or effort on the next build of the issue. Fixed it: the last later failed review or check "
-    + "(no), or pass, green gate or merge (yes), else unknown."];
+    "An escalation is any new model or effort on the next build of the issue. Fixed it, up to the next escalation: the last failed "
+    + "review or check (no), or pass, green gate or merge (yes), else unknown."];
 }
 
 /** A run's usage: its after minus its before, when both are percentages and it didn't go down. Else null. */
@@ -179,14 +181,14 @@ function usagePerMerge(ctx) {
     const mine = ctx.all.filter((r) => ends(r) && USAGE_JOBS.has(r.job) && Date.parse(r.at) <= Date.parse(m.at)
       && (r.pr === m.pr || (issue != null && r.issue === issue)));
     const read = mine.map(used).filter((x) => x !== null);
-    // Two tools are two plans, whose percentages don't add up.
-    const oneTool = new Set(mine.map((r) => r.tool)).size === 1;
+    // Two tools are two plans, whose percentages don't add up; a run with no tool may be on either.
+    const oneTool = new Set(mine.map((r) => r.tool)).size === 1 && (mine.length === 1 || mine.every((r) => r.tool));
     const total = oneTool && read.length === mine.length ? `${Number(read.reduce((a, b) => a + b, 0).toFixed(2))}%` : "unknown";
     return [`#${m.pr}`, mine.length, read.length, total];
   });
   return ["## Usage per merged pull request", "", ...table(["Pull request", "Runs", "With a reading", "Plan usage seen"], rows), "",
     "Plan usage seen while its runs ran: each run's after minus its before, in percent, not a cost. It includes anything that ran "
-    + "beside them, and reads low if the plan reset during a run. Runs on different tools, or one without both readings: unknown."];
+    + "beside them, and reads low if the plan reset during a run. Runs on different or unrecorded tools, or one without both readings: unknown."];
 }
 
 /** The report for the week starting at `start` (ms), as Markdown. */
