@@ -5,7 +5,8 @@
 import { execFileSync } from "node:child_process";
 import { statSync } from "node:fs";
 import { loadKit } from "./kit.mjs";
-import { denySet, projectTerm, readCapped } from "./lesson-deny.mjs";
+import { denySet, projectTerm } from "./lesson-deny.mjs";
+import { readCapped } from "./lesson-read.mjs";
 import { COMMON_WORDS, GLOSSARY } from "./lesson-words.mjs";
 
 const ENUMS = {
