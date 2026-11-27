@@ -5,9 +5,10 @@ import * as cp from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { checkPath } from "./safe-path-preload.mjs";
 
-// The options object: the last argument when args were left out, as node:child_process reads it.
+// The options object as node:child_process reads it: the third argument when args is an array, undefined or null
+// (#229 review), else the second, when args were left out.
 function checked(args, options) {
-  const opts = Array.isArray(args) ? options : args;
+  const opts = Array.isArray(args) || args == null ? options : args;
   // A URL cwd, which node:child_process takes too, is checked as the folder it names.
   const cwd = opts?.cwd === undefined ? process.cwd() : opts.cwd instanceof URL ? fileURLToPath(opts.cwd) : String(opts.cwd);
   checkPath(opts?.env ?? process.env, cwd);

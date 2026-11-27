@@ -204,6 +204,11 @@ test("AC-229-1: WHEN a test checks folder A and spawns in folder B holding a cla
     assert.throws(() => spawn("claude", [], { cwd: b, env }), /isn't one of this test's fakes/, `spawn ${JSON.stringify(entry)}`);
     const url = pathToFileURL(b);
     assert.throws(() => spawnSync("claude", ["--version"], { cwd: url, env }), /isn't one of this test's fakes/, `a URL cwd ${JSON.stringify(entry)}`);
+    // Args left as undefined or null: node:child_process still reads the third argument as the options (#229 review).
+    for (const none of [undefined, null]) {
+      assert.throws(() => spawnSync("claude", none, { cwd: b, env }), /isn't one of this test's fakes/, `args ${none} ${JSON.stringify(entry)}`);
+      assert.throws(() => spawn("claude", none, { cwd: b, env }), /isn't one of this test's fakes/, `spawn, args ${none} ${JSON.stringify(entry)}`);
+    }
   }
   assert.equal(existsSync(log), false, "the claude in folder B ran");
 });
