@@ -12,10 +12,13 @@ You did not write this code. Judge only the **issue, the diff and the check resu
 
 ## Check
 
-1. **Every `auto` acceptance check has a test whose title carries its ID.** Search the diff for each `AC-<issue>-<n>`. A missing ID, or a test that doesn't prove its check, is a must fix. Each test would fail without the change. The local checks passed on the head commit (`coordinate`, step 6.1). Briefed to run them yourself? Follow that step from its first check: the local gate only runs the loop's own branches. Workflow results don't count.
+1. **Every `auto` acceptance check has a test whose title carries its ID.** Search the diff for each `AC-<issue>-<n>`. A missing ID, or a test that doesn't prove its check, is a must fix. Each test would fail without the change. The local checks passed on the head commit (`coordinate`, step 6.1). Workflow results don't count.
    - A bug fix comes with a test that reproduces the bug.
    - Tests go through the public interface and mock only the edges (network, clock, randomness).
    - No snapshot test stands in for a logic test.
+   - **Briefed to run them yourself?** Follow that step from its first check: the local gate only runs the loop's own branches. Time each command, as 6.1.3 says. Run `mark-check.mjs` without `--record`: you commit nothing, so a record file in your checkout never reaches main. Instead, end the `Checks:` comment with the output of this command, pasted as printed (never type the JSON by hand). The coordinator's harvest then finds the head's `check` record, and the merge step doesn't run the checks again (#417):
+     `node .agents/skills/coordinate/scripts/insights.mjs line check pr=<pr> sha=<sha> 'commands=<commands>' state=<success|failure> 'failed_step=<failed>' flaky_rerun=<rerun> 'fence=<fence>'`
+     `<commands>` is a JSON list with one `{"name": "<command>", "result": "<pass|fail|skipped>", "seconds": <seconds>}` per command, named as in the comment. `state` is `success` on `Checks: pass`, else `failure`. `<failed>` is the first red command, or `null` on a pass. `<rerun>` is `true` when a command failed and then passed when run again, else `false`. `<fence>` is the `Fence:` line's first line, at most 200 characters.
 2. **No test was weakened,** skipped or deleted, including tests from earlier slices.
 3. **The fence:** nothing out of scope was built, and the schema and API changed only if the issue said so.
 4. **Architecture:**
