@@ -4,7 +4,7 @@
 // decision-lifts-gate; AC-4 is in doctor.test.mjs and update.test.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "./child.mjs";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,10 +51,13 @@ test("AC-143-3: WHEN the coordinator hands the loop to a sub-agent THEN the brie
 test("#143 item 1: rule 16 says recorded decisions outrank a skill's gate, in every AGENTS.md, and rule numbers stay unique", () => {
   for (const file of AGENTS) {
     const text = read(file);
-    assert.match(text, /^16\. \*\*The person's recorded decisions outrank a skill's default gate\.\*\* A gate is a wait for permission or a choice\..*search `docs\/decisions\.md` and `docs\/stack\.md` for a standing answer \(`ask`, step 0\)\..*`Covered by decision <n>`/m, file);
+    assert.match(text, /^16\. \*\*The person's recorded decisions outrank a skill's default gate\.\*\* A gate is a wait for permission or a choice\..*search `docs\/decisions\.md`, `docs\/decisions\/` and `docs\/stack\.md` for a standing answer \(`ask`, step 0\)\..*`Covered by decision <n>`/m, file);
     // #159 round 2, must 2, option (a), and round 3, must 2: a row never lifts an always-stop item; a row that names one
     // lifts only the repeated asks, and it stays one 🛑 that pings.
     assert.ok(rule16(text).includes(ALWAYS_STOP), `${file}: no row lifts an always-stop item`);
+    // #165 round 1, must 2 and 3: a decision file is a row, and a replaced row or file lifts nothing.
+    assert.ok(rule16(text).includes("- **A file in `docs/decisions/` counts as a row here,** with the same originator rule."), `${file}: a decision file counts as a row`);
+    assert.ok(rule16(text).includes('- **A replaced row or file lifts nothing.** Before you act on one, search for a later one that replaces it: `grep -rnE "Replaces decision <id>([^-0-9]|$)" docs/decisions.md docs/decisions/`. The newer one decides.'), `${file}: a replaced decision lifts nothing`);
     assert.ok(rule16(text).includes(`A row that names the item ("deploy to production after the checks pass") ${NAMING_ROW}.`), `${file}: a naming row lifts only the repeated asks`);
     assert.ok(rule16(text).includes("No agent decides it in the person's place, on Full either."), `${file}: not on Full either`);
     assert.doesNotMatch(rule16(text), /needs a row that names it before you go ahead/, `${file}: a naming row is no go-ahead`);
@@ -70,12 +73,15 @@ test("#143 item 1: rule 16 says recorded decisions outrank a skill's gate, in ev
   assert.ok(read(".agents/skills/automation/references/full.md").includes(`A decision row that names one of these doesn't lift it: the row ${NAMING_ROW}, and the person still gives the go-ahead themselves`), "full.md");
 });
 
-test("#143 item 2: ask's step 0 searches decisions.md and stack.md before any ask, and cites the row", () => {
+test("#143 item 2: ask's step 0 searches decisions.md, decisions/ and stack.md before any ask, and cites the row", () => {
   const ask = read(".agents/skills/ask/SKILL.md");
   const steps = ask.slice(ask.indexOf("## Steps"));
-  assert.match(steps, /^0\. \*\*Is it already answered\?\*\*.*docs\/decisions\.md docs\/stack\.md/m);
+  assert.match(steps, /^0\. \*\*Is it already answered\?\*\*.*docs\/decisions\.md docs\/decisions\/ docs\/stack\.md/m);
   assert.match(steps, /Don't ask\. Write `Covered by decision <n>: "<the row's words>"`/);
   assert.ok(steps.indexOf("0. **Is it already answered?**") < steps.indexOf("1. **Pick the level**"), "step 0 comes before picking a level");
+  // #165 round 1, must 2 and 3.
+  assert.ok(step0().includes("covers it? A file in `docs/decisions/` counts as a row."), "step 0: a decision file counts as a row");
+  assert.ok(step0().includes('- **Replaced? It lifts nothing.** A row or file that a later one replaces is no longer the person\'s answer. Search before you act on it: `grep -rnE "Replaces decision <id>([^-0-9]|$)" docs/decisions.md docs/decisions/`.'), "step 0: a replaced decision lifts nothing");
 });
 
 test("#143 item 3: coordinate's agent-file rule reads the level first; on Full no person merges, below Full the person adds the label", () => {

@@ -3,7 +3,7 @@
 // The real script runs in throwaway repos, from the repo as the current folder, with fakes that leave a file behind when they run.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import fs, { copyFileSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync,
   unlinkSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";

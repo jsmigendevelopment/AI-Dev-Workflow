@@ -4,8 +4,13 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **A test child's env is checked in the folder it starts in (#229).** `cli/test/child.mjs` wraps `spawnSync`, `spawn` and `execFileSync` so each call checks the child's `PATH` against that spawn's own `cwd`, with `args` given or left out; every CLI test file now imports them from there, and the safe-PATH scan (now in `cli/test/safe-path-scan.mjs`) flags a test that takes them from `child_process` by name, by a default or namespace import, or at run time, `createRequire` included. Both temp-folder guards also catch a saved or renamed `tmpdir`, `tmpdir ()`, a read of `process.env.TMPDIR`, and a saved read used as a folder. A test file run alone that throws while it loads, which fires no `exit` event on Node 22, no longer leaves its copy of `node` behind: `helpers.mjs`'s throw monitor removes it. When the guard throws as a process loads, the copy is removed by its `exit` handler as the process exits, not first as the #197 entry said. Decision row 118.
+
 ### Changed
 
+- **Decisions get ids that parallel pull requests can't clash on (#165).** Each new decision is its own file, `docs/decisions/<issue>-<n>.md`, cited as `decision <issue>-<n>`; the table in `docs/decisions.md` is frozen at row 118 (a test fails on any id outside 1 to 118, and says to write a file instead) and old cites stay valid. Rule 16 counts a decision file as a row, and a replaced row or file lifts nothing. In an app, the kickoff still writes table rows and every later decision is a file (`idea`'s `decisions.md` template, `build` step 9, `ask`, rule 4 and rule 16 in `AGENTS.md`). A test merges two branches that each add one with plain `git merge`, fails a row appended to the table, and checks every cited decision exists. Decision 165-1.
 - **The live thread isn't the loop (#280).** `coordinate` starts with "Where this runs": called in the thread the person talks to, it starts the loop as a background sub-agent or cloud session, says so in one line and returns, so that thread stays free to answer. It relays the person's words to the loop word for word (pause, stop, a new decision, feedback) and the loop's reports back. Pause and stop cover the loop and every builder under it. `routing` splits the row: the live thread is Everyday · low, the loop coordinator Everyday · medium, with a new `loop` job under "Where a job runs"; the README, the cheat sheet and the profile template match. `/back` restarts the loop as a sub-thread, and `/afk` leaves it running with the live thread idle. A new opt-in eval, `live-thread-loop`, and the eval runner lets a scenario allow extra tools (`export const tools`).
 
 ## [0.7.1] - 2026-11-27

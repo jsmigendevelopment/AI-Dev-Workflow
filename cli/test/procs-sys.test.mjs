@@ -3,7 +3,7 @@
 // but ls, getfacl, git (#215) and the test's own fake git.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import fs, { existsSync, readFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { delimiter, join } from "node:path";

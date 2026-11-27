@@ -1,6 +1,6 @@
 // The fake session and the sample repos the preflight tests share. The probes run against these,
 // so no test needs a network. The real-run helpers at the end run the real script in throwaway repos (#169).
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { chmodSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
