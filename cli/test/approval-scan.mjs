@@ -58,8 +58,12 @@ const ON_FULL_STAND_IN = /\(on Full[,:] [^)]*(?:\bnothing waits\b|\bno person\b|
 const BELOW_FULL = new RegExp(`\\bnever ask\\b|\\bbelow Full\\b|\\bnot on Full\\b|\\bnone on Full\\b|\\bno(?:t)? (?:\`human-approved\` )?label on Full|On Full,? (?:the \`human-approved\` label doesn't|the label doesn't|there's no label|no person)|${ON_FULL_STAND_IN.source}`, "i");
 /** A bullet's bold label, "**Below Full:**", scopes each clause of its sentence that names no Full of its own. */
 const LABEL = /^(?:[-*] |\d+\. )?\*\*(?:below Full|not on Full)[:.]?\*\*/i;
-/** #199 item 3: "at Full", "in Full automation" or any capital Full names its own level, as "on Full" does. */
-const namesFull = (c) => /\bFull\b/.test(c) || /\b(?:on|at) Full\b/i.test(c);
+/**
+ * #199 item 3: "at Full", "in Full automation" or any capital Full names its own level, as "on Full" does.
+ * #213 item 4: a lowercase "at full" before an ordinary word ("at full speed") is not the level; before "automation",
+ * "level", "mode" or punctuation it still is.
+ */
+const namesFull = (c) => /\bFull\b/.test(c) || /\b(?:on|at|in) full\b(?!\s+(?!(?:automation|level|mode)\b)[a-z])/i.test(c);
 /**
  * #173 round 1 nice 1: "(on Full too)" or "(on Full as well)" keeps the person on Full, whatever else the clause says.
  * #199 item 3: with a comma ("(on Full, too)") or "at Full" too.
