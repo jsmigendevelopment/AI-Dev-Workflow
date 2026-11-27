@@ -13,6 +13,7 @@ const SHORTCUTS = {
   "the brief doesn't quote the level": [[startWith({ prompt: "You're the loop. Use the `coordinate` skill." }), LIVE_REPLY], ["AC-280-1-brief-is-the-loop"]],
   "the live thread built #1 itself": [[START_LOOP, { ...LOOP_BUILDS, parent: undefined }, LIVE_REPLY], ["AC-280-1-live-thread-built-nothing"]],
   "the live thread wrote code": [[START_LOOP, { write: "src/math.mjs", content: "export const add = (a, b) => a + b;\n" }, LIVE_REPLY], ["AC-280-1-live-thread-built-nothing"]],
+  "the live thread wrote code through Bash": [[START_LOOP, { bash: "mkdir -p src && printf 'export const add = (a, b) => a + b;\\n' > src/math.mjs" }, LIVE_REPLY], ["AC-280-1-live-thread-built-nothing"]],
   "the live thread wrote the state note": [[START_LOOP, { write: "docs/state.md", content: "# State\n\n- Loop: a background sub-agent.\n" }, LIVE_REPLY], []],
   "the good one": [LOOP_PLAN.with.steps, []],
 };
