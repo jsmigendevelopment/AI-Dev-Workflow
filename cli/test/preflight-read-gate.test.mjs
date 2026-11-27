@@ -115,7 +115,8 @@ test("#169: the probes meant to run outside the repo run from a folder whose rea
       assert.equal(r.env.GIT_CEILING_DIRECTORIES, dirname(r.cwd), r.line);
     }
   } finally {
-    process.env.TMPDIR = saved;
+    if (saved === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = saved;
   }
   // No folder outside the repo at all (a repo at the top of the disk): none is offered, and the hooks folder goes.
   const none = tempFolders("/", "linux");

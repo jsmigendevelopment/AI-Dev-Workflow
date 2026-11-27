@@ -157,7 +157,7 @@ async function main(argv) {
     startedAt, finishedAt: new Date().toISOString(), model: opts.model, kitVersion: version, claudeCodeVersion,
     limits: { maxTurns: opts.maxTurns, timeoutSec: opts.timeoutSec, maxBudgetUsd: opts.maxBudgetUsd, maxRuns: opts.maxRuns },
     auth: process.env.ANTHROPIC_API_KEY ? "api-key" : "login",
-    scenarios: results, totals: totals(results), exitCode,
+    scenarios: results, optedOut, totals: totals(results), exitCode,
   };
   const name = resultsName(startedAt.slice(0, 10), opts.model, version);
   const path = appendResults(opts.resultsDir, name, run);
