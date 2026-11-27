@@ -57,7 +57,8 @@ export const KINDS = {
 
 /** The spec of one field of a kind, or undefined. */
 export function fieldSpec(kind, name) {
-  return name in ENVELOPE ? ENVELOPE[name] : KINDS[kind]?.[name];
+  if (Object.hasOwn(ENVELOPE, name)) return ENVELOPE[name];
+  return Object.hasOwn(KINDS, kind) && Object.hasOwn(KINDS[kind], name) ? KINDS[kind][name] : undefined;
 }
 
 /** Turns a key=value string from the command line into the field's type. Throws a message that names the field. */
@@ -117,7 +118,8 @@ export function validate(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) return ["record: must be an object"];
   const errors = [];
   if (record.v !== VERSION) errors.push(`v: must be ${VERSION}`);
-  const kinds = KINDS[record.kind];
+  // Object.hasOwn: "constructor" or "toString" is no kind or field (#332).
+  const kinds = Object.hasOwn(KINDS, record.kind) ? KINDS[record.kind] : undefined;
   if (!kinds) return [...errors, `kind: must be one of ${Object.keys(KINDS).join(", ")}`];
   if (typeof record.at !== "string" || Number.isNaN(Date.parse(record.at)) || !record.at.endsWith("Z")) {
     errors.push("at: must be a UTC ISO time");
@@ -133,7 +135,7 @@ export function validate(record) {
     if (e) errors.push(e);
   }
   for (const name of Object.keys(record)) {
-    if (!["v", "kind", "at"].includes(name) && !(name in ENVELOPE) && !(name in kinds)) errors.push(`${name}: not a field of ${record.kind}`);
+    if (!["v", "kind", "at"].includes(name) && !Object.hasOwn(ENVELOPE, name) && !Object.hasOwn(kinds, name)) errors.push(`${name}: not a field of ${record.kind}`);
   }
   if (record.kind === "check" && Array.isArray(record.commands)) {
     const e = checkCommands(record.commands);

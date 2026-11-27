@@ -13,7 +13,7 @@ Exit 2 names the bad field and writes nothing. Exit 1 is any other failed write.
 
 - **A builder** writes its own records on its branch and commits them with the work.
 - **A reviewer** commits nothing: it runs `line` and puts the printed `<!-- onrails-insights {...} -->` at the end of its verdict comment.
-- **The coordinator** writes the rest in its own checkout of main. After each merge, `insights.mjs harvest --pr <n> --repo <owner>/<repo>` saves the reviewers' lines there: only from its own login or one under `[insights] writers = ["<login>"]` in `docs/profile.toml`. At the end of each sweep, `insights.mjs land` opens one records-only pull request, and `land --verify <pr>` is its review (`coordinate` step 10, decision 332-1).
+- **The coordinator** writes the rest in its own checkout of main. After each merge, `insights.mjs harvest --pr <n> --repo <owner>/<repo>` saves the reviewers' lines there: only from its own login or one under `[insights] writers = ["<login>"]` in `docs/profile.toml` (the list may span lines). At the end of each sweep, `insights.mjs land` opens one records-only pull request, or adds to the one already open, and `land --verify <pr>` is its review (`coordinate` step 10, decisions 332-1 and 332-2). A record file is the writer's exact bytes, at most 16 KB.
 
 ## The file name
 

@@ -1,86 +1,19 @@
-// The coordinator harvests reviewers' records and lands them on main (#332): AC-332-1 to AC-332-5.
-// A copy of the coordinate scripts runs in a clone of a temp bare remote, against a fake gh. Fake claude and codex
-// sit next to the fake gh and log any call: none is expected.
+// The coordinator harvests reviewers' records and lands them on main (#332): AC-332-1, -2, -3 and -5.
+// `land --verify` (AC-332-4) is in insights-verify.test.mjs; the shared set-up is in insights-land-fakes.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { spawnSync } from "./child.mjs";
-import { fake, fakeGh, safeEnv, tmp, unixOnly } from "./helpers.mjs";
-import { dayFolder, fileName, toLine, validate } from "../src/insights-record.mjs";
-
-const REPO = fileURLToPath(new URL("../..", import.meta.url));
-const SCRIPTS = ".agents/skills/coordinate/scripts";
-const SHA = "c".repeat(40);
-const NOW = "2026-11-27T14:32:00Z";
-const ME = "loop-bot";
-const GIT_ENV = {
-  GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1",
-  GIT_AUTHOR_NAME: "loop", GIT_AUTHOR_EMAIL: "loop@example.invalid", GIT_COMMITTER_NAME: "loop", GIT_COMMITTER_EMAIL: "loop@example.invalid",
-};
-
-const record = (kind, fields) => ({
-  v: 1, kind, at: "2026-11-27T14:10:00.000Z", issue: 12, pr: 40, sha: SHA, job: "review-code", tool: "claude-code",
-  model: "unknown", effort: "unknown", ...fields,
-});
-const REVIEW = record("review", { round: 1, verdict: "pass", must: 0, nice: 2, categories: ["tests"] });
-const JOB = record("job", { outcome: "pass" });
-/** A record already on main before each test. */
-const OLD = record("job", { at: "2026-11-26T09:00:00.000Z", outcome: "finished", job: "build" });
-const pathOf = (r, id = "a1b2c3") => `${dayFolder(r)}/${fileName(r, id)}`;
-const json = (r) => `${JSON.stringify(r, null, 2)}\n`;
-
-function git(cwd, ...args) {
-  const r = spawnSync("git", args, { cwd, encoding: "utf8", env: safeEnv(GIT_ENV) });
-  assert.equal(r.status, 0, `git ${args.join(" ")}: ${r.stderr}`);
-  return r.stdout.trim();
-}
-
-function put(dir, path, text) {
-  mkdirSync(dirname(join(dir, path)), { recursive: true });
-  writeFileSync(join(dir, path), text);
-}
-
-/** A temp bare remote whose main holds OLD, and the coordinator's clone of it with a copy of the coordinate scripts. */
-function setup() {
-  const root = tmp("onrails-land-");
-  git(root, "init", "-q", "--bare", "-b", "main", "remote.git");
-  git(root, "clone", "-q", "remote.git", "seed");
-  put(join(root, "seed"), pathOf(OLD), json(OLD));
-  put(join(root, "seed"), "README.md", "app\n");
-  git(join(root, "seed"), "add", "-A");
-  git(join(root, "seed"), "commit", "-q", "-m", "init");
-  git(join(root, "seed"), "push", "-q", "origin", "HEAD:main");
-  git(root, "clone", "-q", "remote.git", "main");
-  const dir = join(root, "main");
-  cpSync(join(REPO, SCRIPTS), join(dir, SCRIPTS), { recursive: true });
-  return { root, dir, seed: join(root, "seed") };
-}
-
-/** Runs insights.mjs in dir against a fake gh answering `api`. Returns the result, the gh calls and the agent calls. */
-function run(dir, args, api = {}) {
-  const ghDir = tmp("onrails-gh-");
-  const log = join(ghDir, "agents.log");
-  for (const name of ["claude", "codex"]) fake(join(ghDir, "bin"), name, `#!/bin/sh\necho "${name} $*" >> '${log}'\n`);
-  const gh = fakeGh(ghDir, { user: { login: ME }, ...api }, { ...GIT_ENV, ONRAILS_NOW: NOW });
-  const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "insights.mjs"), ...args], { cwd: dir, encoding: "utf8", env: gh.env });
-  assert.equal(existsSync(log) ? readFileSync(log, "utf8") : "", "", "no claude or codex call");
-  return { ...r, calls: gh.calls() };
-}
-
-/** Every record file under dir's docs/insights/, as { path: parsed record }. */
-function records(dir) {
-  const root = join(dir, "docs/insights");
-  if (!existsSync(root)) return {};
-  return Object.fromEntries(readdirSync(root).flatMap((day) => readdirSync(join(root, day)).map((name) =>
-    [`docs/insights/${day}/${name}`, JSON.parse(readFileSync(join(root, day, name), "utf8"))])));
-}
+import { safeEnv, unixOnly } from "./helpers.mjs";
+import { toLine, validate } from "../src/insights-record.mjs";
+import { JOB, ME, OLD, REPO, REVIEW, SHA, branch, git, json, pathOf, pullOf, put, record, records, run, setup } from "./insights-land-fakes.mjs";
 
 const comment = (id, login, body) => ({ id, user: { login }, body });
 const COMMENTS = "repos/acme/app/issues/40/comments";
 const harvest = (dir, comments) => run(dir, ["harvest", "--pr", "40", "--repo", "acme/app"], { [COMMENTS]: comments });
 const sorted = (list) => list.map((r) => JSON.stringify(r)).sort();
+const fresh = (dir) => Object.entries(records(dir)).filter(([p]) => p !== pathOf(OLD));
 
 test("AC-332-1: WHEN a fake gh returns three comments, two with valid insights lines from the coordinator's login and one from another login THEN harvest writes exactly the two records, and running it again writes nothing new", unixOnly, () => {
   const { dir } = setup();
@@ -93,50 +26,96 @@ test("AC-332-1: WHEN a fake gh returns three comments, two with valid insights l
   const first = harvest(dir, comments);
   assert.equal(first.status, 0, first.stderr);
   assert.match(first.calls, /--paginate .*repos\/acme\/app\/issues\/40\/comments/);
-  const after = records(dir);
-  const fresh = Object.keys(after).filter((p) => p !== pathOf(OLD));
-  assert.equal(fresh.length, 2, `two new records: ${fresh}`);
-  assert.deepEqual(sorted(fresh.map((p) => after[p])), sorted([JOB, REVIEW]));
-  for (const p of fresh) assert.ok(first.stdout.includes(p), `it prints ${p}`);
+  const after = fresh(dir);
+  assert.equal(after.length, 2, `two new records: ${after.map(([p]) => p)}`);
+  assert.deepEqual(sorted(after.map(([, r]) => r)), sorted([JOB, REVIEW]));
+  for (const [p] of after) assert.ok(first.stdout.includes(p), `it prints ${p}`);
   assert.match(first.stderr, /someone-else/, "it names the comment it didn't trust");
 
   const again = harvest(dir, comments);
   assert.equal(again.status, 0, again.stderr);
-  assert.deepEqual(Object.keys(records(dir)).sort(), Object.keys(after).sort(), "nothing new");
+  assert.deepEqual(fresh(dir).map(([p]) => p).sort(), after.map(([p]) => p).sort(), "nothing new");
   assert.doesNotMatch(again.stdout, /docs\/insights/);
 });
 
-test("AC-332-1: a login listed under [insights] writers in docs/profile.toml counts, in any case", unixOnly, () => {
-  const { dir } = setup();
-  put(dir, "docs/profile.toml", '[board]\ndir = "x"\n\n[insights]\nwriters = ["review-bot", "qa-bot"]\n');
-  const r = harvest(dir, [comment(5, "Review-Bot", toLine(REVIEW)), comment(6, "other", toLine(JOB))]);
-  assert.equal(r.status, 0, r.stderr);
-  const fresh = Object.entries(records(dir)).filter(([p]) => p !== pathOf(OLD)).map(([, rec]) => rec);
-  assert.deepEqual(fresh, [REVIEW]);
+test("AC-332-1: a login listed under [insights] writers in docs/profile.toml counts, in any case, on one line or many", unixOnly, () => {
+  const profiles = [
+    '[board]\ndir = "x"\n\n[insights]\nwriters = ["review-bot", "qa-bot"]\n',
+    '[insights]\nwriters = [\n  # the reviewers\n  "review-bot",\n  "qa-bot", # "not-a-writer"\n]\n\n[board]\ndir = "x"\n',
+  ];
+  for (const profile of profiles) {
+    const { dir } = setup();
+    put(dir, "docs/profile.toml", profile);
+    const r = harvest(dir, [comment(5, "Review-Bot", toLine(REVIEW)), comment(6, "other", toLine(JOB)), comment(9, "not-a-writer", toLine(JOB))]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(fresh(dir).map(([, rec]) => rec), [REVIEW], profile);
+  }
 });
 
 test("AC-332-2: WHEN a comment's line fails validate THEN harvest skips it, names it, and exits 0", unixOnly, () => {
   const { dir } = setup();
-  const bad = { ...REVIEW, verdict: "maybe" };
   const r = harvest(dir, [
-    comment(7, ME, `${toLine(bad)}\n${toLine(JOB)}`),
+    comment(7, ME, `${toLine({ ...REVIEW, verdict: "maybe" })}\n${toLine(JOB)}`),
     comment(8, ME, "<!-- onrails-insights {not json} -->"),
+    comment(10, ME, toLine({ ...JOB, kind: "hasOwnProperty" })),
+    comment(11, ME, toLine({ ...JOB, toString: "x" })),
   ]);
   assert.equal(r.status, 0, r.stderr);
-  const fresh = Object.entries(records(dir)).filter(([p]) => p !== pathOf(OLD)).map(([, rec]) => rec);
-  assert.deepEqual(fresh, [JOB], "only the valid record");
+  assert.deepEqual(fresh(dir).map(([, rec]) => rec), [JOB], "only the valid record");
   assert.match(r.stderr, /comment 7 .*verdict/, "names the comment and the field");
   assert.match(r.stderr, /comment 8 .*JSON/, "names the line that isn't JSON");
+  assert.match(r.stderr, /comment 10 .*kind/, "a kind named after an object method isn't a kind");
+  assert.match(r.stderr, /comment 11 .*toString/, "nor is a field named after one");
 });
 
-/** Writes two new records into the checkout with the writer, as a reviewer's harvest and the gate would. */
+test("#332: validate refuses kinds and fields named after an object's own methods", () => {
+  for (const kind of ["constructor", "toString", "hasOwnProperty", "valueOf", "__proto__"]) {
+    assert.ok(validate({ ...JOB, kind }).some((e) => e.startsWith("kind:")), kind);
+  }
+  for (const name of ["constructor", "toString", "valueOf"]) {
+    assert.ok(validate({ ...JOB, [name]: "x" }).some((e) => e.startsWith(`${name}:`)), name);
+  }
+});
+
+test("#332: harvest skips a record for another pull request, or one whose day folder isn't a date, and names it", unixOnly, () => {
+  const { dir } = setup();
+  const r = harvest(dir, [
+    comment(12, ME, toLine({ ...JOB, pr: 999 })),
+    comment(13, ME, toLine({ ...JOB, at: "+010000-01-01T00:00:00.000Z" })),
+    comment(14, ME, toLine({ ...REVIEW, pr: null })),
+  ]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(fresh(dir).map(([, rec]) => rec), [{ ...REVIEW, pr: null }], "a record with no pr is kept");
+  assert.match(r.stderr, /comment 12 .*pr.*999/);
+  assert.match(r.stderr, /comment 13 .*docs\/insights/);
+});
+
+test("#332: harvest skips a record already held under another name, and names a clash on its own name and goes on", unixOnly, () => {
+  const { dir } = setup();
+  put(dir, pathOf(JOB, "0f0f0f"), json(JOB));
+  const held = harvest(dir, [comment(1, ME, toLine(JOB))]);
+  assert.equal(held.status, 0, held.stderr);
+  assert.deepEqual(fresh(dir).map(([p]) => p), [pathOf(JOB, "0f0f0f")], "nothing new");
+
+  const learn = setup();
+  const name = harvest(learn.dir, [comment(3, ME, toLine(REVIEW))]).stdout.trim().split("/docs/")[1];
+  const { dir: other } = setup();
+  put(other, `docs/${name}`, json({ ...REVIEW, nice: 5 }));
+  const clash = harvest(other, [comment(3, ME, toLine(REVIEW)), comment(4, ME, toLine(JOB))]);
+  assert.equal(clash.status, 0, clash.stderr);
+  assert.ok(clash.stderr.includes(name), `names ${name}: ${clash.stderr}`);
+  assert.equal(fresh(other).length, 2, "the clash stays as it was, and the next line is written");
+});
+
+/** Writes two new records into the checkout, as a reviewer's harvest and the gate would. */
 function twoNew(dir) {
   put(dir, pathOf(REVIEW, "d4e5f6"), json(REVIEW));
   put(dir, pathOf(JOB, "0a0b0c"), json(JOB));
   return [pathOf(REVIEW, "d4e5f6"), pathOf(JOB, "0a0b0c")].sort();
 }
 const BRANCH = "chore/insights-2026-11-27-1432";
-const PULLS = { "repos/acme/app/pulls": { number: 77 }, "repos/acme/app/issues/77/labels": [{ name: "no-issue" }] };
+const OPEN = "repos/acme/app/pulls?state=open&per_page=100";
+const PULLS = { [OPEN]: [], "repos/acme/app/pulls": { number: 77 }, "repos/acme/app/issues/77/labels": [{ name: "no-issue" }] };
 
 test("AC-332-3: WHEN the checkout has two record files not on origin/main (a temp bare remote) THEN land pushes a chore/insights-… branch whose diff from main is exactly those two added files", unixOnly, () => {
   const { dir } = setup();
@@ -179,59 +158,30 @@ test("#332: land with nothing pending prints nothing, exits 0 and calls no API; 
   assert.ok(r.stderr.includes(bad), "names the invalid file");
 });
 
-/** Pushes a branch off main with `files` ({ path: text }) to the remote, and returns its head sha. */
-function branch(seed, name, files) {
-  git(seed, "fetch", "-q", "origin");
-  git(seed, "checkout", "-q", "-B", name, "origin/main");
-  for (const [p, text] of Object.entries(files)) put(seed, p, text);
-  git(seed, "add", "-A");
-  git(seed, "commit", "-q", "-m", name);
-  git(seed, "push", "-q", "origin", `HEAD:refs/heads/${name}`);
-  return git(seed, "rev-parse", "HEAD");
-}
-
-const pull = (n, ref, sha, login = ME) => ({
-  [`repos/acme/app/pulls/${n}`]: {
-    number: n, user: { login }, head: { ref, sha, repo: { full_name: "acme/app" } }, base: { ref: "main", repo: { full_name: "acme/app" } },
-  },
-});
-const verify = (dir, n, api) => run(dir, ["land", "--verify", String(n), "--repo", "acme/app"], api);
-
-test("AC-332-4: WHEN land --verify sees a changed file outside docs/insights/, a changed (not added) record, or an invalid record THEN it exits 1 and names the file", unixOnly, () => {
+test("#332: land reuses the records pull request it already has open: it adds only the missing files, and opens no second one", unixOnly, () => {
   const { dir, seed } = setup();
-  const good = { [pathOf(REVIEW)]: json(REVIEW), [pathOf(JOB)]: json(JOB) };
-  const okSha = branch(seed, "chore/insights-2026-11-27-1400", good);
-  const ok = verify(dir, 90, pull(90, "chore/insights-2026-11-27-1400", okSha));
-  assert.equal(ok.status, 0, ok.stderr);
-  assert.match(ok.stdout, new RegExp(okSha), "prints the head it checked");
+  const [first, second] = twoNew(dir);
+  const ref = "chore/insights-2026-11-27-1200";
+  const sha = branch(seed, ref, { [first]: readFileSync(join(dir, first), "utf8") });
+  const theirs = pullOf(70, "chore/insights-2026-11-27-1100", "e".repeat(40), { login: "someone-else" });
+  const api = { ...PULLS, [OPEN]: [theirs, pullOf(66, ref, sha)] };
 
-  const badRecord = pathOf({ ...REVIEW, at: "2026-11-27T15:00:00.000Z" }, "eeeeee");
-  const cases = [
-    { why: "a file outside docs/insights/", files: { ...good, "README.md": "changed\n" }, names: "README.md" },
-    { why: "a changed record", files: { [pathOf(OLD)]: json({ ...OLD, outcome: "failed" }) }, names: pathOf(OLD) },
-    { why: "an invalid record", files: { [badRecord]: json({ ...REVIEW, at: "2026-11-27T15:00:00.000Z", verdict: "maybe" }) }, names: badRecord },
-    { why: "a record whose name doesn't match it", files: { "docs/insights/2026-11-27/0000-job-1-abcdef.json": json(JOB) }, names: "0000-job-1-abcdef.json" },
-  ];
-  cases.forEach(({ why, files, names }, i) => {
-    const ref = `chore/insights-2026-11-27-150${i}`;
-    const n = 91 + i;
-    const r = verify(dir, n, pull(n, ref, branch(seed, ref, files)));
-    assert.equal(r.status, 1, `${why}: ${r.stdout}${r.stderr}`);
-    assert.ok(r.stderr.includes(names), `${why}: names ${names} in ${r.stderr}`);
-  });
-});
+  const grown = run(dir, ["land", "--repo", "acme/app"], api);
+  assert.equal(grown.status, 0, grown.stderr);
+  assert.equal(grown.stdout, "66\n", "the open one's number");
+  assert.doesNotMatch(grown.calls, /-X POST/, "no new pull request and no label");
+  git(dir, "fetch", "-q", "origin");
+  assert.equal(git(dir, "rev-parse", `origin/${ref}^`), sha, "a fast-forward on its branch");
+  const diff = git(dir, "diff", "--name-status", "--no-renames", `origin/main...origin/${ref}`);
+  assert.deepEqual(diff.split("\n").sort(), [`A\t${first}`, `A\t${second}`]);
+  assert.equal(git(dir, "ls-remote", "origin", `refs/heads/${BRANCH}`), "", "no new branch");
 
-test("#332: land --verify refuses a pull request the coordinator didn't open, or one whose head moved", unixOnly, () => {
-  const { dir, seed } = setup();
-  const ref = "chore/insights-2026-11-27-1600";
-  const sha = branch(seed, ref, { [pathOf(REVIEW)]: json(REVIEW) });
-  const other = verify(dir, 95, pull(95, ref, sha, "someone-else"));
-  assert.equal(other.status, 1, other.stderr);
-  assert.match(other.stderr, /someone-else/);
-  const notChore = verify(dir, 96, pull(96, "feat/12-x", sha));
-  assert.equal(notChore.status, 1, notChore.stderr);
-  const moved = verify(dir, 97, pull(97, ref, "d".repeat(40)));
-  assert.equal(moved.status, 2, moved.stderr);
+  const head = git(dir, "rev-parse", `origin/${ref}`);
+  const same = run(dir, ["land", "--repo", "acme/app"], { ...PULLS, [OPEN]: [pullOf(66, ref, head)] });
+  assert.equal(same.status, 0, same.stderr);
+  assert.equal(same.stdout, "66\n");
+  git(dir, "fetch", "-q", "origin");
+  assert.equal(git(dir, "rev-parse", `origin/${ref}`), head, "nothing to add: no push");
 });
 
 test("AC-332-5: WHEN coordinate/SKILL.md is read THEN step 9 names harvest and the sweep's end names land and --verify", () => {
@@ -241,11 +191,18 @@ test("AC-332-5: WHEN coordinate/SKILL.md is read THEN step 9 names harvest and t
   assert.match(step9, /`node \.agents\/skills\/coordinate\/scripts\/insights\.mjs harvest --pr <n> --repo <owner>\/<repo>`/);
   assert.match(step10, /`node \.agents\/skills\/coordinate\/scripts\/insights\.mjs land --repo <owner>\/<repo>`/);
   assert.match(step10, /insights\.mjs land --verify <records pr> --repo <owner>\/<repo>/);
+  assert.match(step10, /`mark-check\.mjs` without `--record`/, "a records pull request's gate writes no check record");
+  assert.match(step10, /while main is red/, "records pull requests wait while main is red");
+  assert.match(step10, /skip steps 8 and 9/, "and their merge skips the deploy and harvest");
   const local = readFileSync(join(REPO, ".agents/skills/coordinate/references/local-mode.md"), "utf8");
   assert.match(local, /insights\.mjs harvest/);
   assert.match(local, /docs\/insights\/.*with the next merge|with the next merge.*docs\/insights\//);
 });
 
-test("#332: every record harvest and land touch passes validate", () => {
-  for (const r of [REVIEW, JOB, OLD]) assert.deepEqual(validate(r), [], JSON.stringify(r));
+test("#332: the kit marks docs/insights/ generated, so the size rule leaves records out", () => {
+  const attrs = readFileSync(join(REPO, ".gitattributes"), "utf8");
+  assert.match(attrs, /^docs\/insights\/\*\* linguist-generated$/m);
+  const r = spawnSync("git", ["check-attr", "linguist-generated", "--", "docs/insights/2026-11-27/1432-job-40-abcdef.json"], { cwd: REPO, encoding: "utf8", env: safeEnv() });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /linguist-generated: set$/m);
 });
