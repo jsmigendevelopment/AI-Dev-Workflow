@@ -147,6 +147,19 @@ test("AC-400-1: WHEN a split reason has a 'too' or 'hard' in an earlier clause, 
   }
 });
 
+test("AC-400-1: WHEN a 'too big' is joined to the split by a dash, a slash, so or and THEN it still fails as both", () => {
+  const both = "#10 Parent: the Size: line states both an exception and a split. Keep one.";
+  const children = [issue(12, "300 lines"), issue(13, "300 lines")];
+  for (const reason of ["too big - split into child issues", "too big — split into child issues", "too big / split into child issues",
+    "too big so split into child issues", "too big and split into child issues", "too big to review so split into three child issues"]) {
+    const parent = { ...issue(10, `exception: ${reason}`, "Parent"), labels: ["status:ready"] };
+    assert.deepEqual(checkSizes([parent, ...children]), [both], reason);
+  }
+  for (const reason of ["can't be split into parts: one generated client", "too risky to split up", "a single rename that cannot be split"]) {
+    assert.deepEqual(checkSizes([issue(5, `exception: ${reason}`)]), [], reason);
+  }
+});
+
 test("AC-400-1: WHEN a reason is a placeholder like nothing, TBC or later THEN the check fails it as no reason", () => {
   for (const reason of ["nothing", "no reason yet", "TBC", "to be decided", "unknown yet", "later", "Later."]) {
     assert.deepEqual(checkSizes([issue(5, `exception: ${reason}`, "Empty reason")]), [noReason(5, "Empty reason")], reason);

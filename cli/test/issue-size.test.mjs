@@ -270,6 +270,14 @@ test("AC-400-1: WHEN tests sit next to a number after a qualifier or a bracket T
   assert.deepEqual(checkSizes([issue(7, "about 300 lines · cli/test/12-x.test.mjs · AC-400-1 tests")]), []);
 });
 
+test("AC-400-1: WHEN tests sit next to a number after approximately, a dash or a word like code THEN the check asks for one total", () => {
+  for (const second of ["tests: approximately 600", "tests - 600", "test code: 600"]) {
+    assert.deepEqual(checkSizes([issue(12, `about 700 lines · cli/src · ${second}`, "Big step")]),
+      [`#12 Big step: a second estimate after the "·": "${second}". Write one total, like \`Size: about 600 lines · <files or modules>\`.`], second);
+  }
+  assert.deepEqual(checkSizes([issue(7, "about 300 lines · cli/src · tests for v2 · test/12-x.ts")]), []);
+});
+
 test("AC-400-1: WHEN a hidden size has any one word or a + before its unit THEN the check still finds it", () => {
   for (const line of ["Size - 1500+ lines", "Size - 1,500 code lines", "Size - 1,500 source lines", "Size - 1,500 net lines",
     "Size - 1,500 diff lines", "Real size: about 1,400 code lines"]) {

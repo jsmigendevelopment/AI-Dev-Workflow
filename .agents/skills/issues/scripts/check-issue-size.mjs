@@ -25,10 +25,11 @@ const ESTIMATE = new RegExp(
 );
 const LIMIT_WORD = /^(?:under|up to|at most|<|≤)/i;
 // A number of lines in a later part of the value, one word allowed before the unit: a second estimate. So is "test"
-// next to a number, also after a bracket or a qualifier ("tests: about 600", "tests (600)", "600 in tests").
+// next to a number, after a bracket, a dash, a qualifier or a word like "code" ("tests: about 600", "tests (600)",
+// "tests - 600", "test code: 600", "600 in tests").
 // "#1024", "1200-x.ts", "test/12-x.ts" or "AC-12-1 tests" isn't one.
 const SECOND = /\d\+?\s*k?\s*(?:\p{L}+\s+)?(?:lines?|loc)(?!\p{L})/iu;
-const TESTS = /(?<![\p{L}\p{N}])tests?(?![\p{L}\p{N}/._-])[\s:=~≈+(]*(?:(?:about|around|roughly|approx\.?|another|add|adds|plus)\s*)?\d|(?<![\p{L}\p{N}#/._-])\d[\d,.]*\s*k?\s*(?:\p{L}+\s+)?tests?(?![\p{L}\p{N}/._-])/iu;
+const TESTS = /(?<![\p{L}\p{N}])tests?(?![\p{L}\p{N}/._-])(?:\s+(?:code|files?|cases?|suites?))?[\s:=~≈+(\[\-–—]*(?:(?:about|around|roughly|approximately|approx\.?|another|add|adds|plus)\s*)?\d|(?<![\p{L}\p{N}#/._-])\d[\d,.]*\s*k?\s*(?:\p{L}+\s+)?tests?(?![\p{L}\p{N}/._-])/iu;
 // The two whole forms, each only at the start of the value or right after a "·".
 const EXCEPTION = /^exception:\s*/i;
 const SPLIT = /^split into\s+(#\d+(?:\s*(?:,|&|and)\s*#\d+)*)\s*$/i;
@@ -47,12 +48,13 @@ const SPLIT_SAID = new RegExp(
     String.raw`|(?:broken|cut)(?:\s+up)?\s+into|split\s*[.!]?\s*$|child(?:ren)?\s+issues?|children\s+#?\d+)(?!\p{L})`,
   "giu",
 );
-const CLAUSE = /[,;:.()]/;
+// A clause ends at punctuation, a dash or slash, or "so", "and", "then" or "but": "too big - split into ..." fails.
+const CLAUSE = /[,;:.()\/–—]|\s-\s|(?<!\p{L})(?:so|and|then|but)(?!\p{L})/iu;
 const NEGATION = /(?<!\p{L})(?:no|not|never|cannot|can['’]?t|won['’]?t|don['’]?t|doesn['’]?t|isn['’]?t|unable|without|hard|too)(?!\p{L})/iu;
-// Size written in a way the value reader skips: a table cell, "_Size_:", a full-width colon, "Size -". The unit follows
-// the number, with a "+" and any one word allowed between ("1500+ lines", "1,500 code lines"), but not a unit like px or
-// MB, so "font size: 16px, line-height: 24px" and "font size: 16px line-height" aren't one.
-const MENTION = /(?<!\p{L})size(?!\p{L})[\s_*`]*[:：|=\-–—][^\n]*?\d\+?\s*k?\s*(?:(?!(?:px|pt|em|rem|vh|vw|kb|mb|gb|tb|bytes?)\s)\p{L}+\s+)?(?:lines?|loc)(?!\p{L})/iu;
+// Size written in a way the value reader skips: a table cell, "_Size_:", a full-width colon, "Size -". As on main, the
+// unit may follow the number anywhere in the same clause ("1,500 (est.) lines", "1,500 new code lines"). Only a number
+// with a size unit after it (px, MB) is skipped, so "font size: 16px, line-height: 24px" isn't one.
+const MENTION = /(?<!\p{L})size(?!\p{L})[\s_*`]*[:：|=\-–—][^\n]*?\d(?!\s*(?:px|pt|em|rem|vh|vw|kb|mb|gb|tb|bytes?)(?!\p{L}))[^\n,;:\d]*?(?<!\p{L})k?(?:lines?|loc)(?!\p{L})/iu;
 // CommonMark: up to 3 spaces of indent, closed by a run of the same character at least as long.
 const FENCE = /^ {0,3}((`|~)\2{2,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1\2*[ \t]*$|(?![\s\S]))/gm;
 const QUOTE = /^[ \t]*>.*$/gm;
