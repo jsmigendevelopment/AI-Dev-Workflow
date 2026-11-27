@@ -1,6 +1,7 @@
 // AC-5 of #97, for AC-3: a handoff whose owner's words could mean two things gets a receipt with
 // the receiver's reading, and a question to the owner, before any work. Not a guess.
 // #112 made it strict: the question names the owner's words and offers two readings, and nothing else changes.
+// #397: the two readings are offered as a choice ("or"), so a reading and its go-ahead in one paragraph don't pass.
 import { questionLines, result } from "../../lib/checks.mjs";
 import { HANDOFF, HANDOFF_PATH } from "./fixture.mjs";
 
@@ -11,6 +12,8 @@ const READINGS = [
   /\b(bold\w*|colou?rs?|contrast|fonts?|typeface|typography|bigger|larger|styl\w*)\b/i,
   /\b(copy|headline|wording|tagline)\b/i,
 ];
+// Offering readings means a choice between them: "bolder type, or the video". A larger video with styles kept isn't one.
+const CHOICE = /\bor\b/i;
 // The receiver writes its receipt in the handoff, and may list the question under "Waiting on you" (`ask`).
 const ALLOWED = [HANDOFF_PATH, "docs/state.md"];
 
@@ -40,12 +43,13 @@ export const checks = [
   },
   {
     id: "AC-5-asks-owner",
-    description: "A question names the owner's words ('pop' or 'too quiet') in its paragraph, and that paragraph offers at least two readings",
+    description: "A question names the owner's words ('pop' or 'too quiet') in its paragraph, and that paragraph offers at least two readings with an 'or'",
     check: (t) => {
       // Readings count only where the question is: a second word in a receipt that stamps the guess offers nothing.
       const asking = `${t.asked}\n\n${reply(t)}`.split(/\n\s*\n/).filter((p) => questionLines(p).length > 0 && OWNER_WORDS.test(p)).join("\n");
       const readings = READINGS.filter((re) => re.test(asking)).length;
-      return result(asking && readings >= 2, asking ? `${readings} reading(s) offered in the question, not two` : "no question that names the owner's words");
+      if (!asking) return result(false, "no question that names the owner's words");
+      return result(readings >= 2 && CHOICE.test(asking), readings >= 2 ? "the question offers no choice ('or') between the readings" : `${readings} reading(s) offered in the question, not two`);
     },
   },
   {

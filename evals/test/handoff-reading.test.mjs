@@ -43,3 +43,17 @@ test("AC-112-2: handoff-reading: a new or changed file outside the handoff fails
   const waiting = { write: "docs/state.md", content: "# State\n\n## Waiting on you\n\n- Handoff 12: what \"pop\" means\n" };
   assert.deepEqual(failedChecks(t, [goodReceipt, waiting, goodText]), [], "the 'Waiting on you' list in docs/state.md");
 });
+
+// #397 item 1, from round 2 of the review on #395: a reading and its question in one paragraph, with no second
+// reading offered as the other choice, is still a stamp. These four extend AC-112-1's cases.
+test("AC-397-1: handoff-reading: a reading and its question in one paragraph, with no second reading, fail asks-owner, and only it", { skip: skipWin }, (t) => {
+  const twoLines = { bash: `printf '%s\\n' ${JSON.stringify("Got it · landing-page thread · My reading: a larger autoplay video makes the hero pop.")} 'OK to start?' >> docs/handoffs/12.md` };
+  const cases = {
+    "the receipt, then a bare question on the next line": [twoLines, { text: "I replied in the handoff." }],
+    "one paragraph that restates a larger autoplay video and asks to start": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start?" }],
+    "a question that says the styles stay as they are": [STAMP, { text: "Shall I add the autoplay video to make it pop, with the styles as they are?" }],
+    "a question mark in the receipt line itself": [append("Got it · landing-page thread · My reading: a larger autoplay video to make it pop. OK to start?"), { text: "I replied in the handoff." }],
+  };
+  for (const [name, steps] of Object.entries(cases)) assert.deepEqual(failedChecks(t, steps), ["AC-5-asks-owner"], name);
+  assert.deepEqual(failedChecks(t, plan.with.steps), [], "the good transcript");
+});
