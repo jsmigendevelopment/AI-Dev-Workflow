@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- The tech grill asks whether the app needs a backend and whether it runs on Cloudflare Workers before the framework, and recommends TanStack Start alone, TypeScript on Workers or a Go backend (decision 344-1). The stack template gets a Backend row (#344).
 - `coordinate`'s overlap check treats `docs/decisions/` as a hot spot and ignores "synced copies" in a Modules line; `issues` spells out the Modules line format, and every open kit issue now carries one (#269).
 - `build` branches from a fresh `origin/main`, merges main again before the push and reads every issue comment; `pr-review` also diffs the head against current main (#361).
 - **Merge-behind check (#263).** `coordinate` step 7 checks main merged into a pull request whose base is behind before merging, and asks for a check only the person can run last, once, naming the exact sha. `ask` says what that ask does on each level (decision 263-1).
