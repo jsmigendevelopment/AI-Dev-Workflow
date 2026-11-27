@@ -34,7 +34,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the ev
    | 5–7 | A new module end to end (table, service, API, screen), or rules with edge cases: permissions, money, time. |
    | 8–10 | Several modules, a new outside service, a data migration, or something the repo has never done. Split it. |
 
-   **Size.** Write `Size: <estimate> lines · <files or modules>`: the changed lines its pull request will have, not counting generated files, lockfiles and test fixtures. Review sends big pull requests back far more often, so aim for about 400. An estimate of 1,000 or more is split into child issues before it's ready, each with its own Size line, and the parent links them. Only a change that can't be split, like a mechanical rename, stays whole, with `Size: exception: <reason>`.
+   **Size.** Write `Size: <estimate> lines · <files or modules>`: the changed lines its pull request will have, not counting generated files, lockfiles and test fixtures. Review sends big pull requests back far more often, so aim for about 400. An estimate of 1,000 or more is split into child issues before it's ready, each with its own Size line. The parent's Size line becomes `Size: split into #<child>, #<child>`, which the consistency check passes. The parent never gets `status:ready` and is never built: it closes when its last child merges. Only a change that can't be split, like a mechanical rename, stays whole, with `Size: exception: <reason>`.
 7. **Risk flags and lane.** Tick every flag that applies, then set the lane:
    - **tiny:** copy, styling or config with no logic. Build, local gate, review, merge.
    - **normal:** anything else. Build, local gate, review, `qa` on the preview, merge.

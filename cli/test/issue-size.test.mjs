@@ -91,7 +91,86 @@ test("AC-375-2: WHEN the input isn't a list of issues THEN the script exits 2 an
 });
 
 test("AC-375-2: the read-only consistency check runs the size script and reports each issue it names", () => {
-  assert.match(consistency, /gh issue list --milestone "<name>" --state open --json number,title,body \| node \.agents\/skills\/issues\/scripts\/check-issue-size\.mjs/);
+  assert.match(consistency, /gh issue list --milestone "<name>" --state open --limit 200 --json number,title,body \| node \.agents\/skills\/issues\/scripts\/check-issue-size\.mjs/);
   assert.match(consistency, /node \.agents\/skills\/issues\/scripts\/check-issue-size\.mjs docs\/issues\/\*\.md/);
   assert.match(consistency, /Report each issue it names/);
+});
+
+test("AC-375-2: WHEN a decimal k sits next to loc or lines THEN it reads as thousands with its decimal", () => {
+  assert.equal(readSize(body("about 1.5kLOC · cli/src")).estimate, 1500);
+  assert.equal(readSize(body("~1.2kloc")).estimate, 1200);
+  assert.equal(readSize(body("1.25k lines")).estimate, 1250);
+  assert.equal(readSize(body("1,5k lines")).estimate, 1500);
+  for (const size of ["about 1.5kLOC · cli/src", "~1.2kloc"]) {
+    assert.equal(checkSizes([issue(12, size, "Big step")]).length, 1, size);
+  }
+});
+
+test("AC-375-2: WHEN thousands are split by a space THEN 1 200 lines reads as 1,200, never 200", () => {
+  assert.equal(readSize(body("1 200 lines · cli/src")).estimate, 1200);
+  assert.equal(readSize(body("about 2 400 lines")).estimate, 2400);
+  assert.equal(checkSizes([issue(12, "1 200 lines · cli/src", "Big step")]).length, 1);
+});
+
+test("AC-375-2: WHEN numbers sit in the file list next to the estimate THEN only the estimate counts", () => {
+  assert.equal(readSize(body("about 300 lines, split from #1024")).estimate, 300);
+  assert.equal(readSize(body("about 300 lines (src/routes/1200-x.ts)")).estimate, 300);
+  assert.equal(readSize(body("about 1,200 changed lines in src/routes/12-x.ts")).estimate, 1200);
+  assert.deepEqual(checkSizes([issue(7, "about 300 lines, split from #1024"), issue(8, "about 300 lines (src/routes/1200-x.ts)")]), []);
+});
+
+test("AC-375-2: WHEN an issue has more than one Size line THEN the check fails and names it", () => {
+  const two = { number: 9, title: "Two sizes", body: `${body("200 lines · cli/src")}\n\nSize: 1,500 lines · cli/src\n` };
+  assert.deepEqual(checkSizes([two]),
+    ["#9 Two sizes: 2 Size: lines. Keep one: `Size: <estimate> lines · <files or modules>`."]);
+});
+
+test("AC-375-2: WHEN a Size line sits in a fenced block or an HTML comment THEN it doesn't count", () => {
+  for (const fence of ["```", "~~~"]) {
+    const fenced = `## Goal\n\n${fence}text\nSize: 200 lines\n${fence}\n\n<!--\nSize: 300 lines\n-->\nComplexity: 2\n`;
+    assert.deepEqual(checkSizes([{ number: 4, title: "Fenced", body: fenced }]),
+      ["#4 Fenced: no Size: line. Write `Size: <estimate> lines · <files or modules>`."], fence);
+    const real = { number: 5, title: "Big step", body: `${fenced}\nSize: 1,500 lines · cli/src\n` };
+    assert.match(checkSizes([real])[0], /^#5 Big step: the estimate is 1,500 lines, 1,000 or more\./, fence);
+  }
+});
+
+test("AC-375-1: WHEN an issue is split THEN the parent's Size line names its children and the check passes it", () => {
+  assert.match(skill, /The parent's Size line becomes `Size: split into #<child>, #<child>`/);
+  assert.match(skill, /The parent never gets `status:ready` and is never built/);
+  assert.match(template, /The parent of a split: "Size: split into #<child>, #<child>"/);
+  assert.deepEqual(readSize(body("split into #12, #13")), { estimate: null, exception: null, split: [12, 13] });
+  assert.deepEqual(readSize(body("about 2,400 lines · split into #12 and #13")), { estimate: 2400, exception: null, split: [12, 13] });
+  assert.deepEqual(checkSizes([issue(10, "split into #12, #13"), issue(11, "about 2,400 lines · split into #12 and #13")]), []);
+  assert.deepEqual(checkSizes([issue(14, "about 2,400 lines · split into two", "Not split yet")]),
+    ["#14 Not split yet: the estimate is 2,400 lines, 1,000 or more. Split it into child issues, or write `Size: exception: <reason>`."]);
+});
+
+test("AC-375-2: WHEN the list is empty THEN the script exits 2 and never says every line passes", () => {
+  const r = run([], "[]");
+  assert.equal(r.status, 2, r.stdout);
+  assert.doesNotMatch(r.stdout + r.stderr, /Every Size: line/);
+  assert.match(r.stderr, /no issues to check/);
+});
+
+test("AC-375-2: WHEN an issue's body is null, as the REST API sends an empty one, THEN the script reads it as no Size line", () => {
+  const r = run([], JSON.stringify([{ number: 6, title: "Empty", body: null }]));
+  assert.equal(r.status, 1, r.stderr);
+  assert.match(r.stdout, /^#6 Empty: no Size: line\./m);
+});
+
+test("AC-375-2: WHEN an issue file says Status: done THEN the script skips it", () => {
+  const dir = tmp();
+  put(dir, "docs/issues/003-old-step.md", "# Old step\n\nStatus: done\n\nWritten before sizes.\n");
+  put(dir, "docs/issues/013-small-step.md", `# Small step\n\nStatus: ready\n\n${body("200 lines · cli/src")}`);
+  const r = run(["docs/issues/003-old-step.md", "docs/issues/013-small-step.md"], "", dir);
+  assert.equal(r.status, 0, r.stdout);
+  assert.doesNotMatch(r.stdout, /#3/);
+  assert.match(r.stdout, /1 issue read, 1 done skipped\./);
+});
+
+test("AC-375-2: the consistency check reads up to 200 issues and its advice fits each gap", () => {
+  assert.match(consistency, /gh issue list --milestone "<name>" --state open --limit 200 --json number,title,body,labels`/);
+  assert.match(consistency, /only this pass's open files/);
+  assert.match(consistency, /Fix each by adding the missing line, estimate or reason, or by splitting it into child issues/);
 });

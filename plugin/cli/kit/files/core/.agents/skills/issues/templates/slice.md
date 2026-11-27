@@ -63,7 +63,7 @@ title: "[pass N] <slice>: <what a user can do after this>"
 ## Routing
 
 **Complexity:** <!-- 1–10 · one-line reason. Aim for 4 or under. At 5 to 7, say why it can't be cut. Above 7: split it. The scale is in the issues skill. -->
-**Size:** <!-- the changed lines its pull request will have, not counting generated files, lockfiles and test fixtures, then the files or modules: "about 300 lines · features/lists, lib/money.ts". 1,000 or more: split it. Only a change that can't be split, like a mechanical rename: "Size: exception: <reason>". -->
+**Size:** <!-- the changed lines its pull request will have, not counting generated files, lockfiles and test fixtures, then the files or modules: "about 300 lines · features/lists, lib/money.ts". 1,000 or more: split it. The parent of a split: "Size: split into #<child>, #<child>". Only a change that can't be split, like a mechanical rename: "Size: exception: <reason>". -->
 **Override:** <!-- Leave blank to use the routing table. -->
 
 **Priority:** p0 / p1 / p2 / p3
