@@ -25,7 +25,7 @@ Exit 2 names the bad field and writes nothing. Exit 1 is any other failed write.
 
 Optional `source=board`: a record from `board.mjs` (#346) needs only the envelope.
 
-Text is capped at 200 characters. A list is comma-separated or a JSON list.
+Text is capped at 200 characters. A list is comma-separated or a JSON list, and holds text items (check's `commands` holds objects).
 
 ## The kinds
 

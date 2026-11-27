@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { spawnSync } from "./child.mjs";
 import { safeEnv, unixOnly } from "./helpers.mjs";
 import { toLine, validate } from "../src/insights-record.mjs";
-import { JOB, ME, OLD, REPO, REVIEW, SHA, branch, git, json, pathOf, pullOf, put, record, records, run, setup } from "./insights-land-fakes.mjs";
+import { JOB, ME, OLD, REPO, REVIEW, SHA, SIZE_LINE, branch, git, json, pathOf, pullOf, put, record, records, run, setup } from "./insights-land-fakes.mjs";
 
 const comment = (id, login, body) => ({ id, user: { login }, body });
 const COMMENTS = "repos/acme/app/issues/40/comments";
@@ -72,9 +72,28 @@ test("#332: validate refuses kinds and fields named after an object's own method
   for (const kind of ["constructor", "toString", "hasOwnProperty", "valueOf", "__proto__"]) {
     assert.ok(validate({ ...JOB, kind }).some((e) => e.startsWith("kind:")), kind);
   }
+  for (const kind of [["review"], [["job"]], ["check"], 1, null]) {
+    assert.ok(validate({ ...JOB, kind }).some((e) => e.startsWith("kind:")), JSON.stringify(kind));
+  }
   for (const name of ["constructor", "toString", "valueOf"]) {
     assert.ok(validate({ ...JOB, [name]: "x" }).some((e) => e.startsWith(`${name}:`)), name);
   }
+});
+
+test("#332: validate wants text items in every list but check's commands", () => {
+  assert.ok(validate({ ...REVIEW, categories: [{ a: {} }, 5, true] }).some((e) => e.startsWith("categories:")));
+  assert.ok(validate(record("merge", { conflicted: [1] })).some((e) => e.startsWith("conflicted:")));
+  assert.deepEqual(validate(record("merge", { conflicted: ["CHANGELOG.md"] })), []);
+  assert.deepEqual(validate(record("check", { commands: [{ name: "pnpm check", result: "pass", seconds: 3 }] })), []);
+});
+
+test("#332: harvest keeps a valid record that leaves pr out", unixOnly, () => {
+  const { dir } = setup();
+  const { pr: _pr, ...noPr } = REVIEW;
+  assert.deepEqual(validate(noPr), []);
+  const r = harvest(dir, [comment(15, ME, toLine(noPr))]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(fresh(dir).map(([, rec]) => rec), [noPr]);
 });
 
 test("#332: harvest skips a record for another pull request, or one whose day folder isn't a date, and names it", unixOnly, () => {
@@ -115,7 +134,12 @@ function twoNew(dir) {
 }
 const BRANCH = "chore/insights-2026-11-27-1432";
 const OPEN = "repos/acme/app/pulls?state=open&per_page=100";
-const PULLS = { [OPEN]: [], "repos/acme/app/pulls": { number: 77 }, "repos/acme/app/issues/77/labels": [{ name: "no-issue" }] };
+const PULLS = {
+  [OPEN]: [], "repos/acme/app/pulls": { number: 77 }, "repos/acme/app/issues/77/labels": [],
+  "repos/acme/app/issues/66/labels": [], "repos/acme/app/pulls/66": { number: 66 },
+};
+/** The labels a records pull request carries: #377's size rule reads size-exception and the body line. */
+const LABELS = /-X POST -f labels\[\]=no-issue -f labels\[\]=size-exception repos\/acme\/app\/issues\/(\d+)\/labels/;
 
 test("AC-332-3: WHEN the checkout has two record files not on origin/main (a temp bare remote) THEN land pushes a chore/insights-… branch whose diff from main is exactly those two added files", unixOnly, () => {
   const { dir } = setup();
@@ -128,7 +152,8 @@ test("AC-332-3: WHEN the checkout has two record files not on origin/main (a tem
   assert.deepEqual(diff.split("\n").sort(), added.map((p) => `A\t${p}`));
   assert.equal(git(dir, "rev-parse", `origin/${BRANCH}^`), git(dir, "rev-parse", "origin/main"), "one commit on main");
   assert.ok(r.calls.includes(`-f head=${BRANCH} -f base=main repos/acme/app/pulls\n`), r.calls);
-  assert.match(r.calls, /-X POST .*labels\[\]=no-issue .*repos\/acme\/app\/issues\/77\/labels/);
+  assert.equal(r.calls.match(LABELS)?.[1], "77", `labels no-issue and size-exception: ${r.calls}`);
+  assert.ok(r.calls.includes(`\n${SIZE_LINE}\n`), "the body has the size exception line");
 });
 
 test("#332: after the records pull request merges, the coordinator's git pull --ff-only is clean", unixOnly, () => {
@@ -169,7 +194,9 @@ test("#332: land reuses the records pull request it already has open: it adds on
   const grown = run(dir, ["land", "--repo", "acme/app"], api);
   assert.equal(grown.status, 0, grown.stderr);
   assert.equal(grown.stdout, "66\n", "the open one's number");
-  assert.doesNotMatch(grown.calls, /-X POST/, "no new pull request and no label");
+  assert.doesNotMatch(grown.calls, /repos\/acme\/app\/pulls\n/, "no new pull request");
+  assert.equal(grown.calls.match(LABELS)?.[1], "66", `the missing labels go back on: ${grown.calls}`);
+  assert.match(grown.calls, new RegExp(`-X PATCH -f body=[^]*${SIZE_LINE}[^]*repos/acme/app/pulls/66\\n`), "and the size exception line");
   git(dir, "fetch", "-q", "origin");
   assert.equal(git(dir, "rev-parse", `origin/${ref}^`), sha, "a fast-forward on its branch");
   const diff = git(dir, "diff", "--name-status", "--no-renames", `origin/main...origin/${ref}`);
@@ -177,11 +204,13 @@ test("#332: land reuses the records pull request it already has open: it adds on
   assert.equal(git(dir, "ls-remote", "origin", `refs/heads/${BRANCH}`), "", "no new branch");
 
   const head = git(dir, "rev-parse", `origin/${ref}`);
-  const same = run(dir, ["land", "--repo", "acme/app"], { ...PULLS, [OPEN]: [pullOf(66, ref, head)] });
+  const labelled = pullOf(66, ref, head, { labels: ["no-issue", "size-exception"], body: `Records.\n\n${SIZE_LINE}\n` });
+  const same = run(dir, ["land", "--repo", "acme/app"], { ...PULLS, [OPEN]: [labelled] });
   assert.equal(same.status, 0, same.stderr);
   assert.equal(same.stdout, "66\n");
   git(dir, "fetch", "-q", "origin");
   assert.equal(git(dir, "rev-parse", `origin/${ref}`), head, "nothing to add: no push");
+  assert.doesNotMatch(same.calls, /-X (POST|PATCH)/, "labels and body already right: no write");
 });
 
 test("AC-332-5: WHEN coordinate/SKILL.md is read THEN step 9 names harvest and the sweep's end names land and --verify", () => {

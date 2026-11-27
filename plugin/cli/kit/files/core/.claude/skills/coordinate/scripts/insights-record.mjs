@@ -14,7 +14,8 @@ const int = (req = true) => ({ type: "int", req });
 const num = (req = true) => ({ type: "num", req });
 const str = (req = true, values) => ({ type: "str", req, values });
 const bool = (req = true) => ({ type: "bool", req });
-const list = (req = true) => ({ type: "list", req });
+// A list holds text items, except check's commands, whose objects checkCommands checks.
+const list = (req = true, items = "text") => ({ type: "list", req, items });
 
 export const OUTCOMES = ["started", "pr-opened", "finished", "handed-off", "stopped", "failed", "swept", "paused", "ended", "pass", "fail"];
 
@@ -33,7 +34,7 @@ export const KINDS = {
   job: { outcome: str(true, OUTCOMES), started: str(false), ended: str(false) },
   // state, fence and a null failed_step come from the local gate's mark-check.mjs --record (#331, decision 331-1).
   check: {
-    commands: list(), failed_step: { type: "str", req: false, nullable: true }, flaky_rerun: bool(false),
+    commands: list(true, "object"), failed_step: { type: "str", req: false, nullable: true }, flaky_rerun: bool(false),
     state: str(false, ["success", "failure"]), fence: str(false),
   },
   review: { round: int(), verdict: str(true, ["pass", "changes"]), must: int(), nice: int(), categories: list(false) },
@@ -57,8 +58,10 @@ export const KINDS = {
 
 /** The spec of one field of a kind, or undefined. */
 export function fieldSpec(kind, name) {
+  // Only text names a kind or field: Object.hasOwn would turn ["review"] into "review" (#332).
+  if (typeof name !== "string") return undefined;
   if (Object.hasOwn(ENVELOPE, name)) return ENVELOPE[name];
-  return Object.hasOwn(KINDS, kind) && Object.hasOwn(KINDS[kind], name) ? KINDS[kind][name] : undefined;
+  return typeof kind === "string" && Object.hasOwn(KINDS, kind) && Object.hasOwn(KINDS[kind], name) ? KINDS[kind][name] : undefined;
 }
 
 /** Turns a key=value string from the command line into the field's type. Throws a message that names the field. */
@@ -97,6 +100,7 @@ function checkField(name, spec, value) {
     if (spec.values && !spec.values.includes(value)) return `${name}: must be one of ${spec.values.join(", ")}`;
     if (spec.pattern && !spec.pattern.test(value)) return `${name}: must be ${spec.hint}`;
   }
+  if (spec.type === "list" && spec.items === "text" && value.some((v) => typeof v !== "string")) return `${name}: each item must be text`;
   if (spec.type === "list" && value.some((v) => typeof v === "string" && v.length > TEXT_CAP)) {
     return `${name}: an item is longer than ${TEXT_CAP} characters`;
   }
@@ -118,8 +122,8 @@ export function validate(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) return ["record: must be an object"];
   const errors = [];
   if (record.v !== VERSION) errors.push(`v: must be ${VERSION}`);
-  // Object.hasOwn: "constructor" or "toString" is no kind or field (#332).
-  const kinds = Object.hasOwn(KINDS, record.kind) ? KINDS[record.kind] : undefined;
+  // Own text keys only: "constructor" is no kind, and neither is ["review"], which Object.hasOwn reads as "review" (#332).
+  const kinds = typeof record.kind === "string" && Object.hasOwn(KINDS, record.kind) ? KINDS[record.kind] : undefined;
   if (!kinds) return [...errors, `kind: must be one of ${Object.keys(KINDS).join(", ")}`];
   if (typeof record.at !== "string" || Number.isNaN(Date.parse(record.at)) || !record.at.endsWith("Z")) {
     errors.push("at: must be a UTC ISO time");

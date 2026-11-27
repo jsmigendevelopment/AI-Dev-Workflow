@@ -96,7 +96,7 @@ function lineProblem(json) {
 function keep(root, record) {
   const text = canonical(record);
   const rel = `${dayFolder(record)}/${fileName(record, createHash("sha256").update(text).digest("hex").slice(0, 6))}`;
-  const problem = recordProblem(rel, text);
+  const problem = recordProblem(rel, Buffer.from(text));
   if (problem) return { why: `${rel}: ${problem}` };
   const day = join(root, dayFolder(record));
   mkdirSync(day, { recursive: true });
@@ -113,7 +113,7 @@ function keep(root, record) {
 
 /** Why a parsed, valid record from #pr's comments can't be kept, or what keep() says. */
 function harvestOne(root, record, pr) {
-  if (record.pr !== null && record.pr !== Number(pr)) return { why: `pr: ${record.pr} isn't #${pr}` };
+  if (record.pr != null && record.pr !== Number(pr)) return { why: `pr: ${record.pr} isn't #${pr}` };
   return keep(root, record);
 }
 

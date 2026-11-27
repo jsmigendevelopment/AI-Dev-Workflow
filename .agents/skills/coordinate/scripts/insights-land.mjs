@@ -2,8 +2,9 @@
 //   land [--repo <owner>/<name>]   lands every valid record file in the checkout that isn't on origin/main. gh's own
 //       open records pull request (a chore/insights- branch it opened in this repo) gets the missing files as one more
 //       commit, a fast-forward, and its number is printed. With none open, it pushes chore/insights-<day>-<hhmm> off
-//       origin/main with only those files, opens a pull request labelled no-issue and prints its number. Nothing
-//       pending: prints nothing and calls no API. It stages the files in the checkout, so the pull after the merge is
+//       origin/main with only those files, opens a pull request and prints its number. Either way the pull request
+//       gets the no-issue and size-exception labels and the "Size exception:" body line it lacks (#377's size rule).
+//       Nothing pending: prints nothing and calls no API. It stages the files in the checkout, so the pull after the merge is
 //       clean (decision 332-2).
 //   land --verify <pr> [--repo <owner>/<name>]   the review of a records-only pull request (decision 332-1): exit 0
 //       and the head sha only if gh's own login opened it from a chore/insights- branch of this repo (same repo id)
@@ -24,25 +25,30 @@ const RECORD_PATH = /^docs\/insights\/\d{4}-\d{2}-\d{2}\/[^/]+\.json$/;
 const CHORE = /^chore\/insights-\d{4}-\d{2}-\d{2}-\d{4}$/;
 const OPTS = { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
 
-/** git in root. Output is trimmed unless `raw`. */
-export const git = (root, args, { env = process.env, raw = false } = {}) => {
-  const out = execFileSync("git", args, { ...OPTS, cwd: root, env });
-  return raw ? out : out.trim();
+/** The labels and body line a records pull request carries: #377's size rule reads both. */
+const LABELS = ["no-issue", "size-exception"];
+const SIZE_LINE = "Size exception: insights records only, each checked by land --verify";
+
+/** git in root: trimmed text, or the raw bytes as a Buffer with `bytes`. */
+export const git = (root, args, { env = process.env, bytes = false } = {}) => {
+  const out = execFileSync("git", args, { ...OPTS, cwd: root, env, encoding: bytes ? "buffer" : "utf8" });
+  return bytes ? out : out.trim();
 };
 const warn = (message) => process.stderr.write(`insights: ${message}\n`);
 
 /** A record's file text, exactly as the writer and harvest write it. */
 export const canonical = (record) => `${JSON.stringify(record, null, 2)}\n`;
 
-/** Why the file at `path` (from the repo root) isn't a record exactly as the writer would write it, or null. */
-export function recordProblem(path, text) {
+/** Why the file at `path` (from the repo root) with these bytes isn't a record exactly as the writer writes it, or null. */
+export function recordProblem(path, bytes) {
   if (!RECORD_PATH.test(path)) return "not a record file in docs/insights/<yyyy-mm-dd>/";
-  if (Buffer.byteLength(text) > CAP) return `over ${CAP} bytes`;
+  if (bytes.length > CAP) return `over ${CAP} bytes`;
   let record;
-  try { record = JSON.parse(text); } catch { return "isn't JSON"; }
+  try { record = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); } catch { return "isn't UTF-8 JSON"; }
   const errors = validate(record);
   if (errors.length) return errors.join("; ");
-  if (text !== canonical(record)) return "not in the writer's exact bytes (2-space JSON, each key once, a final newline)";
+  // Bytes, not decoded text: a raw byte that isn't UTF-8 would decode to U+FFFD on both sides.
+  if (!Buffer.from(canonical(record)).equals(bytes)) return "not in the writer's exact bytes (2-space JSON, each key once, a final newline)";
   const id = /-([0-9a-f]{6})\.json$/.exec(path)?.[1] ?? "<id>";
   const want = `${dayFolder(record)}/${fileName(record, id)}`;
   return want === path ? null : `its name doesn't match the record: want ${dayFolder(record)}/${fileName(record, "<id>")}`;
@@ -83,7 +89,7 @@ function pending(root) {
       const path = `docs/insights/${day}/${name}`;
       const stat = lstatSync(join(root, path));
       if (onMain.has(path) || !stat.isFile()) continue;
-      const problem = stat.size > CAP ? `over ${CAP} bytes` : recordProblem(path, readFileSync(join(root, path), "utf8"));
+      const problem = stat.size > CAP ? `over ${CAP} bytes` : recordProblem(path, readFileSync(join(root, path)));
       if (problem) warn(`left out ${path}: ${problem}`);
       else files.push(path);
     }
@@ -122,9 +128,20 @@ function openNew(root, repo, files) {
   const body = [
     `Records only, from \`insights.mjs land\`: ${files.length} file(s) under docs/insights/. Its review is \`insights.mjs land --verify\` (decision 332-1).`,
     "",
+    SIZE_LINE,
+    "",
     ...files.map((f) => `- ${f}`),
   ].join("\n");
-  return JSON.parse(gh("-X", "POST", "-f", "title=Insights records (no issue)", "-f", `body=${body}`, "-f", `head=${branch}`, "-f", `base=${BASE}`, `repos/${repo}/pulls`)).number;
+  const pull = JSON.parse(gh("-X", "POST", "-f", "title=Insights records (no issue)", "-f", `body=${body}`, "-f", `head=${branch}`, "-f", `base=${BASE}`, `repos/${repo}/pulls`));
+  return { ...pull, body, labels: [] };
+}
+
+/** Puts back any of LABELS and the size line the pull request lacks. A failed write here is redone next sweep. */
+function mark(repo, pull) {
+  const missing = LABELS.filter((l) => !(pull.labels ?? []).some((x) => x?.name === l));
+  if (missing.length) gh("-X", "POST", ...missing.flatMap((l) => ["-f", `labels[]=${l}`]), `repos/${repo}/issues/${pull.number}/labels`);
+  const body = String(pull.body ?? "");
+  if (!body.includes(SIZE_LINE)) gh("-X", "PATCH", "-f", `body=${body.trimEnd()}\n\n${SIZE_LINE}\n`, `repos/${repo}/pulls/${pull.number}`);
 }
 
 function open(root, repo) {
@@ -134,11 +151,11 @@ function open(root, repo) {
   const mine = pages(`repos/${repo}/pulls?state=open&per_page=100`).filter((p) => !notRecordsPull(p, me)).sort((a, b) => a.number - b.number);
   for (const extra of mine.slice(1)) warn(`#${extra.number} is another open records pull request: close it and delete its branch`);
   if (mine.length) grow(root, mine[0], files);
-  const number = mine.length ? mine[0].number : openNew(root, repo, files);
+  const pull = mine.length ? mine[0] : openNew(root, repo, files);
   // Staged, an identical file the merge brings in doesn't stop `git pull --ff-only`; untracked, it would.
   git(root, ["add", "--", ...files]);
-  process.stdout.write(`${number}\n`);
-  if (!mine.length) gh("-X", "POST", "-f", "labels[]=no-issue", `repos/${repo}/issues/${number}/labels`);
+  process.stdout.write(`${pull.number}\n`);
+  mark(repo, pull);
 }
 
 /** Each changed file between origin/main and sha as [path, why it isn't an added record]. Empty: all good. */
@@ -155,7 +172,7 @@ function badFiles(root, sha) {
     else if (mode !== "100644") why = "not a plain file";
     // The size first: a big blob is refused, never read (a read over 1 MB would fail as an error, not a refusal).
     else if (Number(git(root, ["cat-file", "-s", blob])) > CAP) why = `over ${CAP} bytes`;
-    else why = recordProblem(path, git(root, ["cat-file", "blob", blob], { raw: true }));
+    else why = recordProblem(path, git(root, ["cat-file", "blob", blob], { bytes: true }));
     if (why) bad.push([path, why]);
   }
   return bad;

@@ -93,10 +93,13 @@ export function branch(seed, name, files, from = "origin/main", change = () => {
   return git(seed, "rev-parse", "HEAD");
 }
 
+/** The line the size rule (#377) reads in a records pull request's body. */
+export const SIZE_LINE = "Size exception: insights records only, each checked by land --verify";
+
 /** The pull request object gh returns: opened by `login`, head repo id `headId` (null: a deleted fork). */
-export function pullOf(n, ref, sha, { login = ME, headId = 1, headName = "acme/app" } = {}) {
+export function pullOf(n, ref, sha, { login = ME, headId = 1, headName = "acme/app", labels = [], body = "" } = {}) {
   return {
-    number: n, user: { login },
+    number: n, user: { login }, body, labels: labels.map((name) => ({ name })),
     head: { ref, sha, repo: headId === null ? null : { id: headId, full_name: headName } },
     base: { ref: "main", repo: { id: 1, full_name: "acme/app" } },
   };

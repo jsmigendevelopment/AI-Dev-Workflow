@@ -68,6 +68,20 @@ test("AC-332-4: --verify refuses a record of a kind named after an object method
   ]);
 });
 
+test("AC-332-4: --verify refuses a record whose kind is a list, and a raw byte that isn't UTF-8", unixOnly, () => {
+  // Each would pass as its kind's text: the review's fields, the job's, and a check with commands of any shape.
+  const kinds = [
+    { ...LATER, kind: ["review"] },
+    { ...record("job", { outcome: "pass" }), at: LATER.at, kind: [["job"]] },
+    { ...record("check", { commands: [1, null, { x: "y" }] }), at: LATER.at, kind: ["check"] },
+  ].map((r, i) => ({ why: `kind ${JSON.stringify(r.kind)}`, files: { [pathOf(r, `66666${i}`)]: json(r) }, names: pathOf(r, `66666${i}`) }));
+  // The writer's text holds U+FFFD where the file holds a raw 0xFF byte: equal as decoded text, not as bytes.
+  const odd = { ...LATER, model: "a�b" };
+  const [before, after] = json(odd).split("�");
+  const raw = Buffer.concat([Buffer.from(before), Buffer.from([0xff]), Buffer.from(after)]);
+  refuses([...kinds, { why: "a raw 0xFF byte", files: { [pathOf(odd, "777777")]: raw }, names: pathOf(odd, "777777") }]);
+});
+
 test("#332: --verify compares the repos by id, not by name, and refuses a fork or a deleted fork", unixOnly, () => {
   const { dir, seed } = setup();
   const ref = "chore/insights-2026-11-27-1600";
