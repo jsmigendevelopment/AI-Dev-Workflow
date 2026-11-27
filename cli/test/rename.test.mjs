@@ -2,7 +2,7 @@
 // read as fallbacks, and nothing is moved or deleted without a yes.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runChecks } from "../src/checks.mjs";

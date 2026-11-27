@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { doctor } from "../src/doctor.mjs";
 import { init } from "../src/init.mjs";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

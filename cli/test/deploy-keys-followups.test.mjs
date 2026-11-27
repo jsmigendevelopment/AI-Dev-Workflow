@@ -2,7 +2,7 @@
 // on a nested docs/stack.md. The fakes in secrets-fakes.mjs log every call; no real tool runs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "./child.mjs";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { safeEnv, tmp } from "./helpers.mjs";

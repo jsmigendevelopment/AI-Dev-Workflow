@@ -2,7 +2,7 @@
 // from the four merges below, not by running the script.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { fileURLToPath } from "node:url";
 import { flow, median, percentile, report } from "../../.agents/skills/coordinate/scripts/flow.mjs";
 import { put, safeEnv, tmp } from "./helpers.mjs";

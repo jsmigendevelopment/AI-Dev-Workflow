@@ -1,6 +1,6 @@
 // Fakes for the push-secrets, setup-github and connect tests: a repo whose docs/stack.md says
 // `ci`, fake `gh`, `npx` and `wrangler` on PATH that log every call, and test and production values.
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "./child.mjs";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

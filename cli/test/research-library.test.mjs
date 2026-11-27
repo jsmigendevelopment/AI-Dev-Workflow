@@ -1,7 +1,7 @@
 // Tests for scripts/research-library.mjs (the master copy) and `research-library init`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { chmodSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

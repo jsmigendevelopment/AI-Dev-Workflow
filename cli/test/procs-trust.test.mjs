@@ -2,7 +2,7 @@
 // .onrails, the index in ~/.onrails, and how far ~/.onrails may be shared. They run on the fake machine in procs-fake.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import fs, { chmodSync, chownSync, mkdirSync, renameSync, symlinkSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { join } from "node:path";

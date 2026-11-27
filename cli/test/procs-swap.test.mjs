@@ -2,7 +2,7 @@
 // read use one open file, in the survey and in update. They run on the fake machine in procs-fake.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "./child.mjs";
 import { once } from "node:events";
 import { chmodSync, chownSync, lstatSync, mkdirSync, readFileSync, renameSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

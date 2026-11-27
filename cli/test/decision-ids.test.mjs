@@ -16,7 +16,7 @@ const DIR = "docs/decisions";
 // LAST_TABLE_ROW, so a row appended anywhere fails, and the failure says where the decision goes instead (decision 165-1).
 // LAST_TABLE_ROW is main's last row when #165 merged. Never raise it to let a new row in.
 const END = "<!-- decisions-table-end -->";
-const LAST_TABLE_ROW = 117;
+const LAST_TABLE_ROW = 118;
 const MOVE = "No new table rows after #165: record it as `docs/decisions/<issue>-<n>.md` and cite it as `decision <issue>-<n>`.";
 const FILE_ID = /^\d+-\d+$/;
 const ROW = /^\| (\S+) \| \d{4}-\d\d-\d\d \|/gm;

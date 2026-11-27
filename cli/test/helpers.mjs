@@ -1,6 +1,6 @@
 // Test helpers: temp folders, captured output, small fake kits for update tests, and a safe PATH for every child.
 // First, so this file's process has the safe PATH before anything else loads (#191, #197).
-import { PATH_KEY, checkPath, fakes, ownNode, safePath } from "./safe-path-preload.mjs";
+import { PATH_KEY, checkPath, fakes, ownNode, removeOwnNode, safePath } from "./safe-path-preload.mjs";
 import { after, beforeEach } from "node:test";
 import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,13 +19,16 @@ const removeMade = () => {
 // Registered when a test file first imports this file, so it runs before that file's own root after() hooks (#180).
 after(removeMade);
 // A file that throws while it loads ends with no after() hook and no exit event, so the throw's monitor removes what
-// tmp() made by then. Once a test starts, a throw fails only the test it hits, so the folders stay (#180).
+// tmp() made by then (#180), and the copy of node this process made when run alone, not under `npm test` (#229).
+// Once a test starts, a throw fails only the test it hits, so the folders and the copy stay.
 let loading = true;
 beforeEach(() => {
   loading = false;
 });
 process.on("uncaughtExceptionMonitor", () => {
-  if (loading) removeMade();
+  if (!loading) return;
+  removeMade();
+  removeOwnNode();
 });
 
 /** A new empty temp folder, removed when the test file ends. */

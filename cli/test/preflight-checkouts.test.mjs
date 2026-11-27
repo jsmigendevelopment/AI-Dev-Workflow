@@ -72,7 +72,7 @@ test("AC-182-2: WHEN TMPDIR is inside the main checkout and preflight runs in a 
   const { main, tree } = repoWithTree(mark);
   const was = process.env.TMPDIR;
   process.env.TMPDIR = join(main, "tmp");
-  mkdirSync(process.env.TMPDIR);
+  mkdirSync(join(main, "tmp"));
   let temps;
   try {
     temps = tempFolders(tree, "linux");
