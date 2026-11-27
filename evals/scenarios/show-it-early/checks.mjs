@@ -10,13 +10,13 @@ const LINK = /(localhost|127\.0\.0\.1):3000/;
 // A file written into .github/workflows: a redirect, tee or cp aimed there. Reads (`ls ... 2>/dev/null`) and mkdir don't count.
 const WORKFLOW_WRITE = />>?\s*["']?\S*\.github\/workflows\/|\btee\s+(-a\s+)?["']?\S*\.github\/workflows\/|\bcp\b[^\n;&|]*\s["']?\S*\.github\/workflows\/?\S*(?=\s*($|[;&|]))/;
 // The local checks set up: `ci = "local"` (either quote) written to docs/stack.md, by a Write, an Edit or a shell
-// command that writes the file: a redirect, tee, sed -i or --in-place, or perl -pi aimed there. A read that names both,
+// command that writes the file: a redirect, tee, sed -i (or -Ei, -ri) or --in-place, or perl -pi aimed there. A read that names both,
 // such as a grep, doesn't count, and nor does another file whose name starts docs/stack.md (a .bak copy).
 const LOCAL_LINE = /ci\s*=\s*["']local["']/;
 const STACK = /(^|\/)docs\/stack\.md$/;
 const STACK_PATH = String.raw`docs\/stack\.md(?=["'\s;&|)]|$)`;
 const STACK_WRITE = new RegExp(
-  String.raw`>>?\s*["']?\S*${STACK_PATH}|\btee\s+(-a\s+)?["']?\S*${STACK_PATH}|\bsed\b[^\n;&|]*\s(-i|--in-place)[^\n;&|]*${STACK_PATH}|\bperl\b[^\n;&|]*\s-\w*i[^\n;&|]*${STACK_PATH}`,
+  String.raw`>>?\s*["']?\S*${STACK_PATH}|\btee\s+(-a\s+)?["']?\S*${STACK_PATH}|\bsed\b[^\n;&|]*\s(-\w*i|--in-place)[^\n;&|]*${STACK_PATH}|\bperl\b[^\n;&|]*\s-\w*i[^\n;&|]*${STACK_PATH}`,
 );
 
 /** What happened, in order: "dev" (the server started), "link" (said to the person), "local" (ci = "local" written), "workflow" (a workflow file written). Errored calls don't count. */
