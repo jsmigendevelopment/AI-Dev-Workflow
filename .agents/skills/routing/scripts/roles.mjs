@@ -28,26 +28,38 @@ function stringValue(raw) {
   if (!basic) return null;
   let bad = false;
   const value = basic[1].replace(/\\(u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.)/g, (_, c) => {
-    if (c.length > 1) return String.fromCodePoint(parseInt(c.slice(1), 16));
-    if (c in ESCAPES) return ESCAPES[c];
+    if (c.length > 1) {
+      // TOML allows only Unicode scalar values: nothing above U+10FFFF, no surrogates.
+      const point = parseInt(c.slice(1), 16);
+      if (point <= 0x10ffff && (point < 0xd800 || point > 0xdfff)) return String.fromCodePoint(point);
+    } else if (c in ESCAPES) return ESCAPES[c];
     bad = true;
     return "";
   });
   return bad ? null : value;
 }
 
-/** The keys of a profile's [routing] table: key -> its string, or null when the key is there but its value can't be read. */
+// A value with a control character would break the one-line-per-role output, so it can't be used.
+const usable = (value) => (value === null || /[\u0000-\u001f\u007f]/.test(value) ? null : value);
+const normalEffort = (value) => (value.toLowerCase() === "xhigh" ? "extra-high" : value.toLowerCase());
+
+/**
+ * A profile's [routing] table. keys: key -> its string, or null when the key is there but its value can't be read.
+ * misplaced: routing was set before any table, as an inline table or a dotted key, which this reader skips.
+ */
 export function readRouting(toml) {
   const keys = new Map();
-  let inside = false;
+  let table = null;
+  let misplaced = false;
   for (const line of toml.split(/\r?\n/)) {
-    if (/^\s*\[/.test(line)) { inside = HEADER.test(line); continue; }
-    const pair = inside && PAIR.exec(line);
+    if (/^\s*\[/.test(line)) { table = HEADER.test(line) ? "routing" : "other"; continue; }
+    if (table === null && /^\s*(?:routing|"routing"|'routing')\s*[.=]/.test(line)) misplaced = true;
+    const pair = table === "routing" && PAIR.exec(line);
     if (!pair) continue;
     const key = pair[1] ?? pair[2] ?? pair[3];
-    if (!keys.has(key)) keys.set(key, stringValue(pair[4].trim()));
+    if (!keys.has(key)) keys.set(key, usable(stringValue(pair[4].trim())));
   }
-  return keys;
+  return { keys, misplaced };
 }
 
 /**
@@ -55,7 +67,16 @@ export function readRouting(toml) {
  * readable value wins. warn gets one line per key that is set but can't be used.
  */
 export function resolveRoles(profiles, warn = () => {}) {
-  const tables = profiles.map(({ label, text }) => ({ label, keys: readRouting(text) }));
+  const tables = profiles.map(({ label, text }) => {
+    try {
+      const { keys, misplaced } = readRouting(text);
+      if (misplaced) warn(`roles.mjs: ${label} sets routing as an inline table or a dotted key; write it under [routing]. Skipped.`);
+      return { label, keys };
+    } catch (error) {
+      warn(`roles.mjs: could not read ${label}: ${error.message}; using the next profile or the default.`);
+      return { label, keys: new Map() };
+    }
+  });
   return Object.fromEntries(Object.entries(DEFAULTS).map(([role, fallback]) => {
     const notes = [];
     const pick = (key, valid = () => true) => {
@@ -66,17 +87,17 @@ export function resolveRoles(profiles, warn = () => {}) {
         if (value !== undefined && valid(value)) return { value, from: label };
         warn(value === undefined
           ? `roles.mjs: could not read ${key} in ${label}: write it as ${key} = "..."; using the next profile or the default.`
-          : `roles.mjs: ${key} = "${value}" in ${label} isn't ${EFFORTS.join(", ")}; using the next profile or the default.`);
+          : `roles.mjs: ${key} = "${value}" in ${label} isn't low, medium, high or extra-high (xhigh); using the next profile or the default.`);
         notes.push(`could not read ${key} in ${label}`);
       }
       return null;
     };
     const model = pick(role);
-    const effort = pick(`${role}_effort`, (v) => EFFORTS.includes(v.toLowerCase()));
+    const effort = pick(`${role}_effort`, (v) => EFFORTS.includes(normalEffort(v)));
     const from = [...new Set([model?.from, effort?.from].filter(Boolean))].join(", ") || "default";
     return [role, {
       model: model?.value ?? fallback.model,
-      effort: effort?.value.toLowerCase() ?? fallback.effort,
+      effort: effort ? normalEffort(effort.value) : fallback.effort,
       from: [from, ...notes].join("; "),
     }];
   }));
@@ -127,4 +148,12 @@ function main(argv) {
   return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    process.exitCode = main(process.argv.slice(2));
+  } catch (error) {
+    // Nothing a profile holds should end in a stack trace: one line, then a failing exit.
+    console.error(`roles.mjs: ${error.message}`);
+    process.exitCode = 1;
+  }
+}

@@ -83,11 +83,11 @@ ask_before_strongest = true     # ask before starting anything on the strongest 
 # Who plays each role. These lines are read (the routing skill's scripts/roles.mjs), and a value here
 # wins over the kit's default. Empty: the default. "No Fable"? cto = "Claude Opus 5.5"
 cto = ""                        # default "Claude Fable 5.2": research, the pyramid, writing the issues
-cto_effort = ""                 # default "high"
+cto_effort = ""                 # default "high". One of low, medium, high or extra-high (xhigh)
 coordinator = ""                # default "Claude Opus 5.5": the loop, reviews, merges
-coordinator_effort = ""         # default "medium"
+coordinator_effort = ""         # default "medium". One of low, medium, high or extra-high (xhigh)
 builder = ""                    # default "Claude Sonnet 5.5": builds most issues
-builder_effort = ""             # default "medium"
+builder_effort = ""             # default "medium". One of low, medium, high or extra-high (xhigh)
 
 [research]
 # A private repo that every deep research is captured to, across projects (the research skill).

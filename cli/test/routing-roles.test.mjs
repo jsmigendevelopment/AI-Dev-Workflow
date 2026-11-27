@@ -239,6 +239,70 @@ test("AC-379-1: WHEN routing is read THEN the security review stays one step abo
   assert.match(section(read("guide/cheat-sheet.md"), "🧠 Model routing"), /\| 🛡️ Security review[^\n]*\| Opus 5\.5 high \+ ChatGPT \|/);
 });
 
+// Fix round 2 (review of PR #403).
+test("AC-379-2: WHEN the home profile has an escape outside Unicode THEN the script warns, and the project's profile still wins", () => {
+  const dir = tmp("onrails-routing-");
+  const home = tmp("onrails-home-");
+  put(dir, "docs/profile.toml", '[routing]\ncto = "Claude Opus 5.5"\n');
+  put(home, ".onrails/profile.toml", '[routing]\nstrongest = "\\U00110000"\nbuilder = "\\uD800"\n');
+  const run = runScript(dir, home);
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /^cto: Claude Opus 5\.5 · high \(docs\/profile\.toml\)$/m);
+  assert.match(run.stdout, /^builder: Claude Sonnet 5\.5 · medium \(default; could not read builder in ~\/\.onrails\/profile\.toml\)$/m);
+  assert.match(run.stderr, /^[^\n]*\bbuilder\b[^\n]*~\/\.onrails\/profile\.toml[^\n]*\n$/, "one warning, for the role key");
+});
+
+test("AC-379-2: WHEN a value escapes above U+10FFFF or to a surrogate THEN it warns once and keeps the default", async () => {
+  const { resolveRoles } = await roles();
+  for (const escape of ["\\U00110000", "\\uDFFF"]) {
+    const warnings = [];
+    const got = resolveRoles([{ label: "docs/profile.toml", text: `[routing]\ncto = "${escape}"\n` }], (w) => warnings.push(w));
+    assert.equal(got.cto.model, "Claude Fable 5.2", escape);
+    assert.equal(got.cto.from, "default; could not read cto in docs/profile.toml", escape);
+    assert.equal(warnings.length, 1, escape);
+  }
+});
+
+test("AC-379-2: WHEN routing is set as an inline table or a dotted key THEN it warns to write it under [routing]", async () => {
+  const { resolveRoles } = await roles();
+  for (const text of ['routing = { cto = "Claude Opus 5.5" }\n', 'routing.cto = "Claude Opus 5.5"\n']) {
+    const warnings = [];
+    const got = resolveRoles([{ label: "docs/profile.toml", text }], (w) => warnings.push(w));
+    assert.equal(got.cto.model, "Claude Fable 5.2", text);
+    assert.equal(warnings.length, 1, text);
+    assert.match(warnings[0], /docs\/profile\.toml[^\n]*write it under \[routing\]/, text);
+  }
+});
+
+test("AC-379-2: WHEN a value has a control character THEN it can't be read, so the output stays one line per role", async () => {
+  const { resolveRoles } = await roles();
+  const warnings = [];
+  const got = resolveRoles([{ label: "docs/profile.toml", text: '[routing]\ncto = "A\\nB"\nbuilder = "C\\u0007"\n' }], (w) => warnings.push(w));
+  assert.equal(got.cto.model, "Claude Fable 5.2");
+  assert.equal(got.builder.model, "Claude Sonnet 5.5");
+  assert.equal(warnings.length, 2);
+});
+
+test("AC-379-2: WHEN an effort says xhigh THEN it reads as extra-high, and the template lists the words", async () => {
+  const { resolveRoles } = await roles();
+  const got = resolveRoles([{ label: "docs/profile.toml", text: '[routing]\ncto_effort = "XHigh"\n' }]);
+  assert.equal(got.cto.effort, "extra-high");
+  assert.equal(got.cto.from, "docs/profile.toml");
+  const routing = read(".agents/skills/idea/templates/profile.toml").split("[routing]")[1].split("\n[")[0];
+  for (const key of ["cto_effort", "coordinator_effort", "builder_effort"]) {
+    assert.match(routing, new RegExp(`^${key} = ""[^\\n]*low, medium, high or extra-high \\(xhigh\\)`, "m"), key);
+  }
+});
+
+test("AC-379-1: WHEN the review cap meets the escalation THEN a step left is taken, never the next tier, and the README says the effort is the base", () => {
+  const escalation = section(read(".agents/skills/routing/SKILL.md"), "Escalation");
+  assert.match(escalation, /with a step left, the extra round takes that step, never the next tier; with none left, go straight to the split \(#406\)/);
+  const decision = read("docs/decisions/379-1.md");
+  assert.match(decision, /with a step left, the extra round takes that step, never the next tier; with none left, the issue goes straight to the split/);
+  assert.match(decision, /\(5\)(?:(?!\(6\)).)*follow-up #402/, "point 5 names #402");
+  assert.match(section(read("README.md"), "🧠 Model routing"), /A role's effort is the base[^\n]*one step above code review/);
+});
+
 test("AC-379-1: WHEN decision 379-1 is read THEN it names the review-cap follow-up and the security review pick", () => {
   const decision = read("docs/decisions/379-1.md");
   assert.match(decision, /review cap[^\n]*#406/);

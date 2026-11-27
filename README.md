@@ -331,6 +331,8 @@ Three roles do most of the work:
 | **Coordinator** | Opus 5.5 · medium | Runs the loop, gates, reviews, security reviews and merges |
 | **Builder** | Sonnet 5.5 · medium | Builds most issues. Risky changes and big slices start on Opus. Codex (ChatGPT) is an option outside security work. |
 
+A role's effort is the base. A job's own rule can raise it: a code review never runs below the builder, and a security review runs one step above code review.
+
 **Your profile wins.** Set `cto`, `coordinator` or `builder` in `[routing]`. A person who says "no Fable" sets `cto = "Claude Opus 5.5"` and gets the CTO on Opus.
 
 | Job | Tier · effort | Example model |
