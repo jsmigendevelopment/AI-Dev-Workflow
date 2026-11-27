@@ -19,7 +19,7 @@ import { randomBytes } from "node:crypto";
 import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
-import { above, aclProblem, forgetAcls, linkOnWay, pathProblem, readAcls, winAboveProblem } from "./procs-path.mjs";
+import { above, aclProblem, forgetAcls, linkOnWay, macProblem, pathProblem, readAcls, winAboveProblem } from "./procs-path.mjs";
 
 const readText = (p) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
 const IGNORE = "*\n";
@@ -88,6 +88,8 @@ function folderProblem(sys, dir, shared = false) {
   if (k === "missing") return null;
   if (k !== "dir") return `${dir} is a symlink or not a folder`;
   if (sys.platform !== "win32" && realpathSync(dir) !== join(realpathSync(dirname(dir)), basename(dir))) return `${dir} isn't the folder its name says`;
+  const acl = macProblem(sys, dir);
+  if (acl) return acl;
   if (!shared) return ownerProblem(sys, lstatSync(dir), dir, "700");
   const s = lstatSync(dir), why = ownerProblem(sys, s, dir, "o-w", 0o002);
   if (why || sys.platform === "win32" || !(s.mode & 0o020) || sys.acl?.(dir) === false) return why;
@@ -151,10 +153,10 @@ function gitProblem(sys, path) {
 const holderProblem = (sys, holder, home) => (sys.platform !== "win32" ? pathProblem(sys, holder, home, groupProblem)
   : home ? aclProblem(sys, holder, true) : winAboveProblem(sys, holder));
 
-// Every path whose ACL a registry's checks read on Windows, so one PowerShell start answers them all (#248).
+// Every path whose ACL a registry's checks read on Windows or macOS, so one reader start answers them all (#248, #249).
 function aclPaths(sys, path) {
   const dir = dirname(path), holder = dirname(dir), home = path === homeRegistry(sys);
-  return [...(home ? [] : above(holder)), holder, dir, join(dir, "logs"), path, ...(home ? [indexPath(sys)] : [])];
+  return [...(home && sys.platform === "win32" ? [] : above(holder)), holder, dir, join(dir, "logs"), path, ...(home ? [indexPath(sys)] : [])];
 }
 
 // Opens a file once, checks what was opened (a regular file of this user's that nobody else can write, and not
@@ -196,7 +198,7 @@ export const localRegistry = (p, { isAbsolute: abs, resolve: res, sep: s } = { i
 
 function candidates(sys, dir) {
   const here = [registryPath(sys, dir), homeRegistry(sys)];
-  if (sys.platform === "win32") readAcls(sys, [homeRegistry(sys), ...here, ...peek(sys)].flatMap((p) => aclPaths(sys, p)));
+  if (["win32", "darwin"].includes(sys.platform)) readAcls(sys, [homeRegistry(sys), ...here, ...peek(sys)].flatMap((p) => aclPaths(sys, p)));
   return [...new Set([...here, ...readIndex(sys).list])].filter((p) => existsSync(p));
 }
 

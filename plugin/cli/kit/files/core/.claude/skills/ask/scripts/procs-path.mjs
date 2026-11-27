@@ -75,7 +75,8 @@ export function pathProblem(sys, holder, home, group) {
   if (walk.why) return walk.why;
   const real = walk.path.at(-1);
   for (const dir of walk.path) {
-    const why = fsProblem(sys, dir, home) ?? (dir !== real ? aboveProblem(sys, dir, holder, group, home) : home ? homeProblem(sys, real, group) : null);
+    const why = fsProblem(sys, dir, home) ?? macProblem(sys, dir, home)
+      ?? (dir !== real ? aboveProblem(sys, dir, holder, group, home) : home ? homeProblem(sys, real, group) : null);
     if (why) return why;
   }
   return null;
@@ -99,22 +100,66 @@ function homeProblem(sys, home, group) {
   return group(sys, s, home, `the group can write the home folder ${home}`);
 }
 
-// Windows: each path's ACL once per command, read in batches by sys.winAcls, one PowerShell start each (#248).
+// Each path's ACL once per command, read in batches: on Windows by sys.winAcls, one PowerShell start each (#248); on
+// macOS by sys.macAcls, one ls start each (#249).
 const acls = new WeakMap();
+const reader = (sys) => (sys.platform === "win32" ? sys.winAcls : sys.platform === "darwin" ? sys.macAcls : null);
 /** Forgets the ACLs read so far, so the next check asks again. */
-export const forgetAcls = (sys) => { if (sys.winAcls) acls.delete(sys.winAcls); };
+export const forgetAcls = (sys) => { if (reader(sys)) acls.delete(reader(sys)); };
 
-/** Reads, in one PowerShell start, the ACL of each path that is there and wasn't read yet in this command. */
+/** Reads, in one start of the platform's reader, the ACL of each path that is there and wasn't read yet in this command. */
 export function readAcls(sys, paths) {
-  if (sys.platform !== "win32" || !sys.winAcls) return;
-  const memo = acls.get(sys.winAcls) ?? new Map();
-  acls.set(sys.winAcls, memo);
+  const read = reader(sys);
+  if (!read) return;
+  const memo = acls.get(read) ?? new Map();
+  acls.set(read, memo);
   const todo = [...new Set(paths)].filter((p) => !memo.has(p) && existsSync(p));
   if (!todo.length) return;
-  const got = sys.winAcls(todo);
+  const got = read(todo);
   for (const p of todo) memo.set(p, got?.get(p) ?? null);
 }
 const winAcl = (sys, path) => { readAcls(sys, [path]); return acls.get(sys.winAcls)?.get(path) ?? null; };
+
+// What a macOS ACL entry may allow that lets its account put another folder in place of one that is there: write in
+// it, add to it, remove from it, remove it, or change its ACL or owner (#249).
+const MAC_WRITE = new Set(["write", "add_file", "append", "add_subdirectory", "delete_child", "delete", "writesecurity", "chown"]);
+const MAC_MODE = /^[-a-zA-Z][-rwxsStT]{9}[+@.]? /;
+const MAC_ENTRY = /^ (\d+): (\S+?)( inherited)? (allow|deny) (\S+)$/;
+
+/**
+ * The output of `ls -lde -- paths...` on macOS: a Map of each path to the accounts its allow entries let write it
+ * (me, this user's own name, and root left out), or null when its block is missing or holds a line this reader
+ * doesn't know: "can't tell", never "no ACL" (#249). A deny grants nothing. A path with a newline can't be told.
+ */
+export function macAclText(text, paths, me) {
+  const got = new Map();
+  if (typeof text !== "string") return got;
+  const want = paths.filter((p) => !p.includes("\n"));
+  let at = null;
+  for (const line of text.split("\n")) {
+    if (!line) continue;
+    const head = MAC_MODE.test(line) && want.find((p) => line.endsWith(` ${p}`) && !got.has(p));
+    if (head) { at = head; got.set(at, []); continue; }
+    const m = MAC_ENTRY.exec(line);
+    if (!at || got.get(at) === null) { if (at) continue; return new Map(); }
+    if (!m) { got.set(at, null); continue; }
+    const [, n, who, , kind, perms] = m;
+    const self = who === `user:${me}` || who === "user:root";
+    if (kind === "allow" && !self && perms.split(",").some((x) => MAC_WRITE.has(x))) got.get(at).push(`${who} (entry ${n})`);
+  }
+  return got;
+}
+
+/** On macOS, why dir's ACL lets another account write it, or can't be read, or null (#249). Elsewhere null. */
+export function macProblem(sys, dir, home = false) {
+  if (sys.platform !== "darwin") return null;
+  readAcls(sys, [dir]);
+  const writers = acls.get(sys.macAcls)?.get(dir), off = home ? HOME_OFF : "use a repo in folders only you can write";
+  if (!Array.isArray(writers)) return `the ACL of ${dir} can't be read, so who else can write it can't be told: ${off}`;
+  if (!writers.length) return null;
+  const n = writers[0].match(/entry (\d+)/)[1];
+  return `an ACL entry lets another account write ${dir} (${writers.join(", ")}): run chmod -a# ${n} ${dir}, once for each such entry`;
+}
 
 /**
  * Whether a link (a symlink, or on Windows a junction: both a reparse point) is on the way to path, from the root down,

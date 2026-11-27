@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- On macOS, the process registry reads the extended ACL of every folder on its path in one `ls -lde` start, and refuses a folder whose ACL lets another account write it, or whose ACL can't be read; `list`, `ps`, session start and `doctor` name it with the `chmod -a#` that fixes it (#249).
 - **Full never parks, follow-up (#210).** `ask`'s level table and the cheat sheet make the review cap a ⏳ decision only below Full, and `coordinate` step 5's stuck line points Full to `afk`'s stuck-builder rule. A `needs-human` claim is parked, not stale; a migration's forward fix is a fix round; another `diagnose` round stays on the last one's tier; `afk`'s red-main line matches step 7. A text test checks it.
 - The agent-file guard also protects `.lighthouserc.*`, `.semgrep.yaml` and `tsconfig*.jsonc`, and the README, the existing-app guide and `pr-review` say it covers check files, not only agent rules (#216).
 - **The "no approvals on Full" scan catches "ask the person to <any verb>" (#211).** Also "ask what to do", "stop and ask" and "ask first" mid-sentence, and it no longer flags "What to ask first." or "We ask first.". The lines it found say what happens on Full, or are named exceptions for paying, logins and the always-stop list.
