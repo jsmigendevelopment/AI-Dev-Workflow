@@ -60,7 +60,7 @@ function readRecords(root, start, end) {
     const inWeek = Date.parse(`${day}T00:00:00Z`) >= start && Date.parse(`${day}T00:00:00Z`) < end;
     for (const name of readdirSync(join(base, day)).filter((n) => n.endsWith(".json"))) {
       let record;
-      try { record = JSON.parse(readFileSync(join(base, day, name), "utf8")); } catch { record = null; }
+      try { record = JSON.parse(readFileSync(join(base, day, name), "utf8")); } catch { record = null; } // not JSON: skipped
       if (record && validate(record).length === 0) records.push(record);
       else if (inWeek) skipped += 1;
     }
