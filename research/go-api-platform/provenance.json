@@ -36,6 +36,18 @@
       "brief": "briefs/fact-check.md",
       "disposition": "fact-check.csv",
       "notes": "Not a fresh session: the coordinator said none could be started for this job, so the author's session re-fetched every source named in claims.csv after the dossier was written and checked each claim. Same model as the author. 22 findings: 11 fixed, 1 disputed, 10 accepted."
+    },
+    {
+      "role": "fact-check",
+      "requested": { "model": "claude-opus-5-5", "effort": "unknown" },
+      "model": "claude-opus-5-5",
+      "effort": "unknown",
+      "harness": "Claude Code (version not shown to the session), cloud session, a fresh subagent started by the coordinator for this check alone; a separate session from the author's",
+      "started": "2026-11-27",
+      "finished": "2026-11-27",
+      "brief": "briefs/fact-check-2.md",
+      "disposition": "fact-check.csv",
+      "notes": "The fresh-session fact-check issue #340's AC-340-3 asks for. It never saw the author's thread: it read only the dossier, its store and issue #340, not the pull request text or the author's comments. It re-opened the sources behind every pick itself and looked for a counter-source per pick. Its rows in fact-check.csv start with 'Fresh session'. The coordinator asked for Opus (the owner allows no other model) and named no effort; the session shows no effort level, so both effort fields are unknown. Same model as the author, for the same reason. Its brief was committed with its results, because the session had no earlier commit. 18 findings: 14 fixed, 4 accepted. One pick changed: the grill question went from seven signs to six."
     }
   ]
 }

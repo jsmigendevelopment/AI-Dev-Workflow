@@ -101,3 +101,17 @@ s99,"Attempt: GitHub release pages over curl and the GitHub REST API for 14 Go p
 s100,"Attempt: Fly deploy docs page (HTTP 404); s24 read instead",https://docs.fly.io/deploy,2026-11-27,skimmed
 s101,"Attempt: Hetzner Cloud overview over curl, searched for plan names; none in the static HTML; s40 and s41 read instead",https://www.hetzner.com/cloud/,2026-11-27,skimmed
 s102,"sqlc: Database and language support (sqlc docs, no date read; opened during the fact-check)",https://docs.sqlc.dev/en/latest/reference/language-support.html,2026-11-27,full
+s103,"Containers: Pricing at its new path; s3 now redirects here (Cloudflare docs, dateModified 2026-11-13; opened by the fresh-session fact-check)",https://developers.cloudflare.com/containers/platform/pricing/,2026-11-27,full
+s104,"Containers: Limits and instance types at its new path; s4 now redirects here (Cloudflare docs, dateModified 2026-11-12; fresh-session fact-check)",https://developers.cloudflare.com/containers/platform/limits/,2026-11-27,skimmed
+s105,"Containers: FAQ at its new path; s10 now redirects here (Cloudflare docs, dateModified 2026-11-24; fresh-session fact-check)",https://developers.cloudflare.com/containers/faq/,2026-11-27,full
+s106,"Containers: Durable Object Container API; s13 now redirects here (Cloudflare docs, dateModified 2026-11-24; fresh-session fact-check)",https://developers.cloudflare.com/containers/api/durable-object-container/,2026-11-27,skimmed
+s107,"Containers: Deploy guide at its new path; s14 now redirects here (Cloudflare docs, dateModified 2026-09-22; fresh-session fact-check)",https://developers.cloudflare.com/containers/guides/deploy/,2026-11-27,full
+s108,"Workers: connect() handler, inbound TCP (Cloudflare docs, no date read; fresh-session fact-check)",https://developers.cloudflare.com/workers/runtime-apis/handlers/connect/,2026-11-27,skimmed
+s109,"Fly.io: Free Plan; s21 now redirects here (Fly docs, no date on the page; fresh-session fact-check)",https://docs.fly.io/about/free-plan,2026-11-27,full
+s110,"Fly.io: fly deploy command reference (Fly docs, no date on the page; fresh-session fact-check)",https://docs.fly.io/flyctl/cmd/fly_deploy,2026-11-27,skimmed
+s111,"superfly/fly-pr-review-apps entrypoint.sh, the script behind Fly's review-apps Action (raw GitHub file, main branch; fresh-session fact-check)",https://raw.githubusercontent.com/superfly/fly-pr-review-apps/main/entrypoint.sh,2026-11-27,full
+s112,"Fly.io: fly apps create command reference (Fly docs, no date on the page; fresh-session fact-check)",https://docs.fly.io/flyctl/cmd/fly_apps_create,2026-11-27,skimmed
+s113,"Cloud Run: Configure environment variables for services (Google Cloud docs, no date read; fresh-session fact-check)",https://docs.cloud.google.com/run/docs/configuring/services/environment-variables,2026-11-27,skimmed
+s114,"Neon: Regions (Neon docs, no date read; fresh-session fact-check)",https://neon.com/docs/introduction/regions,2026-11-27,skimmed
+s115,"Sqlc: 2024 check in (brandur.org, an engineer's blog, 2024-06-16; fresh-session fact-check, found through s116)",https://brandur.org/fragments/sqlc-2024,2026-11-27,skimmed
+s116,"Search: sqlc limitations dynamic queries (found s115; results say the sqlc discussion on dynamic queries is still open)",web search,2026-11-27,skimmed

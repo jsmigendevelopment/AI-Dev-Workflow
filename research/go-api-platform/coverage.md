@@ -4,6 +4,8 @@ Options down the side, the questions across the top. Each cell names claims in `
 
 After the fact-check, read a corrected claim in place of the one it corrects: c101 for c6, c102 for c25, c103 for c14, c106 for c80, c107 for c83's databases, c108 for c89. New findings from the fact-check: c104 (Cloud Run free tier needs a billing account), c105 (Hetzner CPX02 unavailable), c109 (Clerk's Go SDK needs the secret key).
 
+After the fresh-session fact-check: c110 refines c3 (CPU against wall time), c111 refines c101 (a seventh connection waits in line), c121 corrects c91 (401 against 403, `azp` opt-in), c122 refines c66 (per user or token). New: c112 (runtime updates cut connections), c113 (Fly Free plan caps and billing), c114 (Fly builds remotely), c115 (Fly previews from the CLI), c116 (Google trial closes after 90 days), c117 (Artifact Registry and Cloud Build free tiers), c118 (Cloud Run variables per revision), c119 (Neon on AWS only), c120 (sqlc and dynamic queries), c123 (Neon wake-up time).
+
 ## 1. When an app outgrows Workers
 
 | Option | CPU and wall time | Memory | Languages and binaries | Requests and connections | Background work | Long-lived connections |
