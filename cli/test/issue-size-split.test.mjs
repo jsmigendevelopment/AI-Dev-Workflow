@@ -132,6 +132,28 @@ test("AC-400-1: WHEN an exception's reason is a placeholder of more than one wor
   }
 });
 
+test("AC-400-1: WHEN a split reason has a 'too' or 'hard' in an earlier clause, or splits in other words, THEN it still fails as both", () => {
+  const both = "#10 Parent: the Size: line states both an exception and a split. Keep one.";
+  const children = [issue(12, "300 lines"), issue(13, "300 lines")];
+  for (const reason of ["too big, split into child issues", "too large; split into 12 and 13",
+    "2,400 lines is too big for one PR, split into child issues", "hard to review in one go, so split into child issues",
+    "splitting into child issues", "broken into two child issues", "Split.", "not split yet, children 12 and 13"]) {
+    const parent = { ...issue(10, `exception: ${reason}`, "Parent"), labels: ["status:ready"] };
+    assert.deepEqual(checkSizes([parent, ...children]), [both], reason);
+  }
+  for (const reason of ["can't be split into parts: one generated client", "too risky to split up", "no way to split a rename",
+    "a codegen run, so it can't be broken into parts"]) {
+    assert.deepEqual(checkSizes([issue(5, `exception: ${reason}`)]), [], reason);
+  }
+});
+
+test("AC-400-1: WHEN a reason is a placeholder like nothing, TBC or later THEN the check fails it as no reason", () => {
+  for (const reason of ["nothing", "no reason yet", "TBC", "to be decided", "unknown yet", "later", "Later."]) {
+    assert.deepEqual(checkSizes([issue(5, `exception: ${reason}`, "Empty reason")]), [noReason(5, "Empty reason")], reason);
+  }
+  assert.match(read("docs/decisions/375-3.md"), /\*\*Later:\*\*[^\n]*400-1/);
+});
+
 test("AC-400-1: WHEN a split parent on stdin has no labels field THEN the script exits 2 and names labels", () => {
   const children = [issue(12, "300 lines"), issue(13, "300 lines")];
   const parent = issue(10, "split into #12, #13", "Parent");

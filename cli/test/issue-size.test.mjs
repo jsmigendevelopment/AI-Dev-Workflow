@@ -262,6 +262,24 @@ test("AC-400-1: WHEN a design note gives a size in px or MB THEN it isn't a Size
   }
 });
 
+test("AC-400-1: WHEN tests sit next to a number after a qualifier or a bracket THEN the check asks for one total", () => {
+  for (const second of ["tests: about 400", "tests: roughly 400", "tests around 400", "tests (600)", "tests add 600"]) {
+    assert.deepEqual(checkSizes([issue(12, `about 700 lines · cli/src · ${second}`, "Big step")]),
+      [`#12 Big step: a second estimate after the "·": "${second}". Write one total, like \`Size: about 600 lines · <files or modules>\`.`], second);
+  }
+  assert.deepEqual(checkSizes([issue(7, "about 300 lines · cli/test/12-x.test.mjs · AC-400-1 tests")]), []);
+});
+
+test("AC-400-1: WHEN a hidden size has any one word or a + before its unit THEN the check still finds it", () => {
+  for (const line of ["Size - 1500+ lines", "Size - 1,500 code lines", "Size - 1,500 source lines", "Size - 1,500 net lines",
+    "Size - 1,500 diff lines", "Real size: about 1,400 code lines"]) {
+    assert.match(checkSizes([{ number: 8, title: "Hidden", body: `Size: 200 lines · cli/src\n${line}\n` }])[0], /a Size the check can't read/, line);
+  }
+  for (const note of ["- Page size: 20 rows, wrap long lines", "- Font size: 16px line-height 24px", "- Icon size: 24 px lines"]) {
+    assert.deepEqual(checkSizes([{ number: 8, title: "Notes", body: `Size: 200 lines · cli/src\n${note}\n` }]), [], note);
+  }
+});
+
 test("AC-400-1: WHEN the estimate says lines changed THEN it reads as the number of changed lines", () => {
   assert.equal(readSize(body("about 300 lines changed · cli/src")).estimate, 300);
   assert.deepEqual(checkSizes([issue(7, "about 300 lines changed · cli/src")]), []);

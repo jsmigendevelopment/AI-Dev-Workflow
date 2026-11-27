@@ -25,24 +25,34 @@ const ESTIMATE = new RegExp(
 );
 const LIMIT_WORD = /^(?:under|up to|at most|<|≤)/i;
 // A number of lines in a later part of the value, one word allowed before the unit: a second estimate. So is "test"
-// next to a number ("tests: 600", "600 in tests"). "#1024", "1200-x.ts", "test/12-x.ts" or "AC-12-1 tests" isn't one.
-const SECOND = /\d\s*k?\s*(?:\p{L}+\s+)?(?:lines?|loc)(?!\p{L})/iu;
-const TESTS = /(?<![\p{L}\p{N}])tests?(?![\p{L}\p{N}/._-])[\s:=~≈+]*\d|(?<![\p{L}\p{N}#/._-])\d[\d,.]*\s*k?\s*(?:\p{L}+\s+)?tests?(?![\p{L}\p{N}/._-])/iu;
+// next to a number, also after a bracket or a qualifier ("tests: about 600", "tests (600)", "600 in tests").
+// "#1024", "1200-x.ts", "test/12-x.ts" or "AC-12-1 tests" isn't one.
+const SECOND = /\d\+?\s*k?\s*(?:\p{L}+\s+)?(?:lines?|loc)(?!\p{L})/iu;
+const TESTS = /(?<![\p{L}\p{N}])tests?(?![\p{L}\p{N}/._-])[\s:=~≈+(]*(?:(?:about|around|roughly|approx\.?|another|add|adds|plus)\s*)?\d|(?<![\p{L}\p{N}#/._-])\d[\d,.]*\s*k?\s*(?:\p{L}+\s+)?tests?(?![\p{L}\p{N}/._-])/iu;
 // The two whole forms, each only at the start of the value or right after a "·".
 const EXCEPTION = /^exception:\s*/i;
 const SPLIT = /^split into\s+(#\d+(?:\s*(?:,|&|and)\s*#\d+)*)\s*$/i;
 // A reason that says there is none, once its punctuation is gone: "n/a", "-", "<reason>", "TBD.", "not needed", or one
-// that starts with none, tbd, todo or n/a ("none yet", "TBD later"). "none of it splits" and "no way to split" are real.
-const PLACEHOLDERS = new Set(["", "none", "na", "no", "nil", "null", "tbd", "todo", "unknown", "reason", "nope",
-  "no reason", "no reason given", "not needed", "not applicable", "no need"]);
-const PLACEHOLDER_START = /^(?:none(?! of\b)|tbd|todo|na)\b/;
-// A reason that names an issue or says it is split is a split parent written as an exception. One with a "no",
-// "can't", "too" or the like before the split ("can't be split into parts") is a real reason.
-const SPLIT_SAID = /(?<!\p{L})(?:(?:already|was|been|is|are|now|got)\s+split|split(?:\s+up)?\s+(?:into|in|across|between|as)|split\s*$)(?!\p{L})/iu;
+// that starts with none, tbd, tbc, todo or n/a ("none yet", "TBD later"). "none of it splits" and "no way to split" are real.
+const PLACEHOLDERS = new Set(["", "none", "na", "no", "nil", "null", "tbd", "tbc", "todo", "unknown", "reason", "nope",
+  "nothing", "later", "no reason", "no reason yet", "no reason given", "not needed", "not applicable", "no need",
+  "to be decided", "to be confirmed", "unknown yet"]);
+const PLACEHOLDER_START = /^(?:none(?! of\b)|tbd|tbc|todo|na)\b/;
+// A reason that names an issue or says it is split is a split parent written as an exception: "split into", "splitting
+// into", "broken into", "already split", "Split.", "child issues", "children 12 and 13". A "no", "can't", "too" or the
+// like in the same clause, right before it, makes it a real reason ("can't be split into parts"); one in an earlier
+// clause doesn't ("too big, split into child issues").
+const SPLIT_SAID = new RegExp(
+  String.raw`(?<!\p{L})(?:(?:already|was|been|is|are|now|got)\s+split|split(?:s|ting)?(?:\s+up)?\s+(?:into|in|across|between|as)` +
+    String.raw`|(?:broken|cut)(?:\s+up)?\s+into|split\s*[.!]?\s*$|child(?:ren)?\s+issues?|children\s+#?\d+)(?!\p{L})`,
+  "giu",
+);
+const CLAUSE = /[,;:.()]/;
 const NEGATION = /(?<!\p{L})(?:no|not|never|cannot|can['’]?t|won['’]?t|don['’]?t|doesn['’]?t|isn['’]?t|unable|without|hard|too)(?!\p{L})/iu;
 // Size written in a way the value reader skips: a table cell, "_Size_:", a full-width colon, "Size -". The unit follows
-// the number, so "font size: 16px, line-height: 24px" isn't one.
-const MENTION = /(?<!\p{L})size(?!\p{L})[\s_*`]*[:：|=\-–—][^\n]*?\d\s*k?\s*(?:(?:changed|total|new|more|added|test)\s+)?(?:lines?|loc)(?!\p{L})/iu;
+// the number, with a "+" and any one word allowed between ("1500+ lines", "1,500 code lines"), but not a unit like px or
+// MB, so "font size: 16px, line-height: 24px" and "font size: 16px line-height" aren't one.
+const MENTION = /(?<!\p{L})size(?!\p{L})[\s_*`]*[:：|=\-–—][^\n]*?\d\+?\s*k?\s*(?:(?!(?:px|pt|em|rem|vh|vw|kb|mb|gb|tb|bytes?)\s)\p{L}+\s+)?(?:lines?|loc)(?!\p{L})/iu;
 // CommonMark: up to 3 spaces of indent, closed by a run of the same character at least as long.
 const FENCE = /^ {0,3}((`|~)\2{2,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1\2*[ \t]*$|(?![\s\S]))/gm;
 const QUOTE = /^[ \t]*>.*$/gm;
@@ -104,10 +114,8 @@ const noReason = (reason) => {
   const words = reason.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
   return PLACEHOLDERS.has(words) || PLACEHOLDER_START.test(words);
 };
-const splitReason = (reason) => {
-  const said = reason.match(SPLIT_SAID);
-  return /#\d+/.test(reason) || (said !== null && !NEGATION.test(reason.slice(0, said.index)));
-};
+const splitReason = (reason) =>
+  /#\d+/.test(reason) || [...reason.matchAll(SPLIT_SAID)].some((m) => !NEGATION.test(reason.slice(0, m.index).split(CLAUSE).pop()));
 const labelledReady = (labels) =>
   (labels ?? []).some((l) => String(typeof l === "string" ? l : l?.name).toLowerCase() === "status:ready");
 // A file is ready unless it says blocked: coordinate's local mode adds `Status: ready` to a file with no status line.
