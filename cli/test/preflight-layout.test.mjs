@@ -8,7 +8,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { dirname, join, relative } from "node:path";
 import { pathOutside, tempFolders } from "../src/preflight-layout.mjs";
 import { probe } from "../src/preflight.mjs";
-import { fakes, fakeSys, gitRepo, HEALTHY, pathWith, ran, runScript, sh, status, temp } from "./preflight-fakes.mjs";
+import { fakes, fakeSys, gitRepo, HEALTHY, pathWith, ran, runScript, sh, status, temp, trustWin } from "./preflight-fakes.mjs";
 
 const posixOnly = { skip: process.platform === "win32" ? "the fakes are POSIX shell scripts and symlinks" : false };
 const native = (path) => realpathSync.native(path);
@@ -126,6 +126,7 @@ test("AC-182-2: WHEN TMPDIR and the home folder are both inside another checkout
   try {
     process.env.TMPDIR = spot;
     process.env.HOME = spot;
+    trustWin(tree, [spot, home]);
     const none = tempFolders(tree, "win32");
     none.remove();
     assert.equal(none.away, null, `the probes would run from ${none.away?.cwd}, inside the main checkout`);
