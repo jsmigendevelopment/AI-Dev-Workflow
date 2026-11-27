@@ -4,6 +4,7 @@ import { AUTO_GRILL_PLAN } from "./auto-grill-reviews.mjs";
 import { BACK_PLAN } from "./back-on-full-plan.mjs";
 import { CLEAN_PLAN } from "./clean-up-server-plan.mjs";
 import { LIFT_PLAN } from "./decision-lifts-gate-plan.mjs";
+import { PARK_PLAN } from "./full-never-parks-plan.mjs";
 import { LOOP_PLAN } from "./live-thread-loop-plan.mjs";
 import { MEM_PLAN } from "./short-on-memory-plan.mjs";
 import { SHOW_PLAN } from "./show-it-early-plan.mjs";
@@ -164,6 +165,7 @@ export const SCENARIO_PLANS = {
     without: { steps: [{ bash: "cat docs/issues/004-shout-a-word.md" }, { text: "#4's CI job never started: a billing error. I'll wait for CI to pass before I merge it. Fix the billing, then re-run the job." }] },
   },
   "decision-lifts-gate": LIFT_PLAN,
+  "full-never-parks": PARK_PLAN,
   "short-on-memory": MEM_PLAN,
   "back-on-full": BACK_PLAN,
   "live-thread-loop": LOOP_PLAN,

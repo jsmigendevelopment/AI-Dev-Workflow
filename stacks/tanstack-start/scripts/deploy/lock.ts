@@ -8,6 +8,9 @@
 import type { DeployDeps } from './deps.ts'
 import { Stop, tail } from './shared.ts'
 
+/** Longer than any deploy takes: a takeover file older than this was left by a run that crashed. */
+const LONGEST_DEPLOY_MS = 60 * 60 * 1000
+
 const LOCK = /^(\d+) (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)$/
 
 /** The lock's raw text and its PID and start time; undefined when it isn't a lock this script wrote. */
@@ -15,6 +18,20 @@ function holder(deps: DeployDeps, path: string) {
   const text = deps.readPlain(path)
   const match = text === undefined ? null : LOCK.exec(text)
   return match && text ? { text, pid: Number(match[1]), since: match[2]! } : undefined
+}
+
+/** Why the takeover file stops this run: another run taking over now, or one that crashed long ago. */
+function guardHeld(deps: DeployDeps, guard: string, taken: string) {
+  const since = holder(deps, guard)?.since
+  const age = since === undefined ? NaN : Date.now() - Date.parse(since)
+  if (!(age > LONGEST_DEPLOY_MS)) return `${taken} If none is running, delete ${guard}, then run this again.`
+  const hours = Math.floor(age / 3_600_000)
+  const [n, unit] = hours >= 24 ? [Math.floor(hours / 24), 'day'] : [hours, 'hour']
+  const told = `${n} ${unit}${n === 1 ? '' : 's'}`
+  return (
+    `a run that crashed while taking over the lock left ${guard} ${told} ago (since ${since}), ` +
+    `longer than a deploy takes. Delete ${guard}, then run this again. Nothing was changed.`
+  )
 }
 
 /** Replaces the ended run's lock (`stale`, its exact text) with `mine`, under the takeover file. */
@@ -27,8 +44,7 @@ function takeOver(
 ) {
   const guard = `${path}.takeover`
   const taken = `another ${what} took the lock (${path}) just now. Nothing was changed.`
-  if (!deps.create(guard, mine))
-    throw new Stop(`${taken} If none is running, delete ${guard}, then run this again.`)
+  if (!deps.create(guard, mine)) throw new Stop(guardHeld(deps, guard, taken))
   try {
     const now = deps.readPlain(path)
     if (now !== undefined && now !== stale.text) throw new Stop(taken)
