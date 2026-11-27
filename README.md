@@ -89,7 +89,7 @@ AI agents follow your instructions. Where you leave a gap, they guess. They can 
 
 | Part | What it is | When it applies |
 |---|---|---|
-| [`AGENTS.md`](AGENTS.md) | 13 standing rules, the code rules and a stop-and-ask list | Every session |
+| [`AGENTS.md`](AGENTS.md) | 16 standing rules, the code rules and a stop-and-ask list | Every session |
 | 31 skills | Step-by-step instructions, one job each | When a request names the skill |
 | Guardrails | The local gate's checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
 

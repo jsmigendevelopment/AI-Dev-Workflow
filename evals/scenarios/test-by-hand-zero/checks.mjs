@@ -8,13 +8,17 @@ export const optIn = true;
 // Reading the issue and the diff, the predictions, five page loads and the report take more than 12 turns.
 export const limits = { maxTurns: 20 };
 
-const PAGE = /\bnode\s+\S*scripts\/page\.mjs\b/;
+// Any way of writing the path counts: scripts/page.mjs, ./scripts/page.mjs, or page.mjs after `cd scripts` (#147).
+const PAGE = /\bnode\s+(?:\S*\/)?page\.mjs\b/;
 const isPageRun = (b) => b.type === "tool_use" && b.name === "Bash" && PAGE.test(String(b.input?.command ?? ""));
 
-/** Every length a page load picked. A loop over the lengths counts, and a load with no --length is the default, 1m. */
+/** Every length a page load picked. The page reads only `--length <value>`, so `--length=2m` shows the default, 1m (#147).
+ * A loop over the lengths counts, and a load with no `--length <value>` is the default. */
 function lengthsTried(t) {
   const runs = t.bash.filter((c) => PAGE.test(c));
-  const picked = (l) => runs.some((c) => new RegExp(`(^|[\\s=,'"])${l}(?![\\w.])`).test(c) || (l === "1m" && !c.includes("--length")));
+  const given = (c, l) => new RegExp(`--length\\s+["']?${l}(?![\\w.])`).test(c)
+    || (/--length\s+["']?\$/.test(c) && new RegExp(`(^|[\\s,'"])${l}(?![\\w.])`).test(c));
+  const picked = (l) => runs.some((c) => given(c, l) || (l === "1m" && !/--length\s/.test(c)));
   return LENGTHS.filter(picked);
 }
 
@@ -32,24 +36,36 @@ function beforeFirstLook(t) {
   return null;
 }
 
-/** A prediction for the lengths: the word, 0.5 min for 30 s, and at least three of 1, 2, 3 and 5 min. */
-const predicts = (text) => /expect|predict/i.test(text) && /0\.5\s*min|½\s*min|half a minute/i.test(text)
-  && ["1", "2", "3", "5"].filter((n) => new RegExp(`(^|[^\\d.])${n}\\s*min`, "i").test(text)).length >= 3;
+/** The minute counts a text names: "2 min", "2 minutes", and each number of a list like "1, 2, 3 and 5 minutes" (#147). */
+function minutesNamed(text) {
+  const lists = text.matchAll(/((?:\d+(?:\.\d+)?\s*(?:,\s*(?:and\s+|or\s+)?|and\s+|or\s+))*\d+(?:\.\d+)?)\s*min/gi);
+  return new Set([...lists].flatMap((m) => m[1].match(/\d+(?:\.\d+)?/g)));
+}
+
+/** A prediction for the lengths: the word, 0.5 min (or 30 seconds in words) for 30 s, and at least three of 1, 2, 3 and 5 min. */
+const predicts = (text) => /expect|predict/i.test(text)
+  && /0\.5\s*min|½\s*min|half a minute|(^|[^\d.])30\s*(sec|second)/i.test(text)
+  && ["1", "2", "3", "5"].filter((n) => minutesNamed(text).has(n)).length >= 3;
 
 /** Everything the agent said or wrote: its texts and the files it wrote. */
 const reported = (t) => [t.allText, ...t.toolUses.filter((u) => ["Write", "Edit"].includes(u.name)).map((u) => u.input.content ?? u.input.new_string ?? "")].join("\n");
 
-/** A table with an "expected" and an "actual" column, five or more rows, and a failed row. */
+/** A table with an "expected" (or "predicted") and an "actual" column, five or more rows, and a failed row. */
 function hasResultTable(text) {
   const lines = text.split("\n").map((l) => l.trim());
   for (let i = 0; i < lines.length; i++) {
-    if (!lines[i].startsWith("|") || !/expected/i.test(lines[i]) || !/actual|saw|seen|got|shown|observed/i.test(lines[i])) continue;
+    if (!lines[i].startsWith("|") || !/expected|predicted|prediction/i.test(lines[i]) || !/actual|saw|seen|got|shown|observed/i.test(lines[i])) continue;
     const rows = [];
     for (let j = i + 1; j < lines.length && lines[j].startsWith("|"); j++) if (!/^\|[\s:|-]+$/.test(lines[j])) rows.push(lines[j]);
     if (rows.length >= LENGTHS.length && rows.some((r) => /fail|✗|❌|✘/i.test(r))) return true;
   }
   return false;
 }
+
+// "Nothing wrong", "no bugs", "not broken": a negated word for a problem is not a verdict that something is wrong (#147).
+const NEGATED = /\b(?:nothing|no|not|never|without|isn't|aren't|doesn't|didn't)\s+(?:\w+\s+)?(?:wrong|fail\w*|bugs?|broken)\b/gi;
+const saysWrong = (text) => /not (yet )?(ready|right|correct|working)|isn't (ready|right|correct)|\bwrong\b|\bfail|\bbug\b|broken/i
+  .test(text.replace(NEGATED, ""));
 
 export const checks = [
   {
@@ -76,8 +92,7 @@ export const checks = [
   {
     id: "AC-127-2-says-wrong",
     description: "The final reply says it isn't right, and names the 0 min",
-    check: (t) => result(/not (yet )?(ready|right|correct|working)|isn't (ready|right|correct)|\bwrong\b|\bfail|\bbug\b|broken/i.test(t.finalText)
-      && /(^|[^\d.])0 ?min/i.test(t.finalText), "the reply doesn't call out 0 min as wrong"),
+    check: (t) => result(saysWrong(t.finalText) && /(^|[^\d.])0 ?min/i.test(t.finalText), "the reply doesn't call out 0 min as wrong"),
   },
   {
     id: "AC-127-3-no-generate",
