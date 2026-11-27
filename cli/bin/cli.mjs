@@ -10,6 +10,7 @@ import { doctorFix } from "../src/fix.mjs";
 import { initGlobal } from "../src/global.mjs";
 import { offerHomeMove } from "../src/home.mjs";
 import { init } from "../src/init.mjs";
+import { main as weekly } from "../src/insights-week.mjs";
 import { lesson } from "../src/lesson-check.mjs";
 import { libraryInit } from "../src/library-init.mjs";
 import { main as preflight } from "../src/preflight.mjs";
@@ -76,6 +77,9 @@ Usage:
                                           refuse a kit lesson that isn't a closed record of known-safe
                                           values, or one with the project's own terms (the current repo
                                           by default). Reads local files only. Exit 0 accepted, 1 refused
+  npx onrails insights --week [<yyyy-Www>] [dir]
+                                          print a week's report from the insights records (last full
+                                          week by default): runs, send-backs, sizes, escalations, usage
   npx onrails --version | --help
 
 Your own files are never overwritten: the kit's copy goes next to yours as <file>.onrails-new.
@@ -90,6 +94,11 @@ async function main(argv) {
   if (argv[0] === "preflight") return preflight(argv.slice(1));
   // lesson check reads its own flags (--project takes a value). It is read-only and never offers the home-folder move.
   if (argv[0] === "lesson" && !argv.includes("--help") && !argv.includes("-h")) return lesson(argv.slice(1));
+  // insights --week reads its own flags (a week and a folder). It only reads the records (#381).
+  if (argv[0] === "insights" && !argv.includes("--help") && !argv.includes("-h")) {
+    if (!argv.includes("--week")) return console.error("Usage: npx onrails insights --week [<yyyy-Www>] [dir]"), 2;
+    return weekly(argv.slice(1));
+  }
   // ps reads its own flags (--stop takes a value), and asks on the terminal before it stops a PID it didn't record.
   if (argv[0] === "ps" && !argv.includes("--help") && !argv.includes("-h")) {
     const ask = terminalAsk();
