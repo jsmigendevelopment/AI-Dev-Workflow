@@ -109,7 +109,8 @@ async function stopUnregistered(sys, log, pid, { flags, ask, stopCmd }) {
   if (!flags.yes && !(await yes(ask, `PID ${pid} isn't in the registry: onRails didn't start it. Stop it anyway?`))) {
     return fail(log, `Left PID ${pid} alone: onRails didn't start it. Ask the person first. After a yes: ${stopCmd} ${pid} --yes`, 1);
   }
-  // Even after a yes: never PID 1, this script, its parent or the agent.
+  // Even after a yes: never PID 1, this script, its parent or the agent. stopRecords reads the process list again now
+  // that the prompt is closed, and checks this floor again on what it reads, before any signal (#248).
   const rec = { id: `pid ${pid}`, pid, start: p.start, group: false };
   const never = floor(rec, guarded(sys));
   if (never) return fail(log, `Left PID ${pid} alone: ${never}.`, 1);

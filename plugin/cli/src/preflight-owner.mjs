@@ -8,7 +8,8 @@
 import { spawnSync } from "node:child_process";
 import { constants, lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { realSys as machine, winAccess } from "./procs-sys.mjs";
+import { realSys as machine } from "./procs-sys.mjs";
+import { winAccess } from "./procs-winacl.mjs";
 import { groupProblem } from "./procs-store.mjs";
 
 let user;
@@ -29,7 +30,7 @@ function posixAbove(sys, at, s, child) {
 }
 
 // SYSTEM, Administrators and TrustedInstaller, which owns System32, may own a folder: they can already do anything on the
-// machine. The registry's winAccess doesn't take TrustedInstaller as an owner (row 106), and this doesn't change that.
+// machine. The registry's winAccess takes the same three since #248 (row 114).
 const WIN_OWNERS = ["S-1-5-18", "S-1-5-32-544", "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"];
 // On a folder above, only the rights that remove, rename or replace an entry, the folder itself, or who may: delete a
 // child, delete, change the ACL or owner, generic all. Making a new entry there swaps nothing, as with the sticky bit,
