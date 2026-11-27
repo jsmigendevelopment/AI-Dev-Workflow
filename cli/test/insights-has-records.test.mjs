@@ -143,6 +143,16 @@ test("AC-333-4: WHEN the merge step merged main into the branch THEN carry runs 
   assert.doesNotMatch(step, /conflict fix or not/, "a clean merge of main needs no fresh review (decision 333-2)");
 });
 
+test("AC-333-4: WHEN carry exits 0 THEN the old head's qa and security verdicts stand for the merge commit too, and step 6 says so", () => {
+  assert.match(mergeStep(), /`carry` exits 0[^\n]*`qa` and security verdicts stand for the merge commit/);
+  const text = readFileSync(join(REPO, ".agents/skills/coordinate/SKILL.md"), "utf8");
+  assert.match(text, /A verdict stands until the commit changes, or until a clean merge of main that step 7's `carry` proves/);
+});
+
+test("AC-333-4: WHEN carry exits 2 THEN the merge step fetches the branch and runs carry once more in the same step", () => {
+  assert.match(mergeStep(), /exit 2: fetch the branch and run `carry` once more now/);
+});
+
 test("AC-333-4: WHEN carry exits 2 a second time on the same merge sha THEN the merge step sends it to a fresh review with one FYI, so it never retries forever", () => {
   assert.match(mergeStep(), /carry[^\n]*second exit 2 on the same merge sha[^\n]*fresh `pr-review`[^\n]*FYI/);
 });

@@ -2,15 +2,17 @@
 //   carry --pr <n> --from <reviewed sha> --to <merge sha>   when the loop merged main into a reviewed branch
 //       (`coordinate` step 7, decision 333-2): exit 0 only when <to> has exactly two parents, the first is <from>,
 //       the second is on refs/remotes/origin/main (fetched first, never read by its short name, which a tag or a
-//       local branch can shadow), `git merge-tree --write-tree` of the two has no conflict and gives exactly <to>'s
-//       tree, and <from> has its job and review records here, every review passed and every review job passed. Then
-//       it writes a job record (job=carry-review, outcome=pass) and a copy of <from>'s latest review, both at <to>,
-//       through the writer. A rerun writes nothing new. Exit 1 says why, and the merge commit goes to a fresh
-//       pr-review; so does a git too old to prove the merge (--write-tree needs git 2.38). Exit 2: a usage or git
-//       error, or a sha that isn't a commit in this checkout.
+//       local branch can shadow), a merge of the two has no conflict and gives exactly <to>'s tree, <from> has its job
+//       and review records here, every review passed and every review job passed, and no review or review job at <to>
+//       failed. The merge is `git merge-tree --write-tree`; a git before 2.38 has no --write-tree, so it merges in a
+//       throwaway clone in TMPDIR that borrows this checkout's objects and changes none of its refs, index or files.
+//       Then it writes a job record (job=carry-review, outcome=pass) and a copy of <from>'s latest review, both at
+//       <to>, through the writer. A rerun writes nothing new. Exit 1 says why, and the merge commit goes to a fresh
+//       pr-review. Exit 2: a usage or git error, or a sha that isn't a commit in this checkout.
 // heldRecords() is what has-records and carry count: a file only when `land` would land it as it is.
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CAP, canonical, git, recordProblem } from "./insights-land.mjs";
 import { VERSION, dayFolder, fileName, validate } from "./insights-record.mjs";
@@ -65,6 +67,37 @@ function refuse(why) {
   process.exit(1);
 }
 
+/**
+ * Merges `second` into `from` in a throwaway clone that borrows root's objects (`clone --shared`), so root's refs, index
+ * and files stay as they are. Returns { tree } for a clean merge, { conflict: true }, or { why } when it can't merge.
+ */
+function mergeInClone(root, from, second) {
+  const dir = mkdtempSync(join(tmpdir(), "onrails-carry-"));
+  const clone = join(dir, "clone");
+  try {
+    git(dir, ["clone", "-q", "--shared", "--no-checkout", "--", root, clone]);
+    git(clone, ["checkout", "-q", "--detach", from]);
+    const id = ["-c", "user.name=onrails carry", "-c", "user.email=carry@onrails.invalid"];
+    const merged = ask(clone, [...id, "merge", "-q", "--no-ff", "--no-commit", second]);
+    if (merged.status === 0) return { tree: git(clone, ["write-tree"]) };
+    if (git(clone, ["ls-files", "--unmerged"])) return { conflict: true };
+    return { why: merged.err.split("\n")[0] || `git merge exited ${merged.status}` };
+  } catch (e) {
+    return { why: String(e.stderr || e.message).trim().split("\n")[0] };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** The clean merge of `second` into `from`: merge-tree where this git has --write-tree, else mergeInClone. */
+function merge(root, from, second) {
+  const tree = ask(root, ["merge-tree", "--write-tree", "--end-of-options", from, second]);
+  if (tree.status === 0) return { tree: tree.out.split("\n")[0] };
+  if (tree.status === 1) return { conflict: true };
+  // Any other status: no --write-tree here (git before 2.38), or it failed. A plain merge works on any git.
+  return mergeInClone(root, from, second);
+}
+
 /** Why `to` isn't exactly a clean merge of origin/main into `from`, or null. */
 function notCleanMerge(root, from, to) {
   for (const sha of [from, to]) {
@@ -78,12 +111,17 @@ function notCleanMerge(root, from, to) {
   const onMain = ask(root, ["merge-base", "--is-ancestor", "--end-of-options", parents[1], MAIN]);
   if (onMain.status === 1) return `${to}'s second parent ${parents[1]} isn't on origin/main`;
   if (onMain.status !== 0) throw new Error(onMain.err || "git merge-base failed");
-  const merged = ask(root, ["merge-tree", "--write-tree", "--end-of-options", from, parents[1]]);
-  if (merged.status === 1) return "merging main into the reviewed sha conflicts, so the merge commit holds a conflict fix";
-  // Any other status: no --write-tree here (git before 2.38) or a failure. Either way nothing proves the merge.
-  if (merged.status !== 0) return `this git can't prove a clean merge (merge-tree --write-tree needs git 2.38 or later): ${merged.err.split("\n")[0] || `exit ${merged.status}`}`;
+  const merged = merge(root, from, parents[1]);
+  if (merged.conflict) return "merging main into the reviewed sha conflicts, so the merge commit holds a conflict fix";
+  if (merged.why) return `git couldn't redo the merge to prove it (${merged.why})`;
   const tree = git(root, ["rev-parse", "--verify", "--end-of-options", `${to}^{tree}`]);
-  return merged.out.split("\n")[0] === tree ? null : `${to}'s tree isn't the clean merge of main: it holds a change of its own`;
+  return merged.tree === tree ? null : `${to}'s tree isn't the clean merge of main: it holds a change of its own`;
+}
+
+/** The reviews that didn't pass and the review jobs that failed, among `records`, as text, or "" when none. */
+function notPassed(records) {
+  const bad = records.filter((r) => (r.kind === "review" && r.verdict !== "pass") || (r.kind === "job" && REVIEW_JOBS.includes(r.job) && r.outcome !== "pass"));
+  return bad.map((r) => (r.kind === "review" ? `review round ${r.round}: ${r.verdict}` : `${r.job} job: ${r.outcome}`)).join(", ");
 }
 
 /** `carry`, from the checkout at root. */
@@ -100,8 +138,11 @@ export function carry(root, args) {
   const reviews = atFrom.filter((r) => r.kind === "review").sort((a, b) => a.at.localeCompare(b.at));
   if (!kinds(from).has("job") || !reviews.length) refuse(`#${pr} has no job and review records at the reviewed ${from} here: harvest first`);
   // Every review at that sha counts, not only the latest: a second review the dial added can't be outvoted.
-  const failed = [...reviews.filter((r) => r.verdict !== "pass"), ...atFrom.filter((r) => r.kind === "job" && REVIEW_JOBS.includes(r.job) && r.outcome !== "pass")];
-  if (failed.length) refuse(`the reviewed sha's review didn't pass (${failed.map((r) => r.kind === "review" ? `review round ${r.round}: ${r.verdict}` : `${r.job} job: ${r.outcome}`).join(", ")})`);
+  const failed = notPassed(atFrom);
+  if (failed) refuse(`the reviewed sha's review didn't pass (${failed})`);
+  // A fresh review of the merge commit itself that asked for changes stands: carry never papers over it.
+  const own = notPassed(held.filter((r) => r.sha === to));
+  if (own) refuse(`the merge commit's own review didn't pass (${own})`);
   const review = reviews.at(-1);
   const at = new Date(process.env.ONRAILS_NOW || Date.now()).toISOString();
   const made = {

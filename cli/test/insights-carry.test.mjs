@@ -5,6 +5,7 @@
 // claude and codex log any call, and none is expected.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "./child.mjs";
 import { fake, safeEnv, tmp, unixOnly } from "./helpers.mjs";
@@ -83,36 +84,43 @@ test("AC-333-4 carry: WHEN main is merged cleanly into a reviewed branch THEN ca
 });
 
 /** Each case makes a merge sha that isn't a clean merge of main into `from`: carry exits 1, names why, writes nothing. */
-function refuses(why, names, make, opts) {
+function refuses(why, names, make, opts, runner = carry) {
   const fx = reviewed(opts);
   const to = make(fx);
   const before = Object.keys(records(fx.dir)).length;
-  const r = carry(fx.dir, fx.from, to);
+  const r = runner(fx.dir, fx.from, to);
   assert.equal(r.status, 1, `${why}: ${r.stdout}${r.stderr}`);
   assert.match(r.stderr, names, `${why}: says why`);
   assert.match(r.stderr, /fresh pr-review/, `${why}: says what to do`);
   assert.equal(Object.keys(records(fx.dir)).length, before, `${why}: writes nothing`);
 }
 
+/** A merge of main whose conflict was fixed by hand; it needs CLASH, where both sides change README.md. */
+function conflictFix(fx) {
+  const r = spawnSync("git", ["merge", "-q", "--no-edit", "origin/main"], { cwd: fx.seed, encoding: "utf8", env: safeEnv(GIT_ENV) });
+  assert.equal(r.status, 1, "the merge conflicts");
+  put(fx.seed, "README.md", "both, fixed by hand\n");
+  git(fx.seed, "add", "README.md");
+  git(fx.seed, "commit", "-q", "--no-edit");
+  return push(fx);
+}
+const CLASH = { feature: { "README.md": "feature\n" }, onMain: { "README.md": "main\n" } };
+
+/** A clean merge of main with a file of the coordinator's own slipped in. */
+function handEdit(fx) {
+  git(fx.seed, "merge", "-q", "--no-commit", "--no-ff", "origin/main");
+  put(fx.seed, "extra.txt", "slipped in\n");
+  git(fx.seed, "add", "extra.txt");
+  git(fx.seed, "commit", "-q", "--no-edit");
+  return push(fx);
+}
+
 test("carry: a conflict fix exits 1 and goes to a fresh review", unixOnly, () => {
-  refuses("a conflict fix", /conflicts/, (fx) => {
-    const r = spawnSync("git", ["merge", "-q", "--no-edit", "origin/main"], { cwd: fx.seed, encoding: "utf8", env: safeEnv(GIT_ENV) });
-    assert.equal(r.status, 1, "the merge conflicts");
-    put(fx.seed, "README.md", "both, fixed by hand\n");
-    git(fx.seed, "add", "README.md");
-    git(fx.seed, "commit", "-q", "--no-edit");
-    return push(fx);
-  }, { feature: { "README.md": "feature\n" }, onMain: { "README.md": "main\n" } });
+  refuses("a conflict fix", /conflicts/, conflictFix, CLASH);
 });
 
 test("carry: a hand edit inside a clean merge exits 1", unixOnly, () => {
-  refuses("a hand edit", /change of its own/, (fx) => {
-    git(fx.seed, "merge", "-q", "--no-commit", "--no-ff", "origin/main");
-    put(fx.seed, "extra.txt", "slipped in\n");
-    git(fx.seed, "add", "extra.txt");
-    git(fx.seed, "commit", "-q", "--no-edit");
-    return push(fx);
-  });
+  refuses("a hand edit", /change of its own/, handEdit);
 });
 
 test("carry: a merge whose first parent isn't the reviewed sha exits 1", unixOnly, () => {
@@ -184,18 +192,55 @@ function shadowed(kind) {
 test("carry: a tag named origin/main on a commit that isn't on main doesn't count as main", unixOnly, () => shadowed("tag"));
 test("carry: a local branch named origin/main on a commit that isn't on main doesn't count as main", unixOnly, () => shadowed("branch"));
 
-test("carry: a git that can't prove the merge (no merge-tree --write-tree) exits 1, so a fresh review takes it", unixOnly, () => {
+/**
+ * carry under a git older than 2.38: a fake git that refuses `merge-tree --write-tree` (exit 129, as git 2.34 does)
+ * and passes every other call through to the real git. The fake logs each merge-tree it refused.
+ */
+function oldGitCarry(dir, from, to) {
+  const bin = tmp("onrails-old-git-");
+  const log = join(bin, "refused.log");
+  fake(bin, "git", `#!/bin/sh
+tree=no; write=no
+for a in "$@"; do
+  [ "$a" = merge-tree ] && tree=yes
+  [ "$a" = --write-tree ] && write=yes
+done
+if [ $tree = yes ] && [ $write = yes ]; then echo "merge-tree $*" >> '${log}'; echo "usage: git merge-tree <base> <a> <b>" >&2; exit 129; fi
+exec '${findCommand("git")}' "$@"
+`);
+  const env = safeEnv({ ...GIT_ENV, ONRAILS_NOW: "2026-11-27T14:32:00Z" }, { bins: [bin] });
+  const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "insights.mjs"), "carry", "--pr", "40", "--from", from, "--to", to], { cwd: dir, encoding: "utf8", env });
+  assert.ok(existsSync(log), "the fake refused merge-tree --write-tree at least once");
+  return r;
+}
+
+/** What carry must leave as it was in the coordinator's checkout: its refs, its index and its working tree. */
+const state = (dir) => ["for-each-ref", "ls-files --stage", "status --porcelain --untracked-files=no", "worktree list --porcelain"].map((c) => git(dir, ...c.split(" "))).join("\n");
+
+test("carry: a git without merge-tree --write-tree proves the merge in a throwaway clone and carries the same, leaving the checkout as it was", unixOnly, () => {
   const fx = reviewed();
   const to = mergeMain(fx);
-  const bin = tmp("onrails-old-git-");
-  fake(bin, "git", `#!/bin/sh\nfor a in "$@"; do [ "$a" = merge-tree ] && { echo "usage: git merge-tree <base> <a> <b>" >&2; exit 129; }; done\nexec '${findCommand("git")}' "$@"\n`);
-  const env = safeEnv({ ...GIT_ENV, ONRAILS_NOW: "2026-11-27T14:32:00Z" }, { bins: [bin] });
-  const before = Object.keys(records(fx.dir)).length;
-  const r = spawnSync(process.execPath, [join(fx.dir, SCRIPTS, "insights.mjs"), "carry", "--pr", "40", "--from", fx.from, "--to", to], { cwd: fx.dir, encoding: "utf8", env });
-  assert.equal(r.status, 1, r.stdout + r.stderr);
-  assert.match(r.stderr, /can't prove a clean merge/);
-  assert.match(r.stderr, /fresh pr-review/);
-  assert.equal(Object.keys(records(fx.dir)).length, before, "writes nothing");
+  const before = state(fx.dir);
+  const r = oldGitCarry(fx.dir, fx.from, to);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const made = at(fx.dir, to);
+  assert.deepEqual(made.map((m) => `${m.kind}:${m.job}`).sort(), ["job:carry-review", "review:carry-review"]);
+  assert.equal(state(fx.dir), before, "no ref, index or file of the checkout changed");
+});
+
+test("carry: under a git without merge-tree --write-tree, a hand edit and a conflict fix still exit 1", unixOnly, () => {
+  refuses("a hand edit, old git", /change of its own/, handEdit, undefined, oldGitCarry);
+  refuses("a conflict fix, old git", /conflicts/, conflictFix, CLASH, oldGitCarry);
+});
+
+test("carry: a merge sha that already has a changes review exits 1, never says carried", unixOnly, () => {
+  refuses("a changes review at the merge sha", /merge commit's own review didn't pass/, (fx) => {
+    const to = mergeMain(fx);
+    const own = { ...REVIEW, sha: to, verdict: "changes", must: 2, at: "2026-11-27T14:20:00.000Z" };
+    put(fx.dir, pathOf(own, "b00001"), json(own));
+    put(fx.dir, pathOf({ ...JOB, sha: to, outcome: "fail", at: own.at }, "b00002"), json({ ...JOB, sha: to, outcome: "fail", at: own.at }));
+    return to;
+  });
 });
 
 test("carry: a usage error or an unknown commit exits 2 and writes nothing", unixOnly, () => {
