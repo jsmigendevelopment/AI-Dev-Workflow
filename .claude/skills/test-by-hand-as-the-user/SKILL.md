@@ -19,7 +19,7 @@ The failure this stops: the page renders, and the number on it is wrong. An agen
 
 4. **Test what changed, not the page around it.** Read the diff. Check every value, rule and formula it touched, directly.
 5. **Move every input across its range:** the smallest, the largest, a middle value, and every option of a short list. The output must change when the input changes, in the right direction. **Done when** every prediction has the actual value you read from the page next to it.
-6. **These are always a fail:** 0, blank, `NaN`, `undefined`, `Infinity`, a negative number where none makes sense, the same value for every input, a spinner or placeholder that never ends, and a number further from your prediction than the issue allows.
+6. **These are always a fail:** a 0 the prediction didn't expect, blank, `NaN`, `undefined`, `Infinity`, a negative number where none makes sense, the same value for every input, a spinner or placeholder that never ends, and a number further from your prediction than the issue allows.
 7. **Compare with before** where you can: main, the test site or the old version. A change that wasn't meant to alter an output must leave it the same.
 8. **Watch the console and the network:** errors, failed requests, and responses that don't match the screen.
 9. **Run the error and empty states and the phone size,** as in `qa`, step 3.

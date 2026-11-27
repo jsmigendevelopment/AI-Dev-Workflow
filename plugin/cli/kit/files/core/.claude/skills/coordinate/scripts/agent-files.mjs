@@ -80,6 +80,21 @@ export function packageChanges(changed, packages = {}) {
     return keys.length ? [`${path} (${keys.join(", ")})`] : [];
   });
 }
+/** A test file (#164): `.test.` or `.spec.` in its name, or a test, e2e or snapshot folder on its path. */
+export const TEST_FILE = /(?:^|\/)[^/]*\.(?:test|spec)\.[^/]*$|(?:^|\/)(?:tests?|__tests__|e2e|__snapshots__|[^/]*-snapshots)\//i;
+
+/**
+ * Tests a pull request deletes (#164): a removed test file, or one renamed to a name that isn't a test. Adding or
+ * editing a test isn't listed: that stays the weakening review's reading, so a normal build needs no extra review.
+ */
+export const deletedTests = (files) => files.flatMap((f) => {
+  if (f.status === "removed" && TEST_FILE.test(f.filename)) return [`${f.filename} (a deleted test)`];
+  if (f.status === "renamed" && f.previous_filename && TEST_FILE.test(f.previous_filename) && !TEST_FILE.test(f.filename)) {
+    return [`${f.previous_filename} (a deleted test: renamed to ${f.filename})`];
+  }
+  return [];
+});
+
 // A submodule entry in the API's file list: its patch is a "Subproject commit <sha>" line.
 const SUBPROJECT = /^[-+]Subproject commit [0-9a-f]{40}/m;
 export const GUARD_WORKFLOW = ".github/workflows/agent-files.yml";
@@ -122,14 +137,14 @@ export function headVerdict(comments, head, trusted) {
 }
 
 /** Pass or fail, and why. */
-export function decide({ changed = [], labels = [], stack = "", comments = [], head = "", trusted = new Set(), expected = null, total = null, modules = [], packages = {} }) {
+export function decide({ changed = [], labels = [], stack = "", comments = [], head = "", trusted = new Set(), expected = null, total = null, modules = [], packages = {}, deleted = [] }) {
   if (expected && head && expected !== head) return { pass: false, why: `The pull request's head moved from ${expected} to ${head}. The run for the new head decides.` };
   if (total !== null && (total > MAX_FILES || total > changed.length)) {
     return { pass: false, why: `The pull request changes ${total} files, and the API listed ${changed.length} (it stops at ${MAX_FILES}). The guard can't see them all, so it fails. Split the pull request.` };
   }
   const odd = changed.filter((p) => CONTROL.test(p));
   if (odd.length) return { pass: false, why: `A file name has a control character or a line break: ${odd.map((p) => JSON.stringify(p)).join(", ")}. Rename it.` };
-  const rules = [...new Set([...changed.filter(isProtected), ...modules.map((p) => `${p} (a submodule)`), ...packageChanges(changed, packages)])];
+  const rules = [...new Set([...changed.filter(isProtected), ...modules.map((p) => `${p} (a submodule)`), ...packageChanges(changed, packages), ...deleted])];
   if (!rules.length) return { pass: true, why: "no agent rule, check or level files changed" };
   const full = level(stack) === "full";
   const verdict = headVerdict(comments, head, trusted);
@@ -140,7 +155,7 @@ export function decide({ changed = [], labels = [], stack = "", comments = [], h
   if (!full && labels.includes("human-approved")) return { pass: true, why: "the human-approved label" };
   const need = full ? `a "Weakening review: pass @ ${head || "<head sha>"}" comment from someone with write access (Full automation: the label doesn't count)`
     : "the human-approved label";
-  return { pass: false, why: `These files change the agents' rules or checks and need ${need}:\n${rules.join("\n")}` };
+  return { pass: false, why: `These files change the agents' rules or checks, or delete tests, and need ${need}:\n${rules.join("\n")}` };
 }
 
 /** Before a merge: the runs are real and green, and the live decision still passes (a fail posted later blocks it). */
@@ -290,12 +305,13 @@ function fromApi(repo, pr, expected, stackText) {
   const modules = submodules(files);
   const packages = packagesFromApi(repo, pull, files);
   const stack = stackText ?? (existsSync("docs/stack.md") ? readFileSync("docs/stack.md", "utf8") : "");
-  const watched = modules.length || changed.some(isProtected) || packageChanges(changed, packages).length;
+  const deleted = deletedTests(files);
+  const watched = modules.length || deleted.length || changed.some(isProtected) || packageChanges(changed, packages).length;
   const comments = watched ? pages(`repos/${repo}/issues/${pr}/comments`) : [];
   const labels = pages(`repos/${repo}/issues/${pr}/labels`).map((l) => l.name);
   // writers() throws when a voter's access has no answer, so the guard fails closed (main, below).
   const voters = [...new Set(comments.filter((c) => verdictOf(c.body, head)).map((c) => c.user?.login).filter(Boolean))];
-  return { changed, modules, packages, stack, comments, head, labels, trusted: writers(repo, voters), expected: expected || null, total: pull.changed_files };
+  return { changed, modules, packages, deleted, stack, comments, head, labels, trusted: writers(repo, voters), expected: expected || null, total: pull.changed_files };
 }
 
 /** The head's agent-files check runs, each with the workflow file and event that made it. */
@@ -316,6 +332,7 @@ function fromFlags(argv) {
   return {
     changed: changedPaths(files),
     modules: submodules(files),
+    deleted: deletedTests(files),
     packages: JSON.parse(read("--packages", "{}")),
     stack: read("--stack", ""),
     comments: JSON.parse(read("--comments", "[]")),
