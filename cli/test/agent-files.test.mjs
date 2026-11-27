@@ -8,7 +8,7 @@ import { spawnSync } from "./child.mjs";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GUARD_WORKFLOW, changedPaths, decide, level, submodules, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
+import { GUARD_WORKFLOW, changedPaths, decide, deletedTests, level, submodules, verdictOf, verifyMerge, verifyRuns } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
 import { LOCAL_CHECK, localChecks, requiredChecks } from "../../.agents/skills/name/scripts/required-checks.mjs";
 import { fakeGh, safeEnv, tmp, unixOnly } from "./helpers.mjs";
 
@@ -370,4 +370,49 @@ test("#103, #132: setup-github requires onrails/check at every level, and never 
   assert.match(script, /localChecks\(/);
   assert.doesNotMatch(script, /\.github\/workflows/);
   assert.doesNotMatch(script, /FULL/, "the level never drops the check");
+});
+
+// #164: a deleted test, or one renamed away from a test name, is check code. Adding or editing one isn't.
+const withFiles = (files, more = {}) => decide({ changed: changedPaths(files), deleted: deletedTests(files), stack: RECOMMENDED, head: HEAD, trusted: WRITERS, ...more });
+const gone = (filename) => ({ filename, status: "removed" });
+
+test("AC-164-1: WHEN notes.service.test.ts is removed THEN decide fails on Recommended with no label and names it as a deleted test", () => {
+  const r = withFiles([gone("src/features/notes/notes.service.test.ts")]);
+  assert.equal(r.pass, false);
+  assert.match(r.why, /src\/features\/notes\/notes\.service\.test\.ts \(a deleted test\)/);
+});
+
+test("AC-164-1: the guard's test mode exits 1 and names the deleted test", () => {
+  const dir = tmp();
+  const files = join(dir, "files.json");
+  writeFileSync(files, JSON.stringify([gone("src/features/notes/notes.service.test.ts")]));
+  const r = spawnSync(process.execPath, [SCRIPT, "--files", files], { encoding: "utf8", env: safeEnv() });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /notes\.service\.test\.ts \(a deleted test\)/);
+});
+
+test("AC-164-2: WHEN a test is renamed to a non-test name THEN decide fails; renamed to another test name THEN it passes", () => {
+  assert.equal(withFiles([{ filename: "src/a.ts", previous_filename: "src/a.test.ts", status: "renamed" }]).pass, false);
+  assert.equal(withFiles([{ filename: "src/b.test.ts", previous_filename: "src/a.test.ts", status: "renamed" }]).pass, true);
+});
+
+test("AC-164-3: WHEN any test-folder, spec, snapshot, template or Python test file is removed THEN decide fails", () => {
+  for (const path of ["e2e/smoke.spec.ts", "apps/mobile/e2e/notes.yaml", "e2e/visual.spec.ts-snapshots/home-light-visual-phone.png",
+    "scripts/generate/templates/parts/component.test.tsx.tpl", "tests/helpers.py"]) {
+    assert.equal(withFiles([gone(path)]).pass, false, path);
+  }
+});
+
+test("AC-164-4: WHEN a test file is only added or modified THEN decide passes", () => {
+  assert.equal(withFiles([{ filename: "src/a.test.ts", status: "added" }, { filename: "e2e/smoke.spec.ts", status: "modified" }]).pass, true);
+});
+
+test("AC-164-5: WHEN a removed file is a near miss THEN decide passes", () => {
+  for (const path of ["src/testing-utils.ts", "docs/test-plan.md", "src/contest.ts"]) assert.equal(withFiles([gone(path)]).pass, true, path);
+});
+
+test("AC-164-6: WHEN the level is Full and a test is deleted THEN a writer's pass at the head passes and a writer's fail fails", () => {
+  const files = [gone("src/a.test.ts")];
+  assert.equal(withFiles(files, { stack: FULL, comments: [PASS()] }).pass, true);
+  assert.equal(withFiles(files, { stack: FULL, comments: [FAIL()] }).pass, false);
 });
