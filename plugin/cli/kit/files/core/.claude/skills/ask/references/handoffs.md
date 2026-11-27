@@ -47,10 +47,10 @@ A handoff is work one session passes to another: a builder brief, a prompt for a
 
 ## The orphan sweep
 
-`/back` and the coordinator's sweep list:
+`/back` and the coordinator's sweep list these. `../../coordinate/scripts/orphans.mjs` finds the missing receipts and the stale claims in the open issues' comments:
 
 - every open `needs-human` item;
-- every handoff record (a `Handoff ·` or `Claimed by` comment) with no `Got it ·` receipt after it, or past its "check by" time with no result;
-- every claimed issue with no new commit for 2 hours (a stale claim).
+- every handoff record (a `Handoff ·` comment or issue body, labelled `handoff` or not, or a `Claimed by` comment) with no `Got it ·` receipt once past its "check by" time (2 hours after the record when it names none), or past its "check by" time with no result;
+- every claimed issue with no new commit for 2 hours and no open pull request (a stale claim).
 
 Each one is a ⏳ decision, unless it's already on the "Waiting on you" list.

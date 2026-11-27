@@ -23,6 +23,7 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir, hostname } from "node:os";
 import { basename, join } from "node:path";
+import { findOrphans } from "./orphans.mjs";
 
 const TYPES = ["started", "pr-opened", "review", "needs-you", "decision", "merged", "finished", "fyi", "failed"];
 // ~/.onrails, or ~/.ai-dev-workflow (its name before the rename to onRails) while only that one exists.
@@ -210,6 +211,13 @@ function build(events, snap) {
     const it = items.get(k) || { key: k, issue, title: row.title };
     it.pr = row.number; it.prLink = row.url; it.stage = "merged"; it.doneAt = row.mergedAt; it.ask = null;
     items.set(k, it);
+  }
+  // The orphan sweep, when the issue list has its comments: a stale claim or a missing receipt waits on the person.
+  for (const o of findOrphans({ issues: (snap.issues || []).filter((r) => r.comments), prs: snap.prs || [], now: t, cwd: ROOT })) {
+    const row = snap.issues.find((r) => r.number === o.issue);
+    const it = items.get(`i${o.issue}`) || { key: `i${o.issue}`, issue: o.issue, title: row.title, ghLink: row.url, gh: true };
+    if (!it.ask) Object.assign(it, { ask: "decision", askAt: new Date(o.since).toISOString(), askTitle: it.title, askNote: o.note });
+    items.set(it.key, it);
   }
   // With a full open-issue list, local work whose issue and PR are both gone was closed on GitHub.
   if (snap.issues) for (const it of items.values()) {
