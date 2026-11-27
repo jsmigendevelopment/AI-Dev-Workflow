@@ -299,6 +299,16 @@ test("AC-168-3: the token rows name the exact scopes to pick", () => {
   assert.match(keyRows(read(`${PROVIDERS}/stripe.md`), "stripe.md").get("STRIPE_SECRET_KEY").pick, /\*\*Create restricted key\*\*/);
 });
 
+test("AC-258-1: PostHog's provider file has the shared sections, a dated check and a row per variable on its project settings page", () => {
+  const text = read(`${PROVIDERS}/posthog.md`);
+  for (const heading of ["**For `pnpm connect`.**", "## Make each key", "## Walkthrough", "## Free tier", "## Why / if it goes wrong"]) assert.ok(text.includes(heading), heading);
+  assert.match(text, /^Last checked: \d{4}-\d{2}-\d{2}\./m);
+  assert.match(text, /checked against PostHog's docs on \d{4}-\d{2}-\d{2}/);
+  const rows = keyRows(text, "posthog.md");
+  assert.deepEqual([...filled(text, "posthog")].sort(), ["VITE_PUBLIC_POSTHOG_HOST", "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN"]);
+  for (const name of filled(text, "posthog")) assert.equal(rows.get(name).url, "https://us.posthog.com/settings/project", name);
+});
+
 test("AC-168-5: AGENTS.md's outside-the-repo line says do every step first and hand over only the sign-in and the paste", () => {
   const line = "- Need the person to do something outside the repo? Do every step you can first, and hand over only what is theirs: for a key, that is signing in and one paste (`secrets`, \"Keys on Full\"). Write it in the `ask` skill's \"Setup step for you\" format. Secret values only through the `secrets` checklist, never chat.";
   for (const file of AGENTS) {
