@@ -44,6 +44,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Changed
 
+- **Size docs (#394).** `pr-review`'s size line, rule 13 of the code-style guide and the README's rules table say what `pr-size.mjs` does: under 1,000 changed lines, not counting lockfiles, generated files and test fixtures, or the `size-exception` label and a `Size exception: <reason>` line. None names `large-pr` or 400 lines any more.
 - **Routing roles (#379).** `routing` has the owner's three roles: the CTO on Fable 5.2 · high (research, the pyramid, writing the issues), the coordinator on Opus 5.5 · medium, and the builder on Sonnet 5.5 · medium (a new Fast tier), with Opus for the risky lane and big slices, one escalation step per verified failure and two at most, and a home account per app. The profile's `cto`, `coordinator` and `builder` lines win over the defaults, and `routing/scripts/roles.mjs` prints each role (decision 379-1).
 - The TanStack Start pack's `sentry` add-on pins its Sentry packages at 11.19.0 (was 11.13.0), and keeps `@sentry/cloudflare` on the Worker rather than adding `@sentry/tanstackstart-react` (#257, decision 257-1).
 - **Drizzle stays on 0.x in the TanStack Start pack (#256).** Decision 256-1: the pack waits for Drizzle 1.0 stable; the Drizzle recipe cites it and gives the right rc.6 date.

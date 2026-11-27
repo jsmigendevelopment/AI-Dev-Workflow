@@ -242,7 +242,7 @@ The rules are in [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blo
 | Design tokens only. No one-off colours or sizes. | ESLint |
 | No unused files, exports or dependencies. No copy-pasted code over 3%. | knip, jscpd |
 | No migration that drops or renames a column, or stores money in a float. | A migration lint |
-| Every pull request closes an issue and stays under about 400 changed lines. | A pull request check |
+| Every pull request closes an issue and stays under 1,000 changed lines, not counting lockfiles, generated files and test fixtures. Over that, it needs the `size-exception` label and a `Size exception: <reason>` line. | A pull request check |
 | Pages don't change by accident. | Screenshot tests, every route, both themes |
 
 → [Code style](https://github.com/jsmigendevelopment/onRails/blob/main/guide/code-style.md) · [App conventions](https://github.com/jsmigendevelopment/onRails/blob/main/guide/app-conventions.md) · [Testing](https://github.com/jsmigendevelopment/onRails/blob/main/guide/testing.md)
