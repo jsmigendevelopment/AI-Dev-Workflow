@@ -134,7 +134,12 @@ export function repoLayout(dir) {
     const git = top && gitDirOf(top);
     if (!git) return { tops: [top ?? start], common: null };
     const common = commonOf(git);
-    return { tops: [...new Set([top, dirname(common), ...recorded(common)])], common };
+    // The folder that holds the common .git folder is a checkout only when its own .git leads back to it: the folder
+    // holding a bare repo or a --separate-git-dir folder (~/proj.git) is not, and counting it hid the home folder (#195).
+    const main = dirname(common);
+    const held = gitDirOf(main);
+    const mains = held && commonOf(held) === common ? [main] : [];
+    return { tops: [...new Set([top, ...mains, ...recorded(common)])], common };
   } catch (error) {
     if (error instanceof Unknown) return null;
     throw error;
@@ -166,27 +171,35 @@ function within(real, { tops, common }) {
   return false;
 }
 
-/** True when the real path real is outside the repo. Anything unreadable counts as inside. */
-function outsideReal(real, layout) {
+/** True when the real path real is outside the repo, false when inside, and null when something above it can't be read. */
+function outsideOrUnread(real, layout) {
   try {
     return !within(real, layout);
   } catch (error) {
     // A folder this process can't look into or above can't be shown to be outside the repo: left out.
-    if (error instanceof Unknown || error.code) return false;
+    if (error instanceof Unknown || error.code) return null;
     throw error;
   }
 }
+/** True when the real path real is outside the repo. Anything unreadable counts as inside. */
+const outsideReal = (real, layout) => outsideOrUnread(real, layout) === true;
 
-/** The system's real path of an existing folder when it is outside the repo, else null. Anything unreadable counts as inside. */
-function outsideOf(path, layout) {
+/**
+ * The system's real path of an existing folder when it is outside the repo, else null. Anything unreadable counts as
+ * inside, and onUnread() is called for it, so the rows can say it waits for the read rather than that a tool is missing.
+ */
+function outsideOf(path, layout, onUnread) {
   let real;
   try {
     real = realOrNone(path);
   } catch (error) {
-    if (error instanceof Unknown) return null;
+    if (error instanceof Unknown) return onUnread(), null;
     throw error;
   }
-  return real && outsideReal(real, layout) ? real : null;
+  if (!real) return null;
+  const outside = outsideOrUnread(real, layout);
+  if (outside === null) onUnread();
+  return outside ? real : null;
 }
 
 // A PATH can name folders inside the repo, and the way preflight was started can add some (#182).
@@ -194,13 +207,14 @@ function outsideOf(path, layout) {
  * The PATH for every probe before the read, as { [its key in env]: value }: the system's real path of each full-path
  * entry that exists outside every checkout of the repo, and none at all when the layout can't be read. The commands get
  * it too, so nothing they start comes from the repo, and they get the resolved paths, never the raw entries.
- * Why each folder another user could write was left off goes into dropped.
+ * Why each folder another user could write was left off goes into dropped; unread.count counts the entries left off
+ * because something at or above them can't be read (#195).
  */
-export function pathOutside(dir, platform, env, layout = repoLayout(dir), dropped = []) {
+export function pathOutside(dir, platform, env, layout = repoLayout(dir), dropped = [], unread = { count: 0 }) {
   const split = platform === "win32" ? ";" : ":";
   // A folder another local user can write or swap is unsafe in the same way: they choose what runs from it (#232).
   const keep = (entry) => {
-    const real = layout && isAbsolute(entry) ? outsideOf(entry, layout) : null;
+    const real = layout && isAbsolute(entry) ? outsideOf(entry, layout, () => { unread.count += 1; }) : null;
     const why = real && othersCanWrite(real, { platform });
     if (why) dropped.push(why);
     return real && !why ? [real] : [];
