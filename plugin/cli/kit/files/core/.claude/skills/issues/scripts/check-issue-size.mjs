@@ -1,80 +1,115 @@
 #!/usr/bin/env node
 // Checks each issue's Size: line (the issues skill, #375): an estimate under 1,000 changed lines, a stated
-// exception, or a split parent that names its children. Read only: it writes nothing. The consistency check runs it.
-// Usage:  gh issue list --limit 200 --json number,title,body | node check-issue-size.mjs    issues as JSON on stdin
+// exception, or a split parent that names its open children. Read only: it writes nothing. The consistency check runs it.
+// Usage:  gh issue list --limit 200 --json number,title,body,labels | node check-issue-size.mjs    issues on stdin
 //         node check-issue-size.mjs docs/issues/*.md     issue files, before GitHub; a `Status: done` file is skipped
 // Exit 0: every issue passes. Exit 1: one line per issue with a gap. Exit 2: the input can't be read, or holds no issue.
+// It fails closed: an estimate it can't read in the one shape below fails, so it never passes 1,000 or more.
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const LIMIT = 1000; // changed lines; at this or over, the issue is split
 
-// "Size:" at the start of a line (after a list dash, quote or bold) or after a "·" separator, as in
-// "Complexity: 2 · Size: about 150 lines · Skills: issues".
-const SIZE_LINES = /(?:^[\s>*-]*|·\s*)\**Size:\**[ \t]*(.*)$/gm;
-const EXCEPTION = /\bexception:\s*(.*)$/i;
-// A split parent: "split into #12, #13" or "split into #12 and #13".
-const SPLIT = /\bsplit into\s+(#\d+(?:\s*(?:,|&|and)\s*#\d+)*)/i;
-// The files come after the first separator, or after the first "lines" or "loc" ("1.5kLOC" counts; "guidelines" doesn't).
-const SEPARATOR = /\s[·|]\s|;/;
-const UNIT = /(?<![a-jl-z])(?:lines?|loc)\b/i;
-// A number of lines, not one inside "#1024" or "src/1200-x.ts". Thousands are split by ",", ".", "'" or a space and
-// always have three digits after it: "1,200", "1.000", "1 200". A dot or comma before other digits is a decimal:
-// "1.5k", "1,25k". A "k" (also glued to "loc" or "lines") means thousands.
-const NUMBER = /(?<![#\w/.])(\d{1,3}(?:[,.'    ]\d{3})+(?!\d)|\d+)(?:[.,](\d+))?(\s*k(?![a-jm-z]))?/gi;
+// A Size: value starts a line (after a list dash or bold) or follows a "·". Any case; "**Size:**" or "**Size**:".
+const SIZE = /^\**size\**[ \t]*:\**[ \t]*/i;
+const LIST_MARK = /^[ \t]*(?:[-*+][ \t]+)?/;
+// The one estimate shape: an optional qualifier, one number or a range (each with an optional k), an optional
+// "changed", then "lines" or "loc". Thousands are grouped by a comma or a space; a decimal needs a k ("1.5k").
+const QTY = String.raw`(\d+(?:[.,]\d{1,2})?\s*k|\d{1,3}(?:[,    ]\d{3})+|\d+)`;
+const ESTIMATE = new RegExp(
+  String.raw`^(?:(?:about|around|roughly|approximately|approx\.?|under|up to|at most|~|≈|<|≤)\s*)?` +
+    String.raw`${QTY}(?:\s*(?:-|to|[‐-―−])\s*${QTY})?\s*(?:changed\s+)?(?:lines?|loc)$`,
+  "i",
+);
+// The two whole forms, each only at the start of the value or right after a "·".
+const EXCEPTION = /^exception:\s*/i;
+const SPLIT = /^split into\s+(#\d+(?:\s*(?:,|&|and)\s*#\d+)*)\s*$/i;
 const FENCE = /^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ \t]*\1[ \t]*$|(?![\s\S]))/gm;
+const QUOTE = /^[ \t]*>.*$/gm;
 const DONE = /^Status:\s*done\b/im;
+const READY_FILE = /^Status:\s*ready\b/im;
 
-// What a reader sees: HTML comments and fenced blocks are examples, never the issue's own Size line.
-const plain = (text) => text.replace(/<!--[\s\S]*?-->/g, "").replace(FENCE, "");
-const sizeLines = (body) => [...plain(body).matchAll(SIZE_LINES)].map((m) => m[1]);
-const count = ([, whole, decimal, k]) => {
-  const n = Number(`${whole.replace(/\D/g, "")}${decimal ? `.${decimal}` : ""}`);
-  return Math.round(k ? n * 1000 : n);
+// What the issue says itself: comments, fenced blocks and quotes are examples or someone else's words.
+const plain = (text) => text.replace(/<!--[\s\S]*?-->/g, "").replace(FENCE, "").replace(QUOTE, "");
+
+// Every Size: value in the body, each up to the next Size: or the end of its line.
+function sizeValues(body) {
+  const values = [];
+  for (const line of plain(body).split(/\r?\n/)) {
+    let current = null;
+    for (const segment of line.replace(LIST_MARK, "").split("·").map((s) => s.trim())) {
+      if (SIZE.test(segment)) values.push((current = [segment.replace(SIZE, "")]));
+      else current?.push(segment);
+    }
+  }
+  return values.map((segments) => segments.join(" · "));
+}
+
+const count = (qty) => {
+  const k = /k$/i.test(qty);
+  const n = k ? Number(qty.replace(/\s*k$/i, "").replace(",", ".")) * 1000 : Number(qty.replace(/\D/g, ""));
+  return Math.round(n);
 };
 const comma = (n) => n.toLocaleString("en-US");
 
-function parse(line) {
-  // The estimate comes first; the files after it may hold numbers too.
-  let [estimatePart] = line.split(SEPARATOR);
-  estimatePart = estimatePart.replace(EXCEPTION, "").replace(SPLIT, "");
-  const unit = estimatePart.match(UNIT);
-  if (unit) estimatePart = estimatePart.slice(0, unit.index + unit[0].length);
-  const numbers = [...estimatePart.matchAll(NUMBER)].map(count);
-  const exception = line.match(EXCEPTION);
-  const split = line.match(SPLIT);
-  const size = {
-    estimate: numbers.length ? Math.max(...numbers) : null,
-    exception: exception ? exception[1].replace(/\s*·.*$/, "").trim() : null,
-  };
+function parse(value) {
+  const segments = value.split("·").map((s) => s.trim());
+  const [head] = segments;
+  const exception = segments.find((s) => EXCEPTION.test(s));
+  const split = segments.map((s) => s.match(SPLIT)).find(Boolean);
+  const size = { estimate: null, exception: exception === undefined ? null : exception.replace(EXCEPTION, "") };
+  if (!EXCEPTION.test(head) && !SPLIT.test(head)) {
+    const match = head.match(ESTIMATE);
+    if (match) size.estimate = Math.max(...match.slice(1).filter(Boolean).map(count));
+    else if (/\d/.test(head)) size.unreadable = head;
+  }
   if (split) size.split = split[1].match(/\d+/g).map(Number);
   return size;
 }
 
-/** The issue's Size line as { estimate, exception, split? }, or null when it has none. Comments and fences don't count. */
+/** The issue's first Size value as { estimate, exception, split?, unreadable? }, or null when it has none. */
 export function readSize(body) {
-  const [line] = sizeLines(body);
-  return line === undefined ? null : parse(line);
+  const [value] = sizeValues(body);
+  return value === undefined ? null : parse(value);
 }
 
-/** One message per issue with a gap: no Size line or two, no estimate, an empty exception, or 1,000 or more. */
-export function checkSizes(issues) {
-  const problems = [];
-  for (const { number, title, body } of issues) {
-    const name = `#${number} ${title}`;
-    const lines = sizeLines(body ?? "").length;
-    const size = readSize(body ?? "");
-    if (lines > 1) problems.push(`${name}: ${lines} Size: lines. Keep one: \`Size: <estimate> lines · <files or modules>\`.`);
-    else if (!size) problems.push(`${name}: no Size: line. Write \`Size: <estimate> lines · <files or modules>\`.`);
-    else if (size.exception === "") problems.push(`${name}: the Size: exception has no reason. Write \`Size: exception: <reason>\`.`);
-    else if (size.exception || size.split) continue;
-    else if (size.estimate === null) problems.push(`${name}: the Size: line has no estimate. Write \`Size: <estimate> lines · <files or modules>\`.`);
-    else if (size.estimate >= LIMIT) {
-      problems.push(`${name}: the estimate is ${comma(size.estimate)} lines, 1,000 or more. Split it into child issues, or write \`Size: exception: <reason>\`.`);
-    }
+const isReady = ({ body, labels }) =>
+  (labels ?? []).some((l) => (typeof l === "string" ? l : l?.name) === "status:ready") || READY_FILE.test(plain(body ?? ""));
+
+// A split parent names at least one other issue in the list, never itself, and is never ready.
+function splitProblem(issue, split, open) {
+  if (split.includes(issue.number)) return "the split names itself. Name its child issues: `Size: split into #<child>, #<child>`.";
+  if (!split.some((n) => open.has(n))) {
+    return `none of its children (${split.map((n) => `#${n}`).join(", ")}) is open in this list. Close it once its last child merges, or name its open children.`;
   }
-  return problems;
+  if (isReady(issue)) return "a split parent is never ready. Remove `status:ready`, or in a file write `Status: blocked`, until its last child is done.";
+  return null;
+}
+
+function sizeProblem(issue, open) {
+  const values = sizeValues(issue.body ?? "");
+  if (values.length > 1) return `${values.length} Size: lines. Keep one: \`Size: <estimate> lines · <files or modules>\`.`;
+  if (!values.length) return "no Size: line. Write `Size: <estimate> lines · <files or modules>`.";
+  const size = parse(values[0]);
+  if (size.unreadable) return `can't read this estimate: "${size.unreadable}". Write one total, like \`Size: about 600 lines · <files or modules>\`.`;
+  if (size.exception === "") return "the Size: exception has no reason. Write `Size: exception: <reason>`.";
+  if (size.exception) return null;
+  if (size.split) return splitProblem(issue, size.split, open);
+  if (size.estimate === null) return "the Size: line has no estimate. Write `Size: <estimate> lines · <files or modules>`.";
+  if (size.estimate >= LIMIT) {
+    return `the estimate is ${comma(size.estimate)} lines, 1,000 or more. Split it into child issues, or write \`Size: exception: <reason>\`.`;
+  }
+  return null;
+}
+
+/** One message per issue with a gap: no Size line or two, an unreadable or missing estimate, 1,000 or more, or a bad split. */
+export function checkSizes(issues) {
+  const open = new Set(issues.map((i) => i.number));
+  return issues.flatMap((issue) => {
+    const problem = sizeProblem(issue, new Set([...open].filter((n) => n !== issue.number)));
+    return problem ? [`#${issue.number} ${issue.title}: ${problem}`] : [];
+  });
 }
 
 // An issue file before GitHub: docs/issues/NNN-short-title.md, titled by its first "# " heading.
