@@ -254,7 +254,7 @@ test("#221 nice 2: the coordinator's own account at a usage limit marks the swee
   const rules = section(".agents/skills/coordinate/SKILL.md", "## Rules", "\n## References");
   const rule = rules.split("\n").find((l) => l.startsWith("- **An account at its usage limit:**"));
   const own = sentences(rule).filter((s) => /own account/.test(s)).join(" ");
-  assert.match(own, /When this session's own account is at the limit/);
+  assert.match(own, /^With that one-shot armed, when this session's own account is at the limit/);
   assert.match(own, /`T cancelled`/);
   assert.match(own, /prints `restart` at the reset, not `alive`/);
 });
@@ -263,6 +263,34 @@ test("#221 nice 4: coordinate says a repeat tied to the session, like /loop, can
   const step = section(".agents/skills/coordinate/SKILL.md", "1. **One sweep timer,**", "\n2. **Pick the mode.**");
   const sup = step.slice(step.indexOf("**The supervisor**"), step.indexOf("**To stop:**"));
   assert.match(sup, /Only a task that outlives this session counts\. A `\/loop`[^.]*dies with it, so it can't be the supervisor\./);
+});
+
+test("AC-222-1: WHEN ask is read THEN stop and pause cancel every supervisor on the repo, not only this session's", () => {
+  const words = section(".agents/skills/ask/SKILL.md", "| They say |", "\nBack from a pause");
+  const both = sentences(words).find((s) => /every supervisor on this repo/.test(s));
+  assert.ok(both, "pause and stop end every supervisor");
+  assert.match(both, /^Both also end/);
+  assert.match(both, /whichever session armed it/);
+  assert.match(words, /`node \.agents\/skills\/coordinate\/scripts\/timer\.mjs supervisor-cancelled`/);
+  assert.match(words, /resume note[^\n]*Say the supervisor is cancelled/);
+  assert.match(words, /except the supervisor above/);
+});
+
+test("AC-222-2: WHEN a coordinator is mid-turn and its sweep timer was refreshed within 20 minutes THEN supervise prints alive", () => {
+  const s = state(`# State\n\n${SWEEP_LIVE}\n${SUP_LIVE}\n`);
+  // Mid-turn an hour later, the one-shot's firing waits: without a refresh the loop reads as dead.
+  assert.deepEqual(s.timer("2026-11-26T11:00:00Z", "supervise"), { code: 0, out: "restart" });
+  assert.equal(s.timer("2026-11-26T10:40:00Z", "refresh").code, 0);
+  assert.match(s.text(), /sweep-1000\+trig_a · every 10 min · next 2026-11-26T10:50:00Z/);
+  assert.deepEqual(s.timer("2026-11-26T11:00:00Z", "supervise"), { code: 1, out: "alive" });
+  assert.deepEqual(s.timer("2026-11-26T11:19:00Z", "supervise"), { code: 1, out: "alive" });
+  assert.equal(state().timer("2026-11-26T10:40:00Z", "refresh").code, 1, "no timer: nothing to refresh");
+});
+
+test("AC-222-2: coordinate refreshes the sweep timer every 20 minutes in a long turn, and checks presence first when the supervisor started it", () => {
+  const step = section(".agents/skills/coordinate/SKILL.md", "1. **One sweep timer,**", "\n2. **Pick the mode.**");
+  assert.match(step, /\*\*A long turn\*\*[^\n]*`T refresh` at least every 20 minutes/);
+  assert.match(step, /\*\*Started by the supervisor below Full:\*\* run loop step 1's presence and hard-stop checks before you arm anything/);
 });
 
 test("AC-206-5, AC-206-6: the synced copies carry the same supervisor lines", () => {
