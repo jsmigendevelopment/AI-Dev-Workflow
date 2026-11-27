@@ -106,7 +106,7 @@ test("AC-245-1: a fence that keeps writes in but leaves the runtime folder reada
     spec.writes = spec.writes.filter((w) => w.startsWith(p.dir) || w.startsWith(p.home));
     return [...argv.slice(0, -1), JSON.stringify(spec)];
   } };
-  assert.equal(probe(p, leaky, { PATH: process.env.PATH ?? "" }), `leaky let ${p.hidden.at(-1).path} be read`);
+  assert.equal(probe(p, leaky, safeEnv({}, { cwd: s.dir })), `leaky let ${p.hidden.at(-1).path} be read`);
 });
 
 test("AC-245-1: the macOS profile denies writes outside the clone and <home>, reads of your checkout and logins, and the Keychain", () => {
