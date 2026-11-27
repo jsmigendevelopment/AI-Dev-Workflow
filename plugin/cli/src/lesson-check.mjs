@@ -1,8 +1,11 @@
 // npx onrails lesson check: refuse any kit lesson that isn't a closed record of known-safe values (#321).
-// An allowlist, not a blocklist: every key, value and word must be on a fixed list. It only reads, and an error
+// An allowlist, not a blocklist: every key, value and word must be on a fixed list. With the project's deny set (#322)
+// it also refuses the project's own terms. It only reads, and an error
 // names the field and the rule, never the refused text, so a refused record's private detail is never printed.
+import { execFileSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { loadKit } from "./kit.mjs";
+import { denySet, projectTerm } from "./lesson-deny.mjs";
 import { COMMON_WORDS, GLOSSARY } from "./lesson-words.mjs";
 
 const ENUMS = {
@@ -15,6 +18,8 @@ const ENUMS = {
 const COST = { extra_runs: ["0", "1", "2-5", "6+"], hours_stuck: ["0", "<1", "1-4", "4+"] };
 const KEYS = ["kit_version", "component", "category", "tool", "model_family", "automation", "cost", "lesson",
   "suggested_fix", "repo_key"];
+// The free-text fields. Every other field must hold a value from a closed list.
+const FREE_TEXT = ["lesson", "suggested_fix"];
 const SENTENCE_MAX = 200;
 const DETAIL = "[detail]";
 
@@ -33,18 +38,30 @@ const SENTENCE_RULES = [
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
-// The component names the kit ships: skill folders, script and hook names, and template names.
-export function componentNames(manifest) {
-  const names = new Set(["unknown"]);
-  const paths = [...Object.keys(manifest.core ?? {})];
+// Every file path the kit ships, templates under templates/<name>/.
+function kitPaths(manifest) {
+  const paths = Object.keys(manifest.core ?? {});
   for (const [name, files] of Object.entries(manifest.templates ?? {})) {
-    names.add(name);
     paths.push(...Object.keys(files).map((p) => `templates/${name}/${p}`));
   }
-  for (const path of paths) {
+  return paths;
+}
+
+// The skill folder a kit path sits in, or null.
+function skillOf(path) {
+  const parts = path.split("/");
+  const at = parts.indexOf("skills");
+  return at >= 0 && parts.length > at + 2 ? parts[at + 1] : null;
+}
+
+// The kit's skill names: the folders under skills/ in its manifest.
+const skillNames = (manifest) => new Set(kitPaths(manifest).map(skillOf).filter(Boolean));
+
+// The component names the kit ships: skill folders, script and hook names, and template names.
+export function componentNames(manifest) {
+  const names = new Set(["unknown", ...Object.keys(manifest.templates ?? {}), ...skillNames(manifest)]);
+  for (const path of kitPaths(manifest)) {
     const parts = path.split("/");
-    const skill = parts.indexOf("skills");
-    if (skill >= 0 && parts.length > skill + 2) names.add(parts[skill + 1]);
     const file = parts.at(-1);
     if (file.endsWith(".mjs")) names.add(file.slice(0, -4));
     else if (parts.some((p) => /template/i.test(p))) names.add(file.replace(/\.[^.]+$/, "").toLowerCase());
@@ -89,8 +106,38 @@ function checkCost(cost, errors) {
   }
 }
 
-// { ok, errors: [{ field, rule }] }. Never alters the record.
-export function checkLesson(record, { manifest }) {
+// Every string field, with the name an error prints for it. An extra key's name stays hidden.
+function stringFields(record) {
+  const fields = [];
+  for (const [key, value] of Object.entries(record)) {
+    const field = KEYS.includes(key) ? key : EXTRA;
+    if (typeof value === "string") fields.push([field, value]);
+    else if (key === "cost" && isObject(value)) {
+      for (const [sub, inner] of Object.entries(value)) {
+        if (typeof inner === "string") fields.push([`cost.${sub in COST ? sub : EXTRA}`, inner]);
+      }
+    }
+  }
+  return fields;
+}
+
+// A project term in a free-text field (#322), named by its field and source kind, never by the term. A field that
+// passed its closed list is skipped: its value is the kit's own (`claude-code`, a component such as `board`), so it
+// carries nothing from the project even when the project's docs or name use the same word.
+function checkDeny(record, deny, errors) {
+  const refused = new Set(errors.map((e) => e.field));
+  const seen = new Set();
+  for (const [field, value] of stringFields(record)) {
+    if (!FREE_TEXT.includes(field) && !refused.has(field)) continue;
+    const kind = projectTerm(value, deny);
+    if (!kind || seen.has(field)) continue;
+    seen.add(field);
+    errors.push({ field, rule: `contains a project term (${kind})` });
+  }
+}
+
+// { ok, errors: [{ field, rule }] }. Never alters the record. `deny` is the project's deny set (#322), if any.
+export function checkLesson(record, { manifest, deny }) {
   if (!isObject(record)) return { ok: false, errors: [{ field: "record", rule: "type" }] };
   const errors = [];
   for (const key of Object.keys(record)) {
@@ -110,22 +157,58 @@ export function checkLesson(record, { manifest }) {
     else rule = ENUMS[key].includes(value) ? null : "not-allowed";
     if (rule) errors.push({ field: key, rule });
   }
+  if (deny) checkDeny(record, deny, errors);
   return { ok: errors.length === 0, errors };
 }
 
-// The CLI command. 0 accepted, 1 refused, 2 bad usage. [dir] is the project folder, for its deny set (#322).
-export function lessonCheck(file, dir, { kitDir } = {}) {
-  const usage = (message) => (console.error(`${message}\nUsage: npx onrails lesson check <file> [dir]`), 2);
+const USAGE = "Usage: npx onrails lesson check <file> [--project <dir>]";
+const usage = (message) => (console.error(`${message}\n${USAGE}`), 2);
+
+/** `lesson check <file> [--project <dir>]`, from the CLI's arguments after `lesson`. */
+export function lesson(argv, options) {
+  const [sub, ...rest] = argv;
+  if (sub !== "check") return usage(`Unknown lesson command: ${sub ?? ""} (use check)`);
+  const files = [];
+  let dir;
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i];
+    if (arg === "--project") dir = rest[++i] ?? "";
+    else if (arg.startsWith("--project=")) dir = arg.slice("--project=".length);
+    else if (arg.startsWith("-")) return usage(`Unknown option: ${arg}`);
+    else files.push(arg);
+  }
+  if (files.length > 1) return usage("Name one lesson file.");
+  return lessonCheck(files[0], dir, options);
+}
+
+// The CLI command. 0 accepted, 1 refused, 2 bad usage. dir is the project whose own terms are refused (#322): the
+// current repo by default.
+export function lessonCheck(file, dir, { kitDir, home } = {}) {
   if (!file) return usage("Name the lesson file.");
-  if (dir !== undefined && !isDir(dir)) return usage("The folder to check against isn't a folder.");
+  if (dir !== undefined && !isDir(dir)) return usage("The project to check against isn't a folder.");
   let text;
   try { text = readFileSync(file, "utf8"); } catch { return usage("Can't read the lesson file."); }
   let record;
   try { record = JSON.parse(text); } catch { return refuse([{ field: "record", rule: "not-json" }]); }
-  const { ok, errors } = checkLesson(record, { manifest: readManifest(kitDir) });
+  const manifest = readManifest(kitDir);
+  // Only glossary words and skill names leave the deny set (decision 322-1): an app named after a kit file such as
+  // board or vision is still the app's name.
+  const kitWords = new Set([...GLOSSARY, ...skillNames(manifest)]);
+  const deny = denySet(dir ?? currentRepo(), { home, kitWords, kitFiles: manifest.core ?? {} });
+  const { ok, errors } = checkLesson(record, { manifest, deny });
   if (!ok) return refuse(errors);
   console.log("Lesson accepted.");
   return 0;
+}
+
+// The top of the git repo this runs in, else the current folder.
+function currentRepo() {
+  try {
+    return execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    // Not in a git repo: the current folder's own files still count.
+    return process.cwd();
+  }
 }
 
 function refuse(errors) {
