@@ -112,6 +112,8 @@ for (const env of envs) {
   const file = `.env.${env}.local`;
   if (!existsSync(file)) { console.log(`${env}: no ${file}, skipped`); continue; }
   const values = parseEnv(file);
+  // A tool's error can echo what it was given: every value in the file is hidden before a line prints, as connect does (#161).
+  const hide = (text) => Object.values(values).filter(Boolean).reduce((t, v) => t.replaceAll(v, "<hidden>"), String(text));
   for (const [name, m] of Object.entries(meta)) {
     if (!m.scope.includes(env)) continue;
     const value = values[name];
@@ -149,7 +151,7 @@ for (const env of envs) {
       } catch (e) {
         failed++;
         missed = true;
-        console.log(`${env}: FAILED ${name} as a ${where}: ${String(e.stderr || "").split("\n")[0]}`);
+        console.log(`${env}: FAILED ${name} as a ${where}: ${hide(String(e.stderr || "").split("\n")[0])}`);
       }
     }
     if (!stored) nowhere.push(`${name} (${env})`);

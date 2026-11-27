@@ -119,6 +119,8 @@ const PUBLIC = visibility === "public";
 // folder holding .git counts (#160). The same rule and lookup as push-secrets.mjs, connect and the
 // TanStack pack's ci-mode.ts; cli/test/deploy-keys-followups runs the same fixtures on all four.
 const CI_ACTIONS = /^ci[ \t]*=[ \t]*"actions"[ \t]*(?:#.*)?\r?$/m;
+// Not repoRoot(): that asks git (and falls back to "."), while this walks from the app folder and must
+// stop at the .git folder even when git can't run, the same lookup the other three readers use.
 function gitFolder(start) {
   for (let dir = start; ; dir = dirname(dir)) {
     if (existsSync(join(dir, ".git"))) return dir;

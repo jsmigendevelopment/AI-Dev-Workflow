@@ -76,13 +76,14 @@ describe('when wrangler secret put SITE_PASSWORD fails', () => {
   })
 
   it('AC-160-3: WHEN the rerun with --new-password succeeds THEN the Worker and the file match again', async () => {
-    const world: World = { ...freshWorld(), testSecrets: ['SITE_PASSWORD'], passwordPutFails: true }
-    await run(world, files(), { protect: 'password', newPassword: true })
+    const world: World = { ...freshWorld(), testSecrets: ['SITE_PASSWORD'], passwordPutFails: true, secretsMade: 0 }
+    const first = await run(world, files(), { protect: 'password', newPassword: true })
     world.passwordPutFails = false
     const again = await run(world, files(), { protect: 'password', newPassword: true })
     expect(again.code).toBe(0)
     expect(again.calls).toContain('wrangler secret put SITE_PASSWORD --env test <stdin>')
-    expect(again.saved).toEqual({ TEST_SITE_PASSWORD: PASSWORD })
+    expect(again.saved.TEST_SITE_PASSWORD).not.toBe(first.saved.TEST_SITE_PASSWORD) // the fake varies it
+    expect(again.stdin).toEqual([again.saved.TEST_SITE_PASSWORD])
     expect(again.output()).toContain('set SITE_PASSWORD on the test Worker')
   })
 })
