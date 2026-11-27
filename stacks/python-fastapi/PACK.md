@@ -8,7 +8,7 @@ Source: `research/platform-packs.md`, section 3, and fact-check rows 36 to 49. M
 
 ## When to choose it
 
-**Ask first: does this need Python at all?** A service that only calls model APIs over HTTP can live in the web pack's TypeScript Worker for nothing extra.
+**First question: does this need Python at all?** A service that only calls model APIs over HTTP can live in the web pack's TypeScript Worker for nothing extra.
 
 Choose it when the work needs Python libraries: data frames, document parsing, ML models, or an agent framework that only exists in Python.
 

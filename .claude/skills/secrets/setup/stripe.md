@@ -35,7 +35,7 @@ Stripe's entry point is three steps: install the CLI globally (`npm install -g @
 - **Sign-in runs in the person's terminal:** `pnpm dlx @stripe/cli@1.55.14 login`. The MCP server's browser sign-in is theirs too. Grant test mode only.
 - **The planner's business context comes from `docs/vision.md`**, summarised: what's sold, to whom, one-time or recurring, direct or marketplace, online or in person, countries and currencies. Never hard-code it in the kit or a skill. No people's names, emails or keys in the message.
 - **The plan is advice.** Write the accepted choice to `docs/decisions.md`. The `stripe` add-on's code (Checkout, the portal, the signed webhook) stays the integration unless an issue says otherwise.
-- **`stripe sandbox create` creates an account resource.** Ask first, and prefer the person's own test mode.
+- **`stripe sandbox create` creates an account resource.** Below Full, ask first. On Full, run it and record it as "AI pick, not reviewed". Either way, prefer the person's own test mode.
 - **The MCP server reads and changes the account.** Use it on test data, read-only by default. Never create, refund or delete live objects through it.
 - Test keys only until launch. Live keys and `STRIPE_ALLOW_LIVE` go through the `secrets` checklist, by the person.
 

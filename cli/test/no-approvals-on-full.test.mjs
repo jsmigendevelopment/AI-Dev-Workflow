@@ -3,7 +3,7 @@
 // standing-decisions.test.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { read, scan, unconditionalAsks } from "./approval-scan.mjs";
+import { asks, asks199, mdFiles, read, scan, unconditionalAsks } from "./approval-scan.mjs";
 
 const AGENTS = ["AGENTS.md", "cli/kit/files/core/AGENTS.md", "plugin/cli/kit/files/core/AGENTS.md"];
 
@@ -130,4 +130,32 @@ test("#199 item 1: on a host that isn't GitHub, the loop merges through that hos
   assert.match(step8, /merge only when it equals the reviewed sha\. Never merge by branch name, and never push main\./);
   assert.match(step8, /\*\*Not signed in, or no such tool\?\*\* Keep the queue\. Below Full, send the new queue lines to the person each sweep as one ⏳ decision through `ask`[^.]*\. On Full, put them in the next batched ℹ️ FYI and keep building\./);
   assert.deepEqual(scan([LOCAL_MODE]).found, []);
+});
+
+// #211: "ask the person to <any verb>", "ask what to do", "stop and ask", and "ask first" wherever it is an order.
+test("AC-211-1: WHEN the scan reads \"Ask the person to <verb> ...\" without a below-Full condition THEN it flags it, and the whole-file scan stays green", () => {
+  const phrasings = ["Ask the person to describe the idea.", "Ask the owner to run the script.", "If it fails, ask them to rotate that key.",
+    "Ask you to paste it.", "Ask what to do when it does:", "Use the preview, or stop and ask.", "Ask first, then wait.",
+    "Buy it (money: ask first).", "So ask first unless the profile says not to.", "**Ask first, and name the account.**"];
+  for (const s of phrasings) assert.deepEqual(unconditionalAsks(s), [s], s);
+  for (const s of ["Below Full, ask the person to describe the idea.", "Below Full, ask what to do.", "Use the preview, or, below Full, stop and ask.",
+    "Below Full, ask first, then wait."]) assert.deepEqual(unconditionalAsks(s), [], s);
+  // Not asks: a topic, or someone else asking.
+  for (const s of ["What to ask first.", "We ask first.", "They ask first, and we answer."]) assert.deepEqual(unconditionalAsks(s), [], s);
+  const files = [".agents/skills/afk/SKILL.md", ".agents/skills/idea/SKILL.md", ".agents/skills/name/SKILL.md", ".agents/skills/secrets/SKILL.md",
+    ".agents/skills/test-by-hand-as-the-user/SKILL.md", ".agents/skills/qa/SKILL.md", "stacks/unity/PACK.md", "stacks/tanstack-start-addons/analytics/ADDON.md"];
+  assert.deepEqual(scan(files).found, []);
+  assert.ok(read(files[4]).includes("Use a test account or the preview, or, below Full, stop and ask. On Full, list it as not tested and put it in the FYI."));
+  assert.ok(read(files[2]).includes("ask them to run `gh auth login` first. On Full, park it in the FYI and carry on locally."));
+});
+
+test("AC-211-2: WHEN main's scan and the new one read every .md line and a generated set THEN no sentence main flags passes the new one", () => {
+  const notAsks = /\b(?:what to|we|they|I|who) ask first\b/i;
+  const lines = ["AGENTS.md", "README.md", ...mdFiles(".agents/skills"), ...mdFiles("guide"), ...mdFiles("stacks"), ...mdFiles("docs")].flatMap((f) => read(f).split("\n"));
+  const who = ["the person", "the owner", "them", "you"];
+  const generated = who.flatMap((w) => ["close it", "click it", "approve it", "review it", "run it"].flatMap((v) => [`Ask ${w} to ${v}.`, `Then ask ${w} to ${v} first.`]))
+    .concat(["Ask first.", "Then ask first.", "**ask first.**", "It doesn't ask first.", "What to ask first.", "Ask how to go on.", "Ask the person.", "Ask them first."]);
+  for (const s of [...lines.flatMap((l) => l.split(/(?<=[.!?])\s+/)), ...generated]) {
+    if (asks199(s) && !notAsks.test(s)) assert.ok(asks(s), s);
+  }
 });

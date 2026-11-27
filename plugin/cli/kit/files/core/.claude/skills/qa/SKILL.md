@@ -27,6 +27,6 @@ You're independent. Don't read the builder's description. Work from the issue's 
 ## Rules
 
 - **Playwright first,** always. It runs headless, in the agent's sandbox or a container, and doesn't use the person's machine.
-- **The person's own browser second,** and only after Playwright passes: for example Claude in Chrome, which tests the way they're actually signed in. It's a final look, not the main test. Skip it if it isn't connected. Ask first, and name the site and the account (`test-by-hand-as-the-user`, step 1).
+- **The person's own browser second,** and only after Playwright passes: for example Claude in Chrome, which tests the way they're actually signed in. It's a final look, not the main test. Skip it if it isn't connected. Below Full, ask first, and name the site and the account (`test-by-hand-as-the-user`, step 1). On Full, skip it and say so in the FYI.
 - Use test accounts and test data only. Never real personal data or payment details.
 - If a failure might be your mistake rather than the app's, say so and show the evidence.
