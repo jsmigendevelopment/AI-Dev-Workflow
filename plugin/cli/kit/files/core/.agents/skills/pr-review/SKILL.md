@@ -7,6 +7,7 @@ description: Use to review a pull request or branch as an independent reviewer (
 
 You did not write this code. Judge only the **issue, the diff and the check results.**
 - Run from main, and read the change with `gh pr diff <n>` (or `git diff main...<branch>`).
+- Then diff the head against current main as well as the merge base: `git fetch origin main && git diff origin/main <head>`. A head cut from a stale checkout can quietly undo main. Flag anything main has that the head removes, unless the issue asks for it: a must fix.
 - **Don't read the pull request description or the commit messages.** Persuasive descriptions make reviewers miss real problems.
 
 ## Check
