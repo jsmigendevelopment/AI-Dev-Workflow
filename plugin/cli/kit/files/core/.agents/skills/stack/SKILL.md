@@ -14,13 +14,23 @@ The person shouldn't need to know any of this. For each area, give your **recomm
 The platform comes first, because everything else depends on it.
 
 1. **Platform(s):** web, iOS, Android, desktop, CLI. Decide from the main flow and the users, not from habit.
-2. **Framework and language.**
-3. **UI kit and styling.** Always pick one. Without one, the AI invents its own components and the UI drifts.
-4. **Architecture and folders:** a modular monolith with feature modules in a module-based folder structure (see `templates/architecture.md` in the `idea` skill). Also pick the path alias (`@/`), and a generator that makes a new module from the example one (`pnpm new:module <name>`), so agents copy the shape instead of inventing it.
-5. **API pattern:** controller → service → repository/client, with one composition root. Also pick the wire style.
-6. **Data:** the database, how the schema is migrated, and backups.
-7. **Auth:** buy it, don't build it.
-8. **Environments:** **test** and **production**, plus a **preview per pull request** if the host offers one. After each merge, the session deploys main to test with the pack's script (`pnpm deploy:test` on the web pack), never a workflow.
+2. **Backend.** Ask in plain words: "Does this app need a backend? That's its own data, rules that run on a server, background jobs, or an API other apps call. A blog or a marketing site doesn't." A static or content site: no backend, skip to the framework.
+3. **Host: Cloudflare Workers or not.** Backend yes? Ask: "Will it run on Cloudflare Workers?" Signs it won't: long-running processes, heavy compute, background workers, persistent connections, or another host the person wants. Then recommend (decision 344-1):
+
+   | Answer | Recommend | Why | Alternatives |
+   |---|---|---|---|
+   | No backend | **TanStack Start** alone | The web default; nothing runs on a server but pages | Next.js |
+   | Backend on Workers | **TypeScript**: Start server functions or a Workers API, with D1 | One language, one deploy, and it fits the Workers runtime | Go off Workers, if the signs above appear |
+   | Backend not on Workers | **Go backend** with a TypeScript web frontend (TanStack Start) that calls it | The owner's rule; a small fast binary that runs long jobs and holds connections on any host | TypeScript on Workers; Python with FastAPI (`stacks/python-fastapi/PACK.md`) when the work needs Python libraries |
+
+   No Go pack yet (#356): a Go pick takes the **No pack** path below.
+4. **Framework and language.**
+5. **UI kit and styling.** Always pick one. Without one, the AI invents its own components and the UI drifts.
+6. **Architecture and folders:** a modular monolith with feature modules in a module-based folder structure (see `templates/architecture.md` in the `idea` skill). Also pick the path alias (`@/`), and a generator that makes a new module from the example one (`pnpm new:module <name>`), so agents copy the shape instead of inventing it.
+7. **API pattern:** controller → service → repository/client, with one composition root. Also pick the wire style.
+8. **Data:** the database, how the schema is migrated, and backups.
+9. **Auth:** buy it, don't build it.
+10. **Environments:** **test** and **production**, plus a **preview per pull request** if the host offers one. After each merge, the session deploys main to test with the pack's script (`pnpm deploy:test` on the web pack), never a workflow.
    - **Who can open the test site and previews?** Ask in plain words: "Should the test site need a login, so strangers and search engines can't see it?" Recommend **Cloudflare Access** (that's a login wall in front of the app, like Google IAP). Then ask how people sign in, and offer every personal-account option, recommendation first:
 
      | Sign in with | Good for |
@@ -35,9 +45,9 @@ The platform comes first, because everything else depends on it.
      They can pick more than one. Then ask who's allowed: a list of emails, a whole email domain, or a GitHub org. Each provider except the emailed code needs a login app the person creates once ("Setup step for you" in `ask`). Other choices: a password page in the app, or no protection.
    - **Anything in production behind a login?** For example `/admin`, or the whole app for an internal tool. Production changes are on the always-stop list: show the dry run, then ask.
    - **Agents get test credentials only.** Production keys and settings stay with the person.
-9. **The checks, run from the session (`ci = "local"`):** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). Before every merge, an agent other than the builder runs them on the exact head commit in a clean worktree, plus a secret scan and the agent-file guard, and posts the `onrails/check` commit status (`coordinate`). Previews and deploys are scripts the session runs too. Write `ci = "local"` in `docs/stack.md` for every repo, private or public: no GitHub Actions. `ci = "actions"` only if the person turns it on themselves; never recommend it. Never add a workflow, enable one or depend on one. A tool's docs say "add this workflow"? Run its commands from the session as a package script instead. Lint enforces the code rules a tool can check: no `any` or unexplained `eslint-disable`, no `console.log`, file and function size, unused exports, import order and kebab-case names.
-10. **Build vs buy** for every other need: open source first, then a free-tier SaaS, then build it.
-11. **App conventions,** as quick confirmations. Say the default and move on unless the person objects. The reasons are in `guide/app-conventions.md` in the kit.
+11. **The checks, run from the session (`ci = "local"`):** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). Before every merge, an agent other than the builder runs them on the exact head commit in a clean worktree, plus a secret scan and the agent-file guard, and posts the `onrails/check` commit status (`coordinate`). Previews and deploys are scripts the session runs too. Write `ci = "local"` in `docs/stack.md` for every repo, private or public: no GitHub Actions. `ci = "actions"` only if the person turns it on themselves; never recommend it. Never add a workflow, enable one or depend on one. A tool's docs say "add this workflow"? Run its commands from the session as a package script instead. Lint enforces the code rules a tool can check: no `any` or unexplained `eslint-disable`, no `console.log`, file and function size, unused exports, import order and kebab-case names.
+12. **Build vs buy** for every other need: open source first, then a free-tier SaaS, then build it.
+13. **App conventions,** as quick confirmations. Say the default and move on unless the person objects. The reasons are in `guide/app-conventions.md` in the kit.
     - State: local `useState` first, then typed search params for anything shareable, then **Zustand** only for complex shared client state. Server data in TanStack Query, forms in **TanStack Form**, tables in **TanStack Table**. The other TanStack defaults (charts, Markdown, highlighting, long lists, shortcuts) are in the table below: confirm them as defaults, install none until a feature needs it.
     - Drizzle, snake_case plural tables, `created_at` and `updated_at`, an index on every foreign key. The ID: **UUIDv7 or ULID**, made on the server. Ask which.
     - Money: one `Money` type in integer minor units plus the currency. Rounding: half-even for splitting and tax, unless they want another rule.
@@ -50,7 +60,7 @@ The platform comes first, because everything else depends on it.
     - **Ask these two outright:**
       - *"Support many languages from day one, or English only for now?"* Recommend English only unless the users need more. Yes: `i18next` with `react-i18next` (until research confirms), keys per module. No: text per module in `copy.ts`.
       - *"Will people share things, have teams, or have roles?"* No: owner-only checks in the repository. Yes: relationship-based access (tuples behind one `check(user, action, object)` port), with the kit's built-in engine by default (until research confirms). Write the answer in `docs/security-policy.md`.
-12. **Repo, risk dial and automation level:** confirm visibility and licence, pick the risk dial, and copy in the automation level asked at the start (the `automation` skill). Explain both in one sentence each: the risk dial is how careful each merge is; the automation level is how much agents do without the person. Below Full, when they disagree, the more careful one wins. On Full, a careful dial adds reviews, never a person (#103).
+14. **Repo, risk dial and automation level:** confirm visibility and licence, pick the risk dial, and copy in the automation level asked at the start (the `automation` skill). Explain both in one sentence each: the risk dial is how careful each merge is; the automation level is how much agents do without the person. Below Full, when they disagree, the more careful one wins. On Full, a careful dial adds reviews, never a person (#103).
 
 ## Default picks for a web app
 
