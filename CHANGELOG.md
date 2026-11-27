@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **Merge-behind check (#263).** `coordinate` step 7 checks main merged into a pull request whose base is behind before merging, and asks for a check only the person can run last, once, naming the exact sha. `ask` says what that ask does on each level (decision 263-1).
 - **PostHog provider file (#258).** `secrets/providers/posthog.md` lists the project token and host, with a "Make each key" table checked against PostHog's docs on 2026-11-27 and a connect block, so `pnpm connect` asks for them.
 
 - **Deploy script follow-ups 2 (#170).** A `.takeover` file older than a deploy can take is named as left by a crashed run, with its age and the file to delete; a failed first deploy on test no longer gives the production-only Coming soon advice or asks for the `main <sha>` message it may not carry; a deployment without an id reads as "couldn't tell" and never rolls back; the deploy tests are split under 300 lines.
