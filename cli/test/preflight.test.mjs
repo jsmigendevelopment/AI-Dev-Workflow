@@ -285,12 +285,23 @@ test("on Windows, commands start with no shell: node is this Node, and only a .c
   assert.deepEqual(commandFor("git", ["rev-parse", "--show-toplevel"], win), { file: join(bin, "git.exe"), args: ["rev-parse", "--show-toplevel"] });
   // cmd.exe /s drops the outer quotes, so a shim path with spaces stays one word.
   assert.deepEqual(commandFor("npm", ["config", "get", "registry"], win),
-    { file: comspec, args: ["/d", "/s", "/c", `""${join(bin, "npm.cmd")}" config get registry"`], verbatim: true });
-  assert.equal(commandFor("yarn", ["--version"], win).args[3], `""${join(bin, "yarn.bat")}" --version"`);
+    { file: comspec, args: ["/d", "/v:off", "/s", "/c", `""${join(bin, "npm.cmd")}" config get registry"`], verbatim: true });
+  assert.equal(commandFor("yarn", ["--version"], win).args[4], `""${join(bin, "yarn.bat")}" --version"`);
   assert.equal(commandFor("gh", ["api", "rate_limit"], win), null, "not on PATH: not installed");
   assert.throws(() => commandFor("npm", ["view", "a&b"], win), /plain words/);
   // POSIX too finds the command on PATH first (#169): a bare name is never handed to spawn.
   assert.equal(commandFor("git", ["status"], { platform: "linux", env: { PATH: "" }, execPath: "/usr/bin/node" }), null);
+});
+
+test("AC-1: WHEN preflight runs on a fake win32 with ComSpec=cmd.exe THEN it starts cmd.exe from SystemRoot, with /d /v:off /s /c", () => {
+  const bin = temp("onrails-preflight-bin-");
+  put(bin, "npm.cmd", "");
+  const env = { PATH: bin, PATHEXT: ".CMD", SystemRoot: "D:\\Win" };
+  const how = (more) => commandFor("npm", ["-v"], { platform: "win32", env: { ...env, ...more }, execPath: "node.exe" });
+  assert.deepEqual(how({ ComSpec: "cmd.exe" }),
+    { file: "D:\\Win\\System32\\cmd.exe", args: ["/d", "/v:off", "/s", "/c", `""${join(bin, "npm.cmd")}" -v"`], verbatim: true });
+  assert.equal(how({ ComSpec: "\\cmd.exe", SystemRoot: "Windows" }).file, "C:\\Windows\\System32\\cmd.exe");
+  assert.equal(how({ ComSpec: "\\\\host\\share\\cmd.exe" }).file, "\\\\host\\share\\cmd.exe");
 });
 
 test("model and effort: what the session can see, or what the agent passes in", async () => {

@@ -65,6 +65,13 @@ function ghRepo() {
   return { dir, gh: join(installed, "gh.exe"), path: [".", join(dir, "tools"), installed] };
 }
 
+// A folder outside the repo that holds only git.exe, as an installed git would (#240).
+function gitDir() {
+  const dir = tmp("onrails-git-");
+  put(dir, "git.exe", "installed\n");
+  return dir;
+}
+
 const noValue = (starts) => {
   for (const value of [TEST_VALUE, LIVE_VALUE]) {
     assert.ok(!starts.some((s) => [s.file, ...s.args].join(" ").includes(value)), "a value in a command's arguments");
@@ -88,9 +95,9 @@ test("AC-238-1: WHEN push-secrets runs on a fake win32 with a gh.exe in the curr
 
 test("AC-238-1: WHEN setup-github runs on a fake win32 with a gh.exe in the current folder and another on PATH outside the repo THEN only the outside one starts, by full path", () => {
   const { dir, gh, path } = ghRepo();
-  const r = onWindows(SETUP, dir, path, ["--plan", "free"]);
+  const r = onWindows(SETUP, dir, [...path, gitDir()], ["--plan", "free"]);
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  const ghStarts = r.starts.filter((s) => s.file !== "git");
+  const ghStarts = r.starts.filter((s) => !/git\.exe$/.test(s.file));
   assert.ok(ghStarts.length > 5, JSON.stringify(r.starts));
   for (const s of ghStarts) assert.deepEqual([s.file, s.verbatim, s.noCurrentFolder], [gh, false, "1"], s.args.join(" "));
   assert.ok(ghStarts.some((s) => s.args.join(" ") === "variable set SECRETS_MODE --body repository --repo acme/app"));
@@ -99,14 +106,14 @@ test("AC-238-1: WHEN setup-github runs on a fake win32 with a gh.exe in the curr
 
 test("AC-238-1: WHEN gh is found only in a relative PATH entry or inside the repo THEN push-secrets and setup-github start no gh and say why", () => {
   const { dir } = ghRepo();
-  const path = [".", join(dir, "tools")];
+  const path = [".", join(dir, "tools"), gitDir()];
   const push = onWindows(PUSH, dir, path, []);
   assert.deepEqual(push.starts, []);
   assert.notEqual(push.status, 0);
   assert.match(push.stdout, /test: FAILED API_TOKEN as a GitHub secret \(env test\): gh found only in a relative PATH entry, not run/);
   assert.match(push.stdout, /Keep \.env\.test\.local and \.env\.production\.local until each one is stored\./);
   const setup = onWindows(SETUP, dir, path, ["--plan", "free"]);
-  assert.deepEqual(setup.starts.filter((s) => s.file !== "git"), []);
+  assert.deepEqual(setup.starts.filter((s) => !/git\.exe$/.test(s.file)), []);
   assert.equal(setup.status, 1);
   assert.match(setup.stderr, /gh found only in a relative PATH entry, not run/);
   assert.match(onWindows(PUSH, dir, path.slice(1), []).stdout, /gh found only inside this repo, not run/);
@@ -205,4 +212,15 @@ test("#238: WHEN ComSpec or SystemRoot has no drive letter and isn't a UNC path 
     assert.deepEqual(r.starts.map((s) => s.file), [cmdExe], JSON.stringify(env));
     assert.equal(launch([shim, "install"], { platform: "win32", env: { ...env, PATHEXT } }).file, cmdExe, JSON.stringify(env));
   }
+});
+
+test("AC-2: WHEN setup-github runs on a fake win32 with a git.exe in the current folder and another on PATH outside the repo THEN only the outside one starts, by full path", () => {
+  const { dir, path } = ghRepo();
+  put(dir, "git.exe", "the repo's own\n");
+  const outside = gitDir();
+  const r = onWindows(SETUP, dir, [".", ...path, outside], ["--plan", "free"]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const gitStarts = r.starts.filter((s) => /git(\.exe)?$/i.test(s.file));
+  assert.ok(gitStarts.some((s) => s.args.join(" ") === "remote get-url origin"), JSON.stringify(r.starts));
+  for (const s of gitStarts) assert.deepEqual([s.file, s.noCurrentFolder], [join(outside, "git.exe"), "1"]);
 });

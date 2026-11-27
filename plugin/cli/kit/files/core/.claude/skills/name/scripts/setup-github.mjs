@@ -25,7 +25,7 @@
 // Environments, the production reviewer and SECRETS_MODE exist only for GitHub Actions: it makes
 // them only when docs/stack.md says ci = "actions". On ci = "local" (every repo, unless the person
 // turned Actions on) the session deploys read nothing from GitHub, so it skips them and says why.
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -47,11 +47,21 @@ function run(cmd, input) {
 }
 const api = (method, path, body) =>
   run(["api", "-X", method, path, ...(body ? ["--input", "-"] : [])], body ? JSON.stringify(body) : undefined);
-const git = (cmd) => execFileSync("git", cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-// The repository's top folder, where docs/ lives; this folder when git can't say.
+// git by its full path too (#240): Windows looks a bare name up in the current folder, the repo, first.
+function git(cmd) {
+  const how = commandFor("git", cmd);
+  if (how.why) throw Object.assign(new Error(how.why), { why: how.why });
+  return execFileSync(how.file, how.args, {
+    encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], env: how.env, windowsVerbatimArguments: how.verbatim,
+  }).trim();
+}
+// The repository's top folder, where docs/ lives; this folder when git can't say (or can't run).
 function repoRoot() {
-  const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-  return top.status === 0 ? top.stdout.trim() : ".";
+  try {
+    return git(["rev-parse", "--show-toplevel"]) || ".";
+  } catch {
+    return ".";
+  }
 }
 
 // --- Which plan? --plan, then the profile, then ask. ---
