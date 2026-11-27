@@ -31,7 +31,11 @@ export const ENVELOPE = {
 
 export const KINDS = {
   job: { outcome: str(true, OUTCOMES), started: str(false), ended: str(false) },
-  check: { commands: list(), failed_step: str(false), flaky_rerun: bool(false) },
+  // state, fence and a null failed_step come from the local gate's mark-check.mjs --record (#331, decision 331-1).
+  check: {
+    commands: list(), failed_step: { type: "str", req: false, nullable: true }, flaky_rerun: bool(false),
+    state: str(false, ["success", "failure"]), fence: str(false),
+  },
   review: { round: int(), verdict: str(true, ["pass", "changes"]), must: int(), nice: int(), categories: list(false) },
   "fix-round": { round: int(), fixed: int() },
   ask: {

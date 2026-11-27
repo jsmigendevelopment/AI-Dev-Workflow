@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // `coordinate` step 6.1.4 (#225): marks a checked commit with the local gate's `onrails/check` status, once. Run it
 // from your checkout of main:
-//   node mark-check.mjs <sha> --repo owner/name --state success|failure [--description "<text>"]
+//   node mark-check.mjs <sha> --repo owner/name --state success|failure [--description "<text>"] [--record <file>]
 // setup-github's probe only proves that the session which ran it could post a status. A later gate session may be
 // refused (a proxy that blocks the write). Then, when main requires `onrails/check`, no merge can pass, so this
 // says so at once and names the fix. It never retries and never waits.
@@ -9,13 +9,67 @@
 // Exit 0: posted. 1: refused, and main doesn't require it, so the `Checks:` comment is the record. 2: a usage error.
 // 3: refused, and main requires `onrails/check` (or its rules couldn't be read, or gh isn't installed): run
 // setup-github from this session.
-import { resolve } from "node:path";
+// --record <file> (#331): the gate's file, {pr, fence, commands: [{command, result, seconds}], failed, rerun}. Before
+// the post, it writes one `check` insights record into this checkout's docs/insights/, on exit 0, 1 and 3 alike.
+// A file it can't read is a usage error: exit 2, no record, no post. ONRAILS_NOW sets the record's clock (tests).
+import { execFileSync } from "node:child_process";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gh, pages } from "./agent-files.mjs";
+import { TEXT_CAP, VERSION, dayFolder, fileName, validate } from "./insights-record.mjs";
 
 const CHECK = "onrails/check";
 const SETUP = "node .agents/skills/name/scripts/setup-github.mjs";
+const RESULTS = ["pass", "fail", "skipped"];
 const reason = (error) => String(error.stderr || error.message).split("\n").find((l) => l.trim())?.trim() ?? "refused";
+
+/** What is wrong with the gate's file, or null. */
+function gateProblem(gate) {
+  if (!gate || typeof gate !== "object" || Array.isArray(gate)) return "must be a JSON object";
+  if (!Number.isInteger(gate.pr) || gate.pr < 1) return "pr: must be the pull request's number";
+  if (!Array.isArray(gate.commands) || gate.commands.length === 0) return "commands: must list each command the gate ran";
+  const bad = (c) => typeof c?.command !== "string" || !c.command || !RESULTS.includes(c.result) || !(typeof c.seconds === "number" && c.seconds >= 0);
+  if (gate.commands.some(bad)) return "commands: each needs command, result (pass, fail or skipped) and seconds";
+  if (gate.failed !== null && (typeof gate.failed !== "string" || !gate.failed)) return "failed: must be the red command, or null";
+  if (typeof gate.rerun !== "boolean") return "rerun: must be true or false";
+  if (gate.fence !== undefined && typeof gate.fence !== "string") return "fence: must be the Fence: line";
+  return null;
+}
+
+/** The `check` record for the gate's file, or the text of what is wrong with it. */
+function checkRecord(file, sha, state) {
+  let gate;
+  try {
+    gate = JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    return `can't be read as JSON (${error.code ?? error.message})`;
+  }
+  const problem = gateProblem(gate);
+  if (problem) return problem;
+  const at = new Date(process.env.ONRAILS_NOW || Date.now());
+  if (Number.isNaN(at.getTime())) return "ONRAILS_NOW isn't a time";
+  // The fence line can carry a long reason; the record keeps its first line, capped like any text field.
+  const fence = gate.fence?.split("\n")[0].slice(0, TEXT_CAP);
+  const record = {
+    v: VERSION, kind: "check", at: at.toISOString(), issue: null, pr: gate.pr, sha, job: null, tool: null,
+    model: "unknown", effort: "unknown", state, ...(fence ? { fence } : {}),
+    commands: gate.commands.map(({ command, result, seconds }) => ({ name: command, result, seconds })),
+    failed_step: gate.failed, flaky_rerun: gate.rerun,
+  };
+  const errors = validate(record);
+  return errors.length ? errors.join("; ") : record;
+}
+
+/** Writes the record into this checkout's docs/insights/<day>/ and returns its path. Throws when it can't. */
+function writeRecord(record) {
+  const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const dir = join(root, dayFolder(record));
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, fileName(record));
+  writeFileSync(path, `${JSON.stringify(record, null, 2)}\n`, { flag: "wx" });
+  return path;
+}
 
 /** Where main requires `onrails/check`: "a ruleset", "its branch protection", or null. Throws when it can't be read. */
 function mainRequires(repo) {
@@ -35,9 +89,23 @@ export function main(argv) {
   const [sha] = argv;
   const repo = flag("--repo");
   const state = flag("--state");
-  if (!/^[0-9a-f]{40}$/.test(sha ?? "") || !repo || !["success", "failure"].includes(state)) {
-    console.error('Usage: mark-check.mjs <40-character sha> --repo <owner>/<name> --state success|failure [--description "<text>"]');
+  const file = flag("--record");
+  if (!/^[0-9a-f]{40}$/.test(sha ?? "") || !repo || !["success", "failure"].includes(state) || (argv.includes("--record") && !file)) {
+    console.error('Usage: mark-check.mjs <40-character sha> --repo <owner>/<name> --state success|failure [--description "<text>"] [--record <file>]');
     return 2;
+  }
+  if (file) {
+    const record = checkRecord(file, sha, state);
+    if (typeof record === "string") {
+      console.error(`--record ${file}: ${record}. Nothing was recorded or posted: fix the file and run this again.`);
+      return 2;
+    }
+    try {
+      console.log(`Insights: wrote ${writeRecord(record)}`);
+    } catch (error) {
+      // The status still goes out: the record only counts the run, while a missing status can hold up the merge.
+      console.error(`Insights: couldn't write the check record (${reason(error)}). Posting the status anyway.`);
+    }
   }
   const description = flag("--description") ?? (state === "success" ? "the local gate passed" : "the local gate failed");
   try {
