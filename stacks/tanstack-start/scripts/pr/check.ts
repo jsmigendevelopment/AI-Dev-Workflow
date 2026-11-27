@@ -27,9 +27,11 @@ for (const problem of problems) console.error(problem)
 // It prints the size, the biggest files and, over the limit, why it fails.
 const size = spawnSync(process.execPath, [SIZE_SCRIPT, pr, '--repo', repo], {
   encoding: 'utf8',
-  stdio: ['ignore', 'pipe', 'inherit'],
+  stdio: ['ignore', 'pipe', 'pipe'],
 })
+// Its count first, then why it fails.
 process.stdout.write(size.stdout ?? '')
+process.stderr.write(size.stderr ?? '')
 // Stopped by a signal, it has no status: that's an error, never a pass.
 if (size.status !== 0) process.exit(size.status ?? 2)
 if (problems.length) process.exit(1)
