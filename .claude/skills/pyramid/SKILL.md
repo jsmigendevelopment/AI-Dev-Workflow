@@ -1,6 +1,6 @@
 ---
 name: pyramid
-description: Use when planning how to build an app or a big feature, or checking how a plan is sliced ("plan the build", "break this into milestones", "how should we slice this", "plan the next pass", "is this plan thin enough") - the CTO step. Plans slice 0 (the running app first, then CI and a test deploy), cuts the MVP into vertical tracer-bullet slices, stacks them into three passes (Works, Real, Ready), cuts only the current pass into thin steps a person can try, checks the cut with a script, designs the schema and API from the approved wireframes, and re-plans at each pass gate.
+description: Use when planning how to build an app or a big feature, or checking how a plan is sliced ("plan the build", "break this into milestones", "how should we slice this", "plan the next pass", "is this plan thin enough") - the CTO step. Plans slice 0 (the running app first, then the local checks and a test deploy), cuts the MVP into vertical tracer-bullet slices, stacks them into three passes (Works, Real, Ready), cuts only the current pass into thin steps a person can try, checks the cut with a script, designs the schema and API from the approved wireframes, and re-plans at each pass gate.
 ---
 
 # Pyramid: see it working early, then make it great

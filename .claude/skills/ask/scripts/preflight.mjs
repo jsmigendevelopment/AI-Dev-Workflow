@@ -12,16 +12,17 @@
 // It changes nothing else: a temp file, a temp branch (or a temp git config key), a temp folder
 // outside the repo and a local port are made and removed.
 // Exit 0: nothing to fix. 1: something to fix or blocked. 2: a bad flag. No dependencies.
-// The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs, preflight-layout.mjs and preflight-ci.mjs;
-// sync-skills.mjs copies all four into the ask skill and the CLI. Before the read, never start it through npx (#182): npx changes PATH
+// The master copy is scripts/preflight.mjs in the kit, with preflight-sys.mjs, preflight-owner.mjs, preflight-layout.mjs and
+// preflight-ci.mjs; sync-skills.mjs copies all five into the ask skill and the CLI. Before the read, never start it through npx (#182): npx changes PATH
 // and which onrails runs, in ways the repo can steer.
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ciWarnings } from "./preflight-ci.mjs";
-import { pathOutside, repoLayout, tempFolders } from "./preflight-layout.mjs";
-import { isRead, markRead, realSys } from "./preflight-sys.mjs";
+import { pathOutside, repoLayout, tempBases, tempFolders } from "./preflight-layout.mjs";
+import { aclPaths, loadWinAcls } from "./preflight-owner.mjs";
+import { isRead, markRead, markRefusal, realSys } from "./preflight-sys.mjs";
 
 /** The checks, in the order the table prints them. */
 export const CHECKS = ["repo", "git", "registry", "github", "loopback", "browser", "versions", "model"];
@@ -37,7 +38,7 @@ const LAUNCH = "const r=require('module').createRequire(process.cwd()+'/package.
 // from the repo or the environment is printed only when it matches a safe pattern, and plain words stand in for it otherwise.
 const SAFE = { range: /^[\d.xX*^~<>= |]{1,40}$/, host: /^[a-z0-9.-]{1,253}(:\d{1,5})?$/i, version: /^\d+(\.\d+){0,2}(-[0-9A-Za-z.-]{1,40})?$/,
   code: /^E[A-Z0-9_]{2,30}$/, model: /^[\w.:@\/[\]-]{1,80}$/, effort: /^[a-z]{1,12}$/i, flag: /^--?[a-z][\w-]{0,30}$/i,
-  path: /^[\w .:~@+\/\\-]{1,400}$/ };
+  path: /^[\w .:~@+\/\\-]{1,400}$/, reason: /^[\w .,:'~@+()\/\\-]{1,600}$/ };
 const shown = (value, kind, instead) => (value != null && SAFE[kind].test(String(value)) ? String(value) : instead);
 // Command output can carry text from the repo too, so only a cause from this list, or an error code, is taken from it.
 const CAUSES = ["Read-only file system", "Permission denied", "Operation not permitted", "No space left on device", "Executable doesn't exist",
@@ -166,6 +167,7 @@ const CLOSED = "the repo's checkouts can't all be read, so no PATH folder is use
 
 async function checkGit(dir, tool, sys, safe) {
   if (safe.closed) return { status: "limited", detail: CLOSED };
+  if (!safe.hooks) return { status: "limited", detail: "no empty hooks folder that only this user can write could be made, so it's checked after the repo is read" };
   const git = (args) => sys.run("git", args, { cwd: dir, ...safe.git });
   const top = await git(["rev-parse", "--show-toplevel"]);
   if (!top) return { status: "blocked", detail: "git isn't installed", ladder: ladder("git", tool) };
@@ -188,14 +190,16 @@ async function checkGit(dir, tool, sys, safe) {
 const PLAIN_REGISTRY = /^registry[ \t]*=[ \t]*(https?:\/\/[\w.-]+(:\d{1,5})?(\/[\w./-]*)?)[ \t]*$/m;
 
 // Said by the rows that run from outside the repo, when no temp folder outside it could be made.
-const NO_AWAY = "no empty temp folder outside the repo could be made, so it's checked after the repo is read";
+const NO_AWAY = "no empty temp folder outside the repo that only this user can write could be made, so it's checked after the repo is read";
 
 async function checkRegistry(dir, tool, sys, pm, safe) {
   if (safe.closed) return { status: "limited", detail: CLOSED };
   const named = safe.read ? null : PLAIN_REGISTRY.exec(small(join(dir, ".npmrc")))?.[1];
   const how = safe.read ? { cwd: dir } : safe.away;
   if (!how) return { status: "limited", detail: NO_AWAY };
-  const pick = named ? [`--registry=${named}`] : [];
+  // Global mode reads no project .npmrc: one another user put in a shared folder above, such as /tmp, would name its
+  // registry and settings (#232). Unlike --prefix=., it leaves npm's own global npmrc where npm puts it, and passes no path.
+  const pick = [...(safe.read ? [] : ["--location=global"]), ...(named ? [`--registry=${named}`] : [])];
   const url = await sys.run("npm", ["config", "get", "registry", ...pick], how);
   if (!url) return { status: "blocked", detail: "npm isn't installed", ladder: ladder("versions", tool) };
   // Node before 18.17 has no URL.canParse: then plain words, and the versions row says Node is too old.
@@ -321,8 +325,11 @@ function sandboxPrint(dir, tool, sys, pkg, read) {
   return fingerprint({ tool, node: sys.node, hostname: sys.hostname, platform: sys.platform, npmrc, engines: [pkg?.engines?.node, pkg?.packageManager], flags, read });
 }
 
-/** Runs every probe in dir. Returns { tool, checkedAt, fingerprint, ok, read, state, results: [{ id, label, status, detail, ladder }] }. */
-export async function probe(dir, sys = realSys(), given = {}) {
+/**
+ * Runs every probe in dir. Returns { tool, checkedAt, fingerprint, ok, read, state, unsafe, results: [{ id, label, status, detail, ladder }] }.
+ * bases: where a test lets tempFolders look.
+ */
+export async function probe(dir, sys = realSys(), given = {}, { bases } = {}) {
   const tool = given.tool ?? detectTool(sys.env);
   const pkg = readJson(join(dir, "package.json"));
   const manager = readManager(pkg);
@@ -331,11 +338,15 @@ export async function probe(dir, sys = realSys(), given = {}) {
   // Before the read, every command is found on, and given, a PATH with no folder inside any checkout of the repo (#182).
   // When the repo's layout can't be read, that PATH is empty and the rows that need a command wait for the read.
   const layout = repoLayout(dir);
-  const temps = tempFolders(dir, sys.platform, layout);
-  const path = read ? {} : pathOutside(dir, sys.platform, sys.env, layout);
+  const temps = tempFolders(dir, sys.platform, layout, bases);
+  const unsafe = [];
+  const path = read ? {} : pathOutside(dir, sys.platform, sys.env, layout, unsafe);
   const away = temps.away && { ...temps.away, env: { ...temps.away.env, ...path } };
-  // An empty hooks folder: no hook the repo ships, or names in its config, runs on the temp branch.
-  const safe = { read, away, path, closed: !read && !layout, git: read ? {} : { config: [`core.hooksPath=${temps.hooks}`], env: path } };
+  // An empty hooks folder: no hook the repo ships, or names in its config, runs on the temp branch. Without one only
+  // this user can write, POSIX's /dev/null holds no hook and no one can add one; elsewhere the branch waits for the read (#232).
+  const hooksPath = temps.hooks ?? (sys.platform === "win32" ? null : "/dev/null");
+  const hooks = hooksPath ? [`core.hooksPath=${hooksPath}`] : [];
+  const safe = { read, away, path, hooks: read || Boolean(hooksPath), closed: !read && !layout, git: read ? {} : { config: hooks, env: path } };
   try {
     const loop = await sys.loopback();
     const found = {
@@ -353,7 +364,8 @@ export async function probe(dir, sys = realSys(), given = {}) {
     const ok = results.every((r) => r.status !== "fix" && r.status !== "blocked");
     // Workflow files or Actions on (#133): a warning with its fix, never a failed row. Before the read, files only.
     const warnings = await ciWarnings(dir, sys, read);
-    return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg, read), ok, read, state: existsSync(join(dir, "docs", "state.md")), results, warnings };
+    return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg, read), ok, read, away: !read && Boolean(away),
+      state: existsSync(join(dir, "docs", "state.md")), unsafe: [...new Set(unsafe)], results, warnings };
   } finally {
     temps.remove();
   }
@@ -363,17 +375,21 @@ export async function probe(dir, sys = realSys(), given = {}) {
 function unreadNote(report) {
   if (report.read !== false) return [];
   const why = report.state ? "This repo has a docs/state.md, but no session on this machine has marked it read, so it counts as not read. " : "";
-  return ["", `${why}Probes that could run the repo's own code ran nothing from it (the rows that say "after the repo is read").`
+  const away = report.away ? " npm, git and gh ran from an empty temp folder outside it that only this user can write, and npm read no project settings above it." : "";
+  return ["", `${why}Probes that could run the repo's own code ran nothing from it (the rows that say "after the repo is read").${away}`
     + " /join or /back marks it with `--mark-read`; then run preflight again."];
 }
 
 const warningLines = (warnings = []) => (warnings.length ? ["", ...warnings.map((w) => `Warning: ${w}`)] : []);
+// A PATH folder left off for another user's sake would make "git isn't installed" mislead, so each one is named (#232).
+const unsafeLines = (unsafe = []) => (unsafe.length ? ["", `Left off PATH before the read, as another local user could change what runs from it: ${
+  unsafe.map((why) => shown(why, "reason", "a folder that isn't printed")).join("; ")}.`] : []);
 
 /** The one table, each failure's ladder, and a draft of the ONE message for whatever the ladder doesn't clear. */
 export function render(report) {
   const out = [`Preflight · ${TOOLS[report.tool]} · ${report.checkedAt}`, "", "| Check | Result | Detail |", "|---|---|---|"];
   for (const r of report.results) out.push(`| ${r.label} | ${MARK[r.status]} | ${r.detail.replace(/\s+/g, " ").replaceAll("|", "\\|")} |`);
-  out.push(...unreadNote(report), ...warningLines(report.warnings));
+  out.push(...unreadNote(report), ...unsafeLines(report.unsafe), ...warningLines(report.warnings));
   const open = report.results.filter((r) => r.status === "fix" || r.status === "blocked");
   const blocked = open.filter((r) => r.status === "blocked");
   if (!open.length) return [...out, "", "Environment: ok."].join("\n");
@@ -435,11 +451,16 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
   if (given.tool && !Object.hasOwn(TOOLS, given.tool)) return log(`--tool is one of: ${Object.keys(TOOLS).join(", ")}`), 2;
   if (flags.has("--help") || flags.has("-h")) return log(`Usage: ${USAGE}`), 0;
   dir = resolve(dir);
+  // Windows: every ACL the checks ask about, read in one PowerShell start (#246). A test's sys may give the reader.
+  if (sys.platform === "win32") loadWinAcls(aclPaths(dir, sys.env, tempBases("win32")), sys.winAcls);
   if (flags.has("--mark-read")) {
     // Only the .git next to dir: a folder under a bigger repo (a home-folder repo, say) never marks that repo.
     const marked = markRead(dir);
     if (marked) return log(`Marked this repo read on this machine: ${shown(marked, "path", "(path not printed)")}. Run preflight again: every probe runs now.`), 0;
-    return log("No .git folder of its own in this folder (or a .git file preflight doesn't follow): not marked. Run it in the repo's top folder, after `git init` if there's none."), 1;
+    const why = markRefusal(dir);
+    const what = why ? `A folder another user can write or swap, so not marked: ${shown(why, "reason", "the folder isn't printed")}.`
+      : "No .git folder of its own in this folder, a .git file preflight doesn't follow, or a folder another user can write: not marked.";
+    return log(`${what} Run it in the repo's top folder, after \`git init\` if there's none, in a folder only you can write.`), 1;
   }
   const statePath = join(dir, "docs", "state.md");
   const state = existsSync(statePath) ? readFileSync(statePath, "utf8") : null;

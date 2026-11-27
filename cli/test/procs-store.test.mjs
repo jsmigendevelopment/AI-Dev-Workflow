@@ -6,7 +6,7 @@ import { chmodSync, chownSync, lstatSync, mkdirSync, readFileSync, symlinkSync, 
 import { dirname, join } from "node:path";
 import { put, tmp } from "./helpers.mjs";
 import { homeRegistry, untrusted, update } from "../src/procs-store.mjs";
-import { NOW, fakeSys, inRepo, run, signals, startDev } from "./procs-fake.mjs";
+import { NOW, fakeSys, inRepo, run, signals, stamp, startDev } from "./procs-fake.mjs";
 
 const posix = { skip: process.platform === "win32" ? "Windows has no POSIX owner or mode" : false };
 // What list says when the registry at path is skipped only for a mode chmod fixes (#156, review round 2).
@@ -18,6 +18,7 @@ test("a registry git tracks came with a branch: it is never read, signalled from
   const sys = fakeSys({ procs: { 4000: {} }, git: tracked });
   put(sys.cwd, ".onrails/procs.json", JSON.stringify({ version: 1, procs: [{ id: "pbad", pid: 4000, start: "start-4000", group: true, command: "x",
     session: "s-old", agent: { pid: 600, start: "start-600" }, startedAt: new Date(NOW).toISOString() }] }));
+  stamp(join(sys.cwd, ".onrails", "procs.json")); // only git's answer may refuse it
   assert.equal((await run(sys, ["list"])).out, "Nothing registered is running.");
   await run(sys, ["stop", "stale"]);
   assert.equal((await run(sys, ["reap", "--registry", join(sys.cwd, ".onrails", "procs.json"), "pbad"])).code, 1);
@@ -58,6 +59,7 @@ test("symlinks: a linked registry folder, file or logs folder is refused, and a 
 async function tryAll(sys, path, mode = 0o600) {
   put(dirname(path), "procs.json", JSON.stringify({ version: 1, procs: [{ id: "pbad", kind: "process", pid: 4000, start: "start-4000", group: true,
     command: "x", why: "w", until: "u", session: "s-old", agent: { pid: 600, start: "start-600" }, startedAt: new Date(NOW).toISOString() }] }));
+  stamp(path); // a session wrote it: only the check under test may refuse it
   chmodSync(path, mode);
   chmodSync(dirname(path), 0o700); // whatever the umask: only the file's mode is under test here
   const listed = (await run(sys, ["list"])).out;
@@ -78,7 +80,9 @@ test("AC-156-4: WHEN git ls-files fails, or the registry isn't owned by the user
   for (const [name, make] of Object.entries(cases)) {
     const [sys, path, mode] = make();
     const { listed, codes } = await tryAll(sys, path, mode);
-    assert.equal(listed, mode ? skippedFor(path, "600") : "Nothing registered is running.", name);
+    // Another user's home folder is named too, since #231's round 1: its registry is never read, and never hidden.
+    const foreign = `Not read: the home folder ${sys.home} belongs to another user: the home registry and the index stay off, while a repo in folders only you can write still tracks its processes. Until then its processes aren't listed or stopped.\nNothing else registered is running.`;
+    assert.equal(listed, mode ? skippedFor(path, "600") : name === "another user owns it" ? foreign : "Nothing registered is running.", name);
     assert.deepEqual(codes, [1, 1], `${name}: the reaper and the watcher refuse it`);
     assert.deepEqual(signals(sys), [], name);
     assert.ok(sys.live.has(4000), name);
@@ -112,6 +116,7 @@ test("AC-156-4: WHEN the .onrails folder or its logs folder is another user's, o
     const path = join(sys.cwd, ".onrails", "procs.json");
     mkdirSync(join(sys.cwd, ".onrails", "logs"), { recursive: true, mode: 0o700 });
     writeFileSync(path, JSON.stringify({ version: 1, procs: [stale] }), { mode: 0o600 });
+    stamp(path); // only the folder under test may refuse it
     chmodSync(join(sys.cwd, folder), mode);
     if (owner) chownSync(join(sys.cwd, folder), owner, owner);
     const listed = owner ? "Nothing registered is running." : skippedFor(join(sys.cwd, folder), "700");
@@ -145,11 +150,12 @@ test("AC-156-4: a registry in a repo whose root another user owns is refused", p
   assert.match(untrusted(sys, join("/", ".onrails", "procs.json")) ?? "", /the repo at \/ belongs to another user/);
 });
 
-test("a registry written before #156 at 0664 keeps its records: start says to run chmod 600 on it, not to delete it", posix, async () => {
+test("a marked registry at 0664 keeps its records: start says to run chmod 600 on it, not to delete it", posix, async () => {
   const sys = fakeSys({ procs: { 4000: {} } });
   const path = homeRegistry(sys);
   put(sys.home, ".onrails/procs.json", JSON.stringify({ version: 1, procs: [{ id: "pold1", kind: "process", pid: 4000, start: "start-4000", group: true,
     command: "pnpm dev", why: "w", until: "u", session: "s-1", agent: { pid: 500, start: "start-500" }, startedAt: new Date(NOW).toISOString() }] }));
+  stamp(path); // its mode is from before #156; since #174 every registry a session writes holds its inode (row 106)
   chmodSync(path, 0o664);
   const r = await startDev(sys);
   assert.equal(r.code, 1);
@@ -170,6 +176,49 @@ test("AC-156-4: WHEN a registry is over 1 MiB THEN it is never read for a signal
   assert.deepEqual(signals(sys), []);
   assert.ok(sys.live.has(4000));
   assert.throws(() => update(sys, path, (procs) => procs), /is over 1048576 bytes/);
+});
+
+// What `git apply` or an unpacked archive leaves: this user's files at owner-only modes, untracked and ignored.
+function planted(sys, text) {
+  const dir = join(sys.cwd, ".onrails");
+  mkdirSync(join(dir, "logs"), { recursive: true, mode: 0o700 });
+  writeFileSync(join(dir, ".gitignore"), "*\n");
+  writeFileSync(join(dir, "procs.json"), text, { mode: 0o600 });
+  return join(dir, "procs.json");
+}
+
+test("AC-174-4: WHEN an untracked registry was not written by a session THEN its records are never read for a signal, and the next write replaces them", posix, async () => {
+  const stale = { id: "pbad", kind: "process", pid: 4000, start: "start-4000", group: true, command: "x", why: "w", until: "u",
+    session: "s-old", agent: { pid: 600, start: "start-600" }, startedAt: new Date(NOW).toISOString() };
+  // A session's own registry, copied: its inode mark names the file it was written to, not the copy.
+  const other = fakeSys({ git: inRepo("") });
+  update(other, join(other.cwd, ".onrails", "procs.json"), () => [stale]);
+  const copied = readFileSync(join(other.cwd, ".onrails", "procs.json"), "utf8");
+  const texts = { "no mark": JSON.stringify({ version: 1, procs: [stale] }), "a mark for another file": copied,
+    "a mark that isn't a string": JSON.stringify({ version: 1, inode: 1, procs: [stale] }) };
+  for (const [name, text] of Object.entries(texts)) {
+    for (const argv of [["stop", "stale"], ["stop", "all", "--yes"], ["stop", "pbad", "--yes"], ["session-end"]]) {
+      const sys = fakeSys({ procs: { 4000: {} }, git: inRepo(""), stdin: '{"session_id":"s-1"}' });
+      planted(sys, text);
+      assert.equal((await run(sys, ["list"])).out, "Nothing registered is running.", name);
+      await run(sys, argv);
+      assert.deepEqual(signals(sys), [], `${name}: ${argv.join(" ")}`);
+      assert.ok(sys.live.has(4000), name);
+    }
+  }
+  // The control: the same file, marked as a session marks it, is read, so the setup above is live.
+  const sys = fakeSys({ procs: { 4000: {} }, git: inRepo("") });
+  const path = planted(sys, JSON.stringify({ version: 1, procs: [stale] }));
+  stamp(path);
+  await run(sys, ["stop", "stale"]);
+  assert.deepEqual(signals(sys), ["kill -4000 SIGTERM"]);
+  // The next write replaces a planted file's records, and marks the file it wrote.
+  const next = fakeSys({ procs: { 4000: {} }, git: inRepo("") });
+  const at = planted(next, texts["no mark"]);
+  assert.equal((await startDev(next)).code, 0);
+  const written = JSON.parse(readFileSync(at, "utf8"));
+  assert.deepEqual(written.procs.map((r) => r.id).filter((id) => id === "pbad"), []);
+  assert.equal(written.inode, String(lstatSync(at, { bigint: true }).ino));
 });
 
 test("the session-end hook asks git each question once per registry in a run", async () => {

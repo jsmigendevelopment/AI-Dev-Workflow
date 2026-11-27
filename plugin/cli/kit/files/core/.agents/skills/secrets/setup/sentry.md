@@ -35,7 +35,7 @@ Sentry's entry point is "Read and follow https://sentry.io/agent-handoff.md verb
 - **The CLI's own skills stay off** (`--no-agent-skills`). Offer them separately, at user scope only.
 - **Skip the onboarding progress calls.** They need a code in the chat, and the kit keeps every code out of it. They only update Sentry's onboarding page; Sentry says a skipped call never fails setup.
 - **SDK setup is the `sentry` add-on,** not Sentry's guide. The add-on keeps errors only (`tracesSampleRate: 0`), no Session Replay, and scrubs cookies, auth headers, bodies, IPs and emails. Tracing, logs or replay are the person's decision in `docs/decisions.md`, because they send more personal data.
-- **DSN and token through the provider file and `pnpm connect`.** `sentry dsn list` prints a DSN; it isn't secret, but it still goes to its places through `connect`. The CI auth token is an Organization Token the person makes.
+- **DSN and token through the provider file and `pnpm connect`.** `sentry dsn list` prints a DSN; it isn't secret, but it still goes to its places through `connect`. The auth token for source map uploads is an Organization Token the person makes.
 - **The test error trigger is temporary.** Remove it in the same branch.
 - `sentry` on npm is FSL-1.1-Apache-2.0 (source-available). Run it with `pnpm dlx`; never add it to the app's dependencies.
 

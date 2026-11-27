@@ -1,15 +1,38 @@
 // The fake session and the sample repos the preflight tests share. The probes run against these,
 // so no test needs a network. The real-run helpers at the end run the real script in throwaway repos (#169).
-import { after } from "node:test";
-import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "./child.mjs";
+import { chmodSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tempBases } from "../src/preflight-layout.mjs";
+import { aclPaths, loadWinAcls } from "../src/preflight-owner.mjs";
 import { markRead } from "../src/preflight-sys.mjs";
 import { findCommand } from "../src/system.mjs";
 import { checkPath, put, safeEnv, tmp } from "./helpers.mjs";
 
 export const NOW = Date.parse("2026-11-25T22:10:00Z");
+
+// Windows ACLs (#246), as preflight's one PowerShell batch prints them. WIN_OWN: a profile folder, this user's with SYSTEM
+// and Administrators, and Users who only read. WIN_DRIVE: C:\ as Windows 10 and 11 ship it, where every signed-in account
+// (Authenticated Users) may make folders, and may modify what is made inside (the inherit-only rule, in generic form).
+export const WIN_ME = "S-1-5-21-1-2-3-1001";
+export const WIN_TI = "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464";
+export const WIN_OWN = [`owner ${WIN_ME}`, "Allow S-1-5-18 2032127", "Allow S-1-5-32-544 2032127", `Allow ${WIN_ME} 2032127`, "Allow S-1-5-32-545 1179817"];
+const WIN_DRIVE = [`owner ${WIN_TI}`, "Allow S-1-5-18 2032127", "Allow S-1-5-32-544 2032127", "Allow S-1-5-11 4", "Allow S-1-5-11 -536805376 io",
+  "Allow S-1-5-32-545 1179817"];
+
+/** A fake of that batch: WIN_OWN for every path unless acls names it, and the root as C:\. Counts its starts. */
+export function fakePowerShell(acls = {}) {
+  const fake = (paths) => {
+    fake.starts++;
+    return [`user ${WIN_ME}`, ...paths.flatMap((p, i) => [`path ${i}`, ...(acls[p] ?? (p === "/" ? WIN_DRIVE : WIN_OWN))])].join("\r\n");
+  };
+  fake.starts = 0;
+  return fake;
+}
+
+/** For a check run as "win32": every folder it asks about for dir is only this user's, as main() reads them first. */
+export const trustWin = (dir, bases = tempBases("win32")) => loadWinAcls(aclPaths(dir, {}, bases), fakePowerShell());
 
 // A fake session. `answers` maps the start of a command line to { ok, out }; anything else
 // answers ok with no output. `missing` commands aren't installed, and aren't on PATH. Every call is
@@ -50,14 +73,8 @@ export const BLOCKED = {
   "npm view": { ok: false, out: "npm error code ENOTFOUND\nnpm error network request to https://registry.npmjs.org/npm failed" },
 };
 
-// Every temp folder these tests make is removed when the file is done.
-const made = [];
-after(() => { for (const dir of made) rmSync(dir, { recursive: true, force: true }); });
-export function temp(prefix) {
-  const dir = tmp(prefix);
-  made.push(dir);
-  return dir;
-}
+/** A new temp folder: tmp() from helpers.mjs, which removes it when the test file ends (#180). */
+export const temp = tmp;
 
 export function project(files = {}) {
   const dir = temp("onrails-preflight-");

@@ -113,14 +113,13 @@ test("wrangler: suggests a dev dependency, then prints wrangler login when signe
   assert.doesNotMatch(noDep, /-g wrangler|run: pnpm add/);
 
   put(dir, "package.json", JSON.stringify({ devDependencies: { wrangler: "4.0.0" } }));
-  const bin = join(dir, "node_modules", ".bin", "wrangler");
-  put(dir, "node_modules/.bin/wrangler", "");
+  // doctor asks wrangler by name, so the system's PATH search finds one outside the project (#185).
   const signedOut = { ok: true, out: "", all: "You are not authenticated. Please run `wrangler login`." };
-  const sys = fakeSystem({ commands: ["git"], probes: { [`${bin} whoami`]: signedOut } });
+  const sys = fakeSystem({ commands: ["git"], probes: { "wrangler whoami": signedOut } });
   const out = await dryRun(sys, dir);
   assert.match(out, /✗ wrangler is not signed in/);
   assert.match(out, /you do this yourself: pnpm exec wrangler login/);
 
-  const ok = fakeSystem({ commands: ["git"], probes: { [`${bin} whoami`]: { ok: true, out: "", all: "You are logged in" } } });
+  const ok = fakeSystem({ commands: ["git"], probes: { "wrangler whoami": { ok: true, out: "", all: "You are logged in" } } });
   assert.match(await dryRun(ok, dir), /✓ wrangler is signed in/);
 });

@@ -1,6 +1,6 @@
 // #151, the opt-in eval clean-up-server: each shortcut of the good transcript fails its own check, and only it,
-// and a server the bad one leaves running is gone once the eval has run. Its own file, so run.test.mjs, already
-// past 500 lines, doesn't grow (decision 49). The bash steps start real servers in the arm's temp repo.
+// and a server the bad one leaves running is gone once the eval has run. Its own file, like each scenario's
+// transcript tests (decision 49, #180). The bash steps start real servers in the arm's temp repo.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";

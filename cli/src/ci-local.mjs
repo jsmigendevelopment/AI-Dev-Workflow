@@ -6,7 +6,6 @@
 // On Full automation it asks nothing; on other levels it asks once. --dry-run only reads.
 // #200: it never deletes or writes through a symlink committed on the default branch, stops before its next step and
 // removes its worktree on SIGINT or SIGTERM, and deletes the local branch once it is pushed.
-import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { constants, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -14,10 +13,16 @@ import { automationLevel } from "./full-kit.mjs";
 import { writeFile } from "./files.mjs";
 import { CI_FIX, githubRepo } from "./preflight-ci.mjs";
 import { confirm } from "./prompt.mjs";
+import { realSystem } from "./system.mjs";
 
-/** git or gh with no shell: { ok, out, err, signal }, trimmed. signal names what stopped it, as after a Ctrl-C. */
+/**
+ * git or gh with no shell: { ok, out, err, signal }, trimmed. signal names what stopped it, as after a Ctrl-C.
+ * By the full path toolPath finds, never a copy in the folder it runs in or the current folder: Windows looks a bare
+ * name up there first (#237, as #185 and #215 did for doctor and init --start). launch sends a .cmd through cmd.exe.
+ */
 export function realRun(cmd, args, { cwd } = {}) {
-  const r = spawnSync(cmd, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const r = realSystem({ projectDir: cwd ?? process.cwd() })
+    .runTool(cmd, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   if (r.error) return { ok: false, out: "", err: r.error.message };
   return { ok: r.status === 0, out: (r.stdout ?? "").trim(), err: (r.stderr ?? "").trim(), signal: r.signal ?? undefined };
 }
@@ -60,7 +65,7 @@ function plan(repo, listed, log, dryRun) {
 
 export async function ciLocal(dir = ".", { dryRun = false, ask, yes = false, log = console.log, run = realRun } = {}) {
   const top = run("git", ["rev-parse", "--show-toplevel"], { cwd: resolve(dir) });
-  if (!top.ok) return log(`Not a git repo: ${resolve(dir)}. Run ${CI_FIX} in the repo.`), 1;
+  if (!top.ok) return log(`Not a git repo: ${resolve(dir)} (${firstLine(top)}). Run ${CI_FIX} in the repo.`), 1;
   const root = resolve(top.out);
   const remote = run("git", ["remote", "get-url", "origin"], { cwd: root });
   const repo = remote.ok ? githubRepo(remote.out) : null;

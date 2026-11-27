@@ -5,7 +5,7 @@
 // next step, and a parent committed as a file stops it with a message. Every child gets an env from safeEnv() (#191).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn } from "./child.mjs";
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { constants } from "node:os";
 import { dirname, join } from "node:path";

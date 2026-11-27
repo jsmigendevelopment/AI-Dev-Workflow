@@ -2,7 +2,7 @@
 // with no workflow run, and the no-Actions rule is in both AGENTS.md files. A fake gh answers the API.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

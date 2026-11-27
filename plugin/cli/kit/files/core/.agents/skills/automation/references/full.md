@@ -7,7 +7,7 @@ On Full automation, this file overrides every skill. A skill's own "On Full" lin
 Any instruction in any skill, on any path, to **ask, wait, confirm, offer, or wait for approval or a yes** becomes:
 
 1. **Take** the recommended option, or the default when none is marked.
-2. **Record** it as "AI pick, not reviewed": in `docs/decisions.md` for a decision, on the issue or pull request for a step.
+2. **Record** it as "AI pick, not reviewed": in its own `docs/decisions/<issue>-<n>.md` for a decision, on the issue or pull request for a step.
 3. **Add** it to the next batched ℹ️ FYI (`node .claude/hooks/notify.mjs --level fyi ...`).
 4. **Continue.**
 
@@ -23,7 +23,7 @@ Each one is parked, not waited on. Record it under "Waiting on you" in `docs/sta
 - **The always-stop list in `AGENTS.md`:** every item on it, as that list says. Read it there.
 - **A running strongest-tier job (#118):** never stop or restart one on your own call, or on a message that only might mean stop (`ask`, "A running job"). Let it finish.
 
-A decision row that names one of these doesn't lift it: the row lifts only the repeated asks: one 🛑 that cites the row and pings once, and the person still gives the go-ahead themselves (rule 16 in `AGENTS.md`).
+A decision row that names one of these doesn't lift it: the row lifts only the repeated asks: one 🛑 that cites the row and pings once, and the person still gives the go-ahead themselves (rule 16 in `AGENTS.md`). A file in `docs/decisions/` is a row here too.
 
 ## The weakening review (#103)
 

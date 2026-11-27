@@ -2,7 +2,7 @@
 
 How the owner builds apps. These hold from day one, in every app the kit starts.
 
-[code-style.md](code-style.md) covers how code reads. This page covers how an app is put together: UI reuse, state, issues, imports, errors, loading, empty and error screens, UI layers, the API, money, time, the database, logs, analytics, OpenAPI, environment variables, translations, access control and the things that hurt to add later. The `build` skill follows it, the `pr-review` skill checks it, and a stack pack turns as much as it can into generators, lint and CI.
+[code-style.md](code-style.md) covers how code reads. This page covers how an app is put together: UI reuse, state, issues, imports, errors, loading, empty and error screens, UI layers, the API, money, time, the database, logs, analytics, OpenAPI, environment variables, translations, access control and the things that hurt to add later. The `build` skill follows it, the `pr-review` skill checks it, and a stack pack turns as much as it can into generators, lint and the checks the local gate runs before each merge.
 
 The examples name the default web stack (TanStack Start, TanStack Query, TanStack Router, Drizzle, Cloudflare). Another stack keeps the rule and swaps the library. Where a pick says "(until research confirms)", it's the mainstream choice and a `research` dossier may change it.
 
@@ -38,7 +38,7 @@ No prop drilling past two levels. If a value goes through more than two componen
 - The pull request body says `Closes #<n>`. The merge closes the issue.
 - The only exception is the `no-issue` label. Dependabot gets it. A person can add it for a one-off chore.
 
-**A check enforces it.** The stack pack ships `pr:rules`, which the session runs before merge: it fails a pull request when the branch name has no issue number, or the body has no `Closes #<n>`, unless it has the `no-issue` label.
+**A check enforces it.** Before merge, the local gate (`coordinate` step 6.1) runs the kit's `pr-rules.mjs` from its checkout of main, on every stack: it fails a pull request when the branch name has no issue number, or the body has no `Closes #<n>`, unless it has the `no-issue` label. The web pack's `pr:rules` runs them by hand.
 
 **Why:** the issue holds the acceptance checks and the fence. A pull request without one has nothing to review against, and work without an issue is work nobody asked for. The link also lets anyone go from a line of code to the reason it exists.
 
@@ -243,7 +243,7 @@ The full convention is in [environments.md](environments.md). The short version:
 - Four environments: local, test, preview and production.
 - Each developer has their own `.env.local`. Never shared, never committed.
 - Settings that aren't secret live in committed config per environment (for example `vars` in `wrangler.jsonc`).
-- Secrets live only in the host's secret store and GitHub environment secrets.
+- Secrets live only in the host's secret store (`wrangler secret put` on the web pack). The session's deploys read their own values from the shell or a git-ignored file (`.env.cloudflare.local`) on `ci = "local"`, the default; GitHub environment secrets hold them only on `ci = "actions"`.
 - One typed, validated env schema (`lib/env.ts`). A missing variable fails at startup with its name, never its value.
 - Every variable is in `.env.example` with the `secrets` skill's metadata line. Adding one updates `.env.example`, the schema and the docs in the same pull request.
 

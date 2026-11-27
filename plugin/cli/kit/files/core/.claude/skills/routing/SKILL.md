@@ -26,7 +26,8 @@ Effort is a second dial on every model: **low**, **medium** or **high**. Some mo
 
 | Job | Tier · effort |
 |---|---|
-| The live thread you talk to all day (coordinator) | Everyday · **low**. Medium once the app is in good shape. Speed matters more than depth here. |
+| The live thread you talk to all day | Everyday · **low**. Speed matters most here. It answers, records and relays; it never runs the loop (`coordinate`, "Where this runs"). |
+| Loop coordinator (a background sub-agent or cloud session the live thread starts) | Everyday · **medium**. It merges and judges reviews. |
 | Grill and planning chat | Everyday · medium |
 | **Auto grill:** the self-grill and its review | **Strongest · high, or Everyday · high or extra-high.** It makes every early decision. Recommend it plainly, then ask under the first rule below. Models: "Auto grill" below. |
 | Competitor scan (background, during the grill) | Everyday · medium. Broad searching, not design, so it doesn't ask first. |
@@ -60,12 +61,13 @@ Cloud first: `[sessions] prefer = "cloud"` in the profile. Unattended work runs 
 | Job | What it covers | Runs |
 |---|---|---|
 | `live` | the thread you talk to, the grill | where you are |
+| `loop` | the coordinator the live thread starts | a background sub-agent here, or cloud |
 | `cto` | the pyramid, re-plans, schema, API, wireframes | cloud |
 | `research` | `research`, the competitor scan | cloud |
 | `build` | one builder per issue | cloud. Local when it needs a simulator, a device, a signed-in browser, local files or hardware. |
 | `review` | `pr-review`, `pr-security`, `qa` before merge | cloud. Local for "my own browser" checks. |
-| `evals` | behaviour tests of the skills | cloud or CI |
-| `overnight` | the `/afk` loop | cloud |
+| `evals` | behaviour tests of the skills | cloud or locally |
+| `overnight` | the loop under `/afk` | cloud |
 
 `prefer = "local"`, or no cloud sessions in your tool? Everything runs here.
 

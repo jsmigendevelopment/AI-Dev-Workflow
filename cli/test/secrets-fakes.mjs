@@ -1,6 +1,6 @@
 // Fakes for the push-secrets, setup-github and connect tests: a repo whose docs/stack.md says
 // `ci`, fake `gh`, `npx` and `wrangler` on PATH that log every call, and test and production values.
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "./child.mjs";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,12 +32,16 @@ if (argv[0] === "api" && argv.includes("--jq")) say("private\\n");
 if (argv[0] === "api" && argv.some((a) => a.endsWith("/rulesets"))) say("[]");
 `;
 
-/** Puts the fake gh, npx and wrangler in `dir`/bin. */
+// Each repo's fakes live in a folder of their own, outside the repo, as an installed npx is: push-secrets never
+// starts an npx from a folder inside the repo (#237).
+const bins = new Map();
+const binFor = (dir) => bins.get(dir) ?? bins.set(dir, tmp("onrails-fake-bin-")).get(dir);
+
+/** Puts the fake gh, npx and wrangler in a folder outside `dir`, the one fakeEnv(dir) puts first on PATH. */
 export function fakeBin(dir) {
-  mkdirSync(join(dir, "bin"), { recursive: true });
   for (const name of ["gh", "npx", "wrangler"]) {
-    writeFileSync(join(dir, "bin", name), FAKE);
-    chmodSync(join(dir, "bin", name), 0o755);
+    writeFileSync(join(binFor(dir), name), FAKE);
+    chmodSync(join(binFor(dir), name), 0o755);
   }
 }
 
@@ -63,7 +67,7 @@ export function repo(ci = "local", stack = `## CI\n\nci = "${ci}"\n`, { git = tr
 }
 
 /** The environment a run gets: the fakes first on PATH, their call log in `base`. */
-export const fakeEnv = (base, more = {}) => safeEnv({ FAKE_LOG: join(base, "calls.jsonl"), HOME: base, ...more }, { bins: [join(base, "bin")] });
+export const fakeEnv = (base, more = {}) => safeEnv({ FAKE_LOG: join(base, "calls.jsonl"), HOME: base, ...more }, { bins: [binFor(base)] });
 
 /** Every call the fakes logged in `base`. */
 export function calls(base) {

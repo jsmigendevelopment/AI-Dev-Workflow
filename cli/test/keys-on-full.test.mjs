@@ -3,7 +3,7 @@
 // text: the secrets skill, its provider files, ask's "Setup step for you" and every AGENTS.md. AC-1 is `agent`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { chmodSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

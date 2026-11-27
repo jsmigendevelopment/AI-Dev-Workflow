@@ -21,11 +21,11 @@
 // Exit 0: done. 1: something was refused or can't be read. 2: a bad flag.
 // The master copy is scripts/procs.mjs in the kit; sync-skills.mjs copies it into the ask skill and the CLI.
 import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureWatcher, reap, sessionEnd, sessionStart, watch } from "./procs-hooks.mjs";
+import { ensureWatcher, readGuard, reap, sessionEnd, sessionStart, watch } from "./procs-hooks.mjs";
 import { MINUTE, SCRIPT, age, iso, newId, newRecord, survey, whoAmI } from "./procs-records.mjs";
-import { askGitAgain, fixable, homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
+import { FIX, askAgain, fixable, homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
 import { GRACE_S, NO_LIST, floor, forget, guarded, stopRecords } from "./procs-stop.mjs";
 import { realSys } from "./procs-sys.mjs";
 
@@ -67,14 +67,21 @@ function list(sys, log, { dir, me, mine, json, hint }) {
   return 0;
 }
 
+// What start says after a refusal. A chmod on this user's own registry keeps its records and their processes. A
+// reason with its own fix says it (FIX, as list, ps and doctor use). Only a reason about the registry's own folder
+// says to delete one, and names it: never the home folder, the repo or a folder above it (#231).
+function afterRefusal(why, dir) {
+  if (why.includes("chmod")) return "Then start it again.";
+  if (FIX.test(why)) return "Do what it says, or ask the person.";
+  return why.includes(dir) ? `Delete ${dir} or ask the person.` : "Ask the person.";
+}
+
 function start(sys, log, { path, me, flags, command }) {
   if (!flags.why || !flags.until) return fail(log, "Give every background process a reason and a stop condition: --why \"...\" --until \"...\"");
   if (flags.for !== undefined && !(Number(flags.for) > 0)) return fail(log, "--for takes minutes, more than 0");
   if (!command.length) return fail(log, "Name the command after --: start --why ... --until ... -- pnpm dev");
   const why = untrusted(sys, path);
-  // A mode problem on this user's own registry is fixed with chmod, which keeps its records and their processes.
-  const next = why && (why.includes("chmod") ? "Then start it again." : "Delete that folder or ask the person.");
-  if (why) return fail(log, `Nothing started: the registry can't be used (${why}). ${next}`, 1);
+  if (why) return fail(log, `Nothing started: the registry can't be used (${why}). ${afterRefusal(why, dirname(path))}`, 1);
   const id = newId(sys, path);
   const logFile = logFor(sys, path, id);
   const pid = sys.spawn(command, { cwd: sys.cwd, log: logFile });
@@ -102,7 +109,8 @@ async function stopUnregistered(sys, log, pid, { flags, ask, stopCmd }) {
   if (!flags.yes && !(await yes(ask, `PID ${pid} isn't in the registry: onRails didn't start it. Stop it anyway?`))) {
     return fail(log, `Left PID ${pid} alone: onRails didn't start it. Ask the person first. After a yes: ${stopCmd} ${pid} --yes`, 1);
   }
-  // Even after a yes: never PID 1, this script, its parent or the agent.
+  // Even after a yes: never PID 1, this script, its parent or the agent. stopRecords reads the process list again now
+  // that the prompt is closed, and checks this floor again on what it reads, before any signal (#248).
   const rec = { id: `pid ${pid}`, pid, start: p.start, group: false };
   const never = floor(rec, guarded(sys));
   if (never) return fail(log, `Left PID ${pid} alone: ${never}.`, 1);
@@ -185,9 +193,11 @@ function resume(sys, log, { dir, me }) {
   return 0;
 }
 
-const VALUE = new Set(["--why", "--until", "--for", "--owner", "--grace", "--registry", "--stop"]);
+const VALUE = new Set(["--why", "--until", "--for", "--owner", "--grace", "--registry", "--stop", "--guard"]);
 const BOOL = new Set(["--mine", "--json", "--yes"]);
 
+// A value flag given twice is refused, never overwritten: a later copy must not replace --guard, --registry or --grace.
+// Everything after -- is a command (start) or ids (reap), never an option.
 function parse(argv) {
   const flags = {}, rest = [];
   for (let i = 0; i < argv.length; i++) {
@@ -195,6 +205,7 @@ function parse(argv) {
     if (a === "--") return { flags, rest, command: argv.slice(i + 1) };
     if (VALUE.has(a)) {
       if (argv[i + 1] === undefined) return { error: `${a} needs a value` };
+      if (Object.hasOwn(flags, a.slice(2))) return { error: `${a} is given twice` };
       flags[a.slice(2)] = argv[++i];
     } else if (BOOL.has(a)) flags[a.slice(2)] = true;
     else if (a.startsWith("-")) return { error: `Unknown option: ${a}` };
@@ -209,7 +220,7 @@ const USAGE = "Usage: procs.mjs start --why \"...\" --until \"...\" [--for <min>
 export async function main(argv, { sys = realSys(), log = console.log, ask } = {}) {
   const { error, flags, rest, command } = parse(argv);
   if (error) return fail(log, `${error}\n${USAGE}`);
-  askGitAgain(sys); // git's answers last one command
+  askAgain(sys); // git's and the ACL reader's answers last one command
   let [cmd, ...args] = rest;
   const cli = cmd === "ps";
   if (cli) [cmd, args] = [flags.stop ? "stop" : "list", [flags.stop]];
@@ -230,8 +241,8 @@ export async function main(argv, { sys = realSys(), log = console.log, ask } = {
     case "resume": return resume(sys, log, ctx);
     case "session-start": return sessionStart(sys, log, ctx);
     case "session-end": return sessionEnd(sys, log, ctx);
-    case "watch": return watch(sys, path);
-    case "reap": return reap(sys, path, args, flags.grace ? Number(flags.grace) : GRACE_S);
+    case "watch": return watch(sys, path, readGuard(flags.guard));
+    case "reap": return reap(sys, path, [...args, ...command], flags.grace ? Number(flags.grace) : GRACE_S, readGuard(flags.guard));
     default: return fail(log, USAGE);
   }
 }

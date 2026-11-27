@@ -1,5 +1,5 @@
 // AC-1 and AC-2 of #143, the opt-in eval decision-lifts-gate: each half of the good transcript is checked
-// on its own. Its own file, so run.test.mjs, already past 500 lines, doesn't grow (review on #159).
+// on its own. Its own file, like each scenario's transcript tests (review on #159, #180).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";

@@ -2,7 +2,7 @@
 // a step nobody can try, a step that is too big, and a plan that only lists slices all fail.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

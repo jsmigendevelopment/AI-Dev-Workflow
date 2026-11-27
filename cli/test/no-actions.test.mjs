@@ -3,8 +3,8 @@
 // Actions check. A fake `gh` on PATH logs every call setup-github makes.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "./child.mjs";
+import { chmodSync, existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { safeEnv, tmp } from "./helpers.mjs";
@@ -97,16 +97,17 @@ if (/\\/rulesets\\/\\d+$/.test(path) && !argv.includes("PUT")) say(process.env.F
 /** Runs setup-github on the team plan against the fake gh, and returns its output and calls. */
 function setupGithub(env = {}, extra = []) {
   const dir = tmp("onrails-rules-");
-  mkdirSync(join(dir, "bin"));
-  writeFileSync(join(dir, "bin", "gh"), FAKE_GH);
-  chmodSync(join(dir, "bin", "gh"), 0o755);
+  // Outside the repo, as an installed gh is: setup-github never starts a gh from a folder inside the repo (#238).
+  const bin = tmp("onrails-fake-bin-");
+  writeFileSync(join(bin, "gh"), FAKE_GH);
+  chmodSync(join(bin, "gh"), 0o755);
   execFileSync("git", ["init", "-q", dir], { env: safeEnv() });
   execFileSync("git", ["-C", dir, "remote", "add", "origin", "https://github.com/acme/app.git"], { env: safeEnv() });
   const r = spawnSync(process.execPath, [join(REPO, ".agents/skills/name/scripts/setup-github.mjs"), "--plan", "team", ...extra], {
     cwd: dir,
     encoding: "utf8",
     input: "",
-    env: safeEnv({ FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir, ...env }, { bins: [join(dir, "bin")] }),
+    env: safeEnv({ FAKE_LOG: join(dir, "calls.jsonl"), HOME: dir, ...env }, { bins: [bin] }),
   });
   const calls = readFileSync(join(dir, "calls.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
   return { r, calls };

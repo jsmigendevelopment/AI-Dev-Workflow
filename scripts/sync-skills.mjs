@@ -20,11 +20,14 @@ const CHECKER = join("scripts", "check-research.mjs");
 const LIBRARY = join("scripts", "research-library.mjs");
 const TEMPLATE = join("templates", "research-library");
 // Preflight ships inside the ask skill, so an agent can run it with plain node, and in the CLI (a global onrails preflight).
-// preflight-sys.mjs is its system layer (#169), preflight-layout.mjs finds the repo's checkouts (#182), and preflight-ci.mjs
-// finds workflow files and Actions left on (#133; doctor and ci local use it too): they go wherever preflight.mjs goes.
-const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs", "preflight-layout.mjs", "preflight-ci.mjs"];
+// preflight-sys.mjs is its system layer (#169), preflight-owner.mjs says who may write a folder (#232, #246),
+// preflight-layout.mjs finds the repo's checkouts (#182), and preflight-ci.mjs finds workflow files and Actions left on
+// (#133; doctor and ci local use it too): they go wherever preflight.mjs goes. preflight-owner.mjs also imports
+// procs-sys.mjs, procs-winacl.mjs and procs-store.mjs (#232, #248): it works only because PROCS below ships to the same
+// folders, so a new home for preflight needs those three as well.
+const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs", "preflight-owner.mjs", "preflight-layout.mjs", "preflight-ci.mjs"];
 // The process registry ships the same way: the ask skill for agents and the hooks, the CLI for npx onrails ps.
-const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-store.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
+const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-winacl.mjs", "procs-store.mjs", "procs-path.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
 const COPIES = [
   ...["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
   [CHECKER, join(SRC, "research", "scripts", "check-research.mjs")],
@@ -34,6 +37,8 @@ const COPIES = [
   [LIBRARY, join("cli", "src", "research-library.mjs")],
   ...PREFLIGHT.flatMap((name) => [[join("scripts", name), join(SRC, "ask", "scripts", name)], [join("scripts", name), join("cli", "src", name)]]),
   ...PROCS.flatMap((name) => [[join("scripts", name), join(SRC, "ask", "scripts", name)], [join("scripts", name), join("cli", "src", name)]]),
+  // push-secrets' rule for starting gh and npx, also for setup-github's gh (#238): skill scripts can't import each other.
+  [join(SRC, "secrets", "scripts", "command-for.mjs"), join(SRC, "name", "scripts", "command-for.mjs")],
   [CHECKER, join(TEMPLATE, "scripts", "check-research.mjs")],
   [LIBRARY, join(TEMPLATE, "scripts", "research-library.mjs")],
   ...["provenance.schema.json", "library.schema.json"].map((name) => [join(SRC, "research", "references", name), join(TEMPLATE, "schemas", name)]),

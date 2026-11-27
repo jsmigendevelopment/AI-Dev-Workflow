@@ -53,7 +53,7 @@ Version traps:
 - **Forge 8's own template already uses TypeScript 6 and Vite 8,** with ESM config files (`.mts`) [V]. So the web pack's TypeScript 6.0.3 and plugin-react 6.3.0 work here. Clerk's Electron quickstart still pins `@vitejs/plugin-react@4` and `typescript@5` and scaffolds with `--template=vite-typescript`. All three describe Forge 7's template. Don't copy them. Whether Clerk's SDK runs on top of Forge 8 hasn't been shown yet [I]. Test it before relying on Clerk.
 - **Electron 46 removes the sync `safeStorage` API** (`encryptString`, `decryptString`, `isEncryptionAvailable`) [V, Electron's 46 alpha docs]. Use the async API in the app's own code. Clerk's storage adapter already prefers the async one and won't crash on 46 [V, its source]. If the async API isn't available, Clerk stops saving the session and the person signs in again after every restart [V]. On Electron 46 that is the likely outcome for an unsigned build [I].
 - Pin `@clerk/electron` exactly. Its docs warn that patch releases can change behaviour.
-- Since Electron 42, installing the `electron` package no longer downloads the app binary. Run `npx install-electron` in CI before packaging or tests [V].
+- Since Electron 42, installing the `electron` package no longer downloads the app binary. Run `npx install-electron` after each install, before packaging or tests, the gate's worktree included [V].
 
 ## Folder structure
 
@@ -112,7 +112,7 @@ Since Electron 45, a sandboxed preload can only `require('electron')`, and has n
 
 ## Check contract
 
-Scripts in `package.json`. Each one runs on `ubuntu-latest` with no secrets.
+Scripts in `package.json`. Each check runs from the session on Linux (the local gate, `coordinate` step 6.1), with no secrets.
 
 | Command | Runs | Notes |
 |---|---|---|
@@ -122,14 +122,14 @@ Scripts in `package.json`. Each one runs on `ubuntu-latest` with no secrets.
 | `build` | `electron-forge package && node scripts/verify-fuses.ts && node scripts/smoke.ts` | the **hardened** app folder: release fuses checked, then started once with `--smoke`. No installer, no signing |
 | `test:e2e` | package the **e2e flavour** into its own folder, then `playwright test`; under `xvfb-run -a` on Linux | the e2e flavour differs from `build` in one fuse, and is never released |
 | `check` | `pnpm lint && pnpm typecheck && pnpm test && pnpm build` | |
-| `make`, `release` (not checks) | `electron-forge make`, `electron-forge publish` on a three-system matrix, with signing secrets | release tags only |
+| `make`, `release` (not checks) | `electron-forge make`, `electron-forge publish`, by hand on each system (a Mac, Windows, Linux), with that machine's signing secrets | only for a release, by hand; never in the gate |
 
 **Why two flavours.** Forge's template turns off the `EnableNodeCliInspectArguments` fuse, which is right for a release. Playwright launches Electron with `--inspect=0`, and its docs say launch fails unless that fuse stays on [V]. So `test:e2e` packages a copy with that one fuse on, and `build` ships the hardened one with a smoke start to prove it boots. The cost is packaging twice, a minute or two. The other options are to ship the inspect fuse on, which leaves the app open to a debugger, or to test the dev server, which doesn't test the built app.
 
 Where e2e is weaker than web:
 
 - Playwright's Electron support is labelled **experimental** in Electron's and Playwright's docs [V]. If it breaks, WebdriverIO is the documented fallback.
-- CI runs e2e on Linux only. Add a Windows job for a Windows-first app, or for code that only runs on Windows. macOS and Windows render the same Chromium, so layout bugs are rare, but OS behaviour is not checked.
+- The local gate runs e2e on Linux only. For a Windows-first app, or code that only runs on Windows, run `test:e2e` on a Windows machine too. macOS and Windows render the same Chromium, so layout bugs are rare, but OS behaviour is not checked.
 - OAuth sign-in with Clerk only works in a **packaged** app on a custom scheme, not in `dev` [V].
 
 What a human must check before each release, on a real Mac and a real Windows machine:
@@ -166,11 +166,11 @@ API_BASE_URL=
 
 Check Clerk's quickstart for the variable name its renderer entry expects, and rename to match.
 
-## CI and release
+## Checks and release (no GitHub Actions)
 
-- **Pull requests:** one `ubuntu-latest` job: install, `npx install-electron`, `lint`, `typecheck`, `test`, `build`, then `test:e2e` under `xvfb-run`. Add a `windows-latest` job for a Windows-first app.
-- **Release tag:** a matrix of `macos-latest`, `windows-latest` and `ubuntu-latest` running `electron-forge publish`. A signed macOS app can't be cross-built from Linux [I].
-- **No job on a pull request sees a signing secret.**
+- **Pull requests:** the local gate (`coordinate` step 6.1), from the session on Linux: install, `npx install-electron`, `lint`, `typecheck`, `test`, `build`, then `test:e2e` under `xvfb-run`. A Windows-first app runs them on a Windows machine too.
+- **Release:** the person starts each one, by hand on each system: `electron-forge publish` on a Mac for macOS, on Windows for Windows, and on Linux for Linux. A release reaches users, like a production deploy, so an agent never runs `publish` on its own. A signed macOS app can't be cross-built from Linux [I].
+- **The gate never sees a signing secret.** They stay on the release machines.
 
 Signing costs money, so **stop and ask the person before setting any of it up.** Ship the pack with signing off and a release checklist.
 
@@ -194,7 +194,7 @@ Auto-update:
 - **Linux:** no built-in updater here. Ship `.deb` or `.rpm` and let the package manager update [I].
 - **While unsigned:** keep auto-update off. With no signature, an updater installs whatever the feed serves.
 
-Release secrets (names to put in GitHub secrets; suggested names, match them to Forge's config):
+Release secrets (names only; each release machine's shell or keychain, never GitHub; suggested names, match them to Forge's config):
 
 ```bash
 # Apple ID for notarisation · get it: developer.apple.com · scope: production · secret: yes
@@ -212,9 +212,9 @@ AZURE_CLIENT_ID=
 AZURE_CLIENT_SECRET=
 ```
 
-Publishing to GitHub Releases uses the workflow's `GITHUB_TOKEN` with `contents: write` on the release job only.
+Publishing to GitHub Releases reads `GITHUB_TOKEN` from the release machine's shell: a fine-grained token the person makes with Contents write on this repo only, never a workflow's token [I].
 
-Costs (GitHub Actions, private repo) [V in the earlier dossier; not re-read]: Linux $0.006, Windows $0.010, macOS $0.062 a minute. GitHub Free includes $12 a month. A 15-minute release on three systems costs about $1.17. Everything is free on a public repo.
+Costs: the checks run on the session's machine and the releases on the person's own machines, not GitHub Actions, so they use no GitHub minutes. A signed macOS build needs a Mac.
 
 ## Build steps for the agent
 
@@ -229,9 +229,9 @@ Costs (GitHub Actions, private repo) [V in the earlier dossier; not re-read]: Li
 9. Add the scripts, with both build flavours, `verify-fuses.ts` and `smoke.ts`. Write Vitest tests for the service and one IPC handler, and one Playwright spec that launches the e2e flavour and sees the home screen. Run this on Linux first: Playwright on a packaged Forge 8 app is untested.
 10. Only if the app needs sign-in: add `optional/auth-clerk/`. Wire `@clerk/electron` as its quickstart says for the renderer, add the IPC-backed API client and the `notes` example over `/api/v1/notes`, with a signed-out state.
 11. Add `.env.example` in the `secrets` format. Run the `secrets` skill for local and test values.
-12. Add `.github/workflows/ci.yml` (pull requests, Linux) and `release.yml` (tags, matrix, signing off until the person says yes).
+12. Add no `.github/workflows/`. Write `ci = "local"` in `docs/stack.md`, and a release checklist in the README: the publish command per system, which the person runs, with signing off until the person says yes.
 13. Fill in "Commands that work here" in `AGENTS.md`.
-14. Slice 0 is done when every check-contract command passes in CI.
+14. Slice 0 is done when every check-contract command passes in the local gate.
 15. Offer to contribute the starter back to the kit: `stacks/electron-desktop/` app files with the example module, plus a `stack-electron-desktop` skill. Strip project names, keys and anything private first.
 
 ## Known risks and unverified items
@@ -250,5 +250,5 @@ What agents can and can't do reliably here:
 |---|---|
 | Renderer code, IPC handlers, zod schemas, Vitest tests | Judging how the app looks and feels on macOS and Windows |
 | Lint, typecheck, test, package and Linux e2e in a sandbox | Installing a signed build; SmartScreen, Smart App Control and Gatekeeper prompts |
-| Forge config, CI workflows, the boundary rules | Buying certificates, Apple and Azure accounts (money: ask first) |
+| Forge config, the package scripts, the boundary rules | Buying certificates, Apple and Azure accounts (money: ask first) |
 | Reading a failed release log and fixing it | Checking auto-update end to end, and OAuth sign-in in a packaged app |

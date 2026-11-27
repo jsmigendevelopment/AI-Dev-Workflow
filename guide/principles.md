@@ -32,7 +32,7 @@ It picks the first thing that works and runs with it. That's why the grill exist
 
 ## 4. Constrain it before it builds.
 
-Without a chosen UI kit, it invents its own components. Without a folder structure and an architecture, you end up with a 4,000-line React component. Decide the stack, the structure and the patterns in the tech grill, write them down, and make every agent follow them. Rules that must hold become checks in CI, like a boundary check that fails when one feature imports another.
+Without a chosen UI kit, it invents its own components. Without a folder structure and an architecture, you end up with a 4,000-line React component. Decide the stack, the structure and the patterns in the tech grill, write them down, and make every agent follow them. Rules that must hold become checks the local gate runs before every merge, like a boundary check that fails when one feature imports another.
 
 ## 5. Readable for people means readable for AI.
 

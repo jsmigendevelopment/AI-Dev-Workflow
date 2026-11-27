@@ -60,7 +60,11 @@ export function projectChecks(projectDir, { kitDir, sys }) {
   add(state ? OK : INFO, state ? "docs/state.md present" : "No docs/state.md yet: type /idea for a new app or /join for an existing repo");
 
   checks.push(...researchChecks(projectDir));
-  checks.push(...processChecks(projectDir, { sys: { ...realSys(), home: sys.home } }));
+  // The registry's git, ps and powershell.exe run only by the full path doctor's own search finds (#185), through
+  // launch like every other command (#215), so git may take the project as its working folder (fullPath). A system
+  // without that search (a test's fake) runs none of them.
+  const run = (cmd, args, opts) => sys.runTool?.(cmd, args, opts) ?? { error: new Error(`${cmd} not run`) };
+  checks.push(...processChecks(projectDir, { sys: { ...realSys({ run, fullPath: true }), home: sys.home } }));
   checks.push(...profileChecks(projectDir));
   checks.push(...envChecks(projectDir, MARKS));
   checks.push(...actionsChecks(projectDir, sys));
@@ -89,11 +93,18 @@ function researchChecks(projectDir) {
 // Background processes an onRails session started and nobody stopped (#126). procs.mjs is synced from scripts/.
 // sys is the registry's machine (procs-sys.mjs), so tests can pass a fake.
 // A registry skipped for a mode is named with its chmod line, as list names it, so "nothing running" never hides it.
+// One skipped for anything else it says to do (a Windows ACL, a folder or link on the way, a file system, #231) is
+// named with "Do what it says", never "it keeps the records": a repo copied to another file system starts fresh (row 106).
+const CHMOD_FIX = "Run that chmod: it keeps the records, and its processes are listed and stopped again";
+const OTHER_FIX = "Do what it says: until then its processes aren't listed or stopped, and a repo moved to another file system or cloned again starts with no records";
+// A home folder that can't be trusted (NFS, another account's) is how the machine is set up: nothing to fix, and
+// each such reason ends with where processes are still tracked (procs-path.mjs's HOME_OFF and fsProblem).
+const SET_UP = "still tracks its processes";
+const SET_UP_FIX = "Nothing to fix: this is how the machine is set up. Start background processes from inside a repo, whose own registry still lists and stops them";
 export function processChecks(projectDir, { sys }) {
   const { total, stale, skipped, unreadable } = staleSummary(projectDir, { sys });
   const notRead = skipped.map((why) => ({
-    status: MARKS.FAIL, required: false, label: `Process registry not read: ${why}`,
-    fix: "Run that chmod: it keeps the records, and its processes are listed and stopped again",
+    status: MARKS.FAIL, required: false, label: `Process registry not read: ${why}`, fix: why.includes("run chmod") ? CHMOD_FIX : why.endsWith(SET_UP) ? SET_UP_FIX : OTHER_FIX,
   }));
   if (unreadable) return [...notRead, { status: MARKS.INFO, label: "Background processes not checked (ps failed here)" }];
   if (!total) return notRead;
@@ -176,10 +187,12 @@ function wranglerChecks(projectDir, deps, sys) {
       fix: "Run: pnpm add -D wrangler", remedy: { print: ["pnpm add -D wrangler   (in this project, not a global install)"] },
     }];
   }
-  const bin = join(projectDir, "node_modules", ".bin", sys.platform === "win32" ? "wrangler.cmd" : "wrangler");
-  if (!existsSync(bin)) return [{ status: INFO, label: "wrangler sign-in not checked (run pnpm install first)" }];
-  const who = sys.probe(bin, ["whoami"], { cwd: projectDir });
-  if (!who) return [{ status: INFO, label: "wrangler sign-in not checked (wrangler whoami did not answer)" }];
+  // Never the project's own node_modules/.bin/wrangler: a cloned repo can ship any file there (#185). A wrangler
+  // installed outside the project shares the sign-in, so it answers for this one.
+  const who = sys.probe("wrangler", ["whoami"], { cwd: projectDir });
+  if (!who) {
+    return [{ status: INFO, label: "wrangler sign-in not checked (doctor runs no wrangler from inside the project). Check it yourself: pnpm exec wrangler whoami" }];
+  }
   const signedIn = who.ok && !/not authenticated|not logged in/i.test(who.all);
   if (signedIn) return [{ status: OK, label: "wrangler is signed in" }];
   return [{

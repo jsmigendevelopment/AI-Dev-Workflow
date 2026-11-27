@@ -5,26 +5,43 @@
 //   git(dir, args) its output, "" for nothing, null when git failed · uid, gid this user's ids (null on Windows)
 //   privateGroup(gid) true when this user is the group's one member, false when not, null when it can't tell
 //   acl(path) true when the path has a POSIX ACL, false when it has none, null when it can't tell
+//   winAcls(paths) on Windows a Map of each path to { owned, writers, movers } (procs-winacl.mjs); null off Windows
+//   fresh() drops the Windows process list, so the next info() or table() reads it again
+//   fsType(path) on Linux the file system a real folder is on, from /proc/self/mountinfo (null when it can't tell);
+//   undefined elsewhere
 // Linux and macOS read ps; Windows reads Win32_Process through PowerShell. No dependencies.
 // The master copy is scripts/procs-sys.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
 import { spawn, spawnSync } from "node:child_process";
 import { closeSync, constants, existsSync, openSync, readFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
+import { readWinAcls } from "./procs-winacl.mjs";
 
-/** The real machine. platform is for tests: the checks that only Linux can answer. */
-export function realSys({ platform = process.platform } = {}) {
+/**
+ * The real machine. platform is for tests: the checks that only Linux can answer. run(cmd, args, opts) is how a tool
+ * (git, ps, powershell.exe, taskkill, or a full path) runs, with spawnSync's answer. By default it is spawnSync, which
+ * looks a bare name up through PATH from the current folder, as before. fullPath is true only for a run that starts a
+ * full path it found itself: doctor's, which skips any copy a project ships and goes through cmd.exe for a Windows
+ * .cmd shim (#185, #215). So fullPath without a run throws: spawnSync would start a bare git in the target folder (#174).
+ */
+export function realSys({ platform = process.platform, run, fullPath = false } = {}) {
+  if (fullPath && !run) throw new Error("realSys: fullPath needs the run that found the full path");
+  run ??= spawnSync;
   // null when the tool can't run or reports an error; "" when it found nothing (ps -p with no match exits 1, silently).
   const out = (cmd, args) => {
-    const r = spawnSync(cmd, args, { encoding: "utf8", timeout: 15000, windowsHide: true });
+    const r = run(cmd, args, { encoding: "utf8", timeout: 15000, windowsHide: true });
     return r.error || (r.status !== 0 && r.stderr?.trim()) ? null : r.stdout ?? "";
   };
   // Its output only when it exits 0, in the C locale so the text is the same everywhere; null for any failure.
   const strict = (cmd, args) => {
-    const r = spawnSync(cmd, args, { encoding: "utf8", timeout: 15000, windowsHide: true, env: { ...process.env, LC_ALL: "C" } });
+    const r = run(cmd, args, { encoding: "utf8", timeout: 15000, windowsHide: true, env: { ...process.env, LC_ALL: "C" } });
     return r.error || r.status !== 0 ? null : r.stdout;
   };
   const pwsh = (script) => out("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script]);
   const children = new Map();
+  // On Windows every process comes from one PowerShell start, kept until something can change it: a signal, a spawn
+  // or a wait. info() and table() both read it, so a command that does neither starts PowerShell once for them (#248).
+  let procs;
+  const snapshot = () => (procs ??= { rows: windowsProcs(pwsh(WIN_PROCS)) }).rows;
   return {
     platform, env: process.env, home: homedir(), cwd: process.cwd(), parentPid: process.ppid, selfPid: process.pid, uid: process.getuid?.() ?? null,
     gid: process.getgid?.() ?? null,
@@ -32,24 +49,35 @@ export function realSys({ platform = process.platform } = {}) {
     privateGroup: (gid) => (platform !== "linux" ? null : soleMember(gid, userName(), groupSources(out, strict, gid))),
     // Only Linux is asked: there the tools are known. Anywhere else it can't tell, so the caller refuses.
     acl: (path) => (platform !== "linux" ? null : hasAcl(aclSources(strict, path))),
+    winAcls: (paths) => (platform === "win32" ? readWinAcls(run, paths) : null),
+    // Read each time: a small file, and a mount can change while the watcher runs.
+    fsType: (path) => (platform !== "linux" ? undefined : mountType(readOrNull("/proc/self/mountinfo"), path)),
     now: () => Date.now(),
     // Its output, "" when it found nothing, or null when git failed in any way: a failure is never "nothing found".
-    git(cwd, args) {
-      const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8", timeout: 15000, windowsHide: true });
+    // A bare git is looked up from the spawn's working folder (a relative PATH entry; on Windows that folder first),
+    // so it gets -C and runs from the current folder: never one a repo in the index commits. A full path run takes
+    // the folder as its working folder instead, so only plain words reach cmd.exe for a Windows .cmd git (#215).
+    git(dir, args) {
+      const where = fullPath ? { cwd: dir } : {};
+      const r = run("git", fullPath ? args : ["-C", dir, ...args], { ...where, encoding: "utf8", timeout: 15000, windowsHide: true });
       return r.error || r.status !== 0 ? null : r.stdout.trim();
     },
-    info: (pids) => (platform === "win32" ? windowsInfo(pwsh, pids) : posixInfo(out, pids)),
-    table: () => (platform === "win32" ? windowsTable(pwsh) : posixTable(out)),
-    signal(pid, sig) { try { process.kill(pid, sig); return true; } catch { return false; } },
-    taskkill: (pid, force) => out("taskkill", ["/PID", String(pid), "/T", ...(force ? ["/F"] : [])]) !== null,
+    info: (pids) => (platform === "win32" ? windowsInfo(snapshot(), pids) : posixInfo(out, pids)),
+    table: () => (platform === "win32" ? snapshot()?.map(({ pid, ppid, args }) => ({ pid, ppid, pgid: null, args })) ?? null : posixTable(out)),
+    // Drops the process list, so the next info() or table() reads what is there now: a stop calls it before it checks,
+    // since a prompt can sit open for minutes while a PID is reused (#248).
+    fresh: () => { procs = undefined; },
+    signal(pid, sig) { procs = undefined; try { process.kill(pid, sig); return true; } catch { return false; } },
+    taskkill: (pid, force) => { procs = undefined; return out("taskkill", ["/PID", String(pid), "/T", ...(force ? ["/F"] : [])]) !== null; },
     spawn(argv, opts) {
+      procs = undefined;
       const child = spawnDetached(platform, argv, opts);
       if (child?.pid) children.set(child.pid, child);
       return child?.pid ?? null;
     },
     // Through the child's own handle: once it has exited, Node sends nothing, so a reused PID is never hit.
-    killSpawned: (pid) => children.get(pid)?.kill("SIGKILL") ?? false,
-    sleep: (ms) => new Promise((done) => setTimeout(done, ms)),
+    killSpawned: (pid) => { procs = undefined; return children.get(pid)?.kill("SIGKILL") ?? false; },
+    sleep: (ms) => { procs = undefined; return new Promise((done) => setTimeout(done, ms)); },
     stdin: readStdin,
   };
 }
@@ -102,6 +130,24 @@ export function hasAcl({ getfacl, ls, lsVersion }) {
   if (typeof ls !== "string" || !lsVersion?.startsWith("ls (GNU coreutils)")) return null;
   const mode = /^[-dlbcps][-rwxsStT]{9}([+.]?)\s/.exec(ls);
   return mode ? mode[1] === "+" : null;
+}
+
+/**
+ * The file system type of the mount that holds path (a real path, with no symlink in it), from the text of
+ * /proc/self/mountinfo: the longest mount point that is path or a folder above it, the last one listed when one is
+ * mounted over another. null for no text, or no line that holds it. Mount points escape a space as \040 (#231).
+ */
+export function mountType(text, path) {
+  let type = null, longest = -1;
+  for (const line of (text ?? "").split("\n")) {
+    const [left, right] = line.split(" - ");
+    const point = left.split(" ")[4]?.replace(/\\([0-7]{3})/g, (_, n) => String.fromCharCode(parseInt(n, 8)));
+    const fs = right?.split(" ")[0];
+    if (!point || !fs) continue;
+    const holds = path === point || path.startsWith(point.endsWith("/") ? point : `${point}/`);
+    if (holds && point.length >= longest) [type, longest] = [fs, point.length];
+  }
+  return type;
 }
 
 // Append, create, and never through a symlink (Windows has no O_NOFOLLOW; the store checks the folder there).
@@ -158,22 +204,28 @@ function posixTable(out) {
     .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), pgid: Number(m[3]), args: m[4] }));
 }
 
-// Single quotes only: the script goes through Windows' command-line quoting as one argument.
-function windowsInfo(pwsh, pids) {
-  const list = pidList(pids);
-  if (!list.length) return new Map();
-  const filter = list.map((p) => `ProcessId=${p}`).join(" OR ");
-  const text = pwsh(`Get-CimInstance Win32_Process -Filter '${filter}' | ForEach-Object { '{0}|{1}|{2}|{3}|{4}' -f $_.ProcessId, $_.ParentProcessId, $_.CreationDate.ToUniversalTime().ToString('o'), $_.WorkingSetSize, [math]::Round(($_.KernelModeTime + $_.UserModeTime) / 1e7) }`);
+// Every process, "<pid>|<parent>|<start>|<bytes>|<cpu s>|<command line>", one per line. Any program picks its own
+// command line, so its CR and LF become spaces: it can never start a line of its own (#248). Single quotes only: the
+// script goes through Windows' command-line quoting as one argument.
+const WIN_PROCS = "Get-CimInstance Win32_Process | ForEach-Object { '{0}|{1}|{2}|{3}|{4}|{5}' -f $_.ProcessId, $_.ParentProcessId, "
+  + "$(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().ToString('o') }), $_.WorkingSetSize, "
+  + "[math]::Round(($_.KernelModeTime + $_.UserModeTime) / 1e7), ($(if ($_.CommandLine) { $_.CommandLine } else { $_.Name }) -replace '[\\r\\n]', ' ') }";
+
+/**
+ * The Windows process list from WIN_PROCS's output: [{ pid, ppid, start, cpu, mem, args }], or null when it failed.
+ * A PID on two lines can't be told: one of them may be text from a command line, so the whole list is null and the
+ * caller refuses (#248). The command line is the rest of the line, whatever it holds, so no character drops a process.
+ */
+export function windowsProcs(text) {
   if (text === null) return null;
-  const map = new Map();
-  for (const [pid, parent, start, bytes, cpu] of text.split(/\r?\n/).filter(Boolean).map((l) => l.trim().split("|"))) {
-    map.set(Number(pid), { parent: Number(parent), group: null, start, cpu: `${cpu} s CPU`, mem: Math.round(Number(bytes) / 1024) });
-  }
-  return map;
+  const rows = text.split(/\r?\n/).map((l) => /^(\d+)\|(\d+)\|([^|]*)\|(\d*)\|(\d*)\|(.*)$/s.exec(l.trim())).filter(Boolean)
+    .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), start: m[3], cpu: `${m[5]} s CPU`, mem: Math.round(Number(m[4]) / 1024), args: m[6] }));
+  return new Set(rows.map((r) => r.pid)).size === rows.length ? rows : null;
 }
 
-function windowsTable(pwsh) {
-  const text = pwsh("Get-CimInstance Win32_Process | ForEach-Object { '{0}|{1}|{2}' -f $_.ProcessId, $_.ParentProcessId, $(if ($_.CommandLine) { $_.CommandLine } else { $_.Name }) }");
-  if (text === null) return null;
-  return text.split(/\r?\n/).map((l) => /^(\d+)\|(\d+)\|(.*)$/.exec(l.trim())).filter(Boolean).map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), pgid: null, args: m[3] }));
+function windowsInfo(rows, pids) {
+  const list = new Set(pidList(pids));
+  if (!list.size) return new Map();
+  if (!rows) return null;
+  return new Map(rows.filter((r) => list.has(r.pid)).map(({ pid, ppid, start, cpu, mem }) => [pid, { parent: ppid, group: null, start, cpu, mem }]));
 }

@@ -1,13 +1,14 @@
 // Preflight's system layer (#169): how it starts commands, finds them on PATH, stops them, and knows whether
-// the person's own session has read this repo. preflight.mjs holds the probes and the output, and
-// preflight-layout.mjs which folders are the repo before the read (#182).
+// the person's own session has read this repo. preflight.mjs holds the probes and the output, preflight-layout.mjs
+// which folders are the repo before the read (#182), and preflight-owner.mjs who may write a folder (#232, #246).
 // The master copy is scripts/preflight-sys.mjs in the kit; sync-skills.mjs copies it next to each preflight.mjs.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { accessSync, constants, existsSync, lstatSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { connect, createServer } from "node:net";
 import { hostname } from "node:os";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve, win32 } from "node:path";
+import { othersCanWrite } from "./preflight-owner.mjs";
 
 /** True for a regular file this process may start. On POSIX a file without its run bit is passed over, as the shell does. */
 function runnable(file, win) {
@@ -43,9 +44,12 @@ export function commandFor(cmd, args, { platform = process.platform, env = proce
   if (platform !== "win32" || !/\.(bat|cmd)$/i.test(found)) return { file: found, args };
   if (args.some((a) => !/^[\w.:=/-]+$/.test(a))) throw new Error(`preflight passes only plain words to cmd.exe, not: ${args.join(" ")}`);
   // cmd.exe /s drops the outer quotes, so a path with spaces stays one word. Node's own shell mode does the same.
-  // A bare "cmd.exe" would be looked up in the current folder first, so the fallback is its full path.
-  const cmdExe = env.ComSpec || join(env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
-  return { file: cmdExe, args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], verbatim: true };
+  // A bare or relative ComSpec or SystemRoot is looked up from the current folder, so each counts only as a full path
+  // with a drive letter or a UNC prefix, as in command-for.mjs (#240).
+  const full = (path) => (path && /^([A-Za-z]:[\\/]|\\\\)/.test(path) ? path : null);
+  const cmdExe = full(env.ComSpec) || win32.join(full(env.SystemRoot) || "C:\\Windows", "System32", "cmd.exe");
+  // /v:off: a ! in the shim's path is never expanded, even where the registry turns delayed expansion on.
+  return { file: cmdExe, args: ["/d", "/v:off", "/s", "/c", `""${found}" ${args.join(" ")}"`], verbatim: true };
 }
 
 /** The environment every command starts with. */
@@ -173,10 +177,15 @@ function ownGitDir(at) {
   return kind === "file" ? linkedGitDir(dot) : null;
 }
 
-/** The real folder that holds the first .git entry of any kind at or above dir, where git's own search stops, or null. */
-export function repoTop(dir) {
+/**
+ * The real folder that holds the first .git entry of any kind at or above dir, where git's own search stops, or null.
+ * It stops at a folder another user can write or swap, and trusts nothing there: they could have put that .git (#232).
+ * check is othersCanWrite's options, for a test's sys.
+ */
+export function repoTop(dir, check = {}) {
   if (!existsSync(dir)) return null;
   for (let at = realpathSync(dir); ; at = dirname(at)) {
+    if (othersCanWrite(at, check)) return null;
     if (kindOf(join(at, ".git"))) return at;
     if (dirname(at) === at) return null;
   }
@@ -188,6 +197,10 @@ export function gitDir(dir) {
   return (top && ownGitDir(top)?.git) ?? null;
 }
 
+// A mark another user could write, or a checkout they could swap, proves nothing (#232).
+/** Why another user could write or swap the checkout in the real folder top, or the folder own's mark goes in, or null. */
+const markProblem = (top, own) => othersCanWrite(top) ?? othersCanWrite(own.admin ?? own.git);
+
 // A deleted worktree's admin folder stays until `git worktree prune`, still naming the old path. A folder made at
 // that path right after the delete can get the old inode number back (ext4 hands it out again at once), so a
 // worktree's mark also names what a new folder can't share (#182): its .git file's inode and change time, which
@@ -197,6 +210,7 @@ function marker(top) {
   const own = ownGitDir(top);
   if (!own) return null;
   const at = own.admin ?? own.git;
+  if (markProblem(top, own)) return null;
   const stat = (path) => statSync(path, { bigint: true });
   const id = (path, ...more) => { const { dev, ino } = stat(path); return [`${path}\n${dev}:${ino}`, ...more].join(":"); };
   const dot = join(top, ".git");
@@ -215,6 +229,13 @@ export function isRead(dir) {
   const top = repoTop(dir);
   const mark = top && marker(top);
   return Boolean(mark) && small(mark.file) === mark.text;
+}
+
+/** Why --mark-read refuses dir's own checkout: another user could write or swap it, or its git folder. Else null. */
+export function markRefusal(dir) {
+  const top = existsSync(dir) ? realpathSync(dir) : null;
+  const own = top && ownGitDir(top);
+  return own ? markProblem(top, own) : null;
 }
 
 /** Writes the marker for the checkout whose .git is next to dir, never one above it. Returns the folder it marked, or null. */

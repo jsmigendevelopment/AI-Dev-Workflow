@@ -47,6 +47,8 @@ node scripts/check-research.mjs research/
 cd cli && npm run bundle && npm test
 ```
 
+The CLI tests need Node 22.12 or later. To run one test file, from `cli/`: `node --require ./test/safe-path-preload.mjs --test test/<file>`. The `--require` gives it the same safe `PATH` as `npm test`, so it never runs your real `claude` or `codex`.
+
 If you changed a script, run `node --check <file>` and its `--dry-run`. If you changed a pack, run its `pnpm check` and `pnpm test:e2e` on a clean install.
 
 Never weaken a test to make it pass. If a test looks wrong, say why in the pull request.

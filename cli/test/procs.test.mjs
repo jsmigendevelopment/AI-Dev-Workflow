@@ -101,7 +101,7 @@ test("AC-2b: the pause limit comes from [workflow] pause_hours, and resume clear
 test("AC-3: WHEN a session ends THEN the hook stops its processes and orphans, TERM then KILL, and a later session finds no orphans", async () => {
   const sys = fakeSys({ procs: { 601: { args: "claude" }, 4000: { onTerm: "stay" }, 4100: {} }, stdin: '{"session_id":"s-1","reason":"other"}' });
   await startDev(sys);
-  seed(sys, { id: "porphan", pid: 4000, start: "start-4000", command: "vite --watch" });
+  seed(sys, { id: "pc0de", pid: 4000, start: "start-4000", command: "vite --watch" });
   seed(sys, { id: "plive", pid: 4100, start: "start-4100", command: "astro dev", session: "s-2", agent: { pid: 601, start: "start-601" } });
   const end = await run(sys, ["session-end"]);
   assert.match(end.out, /Stopping 2 background process/);
@@ -135,6 +135,23 @@ test("AC-4: the session-start hook warns about orphans and names the command tha
   assert.match(r.out, /- pold1 · pnpm dev · 3d 0h · its owner session is gone/);
   assert.match(r.out, /procs\.mjs stop stale/);
   assert.ok(sys.live.has(4000), "it warns; it doesn't stop");
+});
+
+// Round 1 of #244 (#233): session start prints ids the way session end does, so an odd id can't drive the terminal.
+test("#233: WHEN a stale record's id holds an ANSI escape, a C1 control and a bidi override THEN session start prints it escaped and quoted", async () => {
+  const sys = fakeSys({ procs: { 4000: {} } });
+  seed(sys, { id: "\u001b[31m\u009bx\u202e", pid: 4000, start: "start-4000", command: "pnpm dev" });
+  const { out } = await run(sys, ["session-start"]);
+  assert.ok(out.split("\n").includes('- "\\u001b[31m\\u009bx\\u202e" · pnpm dev · 3d 0h · its owner session is gone'), out);
+  assert.doesNotMatch(out, /[\u001b\u009b\u202e]/);
+});
+
+// Round 2 of #244: the bare path keeps the 40-character cut, so a long plain id can't make one huge line.
+test("#233: WHEN a stale record's plain id is 200 characters THEN session start prints it quoted and cut to 40", async () => {
+  const sys = fakeSys({ procs: { 4000: {} } });
+  seed(sys, { id: "a".repeat(200), pid: 4000, start: "start-4000", command: "pnpm dev" });
+  const { out } = await run(sys, ["session-start"]);
+  assert.ok(out.split("\n").includes(`- "${"a".repeat(38)}\u2026 \u00b7 pnpm dev \u00b7 3d 0h \u00b7 its owner session is gone`), out);
 });
 
 test("AC-5: WHEN a process wasn't registered by onRails THEN ps --stop asks before touching it", async () => {

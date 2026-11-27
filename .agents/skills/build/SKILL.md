@@ -35,12 +35,13 @@ description: Use when implementing one issue ("implement issue 12", "build this 
    - the UI kit's components and design tokens. No one-off colours, spacing or font sizes. A new token is the person's call, so ask (on Full: add it, "AI pick, not reviewed", in the FYI);
    - the app conventions in "App rules" below.
 8. **Write it the owner's way:** follow "Code rules" below. Installing a package? Open the `dependencies` skill and verify it first.
-9. **Update the docs** your change makes wrong, in the same pull request.
+9. **Update the docs** your change makes wrong, in the same pull request. Record each choice you make as its own file, `docs/decisions/<issue>-<n>.md` (`<n>`: the next number free on main and on your branch), never as a new row in the table in `docs/decisions.md` (its header has the format). Two pull requests then never clash on a number.
 10. **Run every check** in "Commands that work here" in `AGENTS.md`: lint, typecheck, the boundary check, tests and build. All of it must pass.
 11. **Show it.** Did the step change what the person sees? Follow "Show it" below, and put the look in your report and the pull request.
     - **Checking it in a browser yourself?** Load `test-by-hand-as-the-user`: predict every output first, move every input, and put its table in your report.
 12. **Open the pull request as a draft** (`gh pr create --draft`; if GitHub refuses drafts on this plan, open a normal one) with `Closes #<n>` in the body, the issue's try line, and, for each AC ID, the test file that covers it or the `agent` steps to try. Keep the description short and factual. Reviewers judge the diff, not the description.
    - Aim for under about 400 changed lines, not counting lockfiles and generated files. Bigger? Split it, or label it `large-pr` and say why.
+   - **Post the preview,** where the project's `package.json` has `deploy:preview`: run `pnpm deploy:preview <n>` once the pull request is open, and again after each push, on the pushed head with nothing uncommitted. Link it in your report and on the pull request (the pack's script keeps one comment with it), so review and `qa` use it. It fails for a sign-in or a key? Climb "Try before you block" in `ask`, say what's left in your report, and go on.
    - **Hands-on** automation (see "Automation level" in `docs/stack.md`)? Don't open it unless the person said to. Push the branch and tell them its name and the check results.
    - Then add `node .agents/skills/coordinate/scripts/board.mjs event pr-opened issue=<n> pr=<n> title="..."`.
 13. **Handing work on?** Anything you pass to another session is a handoff: write it down with the owner's exact words and schedule the follow-up (`../ask/references/handoffs.md`).

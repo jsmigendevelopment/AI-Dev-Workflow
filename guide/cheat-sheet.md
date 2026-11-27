@@ -81,7 +81,8 @@ You rarely need these. The four commands call them for you.
 
 | Job | Tier · effort | Example |
 |---|---|---|
-| 🗣️ Your live thread (the loop) | Everyday · low | Opus 5.5 low |
+| 🗣️ Your live thread (you talk to it) | Everyday · low | Opus 5.5 low |
+| 🔁 The loop (a background sub-agent) | Everyday · medium | Opus 5.5 medium |
 | 🔥 Grill, planning chat | Everyday · medium | Opus 5.5 medium |
 | ✏️ Wireframes stage 1, layout | Everyday · medium | Opus 5.5 medium |
 | 🏛️ CTO: research, pyramid, schema, API, wireframes stage 2 | **Strongest · high** | Fable 5.2 high |
@@ -105,8 +106,8 @@ You rarely need these. The four commands call them for you.
 
 | Lane | Checks before merge | When |
 |---|---|---|
-| **tiny** | CI · code review | Copy, styling, config. No logic. |
-| **normal** | CI · code review · QA on the preview | Most issues |
+| **tiny** | local gate · code review | Copy, styling, config. No logic. |
+| **normal** | local gate · code review · QA on the preview | Most issues |
 | **risky** | Normal · security review · the person (below Full; on Full, an extra review) | Auth, secrets, personal data, money, migrations, new dependencies |
 
 🛑 **Always waits for a person, whatever the dial:** production, secrets, deleting or migrating real data, and spending money.

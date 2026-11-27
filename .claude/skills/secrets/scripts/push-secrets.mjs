@@ -18,6 +18,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { commandFor, repoRoot } from "./command-for.mjs";
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
@@ -29,12 +30,6 @@ const only = args.includes("--env") ? args[args.indexOf("--env") + 1] : null;
 // `git init`. The same rule and lookup as setup-github.mjs, connect and the TanStack pack's
 // ci-mode.ts; cli/test/deploy-keys-followups runs the same fixtures on all four (#160).
 const CI_ACTIONS = /^ci[ \t]*=[ \t]*"actions"[ \t]*(?:#.*)?\r?$/m;
-function repoRoot(start) {
-  for (let dir = start; ; dir = dirname(dir)) {
-    if (existsSync(join(dir, ".git"))) return dir;
-    if (dirname(dir) === dir) return null;
-  }
-}
 function ci() {
   const start = process.cwd();
   const top = repoRoot(start) ?? start;
@@ -47,8 +42,12 @@ function ci() {
 
 // "repository" only when the repository variable says so. A read that fails keeps environments.
 function secretsMode() {
+  const how = commandFor("gh", ["variable", "get", "SECRETS_MODE"]);
+  if (how.why) return "environment";
   try {
-    const out = execFileSync("gh", ["variable", "get", "SECRETS_MODE"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    const out = execFileSync(how.file, how.args, {
+      encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], env: how.env, windowsVerbatimArguments: how.verbatim,
+    });
     return out.trim() === "repository" ? "repository" : "environment";
   } catch {
     return "environment";
@@ -121,18 +120,30 @@ for (const env of envs) {
     const gh = githubTarget(name, env, mode);
     const targets = m.secret
       ? [...(GITHUB ? [["gh", ["secret", "set", gh.name, ...gh.where]]] : []), ...(WRANGLER ? [["npx", ["wrangler", "secret", "put", name, "--env", env]]] : [])]
-      : GITHUB ? [["gh", ["variable", "set", gh.name, ...gh.where, "--body", value]]] : [];
+      : GITHUB ? [["gh", ["variable", "set", gh.name, ...gh.where], value]] : [];
     if (!targets.length) {
       const why = m.secret ? "a secret, and nothing takes one on ci = \"local\" without --wrangler" : "a plain variable: it goes in wrangler.jsonc vars";
       console.log(`${env}: ${name} ${DRY ? "would be" : "is"} stored nowhere (${why})`);
     }
     let stored = false;
     let missed = false;
-    for (const [cmd, cmdArgs] of targets) {
+    // A plain variable's value is a target's third item: it goes on --body, never in the words commandFor checks.
+    for (const [cmd, cmdArgs, body] of targets) {
       const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})` : "Cloudflare secret";
       if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); stored = true; continue; }
+      const how = commandFor(cmd, cmdArgs);
+      if (how.why) {
+        failed++;
+        missed = true;
+        console.log(`${env}: FAILED ${name} as a ${where}: ${how.why}`);
+        continue;
+      }
+      // cmd.exe never gets a value: through a gh.cmd, gh variable set reads it from stdin, as with no --body (#238).
+      const line = body === undefined || how.verbatim ? how.args : [...how.args, "--body", body];
       try {
-        execFileSync(cmd, cmdArgs, { input: m.secret ? value : undefined, stdio: ["pipe", "ignore", "pipe"] });
+        execFileSync(how.file, line, {
+          input: m.secret || how.verbatim ? value : undefined, stdio: ["pipe", "ignore", "pipe"], env: how.env, windowsVerbatimArguments: how.verbatim,
+        });
         console.log(`${env}: set ${name} as a ${where}`);
         stored = true;
       } catch (e) {

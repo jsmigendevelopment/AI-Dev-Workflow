@@ -1,17 +1,34 @@
 // Test helpers: temp folders, captured output, small fake kits for update tests, and a safe PATH for every child.
-import { after } from "node:test";
-import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, existsSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+// First, so this file's process has the safe PATH before anything else loads (#191, #197).
+import { PATH_KEY, checkPath, fakes, ownNode, removeOwnNode, safePath } from "./safe-path-preload.mjs";
+import { after, beforeEach } from "node:test";
+import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, delimiter, dirname, join, resolve } from "node:path";
+import { basename, join } from "node:path";
 import { hash, toNative, writeFile } from "../src/files.mjs";
 import { storedName } from "../src/kit.mjs";
-import { findCommand } from "../src/system.mjs";
+
+export { checkPath, safePath };
 
 // Every folder tmp() makes is removed when the test file ends, so a run leaves nothing in TMPDIR (#142).
 // Retries, because a child a test started may still be closing a file in it.
 const made = [];
-after(() => {
-  for (const dir of made) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+const removeMade = () => {
+  for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+};
+// Registered when a test file first imports this file, so it runs before that file's own root after() hooks (#180).
+after(removeMade);
+// A file that throws while it loads ends with no after() hook and no exit event, so the throw's monitor removes what
+// tmp() made by then (#180), and the copy of node this process made when run alone, not under `npm test` (#229).
+// Once a test starts, a throw fails only the test it hits, so the folders and the copy stay.
+let loading = true;
+beforeEach(() => {
+  loading = false;
+});
+process.on("uncaughtExceptionMonitor", () => {
+  if (!loading) return;
+  removeMade();
+  removeOwnNode();
 });
 
 /** A new empty temp folder, removed when the test file ends. */
@@ -20,18 +37,6 @@ export function tmp(prefix = "onrails-") {
   made.push(dir);
   return dir;
 }
-
-// #191: a test never runs the person's real claude or codex, which can sit next to Node (an npm global install).
-// A child's PATH holds only the test's fakes, a copy of node and the system folders. A copy, never a symlink:
-// Linux resolves a symlink for process.execPath, which leads back to Node's own folder.
-const PATH_KEY = /^path$/i;
-const SYSTEM = process.platform === "win32" ? [join(process.env.SystemRoot ?? "C:\\Windows", "System32")] : ["/usr/bin", "/bin"];
-const TOOLS = ["claude", "codex"].flatMap((name) => [name, `${name}.cmd`, `${name}.exe`]);
-const fakes = new Set();
-let ownNode;
-// npm's own scripts, found on the shell's PATH before it is replaced. They go next to the copy of node, so their
-// `#!/usr/bin/env node` starts that copy (#182's real runs start npm). Never a folder of them: claude can sit there too.
-const NPM = process.platform === "win32" ? [] : ["npm", "npx"].map((name) => [name, findCommand(name)]).filter(([, file]) => file);
 
 /** Writes an executable fake tool and records it as one of this test's fakes, the only claude or codex a child may see. */
 export function fake(dir, name, body) {
@@ -42,12 +47,8 @@ export function fake(dir, name, body) {
 
 /** Puts a copy of node in dir (a new temp folder by default) and returns dir, so `#!/usr/bin/env node` fakes start. */
 export function nodeOnly(dir = tmp("onrails-node-")) {
-  const name = basename(process.execPath);
-  if (!ownNode) {
-    copyFileSync(process.execPath, (ownNode = join(tmp("onrails-node-"), name)));
-    for (const [cmd, file] of NPM) symlinkSync(realpathSync(file), join(dirname(ownNode), cmd));
-  }
-  // A hard link to this file's own copy costs no disk. Another drive, or a system without hard links, gets a copy.
+  const name = basename(ownNode);
+  // A hard link to the run's one copy costs no disk. Another drive, or a system without hard links, gets a copy.
   try {
     linkSync(ownNode, join(dir, name));
   } catch {
@@ -56,39 +57,11 @@ export function nodeOnly(dir = tmp("onrails-node-")) {
   return dir;
 }
 
-/**
- * Throws if a folder on any PATH key of env (PATH, Path, path) holds a claude or codex that isn't one of this test's
- * fakes. Relative entries are read from cwd. Returns env, so a hand-built env is checked where it's made.
- */
-export function checkPath(env, cwd = process.cwd()) {
-  for (const [key, value] of Object.entries(env)) {
-    if (!PATH_KEY.test(key) || typeof value !== "string") continue;
-    for (const entry of value.split(delimiter).filter(Boolean)) {
-      for (const name of TOOLS) {
-        const file = resolve(cwd, entry, name);
-        if (existsSync(file) && !fakes.has(realpathSync(file))) throw new Error(`${file} on the child's ${key} isn't one of this test's fakes`);
-      }
-    }
-  }
-  return env;
-}
-
-/** A safe PATH: the given folders of fakes, then this file's copy of node (with npm and npx), then the system folders. */
-export function safePath(...dirs) {
-  if (!ownNode) nodeOnly();
-  return checkPath({ PATH: [...dirs, dirname(ownNode), ...SYSTEM].join(delimiter) }).PATH;
-}
-
 /** The env for a child: the shell's variables without any PATH key, a safePath() of `bins`, then `extra`, checked. */
 export function safeEnv(extra = {}, { bins = [], cwd } = {}) {
   const shell = Object.fromEntries(Object.entries(process.env).filter(([name]) => !PATH_KEY.test(name)));
   return checkPath({ ...shell, PATH: safePath(...bins), ...extra }, cwd);
 }
-
-// This test file's own PATH is safe too, so code it runs in-process (doctor's probes) and a child that inherits the
-// env never find the real tools.
-for (const name of Object.keys(process.env).filter((key) => PATH_KEY.test(key))) delete process.env[name];
-process.env.PATH = safePath();
 
 export function logger() {
   const lines = [];
@@ -143,13 +116,20 @@ fs.appendFileSync(process.env.FAKE_LOG, argv.join(" ") + "\\n");
 const api = JSON.parse(fs.readFileSync(process.env.FAKE_API, "utf8"));
 const path = argv.filter((a) => a !== "api" && !a.startsWith("--")).at(-1);
 if (!(path in api)) { process.stderr.write("HTTP 404: " + path + "\\n"); process.exit(1); }
-if (api[path]?.ghError) { process.stderr.write(api[path].ghError + "\\n"); process.exit(1); }
-process.stdout.write(JSON.stringify(argv.includes("--slurp") ? [api[path]] : api[path]));
+let answer = api[path];
+if (Array.isArray(answer?.sequence)) {
+  const seen = fs.readFileSync(process.env.FAKE_LOG, "utf8").split("\\n").filter((l) => l.split(" ").at(-1) === path).length;
+  answer = answer.sequence[Math.min(seen, answer.sequence.length) - 1];
+}
+if (answer?.ghError) { process.stderr.write(answer.ghError + "\\n"); process.exit(1); }
+if (typeof answer?.raw === "string") { process.stdout.write(answer.raw); process.exit(0); }
+process.stdout.write(JSON.stringify(argv.includes("--slurp") ? [answer] : answer));
 `;
 export const unixOnly = { skip: process.platform === "win32" ? "the fake gh is a shebang script" : false };
 
 // Puts the fake gh in dir/bin. `api` maps an API path to its answer; `{ ghError: "<stderr>" }` makes gh fail with
-// that text, the way a refused or broken call does. The env to spawn with drops the shell's
+// that text, the way a refused or broken call does. `{ raw: "<text>" }` prints the text as is, like a raw file read. `{ sequence: [a, b] }` answers a on the first call to that
+// path, b on the second, and the last one from then on. The env to spawn with drops the shell's
 // REPO and HEAD_SHA, so a test never depends on them; `env` adds variables. `calls()` is the log so far.
 export function fakeGh(dir, api, env = {}) {
   mkdirSync(join(dir, "bin"), { recursive: true });

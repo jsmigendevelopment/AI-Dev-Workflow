@@ -1,0 +1,1 @@
+Start the loop. There's no GitHub in this folder: the issues are the files in docs/issues/. The shell here runs one plain command at a time (git, node, npm, ls, cat, mkdir or grep; no echo, no && or ;).
