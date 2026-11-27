@@ -152,7 +152,7 @@ Each file in `providers/` carries one fenced `json connect` block that `pnpm con
 
 ## Rules
 
-- Production values live only in the host's production secrets (and the GitHub `production` environment, on `ci = "actions"` only), or `.env.cloudflare.local` for the deploys' smoke-test values. Never in the repo, never in a test environment.
+- Production values live only in the host's production secrets (and the GitHub `production` environment, on `ci = "actions"` only), or `.env.cloudflare.local` for the deploys' smoke-test values, or `.env.sentry.local` for the `sentry` add-on's source-map upload. Never in the repo, never in a test environment.
 - Use test or sandbox keys for local and test (for example Stripe test mode, Clerk development instance).
 - A variable without `secret: yes` is public. It's fine in a GitHub variable or a `VITE_` client value. A secret never gets a `VITE_` prefix.
 - Settings that aren't secret go in committed config per environment (for example `vars` in `wrangler.jsonc`), not in a secret store.

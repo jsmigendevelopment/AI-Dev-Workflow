@@ -1,0 +1,119 @@
+id,title,location,accessed,read
+s1,"Workers: Limits (Cloudflare docs, dateModified 2026-11-25)",https://developers.cloudflare.com/workers/platform/limits/,2026-11-27,full
+s2,"Workers: Pricing (Cloudflare docs, dateModified 2026-11-18)",https://developers.cloudflare.com/workers/platform/pricing/,2026-11-27,skimmed
+s3,"Containers: Pricing (Cloudflare docs, dateModified 2026-11-13)",https://developers.cloudflare.com/containers/pricing/,2026-11-27,full
+s4,"Containers: Limits and instance types (Cloudflare docs, dateModified 2026-11-12)",https://developers.cloudflare.com/containers/platform-details/limits/,2026-11-27,full
+s5,"Containers: overview (Cloudflare docs, dateModified 2026-11-19)",https://developers.cloudflare.com/containers/,2026-11-27,full
+s6,"Queues: Limits (Cloudflare docs, dateModified 2026-10-30)",https://developers.cloudflare.com/queues/platform/limits/,2026-11-27,full
+s7,"Durable Objects: Limits (Cloudflare docs, dateModified 2026-11-13)",https://developers.cloudflare.com/durable-objects/platform/limits/,2026-11-27,full
+s8,"Workers: Languages (Cloudflare docs, dateModified 2026-07-03)",https://developers.cloudflare.com/workers/languages/,2026-11-27,full
+s9,"Changelog: Containers and Sandboxes are now generally available (Cloudflare, 2026-04-13)",https://developers.cloudflare.com/changelog/post/2026-04-13-containers-sandbox-ga/,2026-11-27,full
+s10,"Containers: FAQ and platform notes, the former beta-info page (Cloudflare docs, dateModified 2026-11-24)",https://developers.cloudflare.com/containers/beta-info/,2026-11-27,full
+s11,"Workers: TCP sockets (Cloudflare docs, dateModified 2026-11-19)",https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/,2026-11-27,full
+s12,"Workflows: Limits (Cloudflare docs, dateModified 2026-11-10)",https://developers.cloudflare.com/workflows/reference/limits/,2026-11-27,full
+s13,"Containers: Container class reference (Cloudflare docs, no date read)",https://developers.cloudflare.com/containers/container-class/,2026-11-27,skimmed
+s14,"Containers: Deploy (Cloudflare docs, dateModified 2026-09-22)",https://developers.cloudflare.com/containers/deploy/,2026-11-27,full
+s15,"Workers: Previews (Cloudflare docs, dateModified 2026-09-24)",https://developers.cloudflare.com/workers/previews/,2026-11-27,full
+s16,"Durable Objects: Use WebSockets, Hibernation API (Cloudflare docs, no date read)",https://developers.cloudflare.com/durable-objects/best-practices/websockets/,2026-11-27,skimmed
+s17,"Hyperdrive: overview (Cloudflare docs, dateModified 2026-10-21)",https://developers.cloudflare.com/hyperdrive/,2026-11-27,skimmed
+s18,"Fly.io: Pricing (Fly docs, no date on the page; fly.io/docs/about/pricing redirects here)",https://docs.fly.io/about/pricing,2026-11-27,full
+s19,"Fly.io: Autostop/autostart Machines (Fly docs, no date on the page)",https://docs.fly.io/launch/autostop-autostart,2026-11-27,full
+s20,"Fly.io: Git branch preview environments on GitHub / review apps guide (Fly docs, no date on the page)",https://docs.fly.io/blueprints/review-apps-guide,2026-11-27,full
+s21,"Fly.io: Free trial (Fly docs, no date on the page)",https://docs.fly.io/about/free-trial,2026-11-27,full
+s22,"Fly.io: Regions (Fly docs, no date on the page)",https://docs.fly.io/reference/regions,2026-11-27,skimmed
+s23,"Fly.io: Logging overview (Fly docs, no date on the page)",https://docs.fly.io/monitoring/logging-overview,2026-11-27,skimmed
+s24,"Fly.io: Run a Go app (Fly docs, no date on the page)",https://docs.fly.io/languages-and-frameworks/golang,2026-11-27,skimmed
+s25,"Railway: Pricing plans (Railway docs, no date on the page)",https://docs.railway.com/reference/pricing/plans,2026-11-27,full
+s26,"Railway: Environments, PR environments (Railway docs, no date on the page)",https://docs.railway.com/reference/environments,2026-11-27,full
+s27,"Railway: Serverless, app sleeping (Railway docs, no date on the page)",https://docs.railway.com/reference/app-sleeping,2026-11-27,full
+s28,"Railway: CLI API reference (Railway docs, no date on the page)",https://docs.railway.com/reference/cli-api,2026-11-27,skimmed
+s29,"Railway: Deployment regions (Railway docs, no date on the page)",https://docs.railway.com/reference/deployment-regions,2026-11-27,full
+s30,"Railway: Builds (Railway docs, no date on the page)",https://docs.railway.com/guides/builds,2026-11-27,skimmed
+s31,"Railpack: Go (Railpack docs, no date on the page)",https://railpack.com/languages/golang,2026-11-27,full
+s32,"Cloud Run pricing (Google Cloud, no date found in the page text)",https://cloud.google.com/run/pricing,2026-11-27,skimmed
+s33,"Google Cloud free program: Free Tier and Free Trial (Google Cloud docs, no date read; cloud.google.com/free/docs/free-cloud-features redirects here)",https://docs.cloud.google.com/free/docs/free-cloud-features,2026-11-27,skimmed
+s34,"Cloud Run: Deploy services from source code (Google Cloud docs, no date read)",https://docs.cloud.google.com/run/docs/deploying-source-code,2026-11-27,skimmed
+s35,"Cloud Run: Rollbacks, gradual rollouts and traffic migration (Google Cloud docs, no date read)",https://docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration,2026-11-27,skimmed
+s36,"Cloud Run: Set request timeout for services (Google Cloud docs, no date read)",https://docs.cloud.google.com/run/docs/configuring/request-timeout,2026-11-27,full
+s37,"Cloud Run: Set minimum instances for services (Google Cloud docs, no date read)",https://docs.cloud.google.com/run/docs/configuring/min-instances,2026-11-27,skimmed
+s38,"Cloud Run: Logging and viewing logs (Google Cloud docs, no date read)",https://docs.cloud.google.com/run/docs/logging,2026-11-27,skimmed
+s39,"Hetzner Cloud overview (Hetzner, no date on the page; footer 2026)",https://www.hetzner.com/cloud/,2026-11-27,skimmed
+s40,"Hetzner Cloud: Regular Performance plans (Hetzner, no date on the page; footer 2026)",https://www.hetzner.com/cloud/regular-performance,2026-11-27,full
+s41,"Hetzner Cloud: Cost-Optimized plans (Hetzner, no date on the page)",https://www.hetzner.com/cloud/cost-optimized,2026-11-27,full
+s42,"DigitalOcean Droplet pricing (DigitalOcean, no date on the page)",https://www.digitalocean.com/pricing/droplets,2026-11-27,skimmed
+s43,"Kamal home page (37signals, docs version 2.12.0, footer 2026)",https://kamal-deploy.org/,2026-11-27,skimmed
+s44,"D1: Limits (Cloudflare docs, dateModified 2026-11-20)",https://developers.cloudflare.com/d1/platform/limits/,2026-11-27,full
+s45,"Cloudflare API: Rate limits (Cloudflare docs, no date read)",https://developers.cloudflare.com/fundamentals/api/reference/limits/,2026-11-27,skimmed
+s46,"D1 tutorial: Build an API to access D1 using a proxy Worker (Cloudflare docs, no date read)",https://developers.cloudflare.com/d1/tutorials/build-an-api-to-access-d1/,2026-11-27,skimmed
+s47,"D1: Query D1 (Cloudflare docs, dateModified 2026-04-21)",https://developers.cloudflare.com/d1/best-practices/query-d1/,2026-11-27,full
+s48,"Cloudflare API reference: D1 Query database (Cloudflare, no date on the page)",https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/,2026-11-27,skimmed
+s49,"cloudflare-go v6 d1 package (pkg.go.dev, v6.10.0 published 2026-04-23)",https://pkg.go.dev/github.com/cloudflare/cloudflare-go/v6/d1,2026-11-27,skimmed
+s50,"Neon pricing (Neon, last updated 2026-11-04)",https://neon.com/pricing,2026-11-27,full
+s51,"Neon CLI: branches (Neon docs, no date read)",https://neon.com/docs/reference/cli-branches,2026-11-27,skimmed
+s52,"Supabase pricing (Supabase, no date on the page)",https://supabase.com/pricing,2026-11-27,skimmed
+s53,"LiteFS (Fly docs, no date on the page)",https://docs.fly.io/litefs/,2026-11-27,skimmed
+s54,"Litestream releases (GitHub web page, read through WebFetch)",https://github.com/benbjohnson/litestream/releases,2026-11-27,skimmed
+s55,"modernc.org/sqlite (pkg.go.dev, v1.63.0 published 2026-11-22)",https://pkg.go.dev/modernc.org/sqlite,2026-11-27,skimmed
+s56,"pressly/goose README (GitHub web page, read through WebFetch)",https://github.com/pressly/goose,2026-11-27,skimmed
+s57,"golang-migrate/migrate README (GitHub web page, read through WebFetch)",https://github.com/golang-migrate/migrate,2026-11-27,skimmed
+s58,"golang-migrate/migrate v4 (pkg.go.dev, v4.20.1 published 2026-09-09)",https://pkg.go.dev/github.com/golang-migrate/migrate/v4,2026-11-27,skimmed
+s59,"Atlas pricing (Ariga, no date on the page; footer 2026)",https://atlasgo.io/pricing,2026-11-27,full
+s60,"Atlas Community Edition (Ariga docs, no date read)",https://atlasgo.io/community-edition,2026-11-27,full
+s61,"sqlc documentation home (sqlc, no date read)",https://docs.sqlc.dev/en/latest/,2026-11-27,skimmed
+s62,"sqlc (pkg.go.dev, v1.31.1 published 2026-04-22)",https://pkg.go.dev/github.com/sqlc-dev/sqlc,2026-11-27,skimmed
+s63,"sqlx (pkg.go.dev, v1.4.0 published 2024-04-15)",https://pkg.go.dev/github.com/jmoiron/sqlx,2026-11-27,skimmed
+s64,"pgx v5 (pkg.go.dev, v5.13.0 published 2026-11-11)",https://pkg.go.dev/github.com/jackc/pgx/v5,2026-11-27,skimmed
+s65,"GORM (pkg.go.dev, v1.31.2 published 2026-06-22)",https://pkg.go.dev/gorm.io/gorm,2026-11-27,skimmed
+s66,"Bun (pkg.go.dev, v1.3.0 published 2026-10-01)",https://pkg.go.dev/github.com/uptrace/bun,2026-11-27,skimmed
+s67,"Go module proxy: goose v3 latest",https://proxy.golang.org/github.com/pressly/goose/v3/@latest,2026-11-27,full
+s68,"Go module proxy: golang-migrate v4 latest",https://proxy.golang.org/github.com/golang-migrate/migrate/v4/@latest,2026-11-27,full
+s69,"Go module proxy: Atlas latest",https://proxy.golang.org/ariga.io/atlas/@latest,2026-11-27,full
+s70,"Go module proxy: sqlc latest",https://proxy.golang.org/github.com/sqlc-dev/sqlc/@latest,2026-11-27,full
+s71,"Go module proxy: sqlx latest",https://proxy.golang.org/github.com/jmoiron/sqlx/@latest,2026-11-27,full
+s72,"Go module proxy: pgx v5 latest",https://proxy.golang.org/github.com/jackc/pgx/v5/@latest,2026-11-27,full
+s73,"Go module proxy: GORM latest",https://proxy.golang.org/gorm.io/gorm/@latest,2026-11-27,full
+s74,"Go module proxy: Bun latest",https://proxy.golang.org/github.com/uptrace/bun/@latest,2026-11-27,full
+s75,"Go module proxy: Ent latest",https://proxy.golang.org/entgo.io/ent/@latest,2026-11-27,full
+s76,"Go module proxy: Jet v2 latest",https://proxy.golang.org/github.com/go-jet/jet/v2/@latest,2026-11-27,full
+s77,"Go module proxy: Clerk Go SDK v2 latest",https://proxy.golang.org/github.com/clerk/clerk-sdk-go/v2/@latest,2026-11-27,full
+s78,"Go module proxy: jwx v3 latest",https://proxy.golang.org/github.com/lestrrat-go/jwx/v3/@latest,2026-11-27,full
+s79,"Go module proxy: jwx v4 latest",https://proxy.golang.org/github.com/lestrrat-go/jwx/v4/@latest,2026-11-27,full
+s80,"Go module proxy: golang-jwt v5 latest",https://proxy.golang.org/github.com/golang-jwt/jwt/v5/@latest,2026-11-27,full
+s81,"Go module proxy: keyfunc v3 latest",https://proxy.golang.org/github.com/!micah!parks/keyfunc/v3/@latest,2026-11-27,full
+s82,"Go module proxy: Litestream latest",https://proxy.golang.org/github.com/benbjohnson/litestream/@latest,2026-11-27,full
+s83,"Go module proxy: modernc.org/sqlite latest",https://proxy.golang.org/modernc.org/sqlite/@latest,2026-11-27,full
+s84,"Go module proxy: mattn/go-sqlite3 latest",https://proxy.golang.org/github.com/mattn/go-sqlite3/@latest,2026-11-27,full
+s85,"Clerk: Manual JWT verification (Clerk docs, no date read)",https://clerk.com/docs/guides/sessions/manual-jwt-verification,2026-11-27,full
+s86,"clerk/clerk-sdk-go README (GitHub web page, read through WebFetch)",https://github.com/clerk/clerk-sdk-go,2026-11-27,skimmed
+s87,"Clerk: Go SDK overview (Clerk docs; useless: links only)",https://clerk.com/docs/reference/go/overview,2026-11-27,skimmed
+s88,"Clerk Go SDK v2 jwt package (pkg.go.dev, v2.10.0 published 2026-11-23)",https://pkg.go.dev/github.com/clerk/clerk-sdk-go/v2/jwt,2026-11-27,skimmed
+s89,"Clerk Go SDK v2 http package (pkg.go.dev, v2.10.0 published 2026-11-23)",https://pkg.go.dev/github.com/clerk/clerk-sdk-go/v2/http,2026-11-27,skimmed
+s90,"jwx v3 jwk package (pkg.go.dev, v3.5.0 published 2026-11-27)",https://pkg.go.dev/github.com/lestrrat-go/jwx/v3/jwk,2026-11-27,skimmed
+s91,"jwx v4 jwk package (pkg.go.dev, v4.7.0 published 2026-11-27)",https://pkg.go.dev/github.com/lestrrat-go/jwx/v4/jwk,2026-11-27,skimmed
+s92,"keyfunc v3 (pkg.go.dev, v3.9.2 published 2026-11-13)",https://pkg.go.dev/github.com/MicahParks/keyfunc/v3,2026-11-27,skimmed
+s93,"golang-jwt v5 (pkg.go.dev, v5.3.1 published 2026-01-28)",https://pkg.go.dev/github.com/golang-jwt/jwt/v5,2026-11-27,skimmed
+s94,"Search: Cloudflare Containers generally available changelog 2026 (found s9)",web search,2026-11-27,skimmed
+s95,"Search: Cloudflare Containers sleepAfter Container class scale to zero (snippets only; s13 read instead)",web search,2026-11-27,skimmed
+s96,"Search: Hetzner Cloud CX23 price 2026 (snippets disagree; s40 and s41 read instead)",web search,2026-11-27,skimmed
+s97,"Search: Cloudflare D1 REST API administrative use (found s46 and s47)",web search,2026-11-27,skimmed
+s98,"Search: Cloudflare Containers version upload preview URL (found s14 and s15)",web search,2026-11-27,skimmed
+s99,"Attempt: GitHub release pages over curl and the GitHub REST API for 14 Go projects. Refused (HTTP 403) in this sandbox; versions were read from the Go module proxy (s67 to s84) instead",https://github.com/pressly/goose/releases/latest,2026-11-27,skimmed
+s100,"Attempt: Fly deploy docs page (HTTP 404); s24 read instead",https://docs.fly.io/deploy,2026-11-27,skimmed
+s101,"Attempt: Hetzner Cloud overview over curl, searched for plan names; none in the static HTML; s40 and s41 read instead",https://www.hetzner.com/cloud/,2026-11-27,skimmed
+s102,"sqlc: Database and language support (sqlc docs, no date read; opened during the fact-check)",https://docs.sqlc.dev/en/latest/reference/language-support.html,2026-11-27,full
+s103,"Containers: Pricing at its new path; s3 now redirects here (Cloudflare docs, dateModified 2026-11-13; opened by the fresh-session fact-check)",https://developers.cloudflare.com/containers/platform/pricing/,2026-11-27,full
+s104,"Containers: Limits and instance types at its new path; s4 now redirects here (Cloudflare docs, dateModified 2026-11-12; fresh-session fact-check)",https://developers.cloudflare.com/containers/platform/limits/,2026-11-27,skimmed
+s105,"Containers: FAQ at its new path; s10 now redirects here (Cloudflare docs, dateModified 2026-11-24; fresh-session fact-check)",https://developers.cloudflare.com/containers/faq/,2026-11-27,full
+s106,"Containers: Durable Object Container API; s13 now redirects here (Cloudflare docs, dateModified 2026-11-24; fresh-session fact-check)",https://developers.cloudflare.com/containers/api/durable-object-container/,2026-11-27,skimmed
+s107,"Containers: Deploy guide at its new path; s14 now redirects here (Cloudflare docs, dateModified 2026-09-22; fresh-session fact-check)",https://developers.cloudflare.com/containers/guides/deploy/,2026-11-27,full
+s108,"Workers: connect() handler, inbound TCP (Cloudflare docs, no date read; fresh-session fact-check)",https://developers.cloudflare.com/workers/runtime-apis/handlers/connect/,2026-11-27,skimmed
+s109,"Fly.io: Free Plan; s21 now redirects here (Fly docs, no date on the page; fresh-session fact-check)",https://docs.fly.io/about/free-plan,2026-11-27,full
+s110,"Fly.io: fly deploy command reference (Fly docs, no date on the page; fresh-session fact-check)",https://docs.fly.io/flyctl/cmd/fly_deploy,2026-11-27,skimmed
+s111,"superfly/fly-pr-review-apps entrypoint.sh, the script behind Fly's review-apps Action (raw GitHub file, main branch; fresh-session fact-check)",https://raw.githubusercontent.com/superfly/fly-pr-review-apps/main/entrypoint.sh,2026-11-27,full
+s112,"Fly.io: fly apps create command reference (Fly docs, no date on the page; fresh-session fact-check)",https://docs.fly.io/flyctl/cmd/fly_apps_create,2026-11-27,skimmed
+s113,"Cloud Run: Configure environment variables for services (Google Cloud docs, no date read; fresh-session fact-check)",https://docs.cloud.google.com/run/docs/configuring/services/environment-variables,2026-11-27,skimmed
+s114,"Neon: Regions (Neon docs, no date read; fresh-session fact-check)",https://neon.com/docs/introduction/regions,2026-11-27,skimmed
+s115,"Sqlc: 2024 check in (brandur.org, an engineer's blog, 2024-06-16; fresh-session fact-check, found through s116)",https://brandur.org/fragments/sqlc-2024,2026-11-27,skimmed
+s116,"Search: sqlc limitations dynamic queries (found s115; results say the sqlc discussion on dynamic queries is still open)",web search,2026-11-27,skimmed
+s117,"Cloud Run locations (Google Cloud docs, last updated 2026-11-25; opened in the review fixes)",https://docs.cloud.google.com/run/docs/locations,2026-11-27,full
+s118,"Clerk Go SDK v2.10.0 http/middleware.go, the AuthorizedPartyMatches function (Go module proxy zip of the tagged release; opened in the review fixes)",https://proxy.golang.org/github.com/clerk/clerk-sdk-go/v2/@v/v2.10.0.zip,2026-11-27,skimmed
