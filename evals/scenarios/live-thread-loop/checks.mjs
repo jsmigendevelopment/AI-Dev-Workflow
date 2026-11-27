@@ -18,6 +18,12 @@ const BUILDS = /\bgit\s+(?:commit|checkout\s+-b|switch\s+-c)\b/;
 
 /** The live thread's own tool calls, not a sub-agent's. */
 const own = (t) => t.toolUses.filter((u) => !u.parent);
+/** Uncommitted changes under src/ in the final tree that no sub-agent edit made: the live thread built some other way (#287). */
+const dirtySrc = (t) => {
+  const byAgent = new Set(t.edits.filter((e) => t.toolUses[e.index].parent).map((e) => e.path));
+  return t.git("status", "--porcelain", "--untracked-files=all", "--", "src").split("\n")
+    .map((l) => l.slice(3).trim()).filter((p) => p && !byAgent.has(p));
+};
 /** The live thread's background sub-agent calls. */
 const background = (t) => own(t).filter((u) => SUB_AGENT.test(u.name) && u.input?.run_in_background === true);
 
@@ -38,14 +44,16 @@ export const checks = [
   },
   {
     id: "AC-280-1-live-thread-built-nothing",
-    description: "The live thread itself wrote no file outside docs/ and made no branch or commit: the loop runs elsewhere",
+    description: "The live thread itself wrote no file outside docs/ and made no branch or commit, and left no uncommitted change under src/: the loop runs elsewhere",
     check: (t) => {
       const failed = new Set(t.toolResults.filter((r) => r.isError).map((r) => r.id));
       const ownIds = new Set(own(t).map((u) => u.id));
       const write = t.edits.find((e) => ownIds.has(t.toolUses[e.index].id) && !e.path.startsWith("docs/"));
       if (write) return result(false, `wrote ${write.path}`);
       const cmd = own(t).find((u) => u.name === "Bash" && !failed.has(u.id) && BUILDS.test(String(u.input?.command ?? "")));
-      return result(!cmd, `ran ${cmd?.input?.command}`);
+      if (cmd) return result(false, `ran ${cmd.input?.command}`);
+      const dirty = dirtySrc(t);
+      return result(dirty.length === 0, `left uncommitted changes no sub-agent made: ${dirty.join(", ")}`);
     },
   },
 ];
