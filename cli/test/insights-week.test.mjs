@@ -211,3 +211,51 @@ test("AC-381-1: WHEN the report runs THEN it only reads: every file stays as it 
   assert.equal(spawnSync(process.execPath, [CLI, "insights", "--week", "2026-W48", dir], { encoding: "utf8", env: env() }).status, 0);
   assert.deepEqual(snapshot(dir), before);
 });
+
+// Fix round 1 on #428. The local gate's red run is only a check record with state failure (decision 380-1).
+const gate = (at, pr, state) => rec("check", at, { pr, commands: [{ name: "test", result: state === "failure" ? "fail" : "pass", seconds: 3 }],
+  failed_step: state === "failure" ? "test" : null, state });
+const RED = [
+  build("2026-11-24T09:00:00.000Z", 20, 60, "sonnet", "medium"),
+  gate("2026-11-24T09:30:00.000Z", 60, "failure"),
+  build("2026-11-24T11:00:00.000Z", 20, 60, "opus", "medium"),
+  gate("2026-11-24T11:30:00.000Z", 60, "failure"),
+];
+
+test("AC-381-1: WHEN the local gate goes red THEN it counts as a checks send-back, opens an escalation, and fixed it is no until a later green", () => {
+  const red = report(project(RED), "--week", "2026-W48");
+  assert.equal(red.status, 0, red.stderr);
+  for (const row of ["| opus | medium | 1 | 0 | 0 | 1 | 0 | 0 | 1.00 |", "| sonnet | medium | 1 | 0 | 0 | 1 | 0 | 0 | 1.00 |",
+    "| All sizes | 1 | 1 | 100% |", "Builds after a failed review or check: 1. Escalated: 1.", "| #20 | sonnet · medium | opus · medium | no |",
+  ]) assert.ok(red.stdout.includes(row), `${row}\n${red.stdout}`);
+  const green = report(project([...RED, gate("2026-11-24T12:00:00.000Z", 60, "success")]), "--week", "2026-W48");
+  assert.ok(green.stdout.includes("| #20 | sonnet · medium | opus · medium | yes |"), green.stdout);
+});
+
+test("AC-381-1: WHEN a merged pull request's runs ran on different tools THEN its plan usage is unknown, never a sum of two plans", () => {
+  const r = report(project([
+    build("2026-11-24T09:00:00.000Z", 21, 61, "gpt", "high", { tool: "codex", ...usage("80%", "95%") }),
+    review("2026-11-24T10:00:00.000Z", 61, "pass", { tool: "claude-code", ...usage("10%", "12%") }),
+    rec("merge", "2026-11-24T11:00:00.000Z", { pr: 61, conflicted: [] }),
+  ]), "--week", "2026-W48");
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(r.stdout.includes("| #61 | 2 | 2 | unknown |"), r.stdout);
+});
+
+test("AC-381-1: WHEN a stray file is named like a day folder THEN it is skipped and counted, not a crash", () => {
+  const dir = project(WEEK);
+  writeFileSync(join(dir, "docs/insights/2026-11-27"), "not a folder\n");
+  const r = report(dir, "--week", "2026-W48");
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(r.stdout.includes("19 records this week. 2 files skipped: not a valid record."), r.stdout);
+});
+
+test("AC-381-1: WHEN the week is 2026-W53 THEN it spans the new year, and it is last week on 2027-01-04", () => {
+  const dir = project([build("2026-12-31T09:00:00.000Z", 22, 62, "opus", "medium"), build("2027-01-03T23:59:59.999Z", 22, 62, "opus", "medium"),
+    build("2027-01-04T00:00:00.000Z", 22, 62, "opus", "medium")]);
+  const named = report(dir, "--week", "2026-W53");
+  assert.equal(named.status, 0, named.stderr);
+  assert.ok(named.stdout.includes("2026-12-28 to 2027-01-03 (UTC). 2 records this week."), named.stdout);
+  const last = spawnSync(process.execPath, [SKILL_SCRIPT], { cwd: dir, encoding: "utf8", env: safeEnv({ ONRAILS_NOW: "2027-01-04T09:00:00Z" }) });
+  assert.equal(last.stdout, named.stdout);
+});

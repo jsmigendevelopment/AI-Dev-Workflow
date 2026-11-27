@@ -28,7 +28,7 @@ const DAY = 86400000;
 const READING = /^(\d+(?:\.\d+)?)%$/;
 
 /** The ISO week of a time, as yyyy-Www. */
-export function weekLabel(ms) {
+function weekLabel(ms) {
   const d = new Date(ms);
   const thursday = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) + (3 - ((d.getUTCDay() + 6) % 7)) * DAY;
   const year = new Date(thursday).getUTCFullYear();
@@ -36,7 +36,7 @@ export function weekLabel(ms) {
 }
 
 /** Monday 00:00 UTC of an ISO week, or null when there is no such week. */
-export function weekStart(label) {
+function weekStart(label) {
   const m = WEEK.exec(label);
   if (!m) return null;
   const jan4 = Date.UTC(Number(m[1]), 0, 4);
@@ -49,16 +49,19 @@ function readRecords(root, start, end) {
   const base = join(root, "docs", "insights");
   let days;
   try {
-    days = readdirSync(base).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+    days = readdirSync(base, { withFileTypes: true }).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d.name));
   } catch (e) {
     if (e.code === "ENOENT" || e.code === "ENOTDIR") return { records: [], skipped: 0 };
     throw e;
   }
   const records = [];
   let skipped = 0;
-  for (const day of days) {
+  for (const entry of days) {
+    const day = entry.name;
     const inWeek = Date.parse(`${day}T00:00:00Z`) >= start && Date.parse(`${day}T00:00:00Z`) < end;
-    for (const name of readdirSync(join(base, day)).filter((n) => n.endsWith(".json"))) {
+    // A stray file named like a day folder is skipped like any other file that isn't a record.
+    if (!entry.isDirectory()) skipped += inWeek ? 1 : 0;
+    else for (const name of readdirSync(join(base, day)).filter((n) => n.endsWith(".json"))) {
       let record;
       try { record = JSON.parse(readFileSync(join(base, day, name), "utf8")); } catch { record = null; } // not JSON: skipped
       if (record && validate(record).length === 0) records.push(record);
@@ -68,6 +71,8 @@ function readRecords(root, start, end) {
   return { records: records.sort((a, b) => Date.parse(a.at) - Date.parse(b.at)), skipped };
 }
 
+/** Why a record sent work back: its send_back, or checks for the local gate's red run (decision 380-1). */
+const reason = (r) => r.send_back ?? (r.kind === "check" && r.state === "failure" ? "checks" : undefined);
 const ends = (r) => r.kind === "job" && r.outcome !== "started" && r.outcome !== "pr-opened";
 const isUnknown = (r) => r.model === "unknown" || r.effort === "unknown";
 const who = (r) => `${r.model} · ${r.effort}`;
@@ -102,9 +107,9 @@ function sendBacks(ctx) {
     return rows.get(key);
   };
   for (const b of builds) at(b.model, b.effort).builds += 1;
-  for (const s of ctx.week.filter((r) => r.kind === "job" && r.send_back)) {
+  for (const s of ctx.week.filter(reason)) {
     const b = ctx.lastBuild(s);
-    at(b?.model ?? "unknown", b?.effort ?? "unknown")[s.send_back] += 1;
+    at(b?.model ?? "unknown", b?.effort ?? "unknown")[reason(s)] += 1;
   }
   const line = (cells, c) => {
     const sent = REASONS.reduce((n, x) => n + c[x], 0);
@@ -114,12 +119,12 @@ function sendBacks(ctx) {
   for (const c of rows.values()) for (const k of Object.keys(all)) all[k] += c[k];
   const body = [...rows].sort(([a], [b]) => a.localeCompare(b)).map(([key, c]) => line(JSON.parse(key), c));
   return ["## Send-backs by reason", "", ...table(["Builder model", "Effort", "Builds", ...REASONS, "Per build"], [...body, line(["All", ""], all)]), "",
-    "Each send-back counts against the last build of its pull request or issue before it: unknown when there is none."];
+    "Each send-back, and each red local gate as checks, counts against the last build of its pull request or issue before it: unknown when there is none."];
 }
 
 function sizes(ctx) {
   const prs = new Set(ctx.week.filter((r) => r.pr != null).map((r) => r.pr));
-  const back = new Set(ctx.week.filter((r) => r.kind === "job" && r.send_back && r.pr != null).map((r) => r.pr));
+  const back = new Set(ctx.week.filter((r) => reason(r) && r.pr != null).map((r) => r.pr));
   const big = [...new Set(ctx.week.filter((r) => r.send_back === "size" && r.pr != null).map((r) => r.pr))].sort((a, b) => a - b);
   const unknownRow = (label) => [label, "unknown", "unknown", "unknown"];
   return ["## Pull request size against send-backs", "",
@@ -129,12 +134,13 @@ function sizes(ctx) {
     "The records hold no other size, so each bucket is unknown."];
 }
 
-/** How a build after a verified failure ended: no on a later failure, yes on a later pass or merge, else unknown. */
+/** How a build after a verified failure ended: the last later failure (no) or pass, green gate or merge (yes), else unknown. */
 function fixedIt(ctx, b) {
-  const later = ctx.all.filter((r) => ctx.issueOf(r) === b.issue && Date.parse(r.at) > Date.parse(b.at));
-  if (later.some((r) => FAILURES.has(r.send_back))) return "no";
-  const passed = (r) => r.kind === "merge" || (r.kind === "review" && r.verdict === "pass") || (r.kind === "job" && r.outcome === "pass");
-  return later.some(passed) ? "yes" : "unknown";
+  const passed = (r) => r.kind === "merge" || (r.kind === "review" && r.verdict === "pass") || (r.kind === "job" && r.outcome === "pass")
+    || (r.kind === "check" && r.state === "success");
+  const last = ctx.all.filter((r) => ctx.issueOf(r) === b.issue && Date.parse(r.at) > Date.parse(b.at)
+    && (FAILURES.has(reason(r)) || passed(r))).at(-1);
+  return !last ? "unknown" : passed(last) ? "yes" : "no";
 }
 
 function escalations(ctx) {
@@ -142,7 +148,7 @@ function escalations(ctx) {
   const rows = [];
   for (const b of ctx.week.filter((r) => ends(r) && r.job === "build" && r.issue != null)) {
     const prev = ctx.builds.filter((p) => p.issue === b.issue && Date.parse(p.at) < Date.parse(b.at)).at(-1);
-    const failed = prev && ctx.all.some((s) => FAILURES.has(s.send_back) && ctx.issueOf(s) === b.issue
+    const failed = prev && ctx.all.some((s) => FAILURES.has(reason(s)) && ctx.issueOf(s) === b.issue
       && Date.parse(s.at) >= Date.parse(prev.at) && Date.parse(s.at) < Date.parse(b.at));
     if (!failed) continue;
     const escalated = isUnknown(prev) || isUnknown(b) ? "unknown" : who(prev) === who(b) ? "no" : "yes";
@@ -153,8 +159,8 @@ function escalations(ctx) {
   return ["## Escalations", "",
     `Builds after a failed review or check: ${total}. Escalated: ${count.yes}. Not escalated: ${count.no}. Unknown: ${count.unknown}.`,
     ...(rows.length ? ["", ...table(["Issue", "From", "To", "Fixed it"], rows)] : []), "",
-    "An escalation is a new model or effort on the next build of the issue. Fixed it: no on a later failed review or check, "
-    + "yes on a later pass or merge, else unknown."];
+    "An escalation is any new model or effort on the next build of the issue. Fixed it: the last later failed review or check "
+    + "(no), or pass, green gate or merge (yes), else unknown."];
 }
 
 /** A run's usage: its after minus its before, when both are percentages and it didn't go down. Else null. */
@@ -173,15 +179,18 @@ function usagePerMerge(ctx) {
     const mine = ctx.all.filter((r) => ends(r) && USAGE_JOBS.has(r.job) && Date.parse(r.at) <= Date.parse(m.at)
       && (r.pr === m.pr || (issue != null && r.issue === issue)));
     const read = mine.map(used).filter((x) => x !== null);
-    const total = read.length === mine.length && mine.length ? `${Number(read.reduce((a, b) => a + b, 0).toFixed(2))}%` : "unknown";
+    // Two tools are two plans, whose percentages don't add up.
+    const oneTool = new Set(mine.map((r) => r.tool)).size === 1;
+    const total = oneTool && read.length === mine.length ? `${Number(read.reduce((a, b) => a + b, 0).toFixed(2))}%` : "unknown";
     return [`#${m.pr}`, mine.length, read.length, total];
   });
-  return ["## Usage per merged pull request", "", ...table(["Pull request", "Runs", "With a reading", "Usage"], rows), "",
-    "A run's usage is its after minus its before, as the tool showed them in percent. Any run without both makes the sum unknown."];
+  return ["## Usage per merged pull request", "", ...table(["Pull request", "Runs", "With a reading", "Plan usage seen"], rows), "",
+    "Plan usage seen while its runs ran: each run's after minus its before, in percent, not a cost. It includes anything that ran "
+    + "beside them, and reads low if the plan reset during a run. Runs on different tools, or one without both readings: unknown."];
 }
 
 /** The report for the week starting at `start` (ms), as Markdown. */
-export function weeklyReport(records, skipped, label, start) {
+function weeklyReport(records, skipped, label, start) {
   const end = start + 7 * DAY;
   const week = records.filter((r) => Date.parse(r.at) >= start && Date.parse(r.at) < end);
   const prIssue = new Map(records.filter((r) => r.pr != null && r.issue != null).map((r) => [r.pr, r.issue]));
