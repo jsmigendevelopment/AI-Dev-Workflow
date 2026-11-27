@@ -76,22 +76,39 @@ function reader(root, { anywhere = false } = {}) {
   return { text, folder };
 }
 
-// A regular file of at most MAX_SCAN bytes, as text; anything else, or a NUL byte, gives "".
-function readCapped(path) {
-  const fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+/**
+ * A regular file of at most MAX_SCAN bytes, as text; anything else, a bigger file or a NUL byte gives "". With
+ * `input` (the lesson file the person names), a link is followed, a pipe is read too, a bigger one gives
+ * null, and anything else throws.
+ */
+export function readCapped(path, { input = false } = {}) {
+  const fd = openSync(path, constants.O_RDONLY | (input ? 0 : constants.O_NOFOLLOW ?? 0));
   try {
     const info = fstatSync(fd);
-    if (!info.isFile()) return "";
-    // One byte past the size it says, so a file that grew past the cap is still caught.
-    const buffer = Buffer.allocUnsafe(Math.min(info.size, MAX_SCAN) + 1);
-    let size = 0;
-    for (let n; size < buffer.length && (n = readSync(fd, buffer, size, buffer.length - size, size)) > 0;) size += n;
-    if (size > MAX_SCAN) return "";
-    const text = buffer.toString("utf8", 0, size);
+    if (!info.isFile() && !(input && info.isFIFO())) {
+      if (input) throw new Error("not a file or a pipe");
+      return "";
+    }
+    const bytes = readUpTo(fd, info.isFile() ? Math.min(info.size, MAX_SCAN) + 1 : 64 * 1024);
+    if (!bytes) return input ? null : "";
+    const text = bytes.toString("utf8");
     return text.includes("\0") ? "" : text;
   } finally {
     closeSync(fd);
   }
+}
+
+// Reads an open file or pipe in chunks of `chunk` bytes until it ends; null once it passes MAX_SCAN. A regular file's
+// first chunk is one byte past the size it says, so a file that grew past the cap is still caught.
+function readUpTo(fd, chunk) {
+  const buffer = Buffer.allocUnsafe(chunk);
+  const parts = [];
+  let size = 0;
+  for (let n; size <= MAX_SCAN && (n = readSync(fd, buffer, 0, chunk, null)) > 0;) {
+    parts.push(Buffer.from(buffer.subarray(0, n)));
+    size += n;
+  }
+  return size > MAX_SCAN ? null : Buffer.concat(parts);
 }
 
 // A term, each of its parts, and the parts joined by `-` and by a space. A term kept whole (an env name, a full host)

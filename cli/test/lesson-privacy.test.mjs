@@ -244,11 +244,14 @@ test("AC-385-3: WHEN --project is given THEN issue 41 and #41 are refused, and t
   for (const lesson of ["The builder closed issue 41 on the branch.", "The builder closed #41 on the branch.",
     "The builder closed issue 57 on the branch.", "The builder closed PR 41 on the branch.",
     "The builder closed pull request 41 on the branch.", "The builder closed pull 41 on the branch.",
-    "The builder closed pulls 41 and 42 on the branch."]) {
+    "The builder closed pulls 41 and 42 on the branch.", "The builder closed issue: 41 on the branch.",
+    // A number before "times out" is still an issue's: only a count of times passes.
+    "The check on pull request 41 times out after an hour.", "The build on issue 41 times out after an hour.",
+    "The builder saw that pull 12 times out on the branch."]) {
     const r = check(good({ lesson }));
     assert.equal(r.status, 1, lesson);
     assert.match(r.stderr, /^ {2}lesson: (contains a project term \(issue number\)|issue-number)$/m);
-    assert.doesNotMatch(r.stdout + r.stderr, /41|42|57/);
+    assert.doesNotMatch(r.stdout + r.stderr, /41|42|57|12/);
   }
   const bare = good({ lesson: "The builder closed issue 41 on the branch." });
   assert.equal(checkLesson(bare, { manifest }).ok, true, "without a project, the allowlist alone passes it");
@@ -258,7 +261,27 @@ test("AC-385-3: WHEN --project is given THEN issue 41 and #41 are refused, and t
     const r = check(good({ lesson }));
     assert.equal(r.status, 0, `${lesson}\n${r.stderr}`);
   }
-  assert.doesNotMatch(check(good({ lesson: "The builder hit the issue 3 x before the merge." })).stderr, /issue number/);
+  // Only times makes a count: issue 3 x is still an issue number, besides the word rule that refuses x.
+  assert.match(check(good({ lesson: "The builder hit the issue 3 x before the merge." })).stderr,
+    /^ {2}lesson: contains a project term \(issue number\)$/m);
+});
+
+// The lesson file read from a pipe, as /dev/stdin, the way `lesson check <(...)` hands one over. A shell pipe, since
+// a child's own stdin from spawnSync is a socket that /dev/stdin can't open.
+function checkPiped(text) {
+  const folder = tmp("onrails-lesson-");
+  put(folder, "lesson.json", text);
+  const script = 'cat "$1" | "$2" "$3" lesson check /dev/stdin --project "$4"';
+  return spawnSync("sh", ["-c", script, "sh", join(folder, "lesson.json"), process.execPath, CLI, project],
+    { encoding: "utf8", env: gitEnv(folder), cwd: folder });
+}
+
+test("lesson check: a lesson file from a pipe is read, and refused past 1 MB", { skip: process.platform === "win32" ? "no /dev/stdin on Windows" : false }, () => {
+  const small = checkPiped(JSON.stringify(good()));
+  assert.equal(small.status, 0, small.stderr);
+  const big = checkPiped(JSON.stringify(good({ lesson: "the merge ".repeat(110_000) })));
+  assert.equal(big.status, 1);
+  assert.match(big.stderr, /^ {2}record: too-large$/m);
 });
 
 test("lesson check: a lesson file over 1 MB is refused unread, and a long field is scanned fast", () => {
