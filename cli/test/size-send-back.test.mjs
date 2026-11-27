@@ -86,3 +86,38 @@ test("#378: pr-size.mjs --base main --head <ref> counts that commit from a check
     assert.equal(size(...bad).status, 2, bad.join(" "));
   }
 });
+
+test("#378 round 1, must 2: WHEN a later head of the same issue is still over the limit THEN it counts as a failed review round, so the cap takes over", () => {
+  const size = sizeFirst();
+  assert.match(size, /The first send-back is not a review round: it doesn't count toward the review cap\./);
+  assert.match(size, /A later head of the same issue still at 1,000 or more counts as a failed review round, so the review cap and its escalation below take over\./);
+});
+
+test("#378 round 1, must 3: WHEN the loop is in local mode THEN local-mode.md runs the size check before the review from the diff", () => {
+  const local = read(".agents/skills/coordinate/references/local-mode.md");
+  const size = local.indexOf("`node .agents/skills/coordinate/scripts/pr-size.mjs --base main --head <sha>`");
+  assert.ok(size > 0, "local-mode.md names the size check with --head");
+  assert.ok(size < local.indexOf("**Review from the diff.**"), "the size check comes before the review");
+  const step = local.slice(local.indexOf("**Size first**"), local.indexOf("**Review from the diff.**"));
+  assert.match(step, /main's own copy/);
+  assert.match(step, /Exit 1: no review and no checks\. Write `Sent back · <sha> · size: <count> counted lines, over 1,000` and the split brief \(`coordinate` step 6\.1\.1\) under `## Comments`/);
+});
+
+test("#378 round 1, nice 1 and 2: --head is refused in pull request mode, and with --head the base's attributes still decide, never the branch's", unixOnly, () => {
+  const dir = checkout();
+  git(dir, "branch", "-M", "main");
+  git(dir, "switch", "-q", "-c", "feat/2-hide");
+  mkdirSync(join(dir, "src"));
+  writeFileSync(join(dir, ".gitattributes"), "src/** linguist-generated\n*.mjs binary\n");
+  writeFileSync(join(dir, "src/hide.mjs"), Array.from({ length: 1100 }, (_, i) => `export const row${i} = ${i};`).join("\n") + "\n");
+  git(dir, "add", "-A");
+  git(dir, "commit", "-q", "-m", "#2 Hide");
+  git(dir, "switch", "-q", "main");
+  const size = (...args) => spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), ...args], { cwd: dir, encoding: "utf8", env: safeEnv() });
+  const hidden = size("--base", "main", "--head", "feat/2-hide");
+  assert.equal(hidden.status, 1, hidden.stderr);
+  assert.match(hidden.stdout, /1100\tsrc\/hide\.mjs/);
+  const pull = size("5", "--repo", "acme/app", "--head", "feat/2-hide");
+  assert.equal(pull.status, 2);
+  assert.match(pull.stderr, /^Usage: /);
+});

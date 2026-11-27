@@ -246,7 +246,8 @@ function readLocal(base, head) {
 export function main(argv) {
   const { pr, repo } = prArgs(argv);
   const base = argv.includes("--base") ? argv[argv.indexOf("--base") + 1] ?? "" : null;
-  const onePull = pr && repo && base === null;
+  // A pull request counts GitHub's head, so --head there would be silently dropped: refuse it.
+  const onePull = pr && repo && base === null && !argv.includes("--head");
   // --head names the commit to count, so the loop can count a branch from its checkout of main (#378).
   const head = argv[2] === "--head" ? argv[3] ?? "" : "HEAD";
   const local = argv[0] === "--base" && (argv.length === 2 || (argv.length === 4 && argv[2] === "--head"));

@@ -10,7 +10,8 @@ export const optIn = true;
 
 export const limits = { maxTurns: 24, timeoutSec: 300 };
 
-const SIZE = /\bpr-size\.mjs\b/;
+// A run of the script: `node`, then its path. Reading or searching the file (cat, grep) isn't a size check.
+const SIZE = /\bnode\s+\S*pr-size\.mjs\b/;
 const SPLIT = /\bsplit/i;
 // A link to #1 in a new issue file: "#1", "issue 1", or its file name.
 const LINKS_ONE = /#0*1\b|issue\s*0*1\b|001-chore-report/i;
@@ -39,8 +40,8 @@ function childrenOfOne(t) {
 export const checks = [
   {
     id: "AC-378-1-size-checked",
-    description: "It ran pr-size.mjs: the size check comes before the review",
-    check: (t) => result(t.bash.some((c) => SIZE.test(c)), "no pr-size.mjs command"),
+    description: "It ran pr-size.mjs with node: the size check comes before the review",
+    check: (t) => result(t.bash.some((c) => SIZE.test(c)), "no `node ... pr-size.mjs` command"),
   },
   {
     id: "AC-378-1-no-review",

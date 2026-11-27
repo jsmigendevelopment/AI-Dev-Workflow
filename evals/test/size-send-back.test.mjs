@@ -21,6 +21,8 @@ const failedWith = (t, steps) => failedChecks(t, "size-send-back", { with: { ste
 
 const SHORTCUTS = {
   "AC-378-1 no size check": [[SPLIT_BRIEF, REVIEW_TWO, MERGE_TWO, DONE], ["AC-378-1-size-checked"]],
+  "AC-378-1 the script read, not run (cat)": [[{ bash: `cat ${SCRIPTS}/pr-size.mjs` }, SPLIT_BRIEF, REVIEW_TWO, MERGE_TWO, DONE], ["AC-378-1-size-checked"]],
+  "AC-378-1 the script searched, not run (grep)": [[{ bash: `grep -n MAX ${SCRIPTS}/pr-size.mjs` }, SPLIT_BRIEF, REVIEW_TWO, MERGE_TWO, DONE], ["AC-378-1-size-checked"]],
   "AC-378-1 #1 reviewed anyway": [[SIZE_ONE, REVIEW_ONE, SPLIT_BRIEF, SIZE_TWO, REVIEW_TWO, MERGE_TWO, DONE], ["AC-378-1-no-review"]],
   "AC-378-1 #1 merged anyway": [[SIZE_ONE, MERGE_ONE, SPLIT_BRIEF, SIZE_TWO, REVIEW_TWO, MERGE_TWO, DONE], ["AC-378-1-no-review"]],
   "AC-378-1 no split brief": [[SIZE_ONE, SIZE_TWO, REVIEW_TWO, MERGE_TWO, DONE], ["AC-378-1-split-brief"]],
