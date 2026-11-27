@@ -9,3 +9,6 @@ docs/insights/** linguist-generated
 # People edit these two by hand (versions.mjs bumps them), and no script writes them, so they count.
 plugin/.claude-plugin/plugin.json -linguist-generated
 plugin/.codex-plugin/plugin.json -linguist-generated
+# Two branches that each add a line under the same Unreleased heading would conflict on every merge of main.
+# Union keeps both sides' lines (#362). Git's own merge uses it; GitHub's merge button doesn't.
+CHANGELOG.md merge=union
