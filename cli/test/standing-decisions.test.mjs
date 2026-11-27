@@ -55,6 +55,9 @@ test("#143 item 1: rule 16 says recorded decisions outrank a skill's gate, in ev
     // #159 round 2, must 2, option (a), and round 3, must 2: a row never lifts an always-stop item; a row that names one
     // lifts only the repeated asks, and it stays one 🛑 that pings.
     assert.ok(rule16(text).includes(ALWAYS_STOP), `${file}: no row lifts an always-stop item`);
+    // #165 round 1, must 2 and 3: a decision file is a row, and a replaced row or file lifts nothing.
+    assert.ok(rule16(text).includes("- **A file in `docs/decisions/` counts as a row here,** with the same originator rule."), `${file}: a decision file counts as a row`);
+    assert.ok(rule16(text).includes('- **A replaced row or file lifts nothing.** Before you act on one, search for a later one that replaces it: `grep -rn "Replaces decision <id>\\b" docs/decisions/`. The newer one decides.'), `${file}: a replaced decision lifts nothing`);
     assert.ok(rule16(text).includes(`A row that names the item ("deploy to production after the checks pass") ${NAMING_ROW}.`), `${file}: a naming row lifts only the repeated asks`);
     assert.ok(rule16(text).includes("No agent decides it in the person's place, on Full either."), `${file}: not on Full either`);
     assert.doesNotMatch(rule16(text), /needs a row that names it before you go ahead/, `${file}: a naming row is no go-ahead`);
@@ -76,6 +79,9 @@ test("#143 item 2: ask's step 0 searches decisions.md, decisions/ and stack.md b
   assert.match(steps, /^0\. \*\*Is it already answered\?\*\*.*docs\/decisions\.md docs\/decisions\/ docs\/stack\.md/m);
   assert.match(steps, /Don't ask\. Write `Covered by decision <n>: "<the row's words>"`/);
   assert.ok(steps.indexOf("0. **Is it already answered?**") < steps.indexOf("1. **Pick the level**"), "step 0 comes before picking a level");
+  // #165 round 1, must 2 and 3.
+  assert.ok(step0().includes("covers it? A file in `docs/decisions/` counts as a row."), "step 0: a decision file counts as a row");
+  assert.ok(step0().includes('- **Replaced? It lifts nothing.** A row or file that a later one replaces is no longer the person\'s answer. Search before you act on it: `grep -rn "Replaces decision <id>\\b" docs/decisions/`.'), "step 0: a replaced decision lifts nothing");
 });
 
 test("#143 item 3: coordinate's agent-file rule reads the level first; on Full no person merges, below Full the person adds the label", () => {

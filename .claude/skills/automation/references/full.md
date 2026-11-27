@@ -23,7 +23,7 @@ Each one is parked, not waited on. Record it under "Waiting on you" in `docs/sta
 - **The always-stop list in `AGENTS.md`:** every item on it, as that list says. Read it there.
 - **A running strongest-tier job (#118):** never stop or restart one on your own call, or on a message that only might mean stop (`ask`, "A running job"). Let it finish.
 
-A decision row that names one of these doesn't lift it: the row lifts only the repeated asks: one 🛑 that cites the row and pings once, and the person still gives the go-ahead themselves (rule 16 in `AGENTS.md`).
+A decision row that names one of these doesn't lift it: the row lifts only the repeated asks: one 🛑 that cites the row and pings once, and the person still gives the go-ahead themselves (rule 16 in `AGENTS.md`). A file in `docs/decisions/` is a row here too.
 
 ## The weakening review (#103)
 

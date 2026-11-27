@@ -1,5 +1,5 @@
-// #165: decision ids that parallel pull requests can't clash on. Rows 1 to 115 stay in the table in
-// docs/decisions.md with their numbers. Every later decision is its own file, docs/decisions/<issue>-<n>.md, so two
+// #165: decision ids that parallel pull requests can't clash on. The rows already in the table in
+// docs/decisions.md stay with their numbers, above an end marker. Every later decision is its own file, docs/decisions/<issue>-<n>.md, so two
 // branches that each record one add different files and merge with plain `git merge`, and every cite resolves.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -12,16 +12,20 @@ import { safeEnv, tmp } from "./helpers.mjs";
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const TABLE = "docs/decisions.md";
 const DIR = "docs/decisions";
-// The table's last row. A row after it would bring back the clash, so the table is frozen.
-const LAST_TABLE_ROW = 115;
-const FILE_ID = /^(\d+|kickoff)-\d+$/;
+// The table is frozen: a new row would bring back the clash. It ends at END, the file's last line. Pull requests
+// opened before #165 may still land rows above END, so the test checks the ids run 1, 2, 3 with no gap and refuses
+// any row below END (decision 165-1). MIN_TABLE_ROW is main's last row when #165 was written: none may go.
+const END = "<!-- decisions-table-end -->";
+const MIN_TABLE_ROW = 116;
+const FILE_ID = /^\d+-\d+$/;
+const ROW = /^\| (\S+) \| \d{4}-\d\d-\d\d \|/gm;
 
 const read = (path) => readFileSync(join(REPO, path), "utf8");
-const tableIds = () => [...read(TABLE).matchAll(/^\| (\S+) \| \d{4}-\d\d-\d\d \|/gm)].map((m) => m[1]);
+const tableIds = () => [...read(TABLE).matchAll(ROW)].map((m) => m[1]);
 const fileIds = () => (existsSync(join(REPO, DIR)) ? readdirSync(join(REPO, DIR)) : []).map((f) => f.replace(/\.md$/, ""));
 
 // "decision 43", "decision row 43", "Decision rows 77 and 78", "docs/decisions.md row 69", "decision 165-1".
-const ID = String.raw`(?:\d+|kickoff)(?:-\d+)?`;
+const ID = String.raw`\d+(?:-\d+)?`;
 const CITE = new RegExp(String.raw`\bdecisions?(?:\.md)?(?: rows?)? (${ID}(?:(?:, | and | or | to )${ID})*)\b`, "gi");
 /** Every decision id cited in this text. */
 export const citedIds = (text) => [...text.matchAll(CITE)].flatMap((m) => m[1].split(/, | and | or | to /));
@@ -65,8 +69,14 @@ test("AC-165-1: two branches that each record a decision both merge with no chan
 });
 
 test("AC-165-1: the table is frozen and every id is unique", () => {
+  const text = read(TABLE);
+  const lines = text.trimEnd().split("\n");
+  assert.equal(lines.at(-1), END, `${TABLE} ends with ${END}`);
+  const end = text.lastIndexOf(`\n${END}`);
+  assert.deepEqual([...text.slice(end).matchAll(ROW)].map((m) => m[1]), [], `no table row below ${END}`);
   const rows = tableIds();
-  assert.deepEqual(rows, Array.from({ length: LAST_TABLE_ROW }, (_, i) => String(i + 1)), "rows 1 to 115, in order, none added");
+  assert.ok(rows.length >= MIN_TABLE_ROW, `rows 1 to ${MIN_TABLE_ROW} are all still there`);
+  assert.deepEqual(rows, Array.from({ length: rows.length }, (_, i) => String(i + 1)), "the table's ids run 1, 2, 3 in order, unique, with no gap");
   for (const id of fileIds()) {
     assert.match(id, FILE_ID, `${DIR}/${id}.md is named <issue>-<n>.md`);
     assert.match(read(`${DIR}/${id}.md`), new RegExp(`^# Decision ${id}\\n`), `${id}.md starts with "# Decision ${id}"`);
