@@ -21,6 +21,8 @@ const KEYS = ["kit_version", "component", "category", "tool", "model_family", "a
 // The free-text fields. Every other field must hold a value from a closed list.
 const FREE_TEXT = ["lesson", "suggested_fix"];
 const SENTENCE_MAX = 200;
+// A lesson record is a few hundred bytes. A bigger file is refused before it is read.
+const FILE_MAX = 1024 * 1024;
 const DETAIL = "[detail]";
 
 // Each rule a sentence can break, checked in this order. The first match is the one reported.
@@ -121,9 +123,11 @@ function stringFields(record) {
   return fields;
 }
 
-// An issue or pull request named by its number (`issue 41`, `PR 41`, `pull request 41`). Checked against a project
-// only: a kit lesson never needs the project's own numbers (#385). `#41` is refused by the sentence rules already.
-const ISSUE_NUMBER = /(?<![\p{L}\p{N}])(?:issue|pr|pull\s+request)s?\s+(?:(?:number|no)\s+)?\d+(?!\p{L})/iu;
+// An issue or pull request named by its number (`issue 41`, `PR 41`, `pull 41`, `pull request 41`), but not a count
+// (`the issue 3 times`). Checked against a project only: a kit lesson never needs the project's own numbers (#385).
+// `#41` is refused by the sentence rules already. Why the list stops at these words: decision 385-1.
+const ISSUE_NUMBER =
+  /(?<![\p{L}\p{N}])(?:issue|pr|pull\s+request|pull)s?\s+(?:(?:number|no)\s+)?\d+(?![\p{L}\p{N}])(?!\s*(?:times?|x)(?![\p{L}\p{N}]))/iu;
 
 // A project term in a free-text field (#322), named by its field and source kind, never by the term. A field that
 // passed its closed list is skipped: its value is the kit's own (`claude-code`, a component such as `board`), so it
@@ -191,7 +195,12 @@ export function lessonCheck(file, dir, { kitDir, home } = {}) {
   if (!file) return usage("Name the lesson file.");
   if (dir !== undefined && !isDir(dir)) return usage("The project to check against isn't a folder.");
   let text;
-  try { text = readFileSync(file, "utf8"); } catch { return usage("Can't read the lesson file."); }
+  try {
+    if (statSync(file).size > FILE_MAX) return refuse([{ field: "record", rule: "too-large" }]);
+    text = readFileSync(file, "utf8");
+  } catch {
+    return usage("Can't read the lesson file.");
+  }
   let record;
   try { record = JSON.parse(text); } catch { return refuse([{ field: "record", rule: "not-json" }]); }
   const manifest = readManifest(kitDir);

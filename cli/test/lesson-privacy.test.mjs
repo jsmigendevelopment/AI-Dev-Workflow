@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "./child.mjs";
 import { checkLesson } from "../src/lesson-check.mjs";
+import { projectTerm } from "../src/lesson-deny.mjs";
 import { loadKit } from "../src/kit.mjs";
 import { put, safeEnv, tmp } from "./helpers.mjs";
 
@@ -223,9 +224,12 @@ test("AC-385-1: WHEN the project is brightpaper THEN a lesson saying bright pape
 });
 
 test("AC-385-2: WHEN .env.example names RIVER_SIGNAL_TOKEN THEN river signal token is refused", () => {
-  const dir = small("cedar", { ".env.example": "RIVER_SIGNAL_TOKEN=\n" });
+  const dir = small("cedar", { ".env.example": "RIVER_SIGNAL_TOKEN=\nRIVERSIGNAL_KEY=\n" });
+  // Spaced, hyphenated, both at once, and a name with a joined part read as two words.
   for (const lesson of ["The builder lost the river signal token on the branch.",
-    "The builder lost the river-signal-token on the branch."]) {
+    "The builder lost the river-signal-token on the branch.", "The builder lost the river-signal token on the branch.",
+    "The builder lost the river signal-token on the branch.", "The builder lost the river signal key on the branch.",
+    "The builder lost the river-signal key on the branch."]) {
     assert.equal(checkLesson(good({ lesson }), { manifest }).ok, true, "the allowlist alone passes it");
     const r = check(good({ lesson }), dir);
     assert.equal(r.status, 1, lesson);
@@ -239,16 +243,33 @@ test("AC-385-2: WHEN .env.example names RIVER_SIGNAL_TOKEN THEN river signal tok
 test("AC-385-3: WHEN --project is given THEN issue 41 and #41 are refused, and the error never prints the number", () => {
   for (const lesson of ["The builder closed issue 41 on the branch.", "The builder closed #41 on the branch.",
     "The builder closed issue 57 on the branch.", "The builder closed PR 41 on the branch.",
-    "The builder closed pull request 41 on the branch."]) {
+    "The builder closed pull request 41 on the branch.", "The builder closed pull 41 on the branch.",
+    "The builder closed pulls 41 and 42 on the branch."]) {
     const r = check(good({ lesson }));
     assert.equal(r.status, 1, lesson);
     assert.match(r.stderr, /^ {2}lesson: (contains a project term \(issue number\)|issue-number)$/m);
-    assert.doesNotMatch(r.stdout + r.stderr, /41|57/);
+    assert.doesNotMatch(r.stdout + r.stderr, /41|42|57/);
   }
   const bare = good({ lesson: "The builder closed issue 41 on the branch." });
   assert.equal(checkLesson(bare, { manifest }).ok, true, "without a project, the allowlist alone passes it");
-  // A small number that isn't an issue's still passes.
+  // A small number that isn't an issue's still passes, and so does a count after the word issue.
   assert.equal(check(good({ lesson: "The coordinator ran the test 3 times before it passed." })).status, 0);
+  for (const lesson of ["The builder hit the same issue 3 times before the merge.", "The builder hit the issue 2 times."]) {
+    const r = check(good({ lesson }));
+    assert.equal(r.status, 0, `${lesson}\n${r.stderr}`);
+  }
+  assert.doesNotMatch(check(good({ lesson: "The builder hit the issue 3 x before the merge." })).stderr, /issue number/);
+});
+
+test("lesson check: a lesson file over 1 MB is refused unread, and a long field is scanned fast", () => {
+  const big = check(good({ lesson: "the merge ".repeat(110_000) }));
+  assert.equal(big.status, 1);
+  assert.match(big.stderr, /^ {2}record: too-large$/m);
+  // A long run of short words against a long one-word term: each field is scanned in a bounded time.
+  const long = "ab".repeat(29) + "c";
+  const started = performance.now();
+  assert.equal(projectTerm("ab ".repeat(300_000), new Map([[long, "package name"]])), null);
+  assert.ok(performance.now() - started < 1000, "the scan took over a second");
 });
 
 test("AC-322-7: WHEN a record is refused for a project term THEN the output names the field and the source kind, never the term", () => {
