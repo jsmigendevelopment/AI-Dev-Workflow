@@ -9,7 +9,7 @@ import { realSys } from "../src/procs-sys.mjs";
 import { winAccess } from "../src/procs-winacl.mjs";
 import { AGENT, fakeSys, inRepo, run, seed, signals, stamp, startDev } from "./procs-fake.mjs";
 
-const OWN = { owned: true, writers: [] };
+const OWN = { owned: true, writers: [], heirs: [] };
 const STALE = { id: "p0bad", pid: 4000, start: "start-4000", group: false, command: "pnpm dev" };
 const MINE = { session: "s-1", agent: { pid: AGENT, start: `start-${AGENT}` } };
 const STOPS = [["stop", "stale"], ["stop", "all", "--yes"], ["stop", "p0bad", "--yes"], ["ps", "--stop", "all", "--yes"], ["session-end"]];
@@ -71,14 +71,15 @@ test("AC-174-1: the Windows ACL reader's output gives the owner and every other 
   const head = `user ${me}\r\nowner ${me}\r\nAllow S-1-5-18 2032127\r\nAllow S-1-5-32-544 2032127\r\nAllow ${me} 2032127\r\n`;
   assert.deepEqual(winAccess(head), OWN, "a profile folder: SYSTEM, Administrators and the user");
   assert.deepEqual(winAccess(`${head}Allow S-1-3-0 268435456\r\nAllow S-1-5-32-545 1179817\r\n`), OWN, "CREATOR OWNER, and Users who only read");
-  assert.deepEqual(winAccess(`${head}Allow S-1-5-11 1245631\r\n`), { owned: true, writers: ["S-1-5-11"] }, "Authenticated Users can modify, as under C:\\");
-  assert.deepEqual(winAccess(`${head}Allow S-1-5-32-545 4\r\nAllow S-1-5-32-545 2\r\n`), { owned: true, writers: ["S-1-5-32-545"] }, "Users can make folders");
-  assert.deepEqual(winAccess(`${head}Allow S-1-1-0 268435456\r\n`), { owned: true, writers: ["S-1-1-0"] }, "generic all");
+  assert.deepEqual(winAccess(`${head}Allow S-1-5-11 1245631\r\n`), { owned: true, writers: ["S-1-5-11"], heirs: [] }, "Authenticated Users can modify, as under C:\\");
+  assert.deepEqual(winAccess(`${head}Allow S-1-5-32-545 4\r\nAllow S-1-5-32-545 2\r\n`), { owned: true, writers: ["S-1-5-32-545"], heirs: [] }, "Users can make folders");
+  assert.deepEqual(winAccess(`${head}Allow S-1-1-0 268435456\r\n`), { owned: true, writers: ["S-1-1-0"], heirs: [] }, "generic all");
   assert.deepEqual(winAccess(`${head}Allow S-1-1-0 -1610612736\r\n`), OWN, "generic read and execute, a negative int32");
   assert.deepEqual(winAccess(`${head}Deny S-1-1-0 2032127\r\n`), OWN, "a deny grants nothing");
-  assert.deepEqual(winAccess(`${head}nodacl\r\n`), { owned: true, writers: ["S-1-1-0"] }, "no DACL: everyone can write");
+  assert.deepEqual(winAccess(`${head}nodacl\r\n`), { owned: true, writers: ["S-1-1-0"], heirs: [] }, "no DACL: everyone can write");
   assert.deepEqual(winAccess(head.replace(`owner ${me}`, "owner S-1-5-32-544")), OWN, "owned by Administrators, as an elevated session makes files");
-  assert.deepEqual(winAccess(head.replace(`owner ${me}`, "owner S-1-5-21-111-222-333-1002")), { owned: false, writers: [] }, "another account owns it");
+  assert.deepEqual(winAccess(head.replace(`owner ${me}`, "owner S-1-5-21-111-222-333-1002")), { owned: false, writers: [], heirs: [] }, "another account owns it");
+  assert.deepEqual(winAccess(`${head}Allow S-1-5-11 1245631 io\r\n`), { owned: true, writers: [], heirs: ["S-1-5-11"] }, "#268: an inherit-only rule, apart from writers");
   for (const text of ["", null, head.replace(`user ${me}\r\n`, ""), head.replace(`owner ${me}\r\n`, ""), `${head}Allow S-1-5-11\r\n`, `${head}something else\r\n`]) {
     assert.equal(winAccess(text), null, JSON.stringify(text));
   }

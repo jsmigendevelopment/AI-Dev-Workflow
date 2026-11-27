@@ -139,16 +139,18 @@ export function above(dir) {
 /**
  * On Windows, why path can't be trusted, or null: it must be owned by this user (or SYSTEM, Administrators or
  * TrustedInstaller), and no other account may write it. A folder made directly under C:\ lets every signed-in user
- * write, and what is made inside it inherits that (#174). The home folder (home) gets its own words: a repo can move,
- * the home folder can't.
+ * write, and what is made inside it inherits that (#174). An inherit-only rule counts too: the registry makes files in
+ * every path it asks this of, and they would inherit it (#268). The home folder (home) gets its own words: a repo can
+ * move, the home folder can't.
  */
 export function aclProblem(sys, path, home = false) {
   const acl = winAcl(sys, path), where = home ? `the home folder ${path}` : path, off = home ? `: ${HOME_OFF}` : "";
   if (!acl) return `who can write ${where} can't be read, so its owner can't be checked${off}`;
   if (!acl.owned) return `${where} belongs to another account${off}`;
-  if (!acl.writers.length) return null;
+  const writers = [...new Set([...acl.writers, ...(acl.heirs ?? [])])];
+  if (!writers.length) return null;
   const fix = home ? "take their write access away, or the home registry and the index stay off" : "keep the repo in your user folder, or take their write access away";
-  return `${where} can be written by other accounts (${acl.writers.join(", ")}): ${fix}`;
+  return `${where} can be written by other accounts (${writers.join(", ")}): ${fix}`;
 }
 
 /**
