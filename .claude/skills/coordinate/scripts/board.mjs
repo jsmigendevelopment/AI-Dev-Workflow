@@ -23,6 +23,7 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir, hostname } from "node:os";
 import { basename, join } from "node:path";
+import { findOrphans, issueFromBranch } from "./orphans.mjs";
 
 const TYPES = ["started", "pr-opened", "review", "needs-you", "decision", "merged", "finished", "fyi", "failed"];
 // ~/.onrails, or ~/.ai-dev-workflow (its name before the rename to onRails) while only that one exists.
@@ -129,7 +130,16 @@ function readSnapshot(files) {
 // ---------- building the board ----------
 
 const labelsOf = (row) => (row.labels || []).map((l) => (typeof l === "string" ? l : l.name));
-const issueFromBranch = (ref) => Number(String(ref || "").match(/^[\w-]+\/(\d+)[-_]/)?.[1]) || undefined;
+
+// The orphan sweep, when the issue list has its comments: each orphan waits on the person, unless it already asks.
+function addOrphans(items, snap, t) {
+  for (const o of findOrphans({ issues: (snap.issues || []).filter((r) => r.comments), prs: snap.prs || [], now: t, cwd: ROOT })) {
+    const row = snap.issues.find((r) => r.number === o.issue);
+    const it = items.get(`i${o.issue}`) || { key: `i${o.issue}`, issue: o.issue, title: row.title, ghLink: row.url, gh: true };
+    if (!it.ask) Object.assign(it, { ask: "decision", askAt: new Date(o.since).toISOString(), askTitle: it.title, askNote: o.note });
+    items.set(it.key, it);
+  }
+}
 
 function build(events, snap) {
   const t = now().getTime();
@@ -211,6 +221,7 @@ function build(events, snap) {
     it.pr = row.number; it.prLink = row.url; it.stage = "merged"; it.doneAt = row.mergedAt; it.ask = null;
     items.set(k, it);
   }
+  addOrphans(items, snap, t);
   // With a full open-issue list, local work whose issue and PR are both gone was closed on GitHub.
   if (snap.issues) for (const it of items.values()) {
     if ((it.stage === "build" || it.stage === "review") && it.issue && !openIssues.has(it.issue) && !(it.pr && openPrs.has(it.pr))) it.stage = "closed";
