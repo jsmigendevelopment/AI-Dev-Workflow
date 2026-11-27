@@ -89,7 +89,7 @@ test("AC-168-2 (round 1): computer use is never used for keys, and the paste spo
   assert.match(open, /Your shell runs on the person's machine: open a new terminal window in the app folder, already running `pnpm connect <provider>`\. The folder is its own argument, never inside the script text\./);
   assert.equal(terminal(open, "macOS"), `osascript -e 'on run argv' -e 'tell application "Terminal" to do script "cd " & quoted form of item 1 of argv & " && pnpm connect " & item 2 of argv' -e 'end run' '<app folder>' <provider>`);
   assert.equal(terminal(open, "Linux"), `x-terminal-emulator -e sh -c 'cd "$1" && pnpm connect <provider>; exec "\${SHELL:-sh}"' sh '<app folder>'`);
-  assert.equal(terminal(open, "Windows, from PowerShell"), `Push-Location -LiteralPath '<app folder>'; Start-Process cmd -ArgumentList '/k','pnpm connect <provider>'; Pop-Location`);
+  assert.equal(terminal(open, "Windows, from PowerShell"), `Push-Location -LiteralPath '<app folder>'; [Environment]::CurrentDirectory = (Get-Location -PSProvider FileSystem).ProviderPath; Start-Process cmd -ArgumentList '/k','pnpm connect <provider>'; Pop-Location`);
   assert.equal(terminal(open, "From Git Bash"), `(cd '<app folder>' && MSYS_NO_PATHCONV=1 cmd.exe /c start "" cmd /k pnpm connect <provider>)`);
   assert.match(open, /Otherwise, give one command for their own terminal: `pnpm connect <provider>`\. It refuses to run without a terminal, so never run it in your shell\./);
 });
@@ -143,23 +143,32 @@ test("AC-168-2 (round 2): on macOS the folder is osascript's own argument, and A
   assert.deepEqual(runSh(`cd ${shQuote(f.folder)} && pnpm connect clerk`, f), ["pnpm", f.folder, "connect", "clerk"]);
 });
 
-test("AC-168-2 (round 2): on Windows the folder is its own argument from PowerShell, and from Git Bash it never reaches cmd", () => {
+test("AC-168-2 (round 2): on Windows PowerShell the folder is its own argument, and 5.1 opens cmd in it", () => {
   const open = openStep();
   const ps = terminal(open, "Windows, from PowerShell");
   assert.ok(ps, "a PowerShell command");
   assert.doesNotMatch(ps, /\bcd\b|&&|-WorkingDirectory/, "PowerShell: the folder isn't inside a script or a wildcard parameter");
   assert.match(open, /in PowerShell, as `''`/);
   assert.match(open, /`-WorkingDirectory` can read `\[` and `\]` as a wildcard/);
-  if (process.platform === "win32") return;
-  // AC-187-1: Git Bash is a POSIX shell, so check what cmd.exe gets. MSYS leaves `a&b^c%d` unquoted, so it stays out.
+  // Windows PowerShell 5.1 starts the process from the process folder, not the pushed location: set it first.
+  const set = ps.indexOf("[Environment]::CurrentDirectory = (Get-Location -PSProvider FileSystem).ProviderPath;");
+  assert.ok(ps.indexOf("Push-Location") < set && set < ps.indexOf("Start-Process"), "the process folder is set between the push and the start");
+});
+
+test("AC-187-1: from Git Bash the folder never reaches cmd, and cmd starts in it", { skip: process.platform === "win32" }, () => {
+  const open = openStep();
   const f = fakes(["cmd.exe"]);
-  const folder = join(f.dir, "a&b^c%d");
-  mkdirSync(folder);
-  const line = terminal(open, "From Git Bash").replace("'<app folder>'", shQuote(folder)).replaceAll("<provider>", "clerk");
-  const [name, cwd, ...args] = runSh(line, f);
-  assert.deepEqual([name, cwd], ["cmd.exe", folder], "cmd starts in the folder");
-  assert.deepEqual(args, ["/c", "start", "", "cmd", "/k", "pnpm", "connect", "clerk"]);
-  assert.ok(args.every((a) => !a.includes("a&b^c%d")), "the folder never appears in cmd's arguments");
+  // Git Bash is a POSIX shell, so check what cmd.exe gets. MSYS leaves `&`, `^`, `%` unquoted; `'` and `$` test the quoting.
+  for (const name of ["a&b^c%d", "it's $HOME"]) {
+    writeFileSync(f.out, "");
+    const folder = join(f.dir, name);
+    mkdirSync(folder);
+    const line = terminal(open, "From Git Bash").replace("'<app folder>'", shQuote(folder)).replaceAll("<provider>", "clerk");
+    const [cmd, cwd, ...args] = runSh(line, f);
+    assert.deepEqual([cmd, cwd], ["cmd.exe", folder], `${name}: cmd starts in the folder`);
+    assert.deepEqual(args, ["/c", "start", "", "cmd", "/k", "pnpm", "connect", "clerk"]);
+    assert.ok(args.every((a) => !a.includes(name)), `${name}: the folder never appears in cmd's arguments`);
+  }
 });
 
 test("AC-168-2 (round 2): if no window opens, the agent gives the one command instead", () => {
@@ -169,7 +178,7 @@ test("AC-168-2 (round 2): if no window opens, the agent gives the one command in
 /** #187: a sentence that is a step: a button, or one that starts with an action. Notes ("Shown once.", `[V]`) are not. */
 const AGENT_STEP = /\*\*|^(?:Then|Next|After|Now|Click|Press|Open|Go|Pick|Select|Choose|Fill|Type|Enter|Add|Copy|Paste|Make|Create|Set|Run|Save|Close)\b/;
 
-test("AC-168-2 (round 2): every row that makes a secret stops on the button the person presses, with nothing for the agent after it", () => {
+const checkSecretRows = () => {
   const files = readdirSync(fileURLToPath(new URL(`../../${PROVIDERS}`, import.meta.url))).filter((f) => f.endsWith(".md"));
   let checked = 0;
   for (const file of files) {
@@ -187,8 +196,19 @@ test("AC-168-2 (round 2): every row that makes a secret stops on the button the 
       checked++;
     }
   }
-  // AC-187-3: the exact count of `"secret": true` variables. Adding or removing one means updating this.
-  assert.equal(checked, 15, "every secret row is checked");
+  return checked;
+};
+
+test("AC-168-2 (round 2): every row that makes a secret stops on the button the person presses, with nothing for the agent after it", () => {
+  assert.ok(checkSecretRows() > 0);
+});
+
+test("AC-187-3: the secret-row check covers exactly the 15 `\"secret\": true` variables", () => {
+  // Adding or removing a secret variable means updating this count.
+  assert.equal(checkSecretRows(), 15, "every secret row is checked");
+});
+
+test("AC-187-2: Entra's row names API permissions before New client secret, and GitHub's stops on the generate button", () => {
   // Entra hides the value once you leave the page: the permissions come first, so the agent never works in that tab after it.
   const entra = keyRows(read(`${PROVIDERS}/entra.md`), "entra.md").get("ACCESS_ENTRA_CLIENT_SECRET").pick;
   const perms = entra.indexOf("**API permissions**");
