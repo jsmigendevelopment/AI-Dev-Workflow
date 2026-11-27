@@ -21,7 +21,7 @@ const PERMISSIONS = Object.fromEntries(
 /** own-branch.mjs on pull request 7 of acme/app by `author`, whose branch `ref` lives in the repo `from`; issue 5 has `comments`. */
 function own({ from = "acme/app", ref = "feat/5-share", author = "builder", comments = [CLAIM(ref)], args = ["7", "--repo", "acme/app"], env = {}, api = {} } = {}) {
   const dir = tmp("onrails-own-");
-  const fake = fakeGh(dir, {
+  const fake = fakeGh(tmp("onrails-gh-"), { // gh outside the folder it runs in (#274)
     ...PERMISSIONS,
     ...api,
     "repos/acme/app/pulls/7": { number: 7, user: author && { login: author }, head: { sha: HEAD, ref, repo: from && { full_name: from } } },

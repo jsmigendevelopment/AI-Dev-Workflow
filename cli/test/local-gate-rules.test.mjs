@@ -99,7 +99,7 @@ test("AC-225-2: WHEN the project has deploy:preview THEN build's finish steps ru
  * `classic` the required status checks of main's classic branch protection. `env` replaces the fake gh's env. */
 function mark({ status = {}, rules = [], classic = { contexts: [], checks: [] }, args = [HEAD, "--repo", "acme/app", "--state", "success"], env } = {}) {
   const dir = tmp("onrails-mark-");
-  const fake = fakeGh(dir, {
+  const fake = fakeGh(tmp("onrails-gh-"), { // gh outside the folder it runs in (#274)
     [`repos/acme/app/statuses/${HEAD}`]: status,
     "repos/acme/app": { default_branch: "main" },
     "repos/acme/app/rules/branches/main": rules,

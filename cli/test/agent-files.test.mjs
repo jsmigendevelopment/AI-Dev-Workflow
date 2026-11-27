@@ -205,7 +205,8 @@ test("#162: --pr: a check file renamed away and a deleted check file both count"
     mkdirSync(join(dir, "docs"), { recursive: true });
     writeFileSync(join(dir, "docs", "stack.md"), stack);
     const p = "repos/acme/app";
-    const fake = fakeGh(dir, { [`${p}/pulls/7`]: { head: { sha: HEAD }, changed_files: 2 }, [`${p}/pulls/7/files`]: files,
+    // gh lives outside the folder it runs in: a gh there never starts (#274).
+    const fake = fakeGh(tmp("onrails-gh-"), { [`${p}/pulls/7`]: { head: { sha: HEAD }, changed_files: 2 }, [`${p}/pulls/7/files`]: files,
       [`${p}/issues/7/comments`]: comments, [`${p}/issues/7/labels`]: [], [`${p}/collaborators/owner/permission`]: { permission: "admin" } },
     { REPO: "acme/app", HEAD_SHA: HEAD });
     return spawnSync(process.execPath, [SCRIPT, "--pr", "7"], { cwd: dir, encoding: "utf8", env: fake.env });

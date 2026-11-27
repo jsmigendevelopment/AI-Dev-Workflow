@@ -15,7 +15,7 @@ const compare = (...files) => ({ files: files.map((filename) => ({ filename })) 
 /** overlap.mjs for candidate 7 against `inFlight` in acme/app. `issues` maps a number to its Modules line (null: none). */
 function overlap({ issues = {}, inFlight = "5", refs = [], compares = {}, args, api = {} } = {}) {
   const dir = tmp("onrails-overlap-");
-  const fake = fakeGh(dir, {
+  const fake = fakeGh(tmp("onrails-gh-"), { // gh outside the folder it runs in (#274)
     "repos/acme/app": { default_branch: "main" },
     // The exact path: the real API answers HTTP 400 to matching-refs/heads/ with a trailing slash.
     "repos/acme/app/git/matching-refs/heads": refs.map(ref),
