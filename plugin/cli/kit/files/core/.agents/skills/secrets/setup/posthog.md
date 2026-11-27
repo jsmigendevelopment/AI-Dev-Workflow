@@ -1,6 +1,6 @@
 # PostHog: setup recipe
 
-Last checked: 2026-11-23. Rules every recipe shares: [`README.md`](README.md). The kit has no PostHog provider file yet, so `pnpm connect` won't ask for its values: use the `secrets` checklist's "if you're wiring them" path.
+Last checked: 2026-11-23. Rules every recipe shares: [`README.md`](README.md). Keys and where to get them: [`../providers/posthog.md`](../providers/posthog.md) (#258).
 
 **Only if the person picks PostHog.** The kit's default is the `analytics` add-on (Cloudflare Web Analytics, no cookies). PostHog is for funnels, product events and session replay.
 
@@ -51,8 +51,4 @@ PostHog's entry point is `npx -y @posthog/wizard@latest`.
 
 - `PostHog/wizard`, commit `3872773` (2026-11-20): `README.md`, `src/services/frameworks/tanstack-start/tanstack-start-wizard-agent.ts`.
 - npm, 2026-11-23: `@posthog/wizard` 2.98.0 (MIT, published 2026-11-19); `posthog-js` 1.453.3 (Apache-2.0 AND MIT); `posthog-node` 6.0.6 (MIT).
-- posthog.com wasn't reached. `[U]` PostHog's own TanStack Start page and its default cookie and autocapture settings.
-
-## Follow-up notes for the kit
-
-- No PostHog provider file with a `json connect` block. Add one if PostHog becomes an add-on.
+- posthog.com, 2026-11-27: the JS, TanStack Start and API pages, for the provider file. `[U]` its default cookie and autocapture settings.
