@@ -12,7 +12,7 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
-import { homedir } from "node:os";
+import { constants, homedir } from "node:os";
 import { delimiter, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -194,7 +194,8 @@ export function main(argv, { platform, path } = {}) {
   }
   const r = spawnSync(argvRun[0], argvRun.slice(1), { cwd: p.dir, env, stdio: "inherit" });
   if (r.error) return (console.error(`fence.mjs: couldn't start ${command[0]}: ${r.error.message}`), 127);
-  return r.status ?? 128 + (r.signal ? 15 : 0);
+  // A command ended by a signal exits the way a shell reports it: 128 plus the signal's number.
+  return r.status ?? 128 + (constants.signals[r.signal] ?? 0);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
