@@ -32,8 +32,8 @@ const HEAD = `# Tracer-bullet pyramid
 
 ## Current pass: steps
 
-| # | Step | Slice | Try it | Size | After |
-|---|---|---|---|---|---|
+| # | Step | Slice | Try it | Size | Lines | After |
+|---|---|---|---|---|---|---|
 `;
 
 const THIN = [
@@ -46,7 +46,9 @@ const THIN = [
   "| 7 | Enter a spend | Cost split | Open /split, type 12.50 and save: it shows in the month's list | 4 | 2 |",
   "| 8 | See who owes what | Cost split | Open /split with two spends: each flatmate's share shows | 3 | 7 |",
 ];
-const plan = (rows = THIN) => `${HEAD}${rows.join("\n")}\n\n## Gate record\n`;
+// The rows here have no Lines cell: each gets one under 1,000 before its After cell. plan-lines.test.mjs tests the cell (#376).
+const withLines = (row) => (row.split("|").length === 8 ? row.replace(/\|([^|]*)\|$/, "| about 200 lines |$1|") : row);
+const plan = (rows = THIN) => `${HEAD}${rows.map(withLines).join("\n")}\n\n## Gate record\n`;
 const errors = (rows, opts) => checkPlan(plan(rows), opts).errors.join("\n");
 const swap = (n, row) => THIN.map((r, i) => (i === n ? row : r));
 

@@ -1,5 +1,5 @@
 // pyramid: pass 1 is cut into thin steps, at least two per slice, each one something the
-// person can try, none of them a layer. The plan checker that ships in the pyramid skill
+// person can try, none of them a layer, each with a line estimate under 1,000 (#376). The plan checker that ships in the pyramid skill
 // does the reading, so the eval and the kit agree on what "thin" means.
 import { result } from "../../lib/checks.mjs";
 import { checkPlan, readSteps } from "../../../.agents/skills/pyramid/scripts/check-plan.mjs";
@@ -33,9 +33,9 @@ export const checks = [
   },
   {
     id: "steps-are-small",
-    description: "No step is above size 4 without a reason, and at most one in three is",
+    description: "No step is above size 4 without a reason, at most one in three is, and each has a line estimate under 1,000",
     check: (t) => {
-      const bad = errorsAbout(t, /size|Size|no steps table/);
+      const bad = errorsAbout(t, /size|Size|Lines|line estimate|no steps table/);
       return result(bad.length === 0, some(bad));
     },
   },
