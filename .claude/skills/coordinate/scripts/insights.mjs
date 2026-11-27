@@ -7,18 +7,32 @@
 // model and effort are what the caller passes from its own session, else "unknown". ONRAILS_NOW sets the clock (tests).
 // Exit 2: an unknown kind, a missing field or a bad value, with the field named; nothing is written.
 // Exit 1: the write failed for another reason. It never invents a value.
+//
+// The coordinator carries records to main (#332), from its own checkout of main:
+//   harvest --pr <n> --repo <owner>/<name>   writes each valid insights line from the pull request's comments that
+//       isn't on disk yet. Only comments by gh's own login, or a login under [insights] writers in docs/profile.toml,
+//       count. A line that fails validate, names another pull request or can't be a record file is skipped and named.
+//       A record's id is a hash of it, so a rerun writes nothing; a different file on that name is named and kept.
+//   land [--verify <pr>] [--repo <owner>/<name>]   lands the records on main: insights-land.mjs says how.
+// harvest and land exit 2 on a usage, git or API error.
 // Format and kinds: references/insights.md. Plain Node 22, no dependencies.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { KINDS, VERSION, coerce, dayFolder, fileName, toLine, validate } from "./insights-record.mjs";
+import { pages } from "./agent-files.mjs";
+import { canonical, land, ownLogin, recordProblem } from "./insights-land.mjs";
+import { KINDS, VERSION, coerce, dayFolder, fileName, parseLine, toLine, validate } from "./insights-record.mjs";
 
-const USAGE = "usage: insights.mjs write|line <kind> key=value ...";
+const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>]";
+const LINE = /<!-- onrails-insights (.*?) -->/g;
 
 function fail(code, message) {
   process.stderr.write(`insights: ${message}\n`);
   process.exit(code);
 }
+const warn = (message) => process.stderr.write(`insights: ${message}\n`);
+const flag = (args, name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 
 function gitRoot() {
   const start = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -30,7 +44,7 @@ function gitRoot() {
 }
 
 function build(kind, pairs) {
-  if (!KINDS[kind]) fail(2, `kind: "${kind}" isn't one of ${Object.keys(KINDS).join(", ")}`);
+  if (!Object.hasOwn(KINDS, kind)) fail(2, `kind: "${kind}" isn't one of ${Object.keys(KINDS).join(", ")}`);
   const at = new Date(process.env.ONRAILS_NOW || Date.now());
   if (Number.isNaN(at.getTime())) fail(2, "at: ONRAILS_NOW isn't a time");
   const record = { v: VERSION, kind, at: at.toISOString(), issue: null, pr: null, sha: null, job: null, tool: null, model: "unknown", effort: "unknown" };
@@ -46,20 +60,93 @@ function build(kind, pairs) {
   return record;
 }
 
-const [cmd, kind, ...pairs] = process.argv.slice(2);
-if (cmd !== "write" && cmd !== "line") fail(2, USAGE);
-if (!kind) fail(2, `kind: missing. ${USAGE}`);
-const record = build(kind, pairs);
-if (cmd === "line") {
-  process.stdout.write(`${toLine(record)}\n`);
-} else {
+function writeOrLine(cmd, kind, pairs) {
+  if (!kind) fail(2, `kind: missing. ${USAGE}`);
+  const record = build(kind, pairs);
+  if (cmd === "line") return process.stdout.write(`${toLine(record)}\n`);
   const dir = join(gitRoot(), dayFolder(record));
   const path = join(dir, fileName(record));
   try {
     mkdirSync(dir, { recursive: true });
-    writeFileSync(path, `${JSON.stringify(record, null, 2)}\n`, { flag: "wx" });
+    writeFileSync(path, canonical(record), { flag: "wx" });
   } catch (e) {
     fail(1, `couldn't write ${path}: ${e.code || e.message}`);
   }
-  process.stdout.write(`${path}\n`);
+  return process.stdout.write(`${path}\n`);
 }
+
+/** The logins under [insights] writers = ["a", "b"] in docs/profile.toml, lower case. The list may span lines. */
+function listedWriters(root) {
+  let text;
+  try { text = readFileSync(join(root, "docs", "profile.toml"), "utf8"); } catch { return []; }
+  // A login holds no "#", so a "#" starts a TOML comment wherever it is.
+  const body = (text.split(/^\[insights\]\s*$/m)[1]?.split(/^\[/m)[0] ?? "").replace(/#[^\n]*/g, "");
+  const list = body.match(/^\s*writers\s*=\s*\[([^\]]*)\]/m)?.[1] ?? "";
+  return [...list.matchAll(/"([^"]+)"/g)].map((m) => m[1].toLowerCase());
+}
+
+function lineProblem(json) {
+  try { return validate(JSON.parse(json)).join("; "); } catch { return "isn't JSON"; }
+}
+
+/**
+ * Writes the record unless its day folder already holds it. Returns { path } when written, { why } when it can't be
+ * (not a record file land would take, or a different file on its name), or {} when it was already there.
+ */
+function keep(root, record) {
+  const text = canonical(record);
+  const rel = `${dayFolder(record)}/${fileName(record, createHash("sha256").update(text).digest("hex").slice(0, 6))}`;
+  const problem = recordProblem(rel, Buffer.from(text));
+  if (problem) return { why: `${rel}: ${problem}` };
+  const day = join(root, dayFolder(record));
+  mkdirSync(day, { recursive: true });
+  const held = (name) => { try { return canonical(JSON.parse(readFileSync(join(day, name), "utf8"))) === text; } catch { return false; } };
+  if (readdirSync(day).some(held)) return {};
+  try {
+    writeFileSync(join(root, rel), text, { flag: "wx" });
+  } catch (e) {
+    if (e.code !== "EEXIST") throw e;
+    return { why: `${rel}: a different file already has this name; left as it is` };
+  }
+  return { path: join(root, rel) };
+}
+
+/** Why a parsed, valid record from #pr's comments can't be kept, or what keep() says. */
+function harvestOne(root, record, pr) {
+  if (record.pr != null && record.pr !== Number(pr)) return { why: `pr: ${record.pr} isn't #${pr}` };
+  return keep(root, record);
+}
+
+function harvest(args) {
+  const pr = flag(args, "--pr");
+  const repo = flag(args, "--repo");
+  if (!/^\d+$/.test(pr ?? "") || !/^[\w.-]+\/[\w.-]+$/.test(repo ?? "")) fail(2, "usage: insights.mjs harvest --pr <n> --repo <owner>/<name>");
+  const root = gitRoot();
+  const trusted = new Set([ownLogin().toLowerCase(), ...listedWriters(root)]);
+  for (const c of pages(`repos/${repo}/issues/${pr}/comments`)) {
+    const lines = [...String(c.body ?? "").matchAll(LINE)];
+    const login = String(c.user?.login ?? "");
+    if (!lines.length) continue;
+    if (!trusted.has(login.toLowerCase())) {
+      warn(`skipped comment ${c.id} by ${login}: not gh's own login or under [insights] writers`);
+      continue;
+    }
+    for (const [line, json] of lines) {
+      const record = parseLine(line);
+      const kept = record ? harvestOne(root, record, pr) : { why: lineProblem(json) };
+      if (kept.why) warn(`skipped a line in comment ${c.id} by ${login}: ${kept.why}`);
+      if (kept.path) process.stdout.write(`${kept.path}\n`);
+    }
+  }
+}
+
+const [cmd, ...rest] = process.argv.slice(2);
+if (cmd === "write" || cmd === "line") writeOrLine(cmd, rest[0], rest.slice(1));
+else if (cmd === "harvest" || cmd === "land") {
+  try {
+    if (cmd === "harvest") harvest(rest);
+    else land(gitRoot(), rest);
+  } catch (e) {
+    fail(2, String(e.stderr || e.message).trim());
+  }
+} else fail(2, USAGE);
