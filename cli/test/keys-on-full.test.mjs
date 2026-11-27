@@ -75,7 +75,9 @@ test("AC-168-2 (round 1): the person presses the button that makes or shows the 
   }
   const stripe = keyRows(read(`${PROVIDERS}/stripe.md`), "stripe.md");
   assert.match(stripe.get("STRIPE_SECRET_KEY").pick, /the person presses \*\*Create key\*\* and enters the two-factor code Stripe sends them in the dialog/);
-  assert.match(stripe.get("STRIPE_WEBHOOK_SECRET").pick, /\*\*Reveal secret\*\* shows the `whsec_` value: that click is the person's\./);
+  const webhook = stripe.get("STRIPE_WEBHOOK_SECRET").pick;
+  assert.match(webhook, /\*\*Reveal secret\*\* shows the `whsec_` value\. Stop there: the person presses \*\*Reveal secret\*\*\./);
+  assert.equal(webhook.match(/Reveal secret/g).length, 2, "#187: the Reveal-secret handover is said once");
 });
 
 test("AC-168-2 (round 1): computer use is never used for keys, and the paste spot opens in a new terminal window on the person's machine", () => {
@@ -87,8 +89,8 @@ test("AC-168-2 (round 1): computer use is never used for keys, and the paste spo
   assert.match(open, /Your shell runs on the person's machine: open a new terminal window in the app folder, already running `pnpm connect <provider>`\. The folder is its own argument, never inside the script text\./);
   assert.equal(terminal(open, "macOS"), `osascript -e 'on run argv' -e 'tell application "Terminal" to do script "cd " & quoted form of item 1 of argv & " && pnpm connect " & item 2 of argv' -e 'end run' '<app folder>' <provider>`);
   assert.equal(terminal(open, "Linux"), `x-terminal-emulator -e sh -c 'cd "$1" && pnpm connect <provider>; exec "\${SHELL:-sh}"' sh '<app folder>'`);
-  assert.equal(terminal(open, "Windows, from PowerShell"), `Start-Process -WorkingDirectory '<app folder>' cmd -ArgumentList '/k','pnpm connect <provider>'`);
-  assert.equal(terminal(open, "From Git Bash"), `MSYS_NO_PATHCONV=1 cmd.exe /c start "" /d '<app folder>' cmd /k pnpm connect <provider>`);
+  assert.equal(terminal(open, "Windows, from PowerShell"), `Push-Location -LiteralPath '<app folder>'; [Environment]::CurrentDirectory = (Get-Location -PSProvider FileSystem).ProviderPath; Start-Process cmd -ArgumentList '/k','pnpm connect <provider>'; Pop-Location`);
+  assert.equal(terminal(open, "From Git Bash"), `(cd '<app folder>' && MSYS_NO_PATHCONV=1 cmd.exe /c start "" cmd /k pnpm connect <provider>)`);
   assert.match(open, /Otherwise, give one command for their own terminal: `pnpm connect <provider>`\. It refuses to run without a terminal, so never run it in your shell\./);
 });
 
@@ -141,28 +143,42 @@ test("AC-168-2 (round 2): on macOS the folder is osascript's own argument, and A
   assert.deepEqual(runSh(`cd ${shQuote(f.folder)} && pnpm connect clerk`, f), ["pnpm", f.folder, "connect", "clerk"]);
 });
 
-test("AC-168-2 (round 2): on Windows the folder is its own argument from PowerShell and from Git Bash, with no cd or && for cmd", () => {
+test("AC-168-2 (round 2): on Windows PowerShell the folder is its own argument, and 5.1 opens cmd in it", () => {
   const open = openStep();
-  for (const label of ["Windows, from PowerShell", "From Git Bash"]) {
-    const command = terminal(open, label);
-    assert.ok(command, `a command for ${label}`);
-    assert.doesNotMatch(command, /\bcd\b|&&/, `${label}: the folder isn't inside a script`);
-  }
+  const ps = terminal(open, "Windows, from PowerShell");
+  assert.ok(ps, "a PowerShell command");
+  assert.doesNotMatch(ps, /\bcd\b|&&|-WorkingDirectory/, "PowerShell: the folder isn't inside a script or a wildcard parameter");
   assert.match(open, /in PowerShell, as `''`/);
-  assert.match(open, /with the folder as a Windows path \(`cygpath -w "\$PWD"` gives it\)/);
-  if (process.platform === "win32") return;
-  // Git Bash is a POSIX shell: check the arguments cmd.exe gets. Windows itself wasn't run here.
+  assert.match(open, /`-WorkingDirectory` can read `\[` and `\]` as a wildcard/);
+  // Windows PowerShell 5.1 starts the process from the process folder, not the pushed location: set it first.
+  const set = ps.indexOf("[Environment]::CurrentDirectory = (Get-Location -PSProvider FileSystem).ProviderPath;");
+  assert.ok(ps.indexOf("Push-Location") < set && set < ps.indexOf("Start-Process"), "the process folder is set between the push and the start");
+});
+
+test("AC-187-1: from Git Bash the folder never reaches cmd, and cmd starts in it", { skip: process.platform === "win32" }, () => {
+  const open = openStep();
   const f = fakes(["cmd.exe"]);
-  const windowsFolder = `C:\\Users\\me\\Jay's App $x`;
-  const line = terminal(open, "From Git Bash").replace("'<app folder>'", shQuote(windowsFolder)).replaceAll("<provider>", "clerk");
-  assert.deepEqual(runSh(line, f).slice(2), ["/c", "start", "", "/d", windowsFolder, "cmd", "/k", "pnpm", "connect", "clerk"]);
+  // Git Bash is a POSIX shell, so check what cmd.exe gets. MSYS leaves `&`, `^`, `%` unquoted; `'` and `$` test the quoting.
+  for (const name of ["a&b^c%d", "it's $HOME"]) {
+    writeFileSync(f.out, "");
+    const folder = join(f.dir, name);
+    mkdirSync(folder);
+    const line = terminal(open, "From Git Bash").replace("'<app folder>'", shQuote(folder)).replaceAll("<provider>", "clerk");
+    const [cmd, cwd, ...args] = runSh(line, f);
+    assert.deepEqual([cmd, cwd], ["cmd.exe", folder], `${name}: cmd starts in the folder`);
+    assert.deepEqual(args, ["/c", "start", "", "cmd", "/k", "pnpm", "connect", "clerk"]);
+    assert.ok(args.every((a) => !a.includes(name)), `${name}: the folder never appears in cmd's arguments`);
+  }
 });
 
 test("AC-168-2 (round 2): if no window opens, the agent gives the one command instead", () => {
   assert.match(openStep(), /No window opens \(a permission prompt, a sandbox, an error\)\? Give the one command in the next bullet instead\./);
 });
 
-test("AC-168-2 (round 2): every row that makes a secret stops on the button the person presses, with nothing for the agent after it", () => {
+/** #187: a sentence that is a step: a button, or one that starts with an action. Notes ("Shown once.", `[V]`) are not. */
+const AGENT_STEP = /\*\*|^(?:Then|Next|After|Now|Click|Press|Open|Go|Pick|Select|Choose|Fill|Type|Enter|Add|Copy|Paste|Make|Create|Set|Run|Save|Close)\b/;
+
+const checkSecretRows = () => {
   const files = readdirSync(fileURLToPath(new URL(`../../${PROVIDERS}`, import.meta.url))).filter((f) => f.endsWith(".md"));
   let checked = 0;
   for (const file of files) {
@@ -175,14 +191,30 @@ test("AC-168-2 (round 2): every row that makes a secret stops on the button the 
       const { pick } = rows.get(name);
       const stop = pick.match(/Stop there: the person presses \*\*[^*]+\*\*[^.]*\.(.*)$/);
       assert.ok(stop, `${file}: ${name}'s row ends on "Stop there: the person presses **<button>**"`);
-      assert.doesNotMatch(stop[1], /\*\*/, `${file}: ${name}: no button for the agent after the person's press`);
+      const steps = stop[1].split(/(?<=\.) /).map((s) => s.trim()).filter((s) => AGENT_STEP.test(s));
+      assert.deepEqual(steps, [], `${file}: ${name}: no agent step after the person's press`);
       checked++;
     }
   }
-  assert.ok(checked >= 14, `every secret row is checked (${checked})`);
+  return checked;
+};
+
+test("AC-168-2 (round 2): every row that makes a secret stops on the button the person presses, with nothing for the agent after it", () => {
+  assert.ok(checkSecretRows() > 0);
+});
+
+test("AC-187-3: the secret-row check covers exactly the 15 `\"secret\": true` variables", () => {
+  // Adding or removing a secret variable means updating this count.
+  assert.equal(checkSecretRows(), 15, "every secret row is checked");
+});
+
+test("AC-187-2: Entra's row names API permissions before New client secret, and GitHub's stops on the generate button", () => {
   // Entra hides the value once you leave the page: the permissions come first, so the agent never works in that tab after it.
   const entra = keyRows(read(`${PROVIDERS}/entra.md`), "entra.md").get("ACCESS_ENTRA_CLIENT_SECRET").pick;
-  assert.ok(entra.indexOf("**API permissions**") < entra.indexOf("**New client secret**"), "Entra: API permissions before the secret");
+  const perms = entra.indexOf("**API permissions**");
+  const secret = entra.indexOf("**New client secret**");
+  assert.ok(perms >= 0 && secret >= 0, "Entra: names both API permissions and New client secret");
+  assert.ok(perms < secret, "Entra: API permissions before the secret");
   assert.match(entra, /Stop there: the person presses \*\*Add\*\*/);
   const github = keyRows(read(`${PROVIDERS}/github-oauth.md`), "github-oauth.md").get("ACCESS_GITHUB_CLIENT_SECRET").pick;
   assert.match(github, /\*\*Register application\*\* \(it shows only the client ID\)\. Stop there: the person presses \*\*Generate a new client secret\*\*/);
