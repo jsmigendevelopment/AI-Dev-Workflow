@@ -3,6 +3,7 @@
 // ids look alike. They run on the fake machine in procs-fake.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { processChecks } from "../src/project-checks.mjs";
 import { fakeSys, run, seed } from "./procs-fake.mjs";
 
 // The one line session start prints for a stale record with this id and command.
@@ -70,4 +71,36 @@ test("#231: WHEN an id or command starts with a combining mark THEN it prints es
   assert.equal(await endId("́x"), '"\\u0301x"');
   assert.equal(await startLine("pold1", "̸ls"), 'pold1 · "\\u0338ls"', "in a command at session start too");
   assert.equal(await endId("x́"), '"x́"', "a mark on a plain letter still prints raw");
+});
+
+// What list and ps print for one stale record seeded with these fields, and doctor's stale label for it (#250).
+async function shown(fields) {
+  const sys = fakeSys({ procs: { 4000: {} } });
+  seed(sys, { id: "pold1", pid: 4000, start: "start-4000", command: "pnpm dev", ...fields });
+  const [list, ps] = [(await run(sys, ["list"])).out, (await run(sys, ["ps", sys.cwd])).out];
+  return { list, ps, doctor: processChecks(sys.cwd, { sys }).at(-1).label };
+}
+
+test("AC-250-1: WHEN a record's id, command, why or until holds a control, bidi or invisible character THEN list and ps print it escaped and quoted", async () => {
+  const { list, ps } = await shown({ id: "p‮o", command: "\u001b[2Jrm", why: "a​b", until: "\u009bx" });
+  for (const out of [list, ps]) {
+    assert.match(out, /^- "p\\u202eo" · /m);
+    assert.ok(out.includes('    "\\u001b[2Jrm" · why: "a\\u200bb" · until: "\\u009bx"'), out);
+    assert.doesNotMatch(out, /[\u001b\u009b​‮]/u);
+  }
+});
+
+test("AC-250-2: WHEN a stale record's id or command holds one THEN doctor's label prints it escaped", async () => {
+  const { doctor } = await shown({ id: "p‮o", command: "\u001b[2Jrm" });
+  assert.equal(doctor, '1 stale background process(es): "p\\u202eo" "\\u001b[2Jrm" (its owner session is gone)');
+});
+
+test("AC-250-3: WHEN every field is plain THEN list, ps and doctor print it as before, long ones uncut", async () => {
+  const long = `pnpm dev ${"x".repeat(200)}`;
+  const { list, ps, doctor } = await shown({ command: long, why: "dev server", until: "task done" });
+  for (const out of [list, ps]) {
+    assert.match(out, /^- pold1 · /m);
+    assert.ok(out.includes(`    ${long} · why: dev server · until: task done`), out);
+  }
+  assert.equal(doctor, `1 stale background process(es): pold1 ${long} (its owner session is gone)`);
 });
