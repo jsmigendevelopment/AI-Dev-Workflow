@@ -14,6 +14,8 @@ const DOCS = ["docs/vision.md", "docs/mvp.md", "docs/decisions.md"];
 const ENV_FILE = /(^|\/)\.env(\.[^/]*)?$/;
 const ENV_EXAMPLE = ".env.example";
 const MAX_SCAN = 1024 * 1024;
+// The longest text scanned for split names, well past a lesson's 200 characters, so a huge field stays fast.
+const JOINED_MAX = 2000;
 // Hosts that are never a project's own (RFC 2606 and 6761), so `example` doesn't block every lesson. Any `example`
 // label counts, as in a placeholder such as app.example.workers.dev.
 const RESERVED = /(^|\.)(localhost|test|invalid|local)$|(^|\.)example(\.|$)/;
@@ -236,14 +238,19 @@ function matcher(terms) {
   const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll(" ", "\\s+");
   const alternatives = [...forms.keys()].sort((a, b) => b.length - a.length).map(escape);
   const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(${alternatives.join("|")})(?:e?s)?(?![\\p{L}\\p{N}])`, "u");
-  // Single-word forms, for a name written as one word (brightpaper) that a lesson splits into several.
-  const joined = new Map([...forms].filter(([form]) => /^[\p{L}\p{N}]+$/u.test(form)));
+  // Every form with its spaces and hyphens removed, so a lesson that splits or joins a name its own way still
+  // matches: `bright paper` for brightpaper, `river-signal token` for RIVER_SIGNAL_TOKEN.
+  const joined = new Map();
+  for (const [form, kind] of forms) {
+    const key = form.replace(/[\s-]+/g, "");
+    if (/^[\p{L}\p{N}]+$/u.test(key) && !joined.has(key)) joined.set(key, kind);
+  }
   const longest = Math.max(0, ...[...joined.keys()].map((form) => form.length)) + 2;
   return { forms, pattern, joined, longest };
 }
 
-// The kind of a single-word form that a run of two or more words spells with the spaces and hyphens between them
-// removed (`bright paper` or `bright-paper` for `brightpaper`), in either number, or null.
+// The kind of a form that a run of two or more words spells with the spaces and hyphens removed (`bright paper` or
+// `bright-paper` for `brightpaper`), in either number, or null.
 function joinedTerm(text, { joined, longest }) {
   for (const chunk of text.split(/[^\p{L}\p{N}\s-]+/u)) {
     const words = chunk.split(/[\s-]+/).filter(Boolean);
@@ -260,8 +267,8 @@ function joinedTerm(text, { joined, longest }) {
 }
 
 /**
- * The source kind of the first project term in text, whole-word, case-blind and in either number, or null. A
- * one-word term also matches the same letters split by spaces or hyphens.
+ * The source kind of the first project term in text, whole-word, case-blind and in either number, or null. A term
+ * also matches its letters with spaces or hyphens in other places (`bright paper`, `river-signal token`).
  */
 export function projectTerm(text, terms) {
   if (terms.size === 0) return null;
@@ -269,5 +276,7 @@ export function projectTerm(text, terms) {
   const match = matchers.get(terms);
   const lower = norm(text);
   const found = match.pattern.exec(lower);
-  return found ? match.forms.get(found[1].replace(/\s+/g, " ")) : joinedTerm(lower, match);
+  if (found) return match.forms.get(found[1].replace(/\s+/g, " "));
+  // Past JOINED_MAX the run scan is skipped: lesson check refuses such a field for its length anyway.
+  return lower.length <= JOINED_MAX ? joinedTerm(lower, match) : null;
 }
