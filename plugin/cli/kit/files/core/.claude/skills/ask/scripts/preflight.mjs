@@ -451,8 +451,8 @@ export async function main(argv, { sys = realSys(), log = console.log } = {}) {
   if (given.tool && !Object.hasOwn(TOOLS, given.tool)) return log(`--tool is one of: ${Object.keys(TOOLS).join(", ")}`), 2;
   if (flags.has("--help") || flags.has("-h")) return log(`Usage: ${USAGE}`), 0;
   dir = resolve(dir);
-  // Windows: every ACL the checks ask about, read in one PowerShell start (#246).
-  if (sys.platform === "win32") loadWinAcls(aclPaths(dir, sys.env, tempBases("win32")));
+  // Windows: every ACL the checks ask about, read in one PowerShell start (#246). A test's sys may give the reader.
+  if (sys.platform === "win32") loadWinAcls(aclPaths(dir, sys.env, tempBases("win32")), sys.winAcls);
   if (flags.has("--mark-read")) {
     // Only the .git next to dir: a folder under a bigger repo (a home-folder repo, say) never marks that repo.
     const marked = markRead(dir);

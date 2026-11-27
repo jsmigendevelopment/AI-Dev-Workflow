@@ -41,7 +41,8 @@ let acls = new Map();
 function winRule(at, child) {
   const acl = acls.get(at);
   if (!acl) return `${at} can't be checked (its ACL wasn't read)`;
-  const text = child ? acl.text.replace(/^Allow (\S+) (-?\d+)$/gm, (_, sid, r) => `Allow ${sid} ${(Number(r) >>> 0) & WIN_SWAP}`) : acl.text;
+  // A rule that applies only to what is made inside a folder (C:\'s Modify for Authenticated Users) can't swap its child.
+  const text = child ? acl.above.replace(/^Allow (\S+) (-?\d+)$/gm, (_, sid, r) => `Allow ${sid} ${(Number(r) >>> 0) & WIN_SWAP}`) : acl.text;
   const access = winAccess(text);
   if (!access) return `${at} can't be checked (an ACL preflight doesn't know)`;
   if (acl.owner !== acl.user && !WIN_OWNERS.includes(acl.owner)) return `${at} belongs to another account`;
@@ -86,7 +87,8 @@ function swaps(how, at, child) {
 /**
  * Why another local user could write the folder at path, or swap it or a folder above it, or null when only this user
  * (or root) can. A folder that can't be checked counts as written by others. sys gives uid, gid, acl and privateGroup,
- * and a test's sys may give lstat in place of the real one.
+ * and a test's sys may give lstat in place of the real one. On Windows, call loadWinAcls first: every check reads the ACLs
+ * it last loaded, and a folder it didn't load can't be checked.
  */
 export function othersCanWrite(path, { platform = process.platform, sys = mine() } = {}) {
   const how = checker(platform, sys);
@@ -133,13 +135,15 @@ export function notOwnFolder(path, { platform = process.platform, sys = mine() }
 }
 
 // Every folder's ACL in one start, the path in base64 on stdin so no quoting or code page can change it: "user <SID>",
-// then for each path "path <index>" and the lines winAccess reads ("owner <SID>", "nodacl", rules), or "error".
+// then for each path "path <index>" and the lines winAccess reads ("owner <SID>", "nodacl", rules), or "error". A rule
+// that applies only to what is made inside the folder (inherit-only) ends in " io".
 const WIN_ACLS = ["$ErrorActionPreference = 'Stop'", "$t = [System.Security.Principal.SecurityIdentifier]",
   "'user ' + [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value", "$i = 0",
   "foreach ($l in [Console]::In.ReadToEnd().Split([char]10)) { 'path ' + $i; $i++; try { "
   + "$a = Get-Acl -LiteralPath ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($l.Trim()))); 'owner ' + $a.GetOwner($t).Value; "
   + "if ($a.GetSecurityDescriptorSddlForm('Access') -match 'NO_ACCESS_CONTROL') { 'nodacl' }; "
-  + "foreach ($r in $a.GetAccessRules($true, $true, $t)) { '{0} {1} {2}' -f $r.AccessControlType, $r.IdentityReference.Value, [long]$r.FileSystemRights } "
+  + "foreach ($r in $a.GetAccessRules($true, $true, $t)) { $io = if ([int]$r.PropagationFlags -band 2) { ' io' } else { '' }; "
+  + "'{0} {1} {2}{3}' -f $r.AccessControlType, $r.IdentityReference.Value, [long]$r.FileSystemRights, $io } "
   + "} catch { 'error' } }"].join("; ");
 
 /** PowerShell's answer for paths, by its full path from System32 so no copy in the repo runs, or null. */
@@ -150,7 +154,13 @@ function powershell(paths) {
   return r.error || r.status !== 0 ? null : r.stdout;
 }
 
-/** path -> { user, owner, text } from the batch's output; a path with an error, or any odd output, is left out. */
+// An inherit-only rule: kept, without its mark, for the folder itself and a temp base, as what is made there gets it.
+const INHERIT_ONLY = /^((?:Allow|Deny) \S+ -?\d+) io$/;
+
+/**
+ * path -> { user, owner, text, above } from the batch's output, where above leaves out the inherit-only rules, for the
+ * folder as one above. A path with an error, or any odd output, is left out.
+ */
 function parseAcls(paths, out) {
   const map = new Map();
   const lines = (out ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -158,7 +168,9 @@ function parseAcls(paths, out) {
   let at, section = [];
   const close = () => {
     const owner = section.find((l) => l.startsWith("owner "))?.slice(6);
-    if (paths[at] !== undefined && owner && !section.includes("error")) map.set(paths[at], { user: me, owner, text: [`user ${me}`, ...section].join("\n") });
+    if (paths[at] === undefined || !owner || section.includes("error")) return;
+    const text = [`user ${me}`, ...section.map((l) => INHERIT_ONLY.exec(l)?.[1] ?? l)].join("\n");
+    map.set(paths[at], { user: me, owner, text, above: [`user ${me}`, ...section.filter((l) => !INHERIT_ONLY.test(l))].join("\n") });
   };
   for (const line of me ? lines.slice(1) : []) {
     const index = /^path (\d+)$/.exec(line)?.[1];

@@ -13,11 +13,13 @@ import { checkPath, put, safeEnv, tmp } from "./helpers.mjs";
 export const NOW = Date.parse("2026-11-25T22:10:00Z");
 
 // Windows ACLs (#246), as preflight's one PowerShell batch prints them. WIN_OWN: a profile folder, this user's with SYSTEM
-// and Administrators, and Users who only read. WIN_DRIVE: C:\, where every signed-in account may make folders.
+// and Administrators, and Users who only read. WIN_DRIVE: C:\ as Windows 10 and 11 ship it, where every signed-in account
+// (Authenticated Users) may make folders, and may modify what is made inside (the inherit-only rule, in generic form).
 export const WIN_ME = "S-1-5-21-1-2-3-1001";
 export const WIN_TI = "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464";
 export const WIN_OWN = [`owner ${WIN_ME}`, "Allow S-1-5-18 2032127", "Allow S-1-5-32-544 2032127", `Allow ${WIN_ME} 2032127`, "Allow S-1-5-32-545 1179817"];
-const WIN_DRIVE = [`owner ${WIN_TI}`, "Allow S-1-5-18 2032127", "Allow S-1-5-32-544 2032127", "Allow S-1-5-11 4", "Allow S-1-5-32-545 1179817"];
+const WIN_DRIVE = [`owner ${WIN_TI}`, "Allow S-1-5-18 2032127", "Allow S-1-5-32-544 2032127", "Allow S-1-5-11 4", "Allow S-1-5-11 -536805376 io",
+  "Allow S-1-5-32-545 1179817"];
 
 /** A fake of that batch: WIN_OWN for every path unless acls names it, and the root as C:\. Counts its starts. */
 export function fakePowerShell(acls = {}) {

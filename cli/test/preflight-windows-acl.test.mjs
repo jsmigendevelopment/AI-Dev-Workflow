@@ -8,8 +8,9 @@ import { mkdirSync, readdirSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathOutside, tempFolders } from "../src/preflight-layout.mjs";
 import { aclPaths, loadWinAcls, othersCanWrite } from "../src/preflight-owner.mjs";
+import { main } from "../src/preflight.mjs";
 import { repoTop } from "../src/preflight-sys.mjs";
-import { fakePowerShell, temp, WIN_ME, WIN_OWN, WIN_TI } from "./preflight-fakes.mjs";
+import { fakePowerShell, fakeSys, HEALTHY, temp, WIN_ME, WIN_OWN, WIN_TI } from "./preflight-fakes.mjs";
 
 const posixOnly = { skip: process.platform === "win32" ? "POSIX paths stand in for Windows ones" : false };
 const win = { platform: "win32" };
@@ -95,4 +96,35 @@ test("AC-246-3: WHEN PowerShell can't read a folder's ACL, or answers nothing TH
   assert.equal(pathOutside(repo, "win32", env).PATH, "");
   loadWinAcls(aclPaths(repo, env, []), () => null);
   assert.match(othersCanWrite(tools, win), /can't be checked \(its ACL wasn't read\)/);
+});
+
+test("AC-246-1: WHEN a folder above has a rule only for what is made inside it, as C:\\ does THEN a folder below still passes, and the same rule on the folder itself fails", posixOnly, () => {
+  const repo = temp("onrails-winacl-repo-");
+  const parent = native(temp("onrails-winacl-parent-"));
+  const tools = join(parent, "bin");
+  mkdirSync(tools);
+  const env = { PATH: tools };
+  const inheritOnly = [`owner ${ME}`, `Allow ${ME} 2032127`, "Allow S-1-5-11 1245631 io"];
+  loadWinAcls(aclPaths(repo, env, []), fakePowerShell({ [parent]: inheritOnly }));
+  assert.equal(othersCanWrite(tools, win), null, "Modify for what is made in the folder above swaps nothing in it");
+  assert.equal(pathOutside(repo, "win32", env).PATH, tools);
+  loadWinAcls(aclPaths(repo, env, []), fakePowerShell({ [tools]: inheritOnly }));
+  assert.equal(othersCanWrite(tools, win), `another account can write ${tools}`, "on the folder itself, what is made there gets the rule");
+  loadWinAcls(aclPaths(repo, env, []), fakePowerShell({ [parent]: inheritOnly.map((l) => l.replace(/ io$/, "")) }));
+  assert.equal(othersCanWrite(tools, win), `another account can rename or replace ${tools} in ${parent}`, "the control: the same rule on the folder above");
+});
+
+test("AC-246-3: WHEN preflight runs on Windows THEN main() reads every ACL in one PowerShell start, and leaves a shared PATH folder off", posixOnly, async () => {
+  const repo = temp("onrails-winacl-repo-");
+  mkdirSync(join(repo, ".git"));
+  const [own, shared] = ["own", "shared"].map((name) => native(temp(`onrails-winacl-${name}-`)));
+  const fake = fakePowerShell({ [shared]: OPEN });
+  const sys = { ...fakeSys({ answers: HEALTHY, env: { PATH: [own, shared].join(";") } }), platform: "win32", winAcls: fake };
+  let out = "";
+  await main([repo, "--json"], { sys, log: (text) => (out += text) });
+  const report = JSON.parse(out);
+  assert.equal(fake.starts, 1, "one PowerShell start for the whole run");
+  assert.deepEqual(report.unsafe, [`another account can write ${shared}`]);
+  const gh = sys.runs.find((r) => r.line.startsWith("gh "));
+  assert.equal(gh?.env?.PATH, own, "gh is found only in the folder no other account can write");
 });
