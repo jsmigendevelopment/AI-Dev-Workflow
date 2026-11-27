@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **Job and review records (#330).** `build` writes a `job` record at start and finish on its branch; `pr-review` ends its verdict with a `job` and a `review` line, `qa` and `pr-security` with a `job` line, all through `insights.mjs` (decision 330-1).
 - **Insights record format (#329).** `coordinate/scripts/insights.mjs write|line <kind> key=value ...` writes one JSON record per event to `docs/insights/<yyyy-mm-dd>/` (or prints its comment form for a reviewer), from the master `scripts/insights-record.mjs` (`validate`, `fileName`, `parseLine`), copied to the skill and the CLI. Twelve kinds, `references/insights.md`, and both subcommands allowed without a prompt (decision 329-1).
 - `coordinate`'s overlap check treats `docs/decisions/` as a hot spot and ignores "synced copies" in a Modules line; `issues` spells out the Modules line format, and every open kit issue now carries one (#269).
 - `build` branches from a fresh `origin/main`, merges main again before the push and reads every issue comment; `pr-review` also diffs the head against current main (#361).
