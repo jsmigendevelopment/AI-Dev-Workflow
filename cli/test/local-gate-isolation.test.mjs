@@ -42,8 +42,8 @@ test("#225 round 2, must 1: every command in the head's clone runs with an empty
   // Round 3, nice item 5: an allow-list (`env -i`) replaces the list of unset tokens; the test below runs it.
   assert.match(run, /`env -i PATH="\$PATH" HOME=<home> XDG_CONFIG_HOME=<home> XDG_DATA_HOME=<home> GH_CONFIG_DIR=<home> GIT_CONFIG_GLOBAL=\/dev\/null GIT_CONFIG_NOSYSTEM=1 LANG="\$LANG" TERM="\$TERM" CI=1 <command>` for each command of the local gate\. Every token and key stays unset, and so do `SSH_AUTH_SOCK` \(your SSH agent can push to GitHub\) and the desktop keyring's address\./);
   assert.match(run, /it must find no stored login either: `gh`, `wrangler` and git's credential helper keep theirs under your home folder/);
-  assert.match(run, /\*\*Use your tool's sandbox\*\* where it can run commands in one: run the head's commands there, with writes limited to `<dir>` and `<home>`\./);
-  assert.match(run, /Without one, they still run as your OS user and can read or change what that user can, so the clone and the empty home close the easy routes, not every route \(#245\)\./);
+  // #245 replaced "use your tool's sandbox where it has one" with a fence the gate checks; local-gate-fence.test.mjs tests it.
+  assert.match(run, /\*\*Behind the fence\*\* \(decision 245-1\): start each of those commands, in `<dir>`, through main's `fence\.mjs`/);
   assert.match(subStep(2), /the second `<home>`, an empty folder for 6\.1\.3/);
 });
 
@@ -221,5 +221,6 @@ test("#225 round 3, nice item 5: the head's commands start from an allow-list, s
   assert.equal(got.HOME, home);
   assert.equal(got.CI, "1");
   assert.match(subStep(3), /To skip a fresh download, add `XDG_CACHE_HOME`, `npm_config_store_dir` and `PLAYWRIGHT_BROWSERS_PATH` before `<command>`, set to the ones you use: caches hold no logins\./);
-  assert.match(subStep(3), /Behind a proxy, add `HTTPS_PROXY`, `NO_PROXY` and `NODE_EXTRA_CA_CERTS` the same way, but only when the proxy's address holds no password\./);
+  // #245's scope comment: the proxy clause names the lowercase forms too and drops user info; the fence test runs it.
+  assert.match(subStep(3), /Behind a proxy, add `HTTPS_PROXY="\$\{HTTPS_PROXY%%\*@\*\}" https_proxy="\$\{https_proxy%%\*@\*\}" NO_PROXY="\$NO_PROXY" no_proxy="\$no_proxy" NODE_EXTRA_CA_CERTS="\$NODE_EXTRA_CA_CERTS"` before `<command>`: the proxy's address must hold no user info \(nothing before `@`\)/);
 });
