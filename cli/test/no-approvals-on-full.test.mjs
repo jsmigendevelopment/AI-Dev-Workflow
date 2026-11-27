@@ -102,7 +102,7 @@ test("AC-199-1: WHEN the scan reads each phrasing in #199 item 2 without a below
   assert.match(tanstack, /Creating resources still goes through `setup-cloudflare`: dry run and scoped tokens, and below Full, ask first\. Anything in production waits for a yes at every level: it is on the always-stop list\./);
   const browsers = read(NAMED_199[1]);
   assert.match(browsers, /A test needs it\? Below Full, warn the person first\. On Full, don't click it: list it as not tested and put it in the FYI\./);
-  assert.match(browsers, /Stuck on one\? Below Full, ask them to close it in Chrome\. On Full, leave that tab, list what's left in it as not tested and put it in the FYI\./);
+  assert.match(browsers, /Stuck on one\? Below Full, ask them to close it in Chrome\. On Full, an open alert blocks every command to the extension: stop using Claude in Chrome for the rest of the run, list everything left as not tested and put it in the FYI\./);
   assert.match(browsers, /Stop and say what you tried\. Below Full, ask how to go on\. On Full, mark that row not tested, put what you tried in the FYI and go on with the rest\./);
 });
 
@@ -110,7 +110,10 @@ test("AC-199-2: WHEN a sentence has \"(on Full, too)\" or a bold Below Full labe
   for (const s of ["Below Full, the person merges it (on Full, too).", "Below Full, the person approves every merge (on Full, as well).",
     "Below Full, the person merges it (also on Full, too).", "Below Full, the person merges it (and on Full, too, the same).",
     "- **Below Full:** nothing changes; at Full the person merges it.", "- **Below Full:** nothing changes; in Full automation the person merges it.",
-    "- **Below Full:** nothing changes; at full speed, the person merges it."]) assert.deepEqual(unconditionalAsks(s), [s], s);
+    "- **Below Full:** nothing changes; at full, the person merges it.", "- **Below Full:** nothing changes; at full automation the person merges it."])
+    assert.deepEqual(unconditionalAsks(s), [s], s);
+  // #213 item 4: an ordinary "full" names no level, so the label still covers it.
+  assert.deepEqual(unconditionalAsks("- **Below Full:** nothing changes; at full speed, the person merges it."), []);
   // The label still covers a clause that names no Full of its own.
   assert.deepEqual(unconditionalAsks("- **Below Full:** it is `needs-human`, and only the person adds `human-approved`."), []);
 });
@@ -158,4 +161,10 @@ test("AC-211-2: WHEN main's scan and the new one read every .md line and a gener
   for (const s of [...lines.flatMap((l) => l.split(/(?<=[.!?])\s+/)), ...generated]) {
     if (asks199(s) && !notAsks.test(s)) assert.ok(asks(s), s);
   }
+});
+
+test("AC-213-2: WHEN local-mode.md is read THEN a host merge passes the reviewed sha and the FYI names the sign-in command", () => {
+  const local = read(".agents/skills/coordinate/references/local-mode.md");
+  assert.match(local, /Where the tool's merge takes a sha \(GitLab's merge API takes `sha`[^)]*\), pass the reviewed sha, as GitHub's merge does, so a head that changed after the review never merges\./);
+  assert.match(local, /With no signed-in tool, that FYI also has a "Setup step for you" \(`ask`\) naming the person's own sign-in command, such as `glab auth login` or `tea login add`\./);
 });
