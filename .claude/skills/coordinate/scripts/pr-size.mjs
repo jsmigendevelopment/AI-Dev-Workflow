@@ -3,6 +3,7 @@
 // `pnpm pr:rules` use too.
 //   node pr-size.mjs <n> --repo <owner>/<name>   a pull request, read from GitHub's REST API
 //   node pr-size.mjs --base <ref>                this checkout's committed branch against <ref>, such as origin/main
+//   node pr-size.mjs --base <ref> --head <ref>   a commit in this checkout against <ref>, with no checkout of it
 // It counts lines added plus removed. Lockfiles, test fixtures (data files, such as JSON, in a fixtures folder under a
 // top-level test folder, and `__snapshots__/*.snap` anywhere) and files the base's committed .gitattributes mark `linguist-generated` (the kit's synced copies, each pack's list)
 // don't count. The base is <ref>, or the pull request's base commit, which must be in this checkout: the branch's own
@@ -190,12 +191,12 @@ export function markBinaries(repo, head, files) {
   });
 }
 
-/** The size in bytes of a file at HEAD, or 0 when HEAD doesn't have it. */
-function sizeAtHead(root, path) {
+/** The size in bytes of a file at the head, or 0 when the head doesn't have it. */
+function sizeAtHead(root, head, path) {
   try {
-    return Number(git(["cat-file", "-s", `HEAD:${path}`], { cwd: root }));
+    return Number(git(["cat-file", "-s", `${head}:${path}`], { cwd: root }));
   } catch {
-    return 0; // Not at HEAD: the change deletes it, which hides no code.
+    return 0; // Not at the head: the change deletes it, which hides no code.
   }
 }
 
@@ -225,17 +226,17 @@ function readPull(repo, pr) {
 // The branch's own .gitattributes could mark its text as binary (`binary`, `-diff`), which shows as `-` with no lines.
 // So the diff runs with an empty work tree and an empty index: git then reads no .gitattributes from the branch, on
 // any git version, and its own test decides what is binary (a NUL byte near the start, as GitHub's).
-function readLocal(base) {
+function readLocal(base, head) {
   const root = checkoutRoot();
-  if (!hasCommit(root, base)) throw new Error(`${base} isn't a commit in this checkout.`);
+  for (const rev of [base, head]) if (!hasCommit(root, rev)) throw new Error(`${rev} isn't a commit in this checkout.`);
   const tree = git(["rev-parse", "--verify", `${base}^{commit}`], { cwd: root }).trim();
-  const from = git(["merge-base", tree, "HEAD"], { cwd: root }).trim();
+  const from = git(["merge-base", tree, head], { cwd: root }).trim();
   const gitDir = git(["rev-parse", "--absolute-git-dir"], { cwd: root }).trim();
   const empty = mkdtempSync(join(tmpdir(), "onrails-diff-"));
   try {
-    const args = [`--git-dir=${gitDir}`, `--work-tree=${empty}`, "diff", "--numstat", "-z", "-M", "--no-textconv", "--no-ext-diff", from, "HEAD", "--"];
+    const args = [`--git-dir=${gitDir}`, `--work-tree=${empty}`, "diff", "--numstat", "-z", "-M", "--no-textconv", "--no-ext-diff", from, head, "--"];
     const listed = numstatFiles(git(args, { cwd: empty, env: { GIT_INDEX_FILE: join(empty, "index") } }));
-    const files = listed.map((f) => (f.binary && !sizeAtHead(root, f.filename) ? { ...f, binary: false } : f));
+    const files = listed.map((f) => (f.binary && !sizeAtHead(root, head, f.filename) ? { ...f, binary: false } : f));
     return { files, tree, labels: [], body: "" };
   } finally {
     rmSync(empty, { recursive: true, force: true });
@@ -246,20 +247,23 @@ export function main(argv) {
   const { pr, repo } = prArgs(argv);
   const base = argv.includes("--base") ? argv[argv.indexOf("--base") + 1] ?? "" : null;
   const onePull = pr && repo && base === null;
-  if (!onePull && !(argv[0] === "--base" && argv.length === 2 && SAFE_REF.test(base ?? ""))) {
-    console.error("Usage: pr-size.mjs <n> --repo <owner>/<name>, or pr-size.mjs --base <ref>");
+  // --head names the commit to count, so the loop can count a branch from its checkout of main (#378).
+  const head = argv[2] === "--head" ? argv[3] ?? "" : "HEAD";
+  const local = argv[0] === "--base" && (argv.length === 2 || (argv.length === 4 && argv[2] === "--head"));
+  if (!onePull && !(local && SAFE_REF.test(base ?? "") && SAFE_REF.test(head))) {
+    console.error("Usage: pr-size.mjs <n> --repo <owner>/<name>, or pr-size.mjs --base <ref> [--head <ref>]");
     return 2;
   }
   let got;
   let size;
   try {
-    got = pr ? readPull(repo, pr) : readLocal(base);
+    got = pr ? readPull(repo, pr) : readLocal(base, head);
     size = measure(got.files, generated(changedPaths(got.files), got.tree));
   } catch (error) {
     console.error(`Couldn't count the size: ${String(error.stderr || error.message).trim()}`);
     return 2;
   }
-  report(size, pr ? `#${pr}` : `HEAD against ${base}`);
+  report(size, pr ? `#${pr}` : `${head} against ${base}`);
   const problem = sizeProblem(size.total, got);
   if (problem) return console.error(problem), 1;
   if (size.total >= MAX_CHANGED_LINES) console.log(`Size exception: ${exceptionReason(got.body)}`);
