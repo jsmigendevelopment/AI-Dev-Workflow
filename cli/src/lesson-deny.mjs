@@ -26,10 +26,21 @@ const trimEnds = (word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
 // a letter-to-digit step (Tide4Lamp).
 const PART_BREAK = /[-.+_]|(?<=\p{Ll})(?=\p{Lu})|(?<=\p{Lu})(?=\p{Lu}\p{Ll})|(?<=\p{L})(?=\p{N})|(?<=\p{N})(?=\p{L})/u;
 
-/** The singular of a plural term (notes to note, boxes to box), or null. Short words and -ss words keep their s. */
+/**
+ * The singular of a plural term (notes to note, boxes to box, parties to party), or null. Short words and -ss words
+ * keep their s.
+ */
 export function singular(word) {
-  const stem = /(s|x|z|ch|sh)es$/.test(word) ? word.slice(0, -2) : /[^s]s$/.test(word) ? word.slice(0, -1) : null;
+  const stem = /[^aeiou]ies$/.test(word) ? `${word.slice(0, -3)}y` : /(s|x|z|ch|sh)es$/.test(word) ? word.slice(0, -2)
+    : /[^s]s$/.test(word) ? word.slice(0, -1) : null;
   return word.length >= 4 && stem && stem.length >= 3 ? stem : null;
+}
+
+// A term's forms in the other number, beyond an `s` or `es` added after it: its singular, the -ies plural of a word
+// that ends in y (party to parties), and the plain -s singular of an -ies word (movies to movie, beside movy).
+function otherNumbers(word) {
+  return [singular(word), /[^aeiou]y$/.test(word) ? `${word.slice(0, -1)}ies` : null,
+    /ies$/.test(word) && word.length >= 4 ? word.slice(0, -1) : null].filter(Boolean);
 }
 
 function git(dir, args) {
@@ -45,7 +56,7 @@ function git(dir, args) {
 // still gives the joins, so RIVER_SIGNAL_TOKEN gives `river signal token`, but not its parts. Kit words never enter,
 // nor a term whose singular or plural is one: `review` or `reviews` in a repo name can't block every lesson.
 function adder(terms, kitWords) {
-  const isKit = (word) => [word, `${word}s`, `${word}es`, singular(word)].some((form) => form && kitWords.has(form));
+  const isKit = (word) => [word, `${word}s`, `${word}es`, ...otherNumbers(word)].some((form) => kitWords.has(form));
   const add = (raw, kind, { split = true } = {}) => {
     const clean = trimEnds(raw);
     const parts = clean.split(PART_BREAK).map((part) => trimEnds(part.toLowerCase())).filter(Boolean);
@@ -85,7 +96,8 @@ function packageTerms(read, files, add) {
   }
 }
 
-// Capitalised words that aren't a sentence's first, and capitalised words in a level-one title.
+// Capitalised words that aren't a sentence's first, and capitalised words in a level-one title. A title also gives a
+// camelCase name that starts lower-case, such as iPhoneSync; in a sentence such a word is code, so it doesn't.
 function docWords(text) {
   const words = [];
   for (const line of text.split(/\r?\n/)) {
@@ -93,7 +105,7 @@ function docWords(text) {
     const tokens = (title ? title[1] : line).split(/\s+/).filter(Boolean);
     tokens.forEach((raw, i) => {
       const word = /[\p{L}\p{N}][\p{L}\p{N}_-]*/u.exec(raw)?.[0] ?? "";
-      if (!/^\p{Lu}/u.test(word)) return;
+      if (!/^\p{Lu}/u.test(word) && !(title && /^\p{Ll}+\p{Lu}/u.test(word))) return;
       // A quote or a bracket opens a sentence too, and a list marker such as (1) or a) or a closing bracket ends one.
       const before = (tokens[i - 1] ?? "").replace(/[*_\]"'`’”]+$/u, "");
       if (title || !/^["“‘'(`]/u.test(raw) && /[\p{Ll}\p{N},]$/u.test(before)) words.push(word);
@@ -176,11 +188,11 @@ export function denySet(projectDir, { home = homedir(), kitWords = GLOSSARY, kit
 
 const matchers = new WeakMap();
 
-// One pattern for every term and its singular, each with an optional plural `s` or `es` after it.
+// One pattern for every term and its other numbers, each with an optional plural `s` or `es` after it.
 function matcher(terms) {
   const forms = new Map();
   for (const [term, kind] of terms) {
-    for (const form of [term, singular(term)]) if (form && !forms.has(form)) forms.set(form, kind);
+    for (const form of [term, ...otherNumbers(term)]) if (!forms.has(form)) forms.set(form, kind);
   }
   const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll(" ", "\\s+");
   const alternatives = [...forms.keys()].sort((a, b) => b.length - a.length).map(escape);

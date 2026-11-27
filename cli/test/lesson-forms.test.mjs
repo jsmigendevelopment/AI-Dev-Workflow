@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { spawnSync } from "./child.mjs";
 import { checkLesson } from "../src/lesson-check.mjs";
-import { projectTerm } from "../src/lesson-deny.mjs";
+import { denySet, projectTerm } from "../src/lesson-deny.mjs";
 import { CLI, check, gitEnv, good, manifest, project, small } from "./lesson-fixture.mjs";
 import { put, tmp } from "./helpers.mjs";
 
@@ -95,4 +95,57 @@ test("lesson check: a lesson file over 1 MB is refused unread, and a long field 
   const started = performance.now();
   assert.equal(projectTerm("ab ".repeat(300_000), new Map([[long, "package name"]])), null);
   assert.ok(performance.now() - started < 1000, "the scan took over a second");
+});
+
+test("AC-392-1: WHEN a project is named party THEN a lesson saying parties is refused, and the same for Memories and memory", () => {
+  for (const [name, lesson] of [["party", "The builder broke the parties check before the merge."],
+    ["Memories", "The builder lost the memory check before the merge."]]) {
+    const dir = small(name, { "package.json": JSON.stringify({ name: name.toLowerCase() }) });
+    assert.equal(checkLesson(good({ lesson }), { manifest }).ok, true, "the allowlist alone passes it");
+    const r = check(good({ lesson }), dir);
+    assert.equal(r.status, 1, lesson);
+    assert.match(r.stderr, /^ {2}lesson: contains a project term \((git remote|package name)\)$/m);
+  }
+  // The other forms still match: the plain -s singular of an -ies word, and a joined name in its -ies plural.
+  const set = new Map([["movies", "docs"], ["key-story", "env name"]]);
+  assert.equal(projectTerm("One movie ran.", set), "docs");
+  for (const text of ["The key stories moved.", "The key-stories moved."]) assert.equal(projectTerm(text, set), "env name", text);
+});
+
+test("AC-392-2: WHEN a doc title is # iPhoneSync THEN phone sync is refused", () => {
+  const dir = small("cedar", { "docs/vision.md": "# iPhoneSync\n\nThe app keeps a list, built with useState.\n" });
+  const set = denySet(dir, { home: tmp("onrails-home-") });
+  assert.equal(projectTerm("The phone sync check failed.", set), "docs");
+  // Only a title gives a name that starts lower-case: in a sentence such a word is code.
+  assert.equal(set.has("state"), false);
+  for (const lesson of ["The builder broke the phone sync check before the merge.",
+    "The builder broke the phone check before the merge."]) {
+    const r = check(good({ lesson }), dir);
+    assert.equal(r.status, 1, lesson);
+    assert.match(r.stderr, /^ {2}lesson: contains a project term \(docs\)$/m, lesson);
+    assert.doesNotMatch(r.stdout + r.stderr, /phone/i);
+  }
+});
+
+test("lesson check: a count of times out of a total passes, and issue 41 times out is still refused (#392 item 5)", () => {
+  for (const lesson of ["The builder hit the same issue 3 times out of five.",
+    "The builder hit the same issue 3 times out of the last five runs."]) {
+    const r = check(good({ lesson }));
+    assert.equal(r.status, 0, `${lesson}\n${r.stderr}`);
+  }
+  for (const lesson of ["The build on issue 41 times out after an hour.", "The check on pull request 41 times out."]) {
+    const r = check(good({ lesson }));
+    assert.equal(r.status, 1, lesson);
+    assert.match(r.stderr, /^ {2}lesson: contains a project term \(issue number\)$/m, lesson);
+  }
+});
+
+test("lesson check: a pipe is read up to 1 MB and one byte, and no further (#392 item 6)", { skip: process.platform === "win32" ? "no /dev/stdin on Windows" : false }, () => {
+  const total = 2 * 1024 * 1024;
+  // The CLI and wc share the pipe, so wc counts the bytes the CLI left unread.
+  const script = 'head -c "$1" /dev/zero | { "$2" "$3" lesson check /dev/stdin --project "$4" 2>&1; wc -c; }';
+  const r = spawnSync("sh", ["-c", script, "sh", String(total), process.execPath, CLI, project],
+    { encoding: "utf8", env: gitEnv(tmp("onrails-lesson-")) });
+  assert.match(r.stdout, /^ {2}record: too-large$/m);
+  assert.equal(Number(r.stdout.trim().split("\n").at(-1)), total - (1024 * 1024 + 1));
 });

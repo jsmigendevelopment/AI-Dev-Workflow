@@ -3,8 +3,9 @@
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync } from "node:fs";
 import { basename, isAbsolute, join, relative, sep } from "node:path";
 
-// Rule 9: .env and its siblings are never opened. .env.example is the one that may be, for its variable names.
-const ENV_FILE = /(^|\/)\.env(\.[^/]*)?$/;
+// Rule 9: .env and its siblings (.env.local, .env-local, .envrc, .envrc.private) are never opened. .env.example is the
+// one that may be, for its variable names.
+const ENV_FILE = /(^|\/)\.env(rc)?([.-][^/]*)?$/;
 export const ENV_EXAMPLE = ".env.example";
 const MAX_SCAN = 1024 * 1024;
 
@@ -65,13 +66,14 @@ export function readCapped(path, { input = false } = {}) {
   }
 }
 
-// Reads an open file or pipe in chunks of `chunk` bytes until it ends; null once it passes MAX_SCAN. A regular file's
-// first chunk is one byte past the size it says, so a file that grew past the cap is still caught.
+// Reads an open file or pipe in chunks of at most `chunk` bytes until it ends; null once it passes MAX_SCAN. It never
+// reads past MAX_SCAN and one byte, from a pipe too. A regular file's first chunk is one byte past the size it says,
+// so a file that grew past the cap is still caught.
 function readUpTo(fd, chunk) {
   const buffer = Buffer.allocUnsafe(chunk);
   const parts = [];
   let size = 0;
-  for (let n; size <= MAX_SCAN && (n = readSync(fd, buffer, 0, chunk, null)) > 0;) {
+  for (let n; size <= MAX_SCAN && (n = readSync(fd, buffer, 0, Math.min(chunk, MAX_SCAN + 1 - size), null)) > 0;) {
     parts.push(Buffer.from(buffer.subarray(0, n)));
     size += n;
   }

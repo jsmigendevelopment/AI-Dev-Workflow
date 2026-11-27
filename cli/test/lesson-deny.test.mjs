@@ -2,13 +2,14 @@
 // and local git only. Every fixture is a made-up project in a temp folder, with a made-up home folder.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createRequire, syncBuiltinESMExports } from "node:module";
+import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "./child.mjs";
 import { denySet, projectTerm } from "../src/lesson-deny.mjs";
 import { hash } from "../src/files.mjs";
 import { put, safeEnv, tmp } from "./helpers.mjs";
+import { watchOpens } from "./watch-opens.mjs";
 
 const fs = createRequire(import.meta.url)("node:fs");
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
@@ -40,31 +41,6 @@ function repo(files, { remote, author, force = [], links = {} } = {}) {
 
 const terms = (dir, options = {}) => denySet(dir, { home: tmp("onrails-home-"), ...options });
 const kindOf = (set, term) => set.get(term) ?? null;
-
-const realOrSame = (path) => (fs.existsSync(path) ? fs.realpathSync(path) : resolve(path));
-
-// Runs build while watching fs opens, and returns its result with each opened path that is, or links to, one of
-// banned (absolute paths).
-function watchOpens(banned, build) {
-  const watched = new Set(banned.flatMap((path) => [resolve(path), realOrSame(path)]));
-  const opened = [];
-  const watch = (name) => {
-    const real = fs[name];
-    fs[name] = (path, ...rest) => {
-      if (typeof path === "string" && (watched.has(resolve(path)) || watched.has(realOrSame(path)))) opened.push(path);
-      return real(path, ...rest);
-    };
-    return () => { fs[name] = real; };
-  };
-  const restore = ["readFileSync", "openSync", "createReadStream"].map(watch);
-  syncBuiltinESMExports();
-  try {
-    return { set: build(), opened };
-  } finally {
-    for (const undo of restore) undo();
-    syncBuiltinESMExports();
-  }
-}
 
 test("denySet: the git remote's owner and repo, and every package.json name", () => {
   const dir = repo({
@@ -264,4 +240,42 @@ test("denySet: an example label is reserved, and a host only in a file the kit s
   for (const term of ["kitonly-host", "example", "workers", "example.workers.dev"]) assert.equal(kindOf(set, term), null, term);
   assert.equal(kindOf(set, "shared-host"), "domain");
   assert.equal(kindOf(set, "edited-host"), "domain");
+});
+
+test("AC-392-3: WHEN a doc is over 1 MB THEN it adds nothing, and a doc just under the cap still does", () => {
+  const dir = repo({ "docs/vision.md": `# Bramblecot\n${"x\n".repeat(512 * 1024)}`,
+    "docs/mvp.md": `# Quillfern\n${"x\n".repeat(500 * 1024)}` });
+  const set = terms(dir);
+  assert.equal(kindOf(set, "bramblecot"), null);
+  assert.equal(kindOf(set, "quillfern"), "docs");
+});
+
+test("AC-392-3: WHEN a doc inside the project is a named pipe THEN it is skipped at once and never opened", unixLinks, () => {
+  const dir = repo({ "docs/mvp.md": "# Pebble\n" }, { links: { "docs/decisions.md": "vision.md" } });
+  const fifo = join(dir, "docs/vision.md");
+  assert.equal(spawnSync("mkfifo", [fifo]).status, 0);
+  const folder = tmp("onrails-lesson-");
+  put(folder, "lesson.json", JSON.stringify({ lesson: "x" }));
+  // The CLI first, in a child with a time limit: opening a pipe that has no writer waits for one.
+  const r = spawnSync(process.execPath, [CLI, "lesson", "check", join(folder, "lesson.json"), "--project", dir],
+    { encoding: "utf8", env: safeEnv({ HOME: folder, USERPROFILE: folder }), timeout: 20000 });
+  assert.equal(r.signal, null, "the check waited on the pipe");
+  assert.equal(r.status, 1, r.stderr);
+  const { set, opened } = watchOpens([fifo], () => terms(dir));
+  assert.deepEqual(opened, []);
+  assert.equal(kindOf(set, "pebble"), "docs");
+});
+
+test("AC-392-4: WHEN a tracked .envrc or .env-local holds a host THEN it adds nothing and is never opened", () => {
+  const dir = repo({
+    ".envrc": "export RC_ONLY=https://envrc-host.io\n",
+    ".env-local": "DASH_ONLY=https://dashlocal-host.io\n",
+    "config/.envrc.private": "PRIVATE_RC=https://rcprivate-host.io\n",
+    ".env.example": "PUBLIC_NAME=\n",
+  });
+  const banned = [".envrc", ".env-local", "config/.envrc.private"].map((name) => resolve(dir, name));
+  const { set, opened } = watchOpens(banned, () => terms(dir));
+  assert.deepEqual(opened, []);
+  for (const term of ["envrc-host", "dashlocal-host", "rcprivate-host", "rc-only", "dash-only"]) assert.equal(kindOf(set, term), null, term);
+  assert.equal(kindOf(set, "public-name"), "env name");
 });

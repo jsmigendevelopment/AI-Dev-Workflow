@@ -123,11 +123,11 @@ function stringFields(record) {
 }
 
 // An issue or pull request named by its number (`issue 41`, `issue: 41`, `PR 41`, `pull 41`, `pull request 41`), but
-// not a count (`the issue 3 times`; `issue 41 times out` is still an issue). Checked against a project only: a kit
-// lesson never needs the project's own numbers (#385). `#41` is refused by the sentence rules already. Why the list
-// stops at these words: decision 385-1.
+// not a count (`the issue 3 times`, `3 times out of five`; `issue 41 times out` is still an issue). Checked against a
+// project only: a kit lesson never needs the project's own numbers (#385). `#41` is refused by the sentence rules
+// already. Why the list stops at these words: decision 385-1.
 const ISSUE_NUMBER =
-  /(?<![\p{L}\p{N}])(?:issue|pr|pull\s+request|pull)s?[\s:]+(?:(?:number|no)[\s:]+)?\d+(?![\p{L}\p{N}])(?!\s+times?(?![\p{L}\p{N}])(?!\s+out(?![\p{L}\p{N}])))/iu;
+  /(?<![\p{L}\p{N}])(?:issue|pr|pull\s+request|pull)s?[\s:]+(?:(?:number|no)[\s:]+)?\d+(?![\p{L}\p{N}])(?!\s+times?(?![\p{L}\p{N}])(?!\s+out(?![\p{L}\p{N}])(?!\s+of(?![\p{L}\p{N}]))))/iu;
 
 // A project term in a free-text field (#322), named by its field and source kind, never by the term. A field that
 // passed its closed list is skipped: its value is the kit's own (`claude-code`, a component such as `board`), so it
