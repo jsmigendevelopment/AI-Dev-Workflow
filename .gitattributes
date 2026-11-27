@@ -3,6 +3,60 @@
 .claude/skills/** linguist-generated
 plugin/** linguist-generated
 cli/README.md linguist-generated
+# sync-skills.mjs's COPIES, one line per copy, so a shared script counts once, in its master (#430). Its masters
+# (scripts/, guide/, the secrets skill's command-for.mjs, the research skill's schemas) count. A new copy without a
+# line fails cli/test/copies-generated.test.mjs.
+.agents/skills/ask/scripts/preflight-ci.mjs linguist-generated
+.agents/skills/ask/scripts/preflight-layout.mjs linguist-generated
+.agents/skills/ask/scripts/preflight-output.mjs linguist-generated
+.agents/skills/ask/scripts/preflight-owner.mjs linguist-generated
+.agents/skills/ask/scripts/preflight-sys.mjs linguist-generated
+.agents/skills/ask/scripts/preflight-versions.mjs linguist-generated
+.agents/skills/ask/scripts/preflight.mjs linguist-generated
+.agents/skills/ask/scripts/procs-hooks.mjs linguist-generated
+.agents/skills/ask/scripts/procs-path.mjs linguist-generated
+.agents/skills/ask/scripts/procs-records.mjs linguist-generated
+.agents/skills/ask/scripts/procs-stop.mjs linguist-generated
+.agents/skills/ask/scripts/procs-store.mjs linguist-generated
+.agents/skills/ask/scripts/procs-sys.mjs linguist-generated
+.agents/skills/ask/scripts/procs-winacl.mjs linguist-generated
+.agents/skills/ask/scripts/procs.mjs linguist-generated
+.agents/skills/build/references/app-conventions.md linguist-generated
+.agents/skills/build/references/code-style.md linguist-generated
+.agents/skills/build/references/testing.md linguist-generated
+.agents/skills/coordinate/scripts/command-for.mjs linguist-generated
+.agents/skills/coordinate/scripts/insights-record.mjs linguist-generated
+.agents/skills/coordinate/scripts/insights-week.mjs linguist-generated
+.agents/skills/name/scripts/command-for.mjs linguist-generated
+.agents/skills/research/scripts/check-research.mjs linguist-generated
+.agents/skills/research/scripts/command-for.mjs linguist-generated
+.agents/skills/research/scripts/research-library.mjs linguist-generated
+cli/src/check-research.mjs linguist-generated
+cli/src/command-for.mjs linguist-generated
+cli/src/insights-record.mjs linguist-generated
+cli/src/insights-week.mjs linguist-generated
+cli/src/preflight-ci.mjs linguist-generated
+cli/src/preflight-layout.mjs linguist-generated
+cli/src/preflight-output.mjs linguist-generated
+cli/src/preflight-owner.mjs linguist-generated
+cli/src/preflight-sys.mjs linguist-generated
+cli/src/preflight-versions.mjs linguist-generated
+cli/src/preflight.mjs linguist-generated
+cli/src/procs-hooks.mjs linguist-generated
+cli/src/procs-path.mjs linguist-generated
+cli/src/procs-records.mjs linguist-generated
+cli/src/procs-stop.mjs linguist-generated
+cli/src/procs-store.mjs linguist-generated
+cli/src/procs-sys.mjs linguist-generated
+cli/src/procs-winacl.mjs linguist-generated
+cli/src/procs.mjs linguist-generated
+cli/src/research-library.mjs linguist-generated
+scripts/command-for.mjs linguist-generated
+templates/research-library/schemas/library.schema.json linguist-generated
+templates/research-library/schemas/provenance.schema.json linguist-generated
+templates/research-library/scripts/check-research.mjs linguist-generated
+templates/research-library/scripts/command-for.mjs linguist-generated
+templates/research-library/scripts/research-library.mjs linguist-generated
 # Insights records, written only by insights.mjs and mark-check.mjs (#332). A records pull request's review is
 # `insights.mjs land --verify`, which also caps each file's size (decision 332-2).
 docs/insights/** linguist-generated

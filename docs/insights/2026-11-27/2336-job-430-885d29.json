@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-27T23:36:19.775Z",
+  "issue": 430,
+  "pr": null,
+  "sha": null,
+  "job": "build",
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "outcome": "started",
+  "usage_before": "unknown",
+  "usage_from": "not shown to a cloud subagent"
+}

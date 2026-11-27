@@ -7,7 +7,8 @@
 // Usage:  node scripts/sync-skills.mjs          copy the master copies over the mirrors
 //         node scripts/sync-skills.mjs --check  fail if a mirror differs
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const SRC = ".agents/skills";
 const DEST = ".claude/skills";
@@ -30,7 +31,8 @@ const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs", "preflight-owner.mjs", 
   "preflight-output.mjs", "preflight-versions.mjs"];
 // The process registry ships the same way: the ask skill for agents and the hooks, the CLI for npx onrails ps.
 const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-winacl.mjs", "procs-store.mjs", "procs-path.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
-const COPIES = [
+/** Each copy as [master, copy]. .gitattributes marks every copy `linguist-generated`, which a kit test checks (#430). */
+export const COPIES = [
   ...["code-style.md", "testing.md", "app-conventions.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
   [CHECKER, join(SRC, "research", "scripts", "check-research.mjs")],
   [CHECKER, join("cli", "src", "check-research.mjs")],
@@ -109,7 +111,9 @@ function files(dir) {
   });
 }
 
-if (process.argv.includes("--check")) {
+// Run, not imported: a kit test imports COPIES.
+const RUN = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (RUN && process.argv.includes("--check")) {
   const copyProblems = COPIES.filter(([from, to]) => !existsSync(to) || !readFileSync(from).equals(readFileSync(to))).map(([from, to]) => `differs: ${to} (master: ${from})`);
   const a = files(SRC).map((f) => relative(SRC, f)).sort();
   const b = files(DEST).map((f) => relative(DEST, f)).sort();
@@ -127,7 +131,7 @@ if (process.argv.includes("--check")) {
     process.exit(1);
   }
   console.log(`skills in sync (${a.length} files, ${Object.keys(PLUGIN_SKILLS).length + PLUGIN_COPIES.length} plugin skills)`);
-} else {
+} else if (RUN) {
   for (const [from, to] of COPIES) {
     mkdirSync(dirname(to), { recursive: true });
     copyFileSync(from, to);
