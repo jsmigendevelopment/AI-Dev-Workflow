@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **`lesson check --project` refuses project terms (#322).** A deny set built from local files and local git only (the git remote, package names, names in the docs, the profile, git authors, domains in tracked files and `.env.example` names, minus kit words) is refused in any string field, as the field and the source kind, never the term (decision 322-1). `.env` and `.env.local` are never opened. A table-driven privacy eval in `cli/test/lesson-privacy.test.mjs` plants details in a made-up project and proves none gets through.
 - **Job and review records (#330).** `build` writes a `job` record at start and finish on its branch; `pr-review` ends its verdict with a `job` and a `review` line, `qa` and `pr-security` with a `job` line, all through `insights.mjs` (decision 330-1).
 - **`npx onrails lesson check` (#321).** Refuses a kit lesson that isn't a closed record of known-safe values: fixed keys and lists, components from the kit's manifest, and one-sentence lessons whose words come from the kit glossary or a common-word list (decision 321-1). Prints only the field and the rule, never the refused text. Reads local files only.
 - The tech grill asks whether the app needs a backend and whether it runs on Cloudflare Workers before the framework, and recommends TanStack Start alone, TypeScript on Workers or a Go backend (decision 344-1). The stack template gets a Backend row (#344).

@@ -28,7 +28,9 @@ function run(record) {
   const text = typeof record === "string" ? record : JSON.stringify(record, null, 2);
   put(dir, "lesson.json", text);
   const file = join(dir, "lesson.json");
-  const result = spawnSync(process.execPath, [CLI, "lesson", "check", file], { encoding: "utf8", env: safeEnv() });
+  // #322: the project is this temp folder, with no real repo or home folder behind it, so no deny set term applies.
+  const result = spawnSync(process.execPath, [CLI, "lesson", "check", file, "--project", dir],
+    { encoding: "utf8", env: safeEnv({ HOME: dir, USERPROFILE: dir }) });
   return { ...result, file, text };
 }
 
