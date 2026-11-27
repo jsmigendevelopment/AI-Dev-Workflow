@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { accessSync, constants, existsSync, lstatSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { connect, createServer } from "node:net";
 import { hostname } from "node:os";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve, win32 } from "node:path";
 import { othersCanWrite } from "./preflight-owner.mjs";
 
 /** True for a regular file this process may start. On POSIX a file without its run bit is passed over, as the shell does. */
@@ -44,9 +44,12 @@ export function commandFor(cmd, args, { platform = process.platform, env = proce
   if (platform !== "win32" || !/\.(bat|cmd)$/i.test(found)) return { file: found, args };
   if (args.some((a) => !/^[\w.:=/-]+$/.test(a))) throw new Error(`preflight passes only plain words to cmd.exe, not: ${args.join(" ")}`);
   // cmd.exe /s drops the outer quotes, so a path with spaces stays one word. Node's own shell mode does the same.
-  // A bare "cmd.exe" would be looked up in the current folder first, so the fallback is its full path.
-  const cmdExe = env.ComSpec || join(env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
-  return { file: cmdExe, args: ["/d", "/s", "/c", `""${found}" ${args.join(" ")}"`], verbatim: true };
+  // A bare or relative ComSpec or SystemRoot is looked up from the current folder, so each counts only as a full path
+  // with a drive letter or a UNC prefix, as in command-for.mjs (#240).
+  const full = (path) => (path && /^([A-Za-z]:[\\/]|\\\\)/.test(path) ? path : null);
+  const cmdExe = full(env.ComSpec) || win32.join(full(env.SystemRoot) || "C:\\Windows", "System32", "cmd.exe");
+  // /v:off: a ! in the shim's path is never expanded, even where the registry turns delayed expansion on.
+  return { file: cmdExe, args: ["/d", "/v:off", "/s", "/c", `""${found}" ${args.join(" ")}"`], verbatim: true };
 }
 
 /** The environment every command starts with. */
