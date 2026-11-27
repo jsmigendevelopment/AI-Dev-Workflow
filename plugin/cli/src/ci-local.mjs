@@ -4,8 +4,8 @@
 // Actions goes off first: while it's on, the issue and the pull request could start a workflow (issues,
 // pull_request_target). The commit is made in a temp worktree from the default branch, so your checkout isn't touched.
 // On Full automation it asks nothing; on other levels it asks once. --dry-run only reads.
-// #200: it never deletes or writes through a symlink committed on the default branch, stops before its next step and
-// removes its worktree on SIGINT or SIGTERM, and deletes the local branch once it is pushed.
+// #200: it never deletes or writes through a symlink committed on the default branch, stops before its next step (#203: with no
+// failure line for the step it skipped) and removes its worktree on SIGINT or SIGTERM, and deletes the local branch once it is pushed.
 import { existsSync, lstatSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { constants, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -85,6 +85,8 @@ export async function ciLocal(dir = ".", { dryRun = false, ask, yes = false, log
 }
 
 const SIGNALS = ["SIGINT", "SIGTERM"];
+/** Thrown by a step a signal stopped before it ran, so no failure line is printed for it (#203). */
+class Stopped extends Error {}
 
 // Every git or gh step from here is synchronous, so a SIGINT or SIGTERM sent to Node alone reaches the listener only
 // once the step ends. The listener records it, and each step first gives it one turn of the event loop, then stops
@@ -94,7 +96,8 @@ function stoppable(run) {
   const record = (signal) => (stop.signal ??= signal);
   const step = async (cmd, args, opts) => {
     await new Promise((next) => setImmediate(next));
-    return stop.signal ? { ok: false, out: "", err: "", signal: stop.signal } : run(cmd, args, opts);
+    if (stop.signal) throw new Stopped(stop.signal);
+    return run(cmd, args, opts);
   };
   const listen = (on) => SIGNALS.forEach((signal) => process[on ? "on" : "off"](signal, record));
   return { stop, step, listen };
@@ -105,7 +108,9 @@ async function pullRequest(root, repo, { run, log }) {
   const { stop, step, listen } = stoppable(run);
   listen(true);
   try {
-    const code = await fromWorktree(root, repo, { run, step, log });
+    const code = await fromWorktree(root, repo, { run, step, log }).catch((error) => {
+      if (!(error instanceof Stopped)) throw error;
+    });
     if (!stop.signal) return code;
     log(`Stopped by ${stop.signal} before its next step. Its temp worktree, if made, is removed.`);
     return 128 + constants.signals[stop.signal];
@@ -143,7 +148,10 @@ const TOUCHED = [".github", ".github/workflows", "docs", "docs/stack.md"];
 function unsafePath(tree) {
   for (const path of TOUCHED) {
     try {
-      if (lstatSync(join(tree, path)).isSymbolicLink()) return { path, why: "is a symlink" };
+      const stat = lstatSync(join(tree, path));
+      if (stat.isSymbolicLink()) return { path, why: "is a symlink" };
+      // A folder where the file goes would end the run with EISDIR and a stack trace (#203).
+      if (path === "docs/stack.md" && stat.isDirectory()) return { path, why: "is a folder" };
     } catch (error) {
       // Only ENOENT means not there. ENOTDIR (a parent committed as a file) or EACCES would fail the delete or write.
       if (error.code !== "ENOENT") return { path, why: `can't be read (${error.code ?? error.message})` };
