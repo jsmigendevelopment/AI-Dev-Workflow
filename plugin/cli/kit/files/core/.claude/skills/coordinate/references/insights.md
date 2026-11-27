@@ -14,6 +14,7 @@ Exit 2 names the bad field and writes nothing. Exit 1 is any other failed write.
 - **A builder** writes its own records on its branch and commits them with the work.
 - **A reviewer** commits nothing: it runs `line` and puts the printed `<!-- onrails-insights {...} -->` at the end of its verdict comment.
 - **The coordinator** writes the rest in its own checkout of main. After each merge, `insights.mjs harvest --pr <n> --repo <owner>/<repo>` saves the reviewers' lines there: only from its own login or one under `[insights] writers = ["<login>"]` in `docs/profile.toml` (the list may span lines). At the end of each sweep, `insights.mjs land` opens one records-only pull request, or adds to the one already open, and `land --verify <pr>` is its review (`coordinate` step 10, decisions 332-1 and 332-2). A record file is the writer's exact bytes, at most 16 KB.
+- **The merge step** (`coordinate` step 7, #333) merges a pull request only when `insights.mjs has-records --pr <n> --sha <sha>` finds its job, check and review records at the exact head, after a harvest. After a clean merge of main into a reviewed branch, `insights.mjs carry --pr <n> --from <reviewed sha> --to <merge sha>` writes the merge commit's job (`job=carry-review`) and review records (decision 333-2). Never write a missing record by hand: re-run the job that makes it.
 
 ## The file name
 
