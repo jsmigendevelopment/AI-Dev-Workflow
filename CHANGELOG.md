@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **Every ask names the rule that made it wait (#207).** `ask`'s message template has a `Why it waits:` line after the title, required for every 🛑 and ⏳ and never for an ℹ️, in three forms: an always-stop item (only the person's go-ahead lifts it), a below-Full gate (the sentence that stops this kind of ask) and paying or a sign-in. A text test checks it.
 - **Keys on Full follow-ups (#187).** The Git Bash paste-window command `cd`s into the app folder so a folder with `&`, `^` or `%` never reaches cmd, and the PowerShell one uses `Push-Location -LiteralPath` instead of `-WorkingDirectory`. The keys-on-full tests check Entra names API permissions, count exactly 15 secret rows and allow no agent step after the person's press; `stripe.md`'s webhook row says the Reveal-secret handover once. Decision 187-1.
 - The agent-file guard counts package-manager settings (`.npmrc`, `.yarnrc*`, `pnpm-workspace.yaml`, `.pnpmfile.cjs`), `package.yaml`, `package.json5`, `.gitattributes` and the `package.json` keys `eslintIgnore`, `stylelint`, `workspaces`, `pnpm`, `overrides` and `resolutions` as check code (#220).
 - **clean-up-server reads more negations and rarer background forms (#192).** `AC-151-3-says-so` accepts "isn't", "never" and "neither … nor"; `AC-6-nothing-left` catches `{ npm run dev & }` and `&# note` and ignores a quoted `&`; a `server.pids` line with no start time counts only a PID running `server.mjs`.

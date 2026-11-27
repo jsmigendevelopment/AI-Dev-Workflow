@@ -103,6 +103,7 @@ Back from a pause: `P resume`. **Done when** the proof shows only paused items (
 
 ```text
 Needs you · <project> · <what, in under 8 words>
+Why it waits: <the rule that made the loop wait, and what lifts it>.
 
 1. <question>
    Recommended: <your answer>, because <one line>.
@@ -115,6 +116,10 @@ If you don't answer: <what happens meanwhile, e.g. "#14 stays parked. The loop k
 <link to the issue or pull request>
 ```
 
+- **`Why it waits:` is required for every 🛑 and ⏳, and never for an ℹ️.** Pick the form that fits:
+  - an always-stop item: `Why it waits: the always-stop list in AGENTS.md (<the item>). Only your own go-ahead lifts it, each time (rule 16).`
+  - a below-Full gate: `Why it waits: <the switch in docs/stack.md, or the risk dial>. To stop this kind of ask, say: "<one sentence>". It's recorded as a decision row in your words (rule 16).`
+  - paying or a sign-in: `Why it waits: only you can pay or sign in.`
 - Up to three questions. Each has a recommended answer, so "yes, yes, no" is a full reply.
 - On taste, scope or money, ask the open question and put your pick under "If you don't answer" (rule 1).
 - Plain words. No logs, no stack traces. Link to them instead.
