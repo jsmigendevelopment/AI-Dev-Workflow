@@ -13,7 +13,7 @@ export const TEST_VALUE = "test-DO_NOT_PRINT-1";
 export const LIVE_VALUE = "live-DO_NOT_PRINT-2";
 
 // FAKE_FAIL: a call that starts with it (`npx wrangler secret put API_TOKEN --env production`)
-// fails with an error that names no value.
+// fails with an error that names no value. With FAKE_ECHO set, the error echoes the value it was given (#161).
 const FAKE = `#!/usr/bin/env node
 const fs = require("fs");
 const argv = process.argv.slice(2);
@@ -22,7 +22,8 @@ try { stdin = fs.readFileSync(0, "utf8"); } catch { /* no stdin to read (closed,
 const cmd = require("path").basename(process.argv[1]);
 fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ cmd, argv, stdin }) + "\\n");
 if (process.env.FAKE_FAIL && [cmd, ...argv].join(" ").startsWith(process.env.FAKE_FAIL)) {
-  process.stderr.write("✘ [ERROR] Authentication error [code: 10000]\\n");
+  const given = argv.includes("--body") ? argv[argv.indexOf("--body") + 1] : stdin;
+  process.stderr.write(process.env.FAKE_ECHO ? "invalid value: " + given + "\\n" : "✘ [ERROR] Authentication error [code: 10000]\\n");
   process.exit(1);
 }
 const say = (text) => { process.stdout.write(text); process.exit(0); };
