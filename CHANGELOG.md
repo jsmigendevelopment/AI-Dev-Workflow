@@ -28,6 +28,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Changed
 
+- The TanStack Start pack's `sentry` add-on pins its Sentry packages at 11.19.0 (was 11.13.0), and keeps `@sentry/cloudflare` on the Worker rather than adding `@sentry/tanstackstart-react` (#257, decision 257-1).
 - **Drizzle stays on 0.x in the TanStack Start pack (#256).** Decision 256-1: the pack waits for Drizzle 1.0 stable; the Drizzle recipe cites it and gives the right rc.6 date.
 - On Full, a blocking Chrome alert ends Claude in Chrome for the run; a non-GitHub host merge passes the reviewed sha where its tool can, and the FYI names the sign-in command; the scan no longer counts "at full speed" as the Full level (#213).
 - **Stop and pause end every supervisor, and a busy loop isn't a dead one (#222).** `ask`'s pause and stop cancel the scheduled task on every live `Supervisor:` line, whichever session armed it, then run `timer.mjs supervisor-cancelled`, and the resume note says so. A new `timer.mjs refresh` moves the sweep timer's next time on; `coordinate` runs it at least every 20 minutes in a long turn, so `supervise` prints `alive` and never starts a second coordinator. Below Full, a run the supervisor started checks presence and the hard stop before it arms anything, and the usage-limit sentence starts with its condition. Decision 222-1.
