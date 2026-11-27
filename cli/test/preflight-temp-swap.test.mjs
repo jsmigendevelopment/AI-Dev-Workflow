@@ -8,7 +8,7 @@ import fs, { chmodSync, mkdirSync, readdirSync, realpathSync, rmdirSync, symlink
 import { syncBuiltinESMExports } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { tempFolders } from "../src/preflight-layout.mjs";
-import { notOwnFolder, othersCanSwapIn } from "../src/preflight-sys.mjs";
+import { notOwnFolder, othersCanSwapIn } from "../src/preflight-owner.mjs";
 import { temp } from "./preflight-fakes.mjs";
 
 const posixOnly = { skip: process.platform === "win32" ? "POSIX modes" : false };

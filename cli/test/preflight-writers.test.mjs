@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import { chmodSync, lstatSync, mkdirSync, readdirSync, realpathSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathOutside, tempFolders } from "../src/preflight-layout.mjs";
-import { isRead, markRead, othersCanWrite, repoTop } from "../src/preflight-sys.mjs";
+import { othersCanWrite } from "../src/preflight-owner.mjs";
+import { isRead, markRead, repoTop } from "../src/preflight-sys.mjs";
 import { fakes, pathWith, ran, runScript, temp } from "./preflight-fakes.mjs";
 
 const posixOnly = { skip: process.platform === "win32" ? "POSIX modes and shell-script fakes" : false };
