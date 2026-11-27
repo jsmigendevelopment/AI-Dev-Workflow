@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseProvider, shapeProblem } from "../../stacks/tanstack-start/scripts/connect/providers.ts";
+import { groupsFor } from "../../stacks/tanstack-start/scripts/connect/places.ts";
 
 const DIR = fileURLToPath(new URL("../../.agents/skills/secrets/providers/", import.meta.url));
 // Supabase's only secret lives in the person's shell, so its file says why it has no block.
@@ -21,6 +22,18 @@ test("every provider walkthrough has a valid connect block that pnpm connect can
       assert.ok(section.steps.length > 1, `${file}: ${name} has no steps to show`);
       for (const step of section.steps) assert.doesNotMatch(step.text, /\[[VU]\]|\*\*/, `${file}: markup left in a step`);
     }
+  }
+});
+
+// #227: on ci = "local", connect writes no GitHub values (#139), and the sentry add-on's deploys read these three
+// from the deploy's shell, kept in .env.sentry.local (its ADDON.md, step 8).
+test("AC-227-2: WHEN pnpm connect sentry runs on ci = \"local\" THEN the three Sentry deploy values have a local place", () => {
+  const sentry = parseProvider("sentry", readFileSync(DIR + "sentry.md", "utf8"));
+  for (const name of ["SENTRY_AUTH_TOKEN", "SENTRY_ORG", "SENTRY_PROJECT"]) {
+    const places = groupsFor(sentry.vars[name], "none").flatMap((g) => g.places);
+    assert.deepEqual(places.map((p) => p.kind === "file" && p.path), [".env.sentry.local"], name);
+    // On ci = "actions" the GitHub places stay.
+    assert.ok(groupsFor(sentry.vars[name], "environment").flatMap((g) => g.places).some((p) => p.kind === "github"), name);
   }
 });
 

@@ -49,7 +49,10 @@ const READS_AND_WRITES = {
   "ci = local appended by the shell after the link": [[SHOW_DEV, SHOW_LINK, bash("printf 'ci = \"local\"\\n' >> docs/stack.md")], []],
   "ci = 'local' set with sed -i after the link": [[SHOW_DEV, SHOW_LINK, bash("sed -i \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
   "ci = 'local' set with sed --in-place after the link": [[SHOW_DEV, SHOW_LINK, bash("sed --in-place \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
-  "ci = 'local' set with perl -pi after the link": [[SHOW_DEV, SHOW_LINK, bash("perl -pi -e \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
+  // Flags joined to -i count too (#227).
+  "ci = 'local' set with sed -Ei after the link": [[SHOW_DEV, SHOW_LINK, bash("sed -Ei \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
+  "ci = 'local' set with sed -ri after the link": [[SHOW_DEV, SHOW_LINK, bash("sed -ri \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
+  "ci = 'local' set with perl -pi after the link":[[SHOW_DEV, SHOW_LINK, bash("perl -pi -e \"s/^ci = .*/ci = 'local'/\" docs/stack.md")], []],
   // A backup copy isn't docs/stack.md.
   "a grep of ci = local saved to docs/stack.md.bak after the link": [[SHOW_DEV, SHOW_LINK, bash("grep -n 'ci = \"local\"' docs/stack.md > docs/stack.md.bak")], ["AC-5-seen-before-checks"]],
   "ci = 'local' set with sed -i in docs/stack.md.bak after the link": [[SHOW_DEV, SHOW_LINK, bash("sed -i \"s/^ci = .*/ci = 'local'/\" docs/stack.md.bak")], ["AC-5-seen-before-checks"]],

@@ -1,0 +1,127 @@
+id,claim,label,sources,date
+c1,"Workers CPU time per HTTP request: Free 10 ms; Paid 5 min maximum, 30 seconds by default.",read-in-source,s1,2026-11-27
+c2,"Workers has no hard limit on wall-clock duration for HTTP-triggered Workers.",read-in-source,s1,2026-11-27
+c3,"Cron Triggers and Queue consumers each get 15 minutes of wall time per invocation.",read-in-source,s1;s6,2026-11-27
+c4,"A Worker isolate has 128 MB of memory, on the Free and the Paid plan alike.",read-in-source,s1,2026-11-27
+c5,"Subrequests per invocation: Free 50; Paid 10,000 by default, up to 10 million.",read-in-source,s1,2026-11-27
+c6,"A Worker invocation can hold 6 simultaneous open connections, on both plans. Each open TCP socket counts toward it.",read-in-source,s1;s11,2026-11-27
+c7,"Request body size depends on the zone's Cloudflare plan, not the Workers plan: 100 MB on Free and Pro, 200 MB on Business, up to 5 GB on Enterprise.",read-in-source,s1,2026-11-27
+c8,"A Worker can be at most 64 MiB uncompressed and must start within 1 second.",read-in-source,s1,2026-11-27
+c9,"Cron Triggers per account: Free 5, Paid 1,000.",read-in-source,s1,2026-11-27
+c10,"Workers Paid costs a minimum of $5 a month per account and includes 10 million requests and 30 million CPU milliseconds; above that $0.30 per million requests and $0.02 per million CPU milliseconds.",read-in-source,s2,2026-11-27
+c11,"Workers Free allows 100,000 requests per day.",read-in-source,s2,2026-11-27
+c12,"Queues: a message is at most 128 KB, a consumer batch at most 100 messages, consumer CPU 30 seconds by default and up to 5 minutes, and 5,000 messages per second per queue.",read-in-source,s6,2026-11-27
+c13,"Queue message retention is fixed at 24 hours on Free and configurable up to 14 days on Paid.",read-in-source,s6,2026-11-27
+c14,"A Durable Object has a soft limit of 1,000 requests per second, 30 seconds of CPU per request by default (up to 5 minutes), and 10 GB of SQLite storage. The Free plan only has SQLite-backed Durable Objects.",read-in-source,s7,2026-11-27
+c15,"With the WebSocket Hibernation API, clients stay connected while the Durable Object is out of memory, and duration charges do not accrue while it hibernates.",read-in-source,s16,2026-11-27
+c16,"Workflows: wall time per step is unlimited, CPU per step is 30 seconds by default and up to 5 minutes on Paid, step.sleep can last up to 365 days, and an instance keeps up to 1 GB of state on Paid.",read-in-source,s12,2026-11-27
+c17,"Workers supports JavaScript, TypeScript, Python and Rust as first-class languages. Go is named only as a language that can compile to WebAssembly.",read-in-source,s8,2026-11-27
+c18,"Workers can open outbound TCP connections with connect(). Inbound TCP to a Worker is in public beta. Cloudflare recommends Hyperdrive for PostgreSQL.",read-in-source,s11,2026-11-27
+c19,"Hyperdrive connects Workers to existing Postgres or MySQL databases with pooling and caching, and is on the Free and Paid plans.",read-in-source,s17,2026-11-27
+c20,"Cloudflare lists Containers for code in any language, resource-intensive apps that need parallel CPU cores, lots of memory or disk, and apps that need a full filesystem or a Linux-like environment.",read-in-source,s5,2026-11-27
+c21,"Cloudflare Containers became generally available on 2026-04-13, on the Workers Paid plan.",read-in-source,s9;s94,2026-11-27
+c22,"Containers are billed on Workers Paid ($5 a month). Included each month: 25 GiB-hours of memory, 375 vCPU-minutes and 200 GB-hours of disk. Beyond that: $0.0000025 per GiB-second, $0.000020 per vCPU-second and $0.00000007 per GB-second of disk.",read-in-source,s3,2026-11-27
+c23,"Container egress in North America and Europe costs $0.025 per GB with 1 TB included each month.",read-in-source,s3,2026-11-27
+c24,"Container instance types run from lite (1/16 vCPU, 256 MiB, 2 GB disk) to standard-4 (4 vCPU, 12 GiB, 20 GB disk).",read-in-source,s4,2026-11-27
+c25,"Cloudflare says container cold starts can often be in the 1 to 3 second range, depending on image size.",vendor-claim,s10,2026-11-27
+c26,"Containers have no built-in autoscaling for stateless apps yet, and their disk is ephemeral by default.",read-in-source,s10,2026-11-27
+c27,"Without an inactivity timeout, Cloudflare stops a container shortly after its Durable Object goes inactive; the overview's example sets a 10 minute timeout.",read-in-source,s13;s5,2026-11-27
+c28,"A container is deployed with wrangler deploy. Docker is needed at deploy time only when the image setting points at a Dockerfile.",read-in-source,s14,2026-11-27
+c29,"Version URLs are not generated for Workers that implement Durable Objects, which includes Containers Workers; wrangler versions upload uploads Worker code only, not a new image.",read-in-source,s14,2026-11-27
+c30,"wrangler preview creates or updates a Preview for the current branch, and Cloudflare provisions a new Durable Object namespace and container instances for each Preview.",read-in-source,s15,2026-11-27
+c31,"From 2026-12-01, container logs are billed on Cloudflare Observability pricing.",read-in-source,s10,2026-11-27
+c32,"The Containers overview names only Region:Earth for placement; no region list or choice is described there.",read-in-source,s5,2026-11-27
+c33,"Fly.io gives a new account a one-time $1 credit with no card, which expires after 7 days; with a card it gives $5 of usage every month.",read-in-source,s18;s21,2026-11-27
+c34,"A running Fly shared-cpu-1x Machine costs $2.19 a month with 256 MB and $3.69 a month with 512 MB.",read-in-source,s18,2026-11-27
+c35,"A stopped Fly Machine costs $0.15 per GB per month of root filesystem; volumes cost $0.15 per GB per month.",read-in-source,s18,2026-11-27
+c36,"Fly scales an app to zero with auto_stop_machines set to stop, auto_start_machines on and min_machines_running 0, and starts a stopped Machine when a request arrives.",read-in-source,s19,2026-11-27
+c37,"Fly says a cold start takes about 2 seconds or more for common apps, and resuming a suspended Machine takes a few hundred milliseconds.",vendor-claim,s19,2026-11-27
+c38,"Fly's review-apps guide makes a preview app per pull request with a GitHub Actions workflow using superfly/fly-pr-review-apps; flyctl appears only to make the API token.",read-in-source,s20,2026-11-27
+c39,"Fly's regions page lists 17 regions.",read-in-source,s22,2026-11-27
+c40,"Fly logs can be live-tailed with fly logs; Fly's Grafana log search keeps logs for 7 days.",read-in-source,s23,2026-11-27
+c41,"fly launch detects a Go app and generates a Dockerfile and fly.toml; flyctl deploy deploys it.",read-in-source,s24,2026-11-27
+c42,"Railway's Free plan gives $1 of usage a month with no credit card, for small apps that can sleep; a new Trial account gets a one-time $5 grant.",read-in-source,s25,2026-11-27
+c43,"Railway's Hobby plan costs $5 a month and includes $5 of resource usage.",read-in-source,s25,2026-11-27
+c44,"Railway container resources cost $10 per GB of RAM a month and $20 per vCPU a month.",read-in-source,s25,2026-11-27
+c45,"Railway PR environments are created when a pull request is opened and deleted when it is merged or closed; they are turned on in Project Settings. The page does not mention the CLI for them.",read-in-source,s26,2026-11-27
+c46,"The Railway CLI deploys the current folder with railway up, creates an environment with railway environment new, and streams logs with railway logs.",read-in-source,s28,2026-11-27
+c47,"Railway's Serverless setting puts a service to sleep 5 to 10 minutes after its last outbound traffic; the first request wakes it, with no stated wake-up time.",read-in-source,s27,2026-11-27
+c48,"Railway lists four deployment regions: US West, US East, EU West (Amsterdam) and Southeast Asia (Singapore).",read-in-source,s29,2026-11-27
+c49,"Railway builds with Railpack, or a Dockerfile when one exists; Railpack detects a Go app from go.mod and builds it.",read-in-source,s30;s31,2026-11-27
+c50,"Cloud Run's free tier with request-based billing gives 180,000 vCPU-seconds, 360,000 GiB-seconds and 2 million requests a month.",read-in-source,s32;s33,2026-11-27
+c51,"Cloud Run tier 1 request-based prices: $0.000024 per vCPU-second and $0.0000025 per GiB-second of active time, and $0.40 per million requests.",read-in-source,s32,2026-11-27
+c52,"Cloud Run's minimum instances default to 0, so it scales to zero; idle instances that are not minimum instances are not charged.",read-in-source,s32;s37,2026-11-27
+c53,"Google Cloud's Free Trial gives $300 of credit for 90 days and needs a credit card or other payment method.",read-in-source,s33,2026-11-27
+c54,"gcloud run deploy --source . builds with Google Cloud's buildpacks on Cloud Build; a Dockerfile is used if present but not required, and Go is supported.",read-in-source,s34,2026-11-27
+c55,"Cloud Run can deploy a revision with --no-traffic --tag, which serves it at its own URL starting with the tag name, without sending it production traffic.",read-in-source,s35,2026-11-27
+c56,"Cloud Run's request timeout is 300 seconds by default and can be raised to 3,600 seconds.",read-in-source,s36,2026-11-27
+c57,"Cloud Run logs are read from the CLI with gcloud run services logs read or gcloud logging read; live tail is gcloud beta run services logs tail, in Preview.",read-in-source,s38,2026-11-27
+c58,"Hetzner's CX23 (2 vCPU, 4 GB RAM, 40 GB NVMe, 20 TB traffic) is listed at EUR 5.99 a month excluding VAT and marked currently unavailable.",read-in-source,s41,2026-11-27
+c59,"Hetzner's CPX02 (1 vCPU, 1 GB RAM, 20 GB NVMe) costs EUR 5.49 a month excluding VAT in Helsinki and EUR 6.49 in Falkenstein and Nuremberg, IPv4 included.",read-in-source,s40,2026-11-27
+c60,"Hetzner cloud servers are offered in Germany, Finland, Singapore and the USA.",read-in-source,s39,2026-11-27
+c61,"DigitalOcean's cheapest Basic Droplet has 512 MiB, 1 vCPU, 10 GiB disk and 500 GiB transfer for $4.00 a month.",read-in-source,s42,2026-11-27
+c62,"Kamal deploys any containerized web app with zero-downtime deploys and provisions Docker on a fresh server; its docs are at version 2.12.0.",read-in-source,s43,2026-11-27
+c63,"D1 has an HTTP query endpoint: POST /accounts/{account_id}/d1/database/{database_id}/query.",read-in-source,s48,2026-11-27
+c64,"Cloudflare's D1 tutorial says the built-in REST API is best suited for administrative use as the global Cloudflare API rate limit applies, and builds a proxy Worker instead.",read-in-source,s46;s97,2026-11-27
+c65,"D1's docs say the REST API primarily interacts with the control plane, while the Workers Binding API primarily interacts with the data plane.",read-in-source,s47,2026-11-27
+c66,"The Cloudflare API's global rate limit is 1,200 requests per five minutes per user.",read-in-source,s45,2026-11-27
+c67,"A D1 database holds up to 10 GB on Workers Paid and 500 MB on Free; a Worker invocation can run 1,000 queries on Paid and 50 on Free; a query takes at most 100 bound parameters.",read-in-source,s44,2026-11-27
+c68,"cloudflare-go v6 has a DatabaseService.Query method for D1; v7 is the highest tagged major version.",read-in-source,s49,2026-11-27
+c69,"Neon Free: 100 projects, 1 GB of storage per project, 100 CU-hours per project, 10 branches per project, and compute suspends after 5 minutes idle, which cannot be turned off.",read-in-source,s50,2026-11-27
+c70,"Neon's Launch plan is pay as you go with no monthly minimum: $0.106 per CU-hour, $0.35 per GB-month, and $1.50 per branch-month beyond 10.",read-in-source,s50,2026-11-27
+c71,"The Neon CLI creates a branch with neon branches create, which prints its connection string unless --no-secrets is passed; a connection-string command also gives it.",read-in-source,s51,2026-11-27
+c72,"Supabase Free: 500 MB database per project, 2 active projects, and free projects pause after 1 week of inactivity.",read-in-source,s52,2026-11-27
+c73,"Supabase Pro starts at $25 a month with $10 of compute credit; a branch costs $0.01344 an hour.",read-in-source,s52,2026-11-27
+c74,"Fly says LiteFS is outside its scope of support and pre-1.0, so APIs may change and features could be removed.",read-in-source,s53,2026-11-27
+c75,"Litestream's latest release is v0.5.18, tagged 2026-11-03.",read-in-source,s54;s82,2026-11-27
+c76,"modernc.org/sqlite is a CGo-free port of SQLite, BSD-3-Clause, v1.63.0 published 2026-11-22, with linux/amd64 and linux/arm64 among its platforms.",read-in-source,s55;s83,2026-11-27
+c77,"mattn/go-sqlite3's latest version is v1.14.53, 2026-11-05.",read-in-source,s84,2026-11-27
+c78,"goose supports migrations in SQL or Go, for Postgres, SQLite, Turso and others, under the MIT licence; its latest version is v3.30.2, 2026-11-25.",read-in-source,s56;s67,2026-11-27
+c79,"golang-migrate pairs an up and a down file per migration, has a CLI that wraps the library, drivers for Postgres, pgx v5 and SQLite, is MIT, and its latest version is v4.20.1, 2026-09-09.",read-in-source,s57;s58;s68,2026-11-27
+c80,"Atlas's Starter plan is free; Pro costs $9 per developer a month, and migration linting and automated CI/CD integration are Pro features.",read-in-source,s59,2026-11-27
+c81,"Atlas Community Edition is Apache 2.0 but omits commands such as down, checkpoint and rebase, and drift detection; the standard binary is free under the Atlas MSA, and atlas login unlocks Pro features.",read-in-source,s60,2026-11-27
+c82,"Atlas's latest Go module version is v1.4.0, 2026-11-17.",read-in-source,s69,2026-11-27
+c83,"sqlc generates type-safe Go code from SQL for PostgreSQL, MySQL and SQLite; it is MIT and its latest version is v1.31.1, 2026-04-22.",read-in-source,s61;s62;s70,2026-11-27
+c84,"sqlx is a set of extensions on database/sql, MIT; its latest version is v1.4.0, 2024-04-15.",read-in-source,s63;s71,2026-11-27
+c85,"pgx is a pure Go driver and toolkit for PostgreSQL with a concurrency-safe pool (pgxpool), MIT; its latest version is v5.13.0, 2026-11-11.",read-in-source,s64;s72,2026-11-27
+c86,"GORM calls itself an ORM library for Go aimed at being developer friendly; MIT; latest v1.31.2, 2026-06-22.",read-in-source,s65;s73,2026-11-27
+c87,"Bun is a SQL-first Go ORM for PostgreSQL, MySQL, MSSQL, SQLite and Oracle, BSD-2-Clause; latest v1.3.0, 2026-10-01.",read-in-source,s66;s74,2026-11-27
+c88,"Ent's latest version is v0.14.6 (2026-03-17) and Jet's is v2.16.1 (2026-10-06).",read-in-source,s75;s76,2026-11-27
+c89,"Clerk's manual verification takes the public key from the Frontend API URL plus /.well-known/jwks.json, from the Backend API at api.clerk.com/v1/jwks, or as a PEM key for networkless verification.",read-in-source,s85,2026-11-27
+c90,"Clerk says to check exp and nbf, and that the azp claim equals one of your known origins (skippable when azp is absent).",read-in-source,s85,2026-11-27
+c91,"Clerk's Go SDK is MIT, needs Go 1.24 or later, and has WithHeaderAuthorization and RequireHeaderAuthorization middleware; the second returns 403 without valid session claims.",read-in-source,s86,2026-11-27
+c92,"Clerk's Go SDK latest version is v2.10.0, 2026-11-23.",read-in-source,s88;s77,2026-11-27
+c93,"Clerk's Go middleware, without a custom key, fetches the JWK from the Clerk API and caches it for one hour; with a custom key it fetches nothing and the caller must refresh keys when they roll.",read-in-source,s89,2026-11-27
+c94,"Clerk's jwt.Verify takes a Leeway for clock skew and an AuthorizedPartyHandler for azp, and does not fetch the JWKS when a JWK is passed in.",read-in-source,s88,2026-11-27
+c95,"jwx v3's jwk.Cache refreshes registered JWKS URLs automatically behind the scenes; jwx v3 is MIT, latest v3.5.0 on 2026-11-27.",read-in-source,s90;s78,2026-11-27
+c96,"jwx v4.7.0 came out on 2026-11-27; its jwk package has no concrete cache, and background-refreshed caching moved to a separate jwkfetch module.",read-in-source,s91;s79,2026-11-27
+c97,"golang-jwt v5 (v5.3.1, 2026-01-28, MIT) does not fetch a JWKS itself and takes a key function; it has WithLeeway, WithAudience and WithValidMethods options.",read-in-source,s93;s80,2026-11-27
+c98,"keyfunc v3 gives golang-jwt v5 a jwt.Keyfunc from a JWK Set, refreshes it automatically, refreshes on an unknown kid, and is Apache-2.0; latest v3.9.2, 2026-11-13.",read-in-source,s92;s81,2026-11-27
+c99,"goose rolls back one migration with goose down; a SQL migration file has one -- +goose Up section and an optional -- +goose Down section; goose create makes a new timestamped file.",read-in-source,s56,2026-11-27
+c100,"Cloudflare describes Containers' pricing at GA as Active-CPU pricing: you only pay for used CPU cycles.",read-in-source,s9,2026-11-27
+c101,"Corrects c6: a Worker invocation can have up to six connections simultaneously waiting for response headers; a connection stops counting once its headers arrive. Each open TCP socket counts toward the open-connection limit.",read-in-source,s1;s11,2026-11-27
+c102,"Corrects c25: Cloudflare says container cold starts can often be in the 1 to 3 second range, depending on factors that include image size and code execution time.",vendor-claim,s10,2026-11-27
+c103,"Corrects c14: the Durable Objects limits table gives 10 GB of storage per object with no plan split, while the same page's overflow note says 10 GB on Workers Paid or 1 GB on the Free plan.",read-in-source,s7,2026-11-27
+c104,"A Google Cloud billing account is required to use the Google Cloud Free Tier, including Cloud Run's free usage.",read-in-source,s33,2026-11-27
+c105,"Hetzner's CPX02 is also marked currently unavailable on the Regular Performance page.",read-in-source,s40,2026-11-27
+c106,"Corrects c80: Atlas lists automated CI/CD integration and migration linting under Pro ($9 per developer a month plus usage pricing, such as $59 a month per project for pipelines), but its comparison tables show linting in every tier and basic CI/CD on the free Starter plan.",read-in-source,s59,2026-11-27
+c107,"Corrects c83: sqlc's Go generator supports MySQL and PostgreSQL as stable and SQLite as beta.",read-in-source,s102,2026-11-27
+c108,"Corrects c89: Clerk lists three places for the public key: the Backend API JWKS endpoint, the Frontend API URL plus /.well-known/jwks.json, and the JWKS Public Key on the dashboard's API keys page; networkless verification passes that key as jwtKey.",read-in-source,s85,2026-11-27
+c109,"Clerk's Go SDK must be configured with the Clerk API secret key, with clerk.SetKey in its examples.",read-in-source,s86,2026-11-27
+c110,"Refines c3: on Workers Paid, CPU per Cron Trigger is 5 minutes (30 seconds by default) for intervals under 1 hour and 15 minutes for intervals of 1 hour or more. The 15 minutes per Cron Trigger or Queue consumer in c3 is wall-clock duration, and a Queue consumer's CPU stops at 5 minutes.",read-in-source,s1;s2;s6,2026-11-27
+c111,"Refines c101: if a seventh connection is attempted while six are waiting for headers, it is queued until one of them receives its response headers. It is not refused.",read-in-source,s1,2026-11-27
+c112,"During routine Workers runtime updates, existing requests and connections, including streaming responses and WebSockets, get up to 20 minutes to finish; Cloudflare tells long-running apps to handle disconnections.",read-in-source,s1,2026-11-27
+c113,"Fly's Free plan allows up to 3 Machines, and fly deploy makes 2 Machines per app by default (--ha=false for 1). If usage goes over the month's $5, the organization moves to Pay As You Go and the whole month is billed at standard rates from the first cent.",read-in-source,s109,2026-11-27
+c114,"fly deploy builds on a remote builder by default (--remote-only is the default; --local-only uses a local Docker daemon), and -a sets the app name.",read-in-source,s110,2026-11-27
+c115,"The fly-pr-review-apps Action is a shell script that runs flyctl launch, flyctl deploy --app and flyctl apps destroy for a per-PR app; fly apps create makes an app from the CLI.",read-in-source,s111;s112,2026-11-27
+c116,"A Google Cloud Free Trial billing account that is not upgraded to a Paid billing account within 90 days, or that spends its $300, is closed and its projects' resources are stopped. With a Paid billing account, usage above the Free Tier is billed.",read-in-source,s33,2026-11-27
+c117,"Cloud Run source deploys store the built images in Artifact Registry. Google Cloud's Free Tier gives 0.5 GB of Artifact Registry storage a month and 2,500 Cloud Build build-minutes a month on e2-standard-2.",read-in-source,s34;s33,2026-11-27
+c118,"Cloud Run environment variables are bound to a revision. Any configuration change creates a new revision, and later revisions keep that setting unless it is changed explicitly; --set-env-vars replaces the whole list.",read-in-source,s113,2026-11-27
+c119,"Neon projects deploy to AWS regions only (its Azure regions take no new projects), and a project's region cannot be changed after creation.",read-in-source,s114,2026-11-27
+c120,"An engineer's 2024 review of sqlc calls its lack of any mechanism for putting dynamic code into queries its achilles heel: arbitrary filters or field updates need booleans and CASE statements.",anecdote,s115;s116,2026-11-27
+c121,"Corrects c91: RequireHeaderAuthorization answers 403 when no session claims are set, but a token that fails verification gets the failure handler's response, 401 by default. WithHeaderAuthorization alone passes a request with no token on without claims. The azp check runs only when AuthorizedParty or AuthorizedPartyMatches is passed.",read-in-source,s89,2026-11-27
+c122,"Refines c66: the Cloudflare API limit is 1,200 requests per five minutes per user or account token, counted together across the dashboard, API keys and tokens; going over blocks all calls for five minutes with HTTP 429.",read-in-source,s45,2026-11-27
+c123,"Neon says an idle Free compute scales to zero after 5 minutes and starts again on the next query, typically within a few hundred milliseconds; running out of CU-hours suspends compute until the next billing period.",vendor-claim,s50,2026-11-27
+c124,"Refines c52: on request-based billing, an idle instance is billed at a lower rate, and not at all when min instances is 0. On instance-based billing, the whole instance lifecycle is billed at the default rate, idle time included, even when min instances is 0 (page last updated 2026-11-18).",read-in-source,s37,2026-11-27
+c125,"Cloud Run lists 43 regions: 20 at Tier 1 pricing and 23 at Tier 2.",read-in-source,s117,2026-11-27
+c126,"Refines c121: Clerk's AuthorizedPartyMatches returns true when the token's azp is empty or when no parties were passed; only a non-empty azp is checked against the list (v2.10.0).",read-in-source,s118,2026-11-27
