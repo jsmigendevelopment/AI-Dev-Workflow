@@ -20,12 +20,12 @@ function reply(t) {
   return text.startsWith(HANDOFF) ? text.slice(HANDOFF.length) : text;
 }
 
-/** Files new or changed since the start: in the working tree, untracked, or committed on any branch. */
+/** Files new or changed since the start: in the working tree, untracked, or committed on any branch or detached HEAD. */
 function changedFiles(t) {
   const lines = (out) => out.split("\n").filter(Boolean);
   const changed = lines(t.git("diff", "--name-only", t.meta.start));
   const added = lines(t.git("ls-files", "--others", "--exclude-standard"));
-  const committed = lines(t.git("log", "--all", "--name-only", "--format=", `^${t.meta.start}`));
+  const committed = lines(t.git("log", "--all", "--reflog", "--name-only", "--format=", `^${t.meta.start}`));
   return [...new Set([...changed, ...added, ...committed])];
 }
 
@@ -40,12 +40,12 @@ export const checks = [
   },
   {
     id: "AC-5-asks-owner",
-    description: "A question names the owner's words ('pop' or 'too quiet') in its paragraph, and the reply offers at least two readings",
+    description: "A question names the owner's words ('pop' or 'too quiet') in its paragraph, and that paragraph offers at least two readings",
     check: (t) => {
-      const said = `${t.asked}\n\n${reply(t)}`;
-      const named = said.split(/\n\s*\n/).some((p) => questionLines(p).length > 0 && OWNER_WORDS.test(p));
-      const readings = READINGS.filter((re) => re.test(said)).length;
-      return result(named && readings >= 2, named ? `${readings} reading(s) offered, not two` : "no question that names the owner's words");
+      // Readings count only where the question is: a second word in a receipt that stamps the guess offers nothing.
+      const asking = `${t.asked}\n\n${reply(t)}`.split(/\n\s*\n/).filter((p) => questionLines(p).length > 0 && OWNER_WORDS.test(p)).join("\n");
+      const readings = READINGS.filter((re) => re.test(asking)).length;
+      return result(asking && readings >= 2, asking ? `${readings} reading(s) offered in the question, not two` : "no question that names the owner's words");
     },
   },
   {

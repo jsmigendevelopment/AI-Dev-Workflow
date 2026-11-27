@@ -2,7 +2,7 @@
 // issue list the sweep already fetched, with its comments. A missing receipt counts only past its "check by" time.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync, spawnSync } from "./child.mjs";
@@ -13,7 +13,8 @@ const BOARD = join(REPO, ".agents/skills/coordinate/scripts/board.mjs");
 const ORPHANS = join(REPO, ".agents/skills/coordinate/scripts/orphans.mjs");
 const NOW = "2026-11-27T12:00:00Z";
 
-const comment = (createdAt, body) => ({ author: { login: "me" }, createdAt, body });
+// gh's `comments` carry authorAssociation; only the repo's own people count (round 1 of the review on #395).
+const comment = (createdAt, body, authorAssociation = "MEMBER") => ({ author: { login: "me" }, authorAssociation, createdAt, body });
 const claim = (n, at, extra = "") => comment(at, `Claimed by builder-${n} at ${at.slice(0, 16).replace("T", " ")} UTC · branch feat/${n}-work${extra}`);
 const gotIt = (at) => comment(at, "Got it · builder · My reading: build the issue as written.");
 const issue = (number, labels, comments, more = {}) => ({ number, title: `Issue ${number}`, url: `https://github.com/acme/app/issues/${number}`, labels: labels.map((name) => ({ name })), updatedAt: NOW, body: "", comments, ...more });
@@ -93,4 +94,60 @@ test("AC-112-5: WHEN a handoff is a comment on an issue with no handoff label TH
   // A receipt after the record answers it.
   writeFileSync(join(dir, "issues.json"), JSON.stringify([{ ...unlabelled, comments: [...unlabelled.comments, gotIt("2026-11-27T11:00:00Z")] }]));
   assert.deepEqual(JSON.parse(run(dir, ORPHANS, ["--github", "issues.json", "--json"])), []);
+});
+
+// Round 1 of the review on #395. Each case runs the script on its own issue list in the same project.
+const orphansOf = (dir, issues, { prs = [], now = NOW } = {}) => {
+  writeFileSync(join(dir, "case-issues.json"), JSON.stringify(issues));
+  writeFileSync(join(dir, "case-prs.json"), JSON.stringify(prs));
+  return JSON.parse(run(dir, ORPHANS, ["--github", "case-issues.json", "--github", "case-prs.json", "--json"], now));
+};
+const claimOn = (branch, at) => comment(at, `Claimed by builder at ${at.slice(0, 16).replace("T", " ")} UTC · branch ${branch}`);
+const claimed = (n, branch, at = "2026-11-27T06:00:00Z") => issue(n, ["status:in-progress"], [claimOn(branch, at), gotIt("2026-11-27T06:05:00Z")]);
+const kinds = (found) => found.map((o) => [o.issue, o.kind]);
+
+test("AC-112-6: WHEN a claim names a branch that starts with - or isn't a valid branch name THEN git never reads it as an option, and the claim is unknown, never stale", () => {
+  const dir = project();
+  const found = orphansOf(dir, [claimed(20, "--output=pwned.txt"), claimed(21, "feat/21..work"), claimed(22, "feat/22-work.lock")]);
+  assert.equal(existsSync(join(dir, "pwned.txt")), false, "git wrote no file");
+  assert.deepEqual(kinds(found), [[20, "unknown-branch"], [21, "unknown-branch"], [22, "unknown-branch"]]);
+  assert.ok(found.every((o) => !o.note.includes("--output")), "the note doesn't repeat a name that isn't valid");
+});
+
+test("AC-112-6: WHEN a claimed branch has no local or origin ref THEN it is unknown (fetch first), never stale; within 2 hours it isn't listed", () => {
+  const dir = project();
+  assert.deepEqual(kinds(orphansOf(dir, [claimed(14, "feat/14-gone")])), [[14, "unknown-branch"]]);
+  assert.match(orphansOf(dir, [claimed(14, "feat/14-gone")])[0].note, /feat\/14-gone.*fetch/);
+  assert.deepEqual(orphansOf(dir, [claimed(14, "feat/14-gone", "2026-11-27T11:00:00Z")]), [], "a fresh claim may not be pushed yet");
+});
+
+test("AC-112-3: WHEN a check-by time isn't a real time or isn't UTC THEN the record gets the 2-hour default; an offset is read", () => {
+  const dir = project();
+  const handoff = (n, when) => issue(n, [], [comment("2026-11-27T09:00:00Z", `Handoff · a → b · check by ${when}\n\nOwner's words: "x"`)]);
+  const at = (now, ...issues) => orphansOf(dir, issues, { now }).map((o) => o.issue);
+  // A bad time, or a zone it can't read: due at 11:00, 2 hours after the record.
+  for (const when of ["2026-11-27 25:00 UTC", "2026-13-27 10:00 UTC", "2026-02-30 10:00 UTC", "2026-11-27 10:00 PST", "2026-11-27 10:00"]) {
+    assert.deepEqual(at("2026-11-27T10:30:00Z", handoff(30, when)), [], `${when}: not yet`);
+    assert.deepEqual(at("2026-11-27T11:30:00Z", handoff(30, when)), [30], `${when}: past the default`);
+  }
+  assert.equal(orphansOf(dir, [handoff(30, "2026-11-27 25:00 UTC")], { now: "2026-11-27T11:30:00Z" })[0].since, Date.parse("2026-11-27T11:00:00Z"));
+  // 12:00 at +01:00 is 11:00 UTC; Z and GMT are UTC.
+  assert.deepEqual(at("2026-11-27T11:30:00Z", handoff(31, "2026-11-27 12:00 +01:00"), handoff(32, "2026-11-27T12:00Z"), handoff(33, "2026-11-27 12:00 GMT")), [31]);
+});
+
+test("AC-112-6: WHEN a claim's pull request is on another branch for the same issue, or the claim has leading spaces THEN the script reads it as the board does", () => {
+  const dir = project();
+  const pr = { number: 41, title: "Issue 8", url: "https://github.com/acme/app/pull/41", headRefName: "feat/8-work-v2", labels: [], isDraft: false, updatedAt: NOW };
+  assert.deepEqual(orphansOf(dir, [claimed(8, "feat/8-old")], { prs: [pr] }), [], "#8 is in review");
+  const spaced = issue(7, ["status:in-progress"], [comment("2026-11-27T08:00:00Z", "  \nClaimed by builder at 2026-11-27 08:00 UTC · branch feat/7-work"), gotIt("2026-11-27T08:05:00Z")]);
+  assert.deepEqual(kinds(orphansOf(dir, [spaced])), [[7, "stale-claim"]]);
+});
+
+test("AC-112-5: WHEN someone outside the repo posts a receipt, a claim or a handoff THEN the sweep ignores it", () => {
+  const dir = project();
+  const outsider = (at, body) => comment(at, body, "NONE");
+  const unanswered = issue(10, [], [comment("2026-11-27T09:00:00Z", HANDOFF_10), outsider("2026-11-27T09:30:00Z", "Got it · me · My reading: done.")]);
+  const hidden = issue(7, ["status:in-progress"], [claimOn("feat/7-work", "2026-11-27T08:00:00Z"), gotIt("2026-11-27T08:05:00Z"), outsider("2026-11-27T11:50:00Z", "Claimed by me at 2026-11-27 11:50 UTC · branch feat/8-work")]);
+  const fake = issue(15, [], [outsider("2026-11-27T06:00:00Z", "Handoff · x → y · check by 2026-11-27 07:00 UTC")]);
+  assert.deepEqual(kinds(orphansOf(dir, [unanswered, hidden, fake])), [[7, "stale-claim"], [10, "no-receipt"]]);
 });

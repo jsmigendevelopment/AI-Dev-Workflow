@@ -38,12 +38,13 @@ After each sweep, save the two lists you already fetched to the cache, then rend
 ```bash
 gh issue list --state open --limit 200 --json number,title,labels,url,updatedAt,createdAt,body,comments > <cache>/<project>-issues.json
 gh pr list --state open --json number,title,url,headRefName,labels,isDraft,updatedAt > <cache>/<project>-prs.json
+git fetch origin --prune  # the orphan check reads each claimed branch's last commit from local git
 node .agents/skills/coordinate/scripts/board.mjs render --github <cache>/<project>-issues.json --github <cache>/<project>-prs.json
 ```
 
 These are the sweep's own batched reads, not extra ones. The issue read carries `comments`, so the orphan check (`coordinate` step 10, `scripts/orphans.mjs`) needs no read of its own. The board then shows:
 
-- 🛑 **Needs you now** and ⏳ **Waiting on your decision:** local asks, plus any issue labelled `needs-human` (with `blocker`, it's "now"), plus each orphan in those comments: a stale claim, or a handoff with no `Got it ·` receipt past its "check by" time;
+- 🛑 **Needs you now** and ⏳ **Waiting on your decision:** local asks, plus any issue labelled `needs-human` (with `blocker`, it's "now"), plus each orphan in those comments: a stale claim, a claim on a branch it can't find (`unknown`), or a handoff with no `Got it ·` receipt past its "check by" time;
 - 🔨 **Being built:** local `started`, plus issues labelled `status:in-progress` (cloud threads);
 - 🔍 **In review:** open pull requests, matched to issues by the `feat/<issue>-` branch name;
 - ✅ **Merged today** and ℹ️ **FYI:** these roll off after a day.

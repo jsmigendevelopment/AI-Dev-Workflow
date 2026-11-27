@@ -40,6 +40,23 @@ test("AC-112-3: WHEN the sweep text says when a receipt is missing THEN it count
   }
 });
 
+test("AC-112-3: WHEN a record names no check-by time THEN step 10, back step 3 and handoffs.md all give the 2-hour default", () => {
+  for (const [name, text] of [["coordinate step 10", STEP_10], ["back step 3", BACK_3], ["handoffs.md", SWEEP]]) {
+    assert.match(text, /no `Got it ·` receipt once past its "check by" time \(2 hours after the record when it names none\)/, name);
+  }
+});
+
+test("AC-112-6: WHEN the sweep checks for stale claims THEN step 10, back step 3 and the board fetch the claimed branches right before, and an unknown branch is never retaken", () => {
+  const FETCH = "git fetch origin --prune";
+  for (const [name, text] of [["coordinate step 10", STEP_10.split("\n").find((l) => l.includes("**orphan check:**"))], ["back step 3", BACK_3]]) {
+    assert.ok(text.includes(FETCH) && text.indexOf(FETCH) < text.indexOf("orphans.mjs"), `${name}: the fetch comes right before the run`);
+    assert.match(text, /`unknown`/, name);
+  }
+  assert.match(STEP_10, /never retake a claim on an `unknown`/);
+  const render = between(read("coordinate/board.md"), "## Render", "## The Google Sheet");
+  assert.ok(render.includes(FETCH) && render.indexOf(FETCH) < render.indexOf("board.mjs render"), "board.md: the fetch comes before the render");
+});
+
 test("AC-112-5: WHEN setup-github runs on a new repo THEN it creates the handoff and blocker labels", UNIX, () => {
   const r = run(SETUP, repo(), ["--plan", "free"]);
   assert.equal(r.status, 0, r.stdout + r.stderr);
