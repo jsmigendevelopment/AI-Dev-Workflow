@@ -132,7 +132,7 @@ The risk dial is how careful each merge is. The automation level is how much age
 | Level | When | Ping |
 |---|---|---|
 | 🛑 **Blocker** | Always-stop list, unclear MVP core, critical security finding, production down, nothing else can move | Now |
-| ⏳ **Decision** | Schema or API gate, taste, scope or money, review cap hit, unclear issue, stale claim | Batched, at most every 30 min |
+| ⏳ **Decision** | Schema or API gate, taste, scope or money, review cap hit below Full (on Full, `coordinate`'s review cap: nothing parks), unclear issue, stale claim | Batched, at most every 30 min |
 | ℹ️ **FYI** | Ready to try, usage, rate limit and reset | Never. On the board and at `/back`. |
 
 - Away (`/afk`)? Only production down or a security hole pings.
