@@ -52,7 +52,7 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
    - How should the words sound: friendly, plain, formal, funny?
    - Anything to avoid: colours, styles, or a competitor's look?
 
-   Then sum it up in three lines. If they want visuals, offer a mood board or logo ideas on the creative tier (see `routing`). Write the answers to "Look and feel" in `design.md`. Then start `wireframes` stage 2 in the background: the strongest tier, so ask first unless the profile says not to. A profile's `[design]` answers are defaults to confirm, not skip.
+   Then sum it up in three lines. If they want visuals, offer a mood board or logo ideas on the creative tier (see `routing`). Write the answers to "Look and feel" in `design.md`. Then start `wireframes` stage 2 in the background: the strongest tier, so below Full, ask first unless the profile says not to. A profile's `[design]` answers are defaults to confirm, not skip.
 7. **Confirm:** show back the vision, the main flow, the features, the MVP and the look and feel, and ask what's wrong with them.
 
 ### Existing-project topics (`/join`, or a big feature)
