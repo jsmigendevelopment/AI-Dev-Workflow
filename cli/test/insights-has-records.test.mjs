@@ -1,0 +1,98 @@
+// The merge step's record check (#333, part of #281 item 6): `insights.mjs has-records --pr <n> --sha <sha>` exits 0
+// only when the coordinator's checkout of main has a job, a check and a review record for that pull request at that
+// exact head sha. The name keeps it apart from `land --verify <pr>` (decision 333-1). A copy of the coordinate scripts
+// runs in a temp git repo standing in for that checkout, next to fake gh, claude and codex: no call is expected.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { cpSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmp, unixOnly } from "./helpers.mjs";
+import { validate } from "../src/insights-record.mjs";
+import { JOB, REPO, REVIEW, SCRIPTS, SHA, git, json, pathOf, put, record, run } from "./insights-land-fakes.mjs";
+
+const OLDER = "b".repeat(40);
+const CHECK = record("check", {
+  job: null, tool: null, state: "success", fence: "Fence: bubblewrap",
+  commands: [{ name: "pnpm check", result: "pass", seconds: 42 }], failed_step: null, flaky_rerun: false,
+});
+/** The builder's finish record names the commit before it, so it never matches the head (#330). */
+const BUILD = record("job", { job: "build", sha: OLDER, outcome: "finished" });
+
+/** A temp git repo standing in for the coordinator's checkout of main, holding `records` and the coordinate scripts. */
+function checkout(records) {
+  const dir = tmp("onrails-has-records-");
+  git(dir, "init", "-q", "-b", "main");
+  cpSync(join(REPO, SCRIPTS), join(dir, SCRIPTS), { recursive: true });
+  records.forEach((r, i) => {
+    assert.deepEqual(validate(r), [], `fixture ${JSON.stringify(r)}`);
+    put(dir, pathOf(r, `${i}`.padStart(6, "0")), json(r));
+  });
+  return dir;
+}
+
+const hasRecords = (dir, pr = "40", sha = SHA) => run(dir, ["has-records", "--pr", pr, "--sha", sha]);
+
+test("AC-333-1: WHEN the checkout has job, check and review records for PR 40 at <sha> THEN has-records --pr 40 --sha <sha> exits 0", unixOnly, () => {
+  const r = hasRecords(checkout([BUILD, JOB, CHECK, REVIEW]));
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(r.stdout.includes(SHA), `names the sha: ${r.stdout}`);
+  assert.equal(r.calls, "", "no gh call");
+});
+
+test("AC-333-2: WHEN the review record names an older sha of PR 40 THEN has-records exits 1 and names review", unixOnly, () => {
+  const r = hasRecords(checkout([JOB, CHECK, { ...REVIEW, sha: OLDER }]));
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stderr, /\breview\b/);
+  assert.doesNotMatch(r.stderr, /no (job|check) record/, "only review is missing");
+});
+
+test("AC-333-3: WHEN no check record exists for PR 40 THEN has-records exits 1 and names check", unixOnly, () => {
+  const r = hasRecords(checkout([JOB, REVIEW, { ...CHECK, pr: 41 }]));
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stderr, /\bcheck\b/);
+  assert.doesNotMatch(r.stderr, /no (job|review) record/, "only check is missing");
+});
+
+test("has-records: the builder's finish record and another pull request's records don't count, and every missing kind is named", unixOnly, () => {
+  const r = hasRecords(checkout([BUILD, { ...JOB, pr: 41 }, { ...CHECK, pr: 41 }, { ...REVIEW, pr: 41 }]));
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  for (const kind of ["job", "check", "review"]) assert.match(r.stderr, new RegExp(`no ${kind} record`));
+});
+
+test("has-records: an invalid record file and a records folder that isn't there count as missing, not as an error", unixOnly, () => {
+  const dir = checkout([CHECK, REVIEW]);
+  put(dir, pathOf(JOB, "ffffff"), json({ ...JOB, outcome: "done" }));
+  const bad = hasRecords(dir);
+  assert.equal(bad.status, 1, bad.stdout + bad.stderr);
+  assert.match(bad.stderr, /no job record/);
+  const empty = hasRecords(checkout([]));
+  assert.equal(empty.status, 1, empty.stdout + empty.stderr);
+});
+
+test("has-records: a usage error exits 2 and names the usage", unixOnly, () => {
+  const dir = checkout([JOB, CHECK, REVIEW]);
+  for (const args of [["has-records"], ["has-records", "--pr", "40"], ["has-records", "--pr", "x", "--sha", SHA], ["has-records", "--pr", "40", "--sha", "abc"]]) {
+    const r = run(dir, args);
+    assert.equal(r.status, 2, `${args.join(" ")}: ${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /has-records --pr <n> --sha <sha>/);
+  }
+});
+
+/** coordinate's merge step: from "7. **Merge" up to step 8. */
+function mergeStep() {
+  const text = readFileSync(join(REPO, ".agents/skills/coordinate/SKILL.md"), "utf8");
+  const start = text.indexOf("7. **Merge through one queue");
+  assert.ok(start > 0, "coordinate has its merge step");
+  return text.slice(start, text.indexOf("\n8. **", start));
+}
+
+test("AC-333-4: WHEN coordinate/SKILL.md's merge step is read THEN it runs has-records, merges only on exit 0, and says to re-run the missing job, never to write the record by hand", () => {
+  const step = mergeStep();
+  assert.match(step, /insights\.mjs has-records --pr <n> --sha <sha>/);
+  assert.match(step, /[Mm]erge only on (its )?exit 0/);
+  assert.match(step, /[Nn]ever write (a|the) (missing )?record/);
+  assert.match(step, /run (the gate|step 6\.1)[^.]*again/i, "the gate makes a missing check record");
+  assert.match(step, /fresh `pr-review`/, "a fresh review makes a missing job or review record");
+  assert.match(step, /Full included/, "it holds on every level");
+  assert.match(step, /records-only pull request/, "the records pull request is exempt");
+});
