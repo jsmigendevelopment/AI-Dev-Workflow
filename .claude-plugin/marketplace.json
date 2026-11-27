@@ -10,7 +10,7 @@
     {
       "name": "core",
       "source": "./plugin",
-      "description": "The four commands you type: /or:idea, /or:join, /or:back and /or:afk. They install the kit into a project, then hand off to the project's copy.",
+      "description": "(beta) The four commands you type: /or:idea, /or:join, /or:back and /or:afk. They install the kit into a project, then hand off to the project's copy.",
       "homepage": "https://github.com/jsmigendevelopment/onRails",
       "repository": "https://github.com/jsmigendevelopment/onRails",
       "license": "MIT",

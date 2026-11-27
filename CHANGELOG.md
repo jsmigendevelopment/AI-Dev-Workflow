@@ -6,6 +6,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
+- **Beta label follow-ups (#149).** "(beta)" also on the marketplace `core` entry and the Codex short description; the beta test checks each label on its own; the README says what the grill does on each level and names `npx onrails update`; the profile template says the `[routing]` model names are notes.
 - On macOS, the process registry reads the extended ACL of every folder on its path in one `ls -lde` start, and refuses a folder whose ACL lets another account write it, or whose ACL can't be read; `list`, `ps`, session start and `doctor` name it with the `chmod -a#` that fixes it (#249).
 - **Full never parks, follow-up (#210).** `ask`'s level table and the cheat sheet make the review cap a ⏳ decision only below Full, and `coordinate` step 5's stuck line points Full to `afk`'s stuck-builder rule. A `needs-human` claim is parked, not stale; a migration's forward fix is a fix round; another `diagnose` round stays on the last one's tier; `afk`'s red-main line matches step 7. A text test checks it.
 - The agent-file guard also protects `.lighthouserc.*`, `.semgrep.yaml` and `tsconfig*.jsonc`, and the README, the existing-app guide and `pr-review` say it covers check files, not only agent rules (#216).
@@ -33,6 +34,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 ### Fixed
 
 - **Windows: no bare `gh` in agent-files and research-library (#274).** Both start `gh` through `command-for.mjs` (synced copies next to each), by its full path on PATH, never a `gh.exe` in the current folder or the repo. `roots()` compares the home folder case-blind on Windows, so a git repo at `~` no longer refuses tools under home. The `secrets` skill now says a plain variable may go on `--body`; secret values go only on stdin.
+- `list`, `npx onrails ps` and `doctor` print a process record's id, command, reason and stop condition through the same escaping as the session hooks, so an odd record can't drive the terminal or pass for another (#250).
+
 - **The Windows process registry counts inherit-only rules on its own folders (#268).** A write grant to another account that only applies to what is made later, on `.onrails`, its `logs` folder or the folder that holds `.onrails`, now refuses the registry up front with the usual fix line; on the folders above a repo root it still doesn't count. Decision 268-1.
 - **Windows process registry: no link followed on a peeked index path (#267).** Before the index is checked, a path it lists with a symlink or junction on the way, found with `lstat` from the root down, stays out of the one ACL batch, so neither `existsSync` nor `Get-Acl` follows it. Decision 267-1.
 

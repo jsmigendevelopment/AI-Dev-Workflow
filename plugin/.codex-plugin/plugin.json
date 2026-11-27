@@ -13,7 +13,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "onRails",
-    "shortDescription": "Idea to planned repo, then an agent build loop",
+    "shortDescription": "(beta) Idea to planned repo, then an agent build loop",
     "developerName": "onRails",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Write"],
