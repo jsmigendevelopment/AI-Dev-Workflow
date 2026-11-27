@@ -189,3 +189,38 @@ test("AC-163-7: full.md's weakening review protects package.json scripts and the
   for (const name of ["`package.json`", "`scripts`", "`eslintConfig`", "`prettier`", "`jest`", "`knip`", "`jscpd`", "`lint-staged`"]) assert.ok(doc.includes(name), name);
   assert.match(doc, /dependency bump/);
 });
+
+test("AC-220-1: WHEN a pull request changes a package-manager settings file or .gitattributes THEN the guard treats it as check code", () => {
+  for (const path of [".npmrc", "apps/web/.npmrc", ".yarnrc.yml", ".yarnrc", "pnpm-workspace.yaml", ".pnpmfile.cjs", ".gitattributes", "apps/web/.gitattributes"]) {
+    const r = decide({ changed: [path], stack: RECOMMENDED });
+    assert.equal(r.pass, false, path);
+    assert.ok(r.why.includes(path), `${path}: ${r.why}`);
+  }
+});
+
+test("AC-220-2: WHEN eslintIgnore, stylelint, workspaces or an override key changes in any package.json THEN decide fails", () => {
+  const cases = { eslintIgnore: ["dist"], stylelint: { rules: {} }, workspaces: ["apps/*"], pnpm: { overrides: { eslint: "npm:other@1.0.0" } },
+    overrides: { eslint: "npm:other@1.0.0" }, resolutions: { eslint: "npm:other@1.0.0" } };
+  for (const [key, value] of Object.entries(cases)) {
+    for (const path of ["package.json", "apps/web/package.json"]) {
+      const r = recommended({ [path]: { base: json(PKG), head: json({ ...PKG, [key]: value }) } });
+      assert.equal(r.pass, false, `${path} ${key}`);
+      assert.ok(r.why.includes(`${path} (${key})`), `${key}: ${r.why}`);
+    }
+  }
+});
+
+test("AC-220-3: WHEN a package.yaml or package.json5 changes THEN the guard treats the whole file as check code (decision 220-1)", () => {
+  for (const path of ["package.yaml", "package.yml", "apps/web/package.json5"]) assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, false, path);
+});
+
+test("AC-220-4: WHEN a plain dependency bump, or an alias in the dependency list, changes nothing else THEN the guard still passes", () => {
+  assert.equal(recommended({ "package.json": { base: json(PKG), head: json(BUMPED) } }).pass, true);
+  const alias = { ...PKG, devDependencies: { eslint: "npm:other@1.0.0" } };
+  assert.equal(recommended({ "package.json": { base: json(PKG), head: json(alias) } }).pass, true, "an alias stays a dependency change");
+});
+
+test("#220: full.md lists the new settings files, .gitattributes and package.json keys", () => {
+  const doc = read(".agents/skills/automation/references/full.md");
+  for (const name of ["`.npmrc`", "`.yarnrc.yml`", "`pnpm-workspace.yaml`", "`package.yaml`", "`package.json5`", "`.gitattributes`", "`eslintIgnore`", "`stylelint`", "`workspaces`", "`overrides`", "`resolutions`"]) assert.ok(doc.includes(name), name);
+});
