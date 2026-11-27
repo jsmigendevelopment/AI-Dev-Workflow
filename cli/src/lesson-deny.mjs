@@ -2,9 +2,10 @@
 // them even where #321's allowlist passes them ("Notes" is a common word and an app name). Local files and local git
 // only, never the network. A term's source kind may be printed; the term never is.
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { closeSync, constants, fstatSync, lstatSync, openSync, readdirSync, readSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, isAbsolute, join, relative, sep } from "node:path";
+import { hash } from "./files.mjs";
 import { homeDir } from "./home.mjs";
 import { GLOSSARY } from "./lesson-words.mjs";
 
@@ -13,14 +14,25 @@ const DOCS = ["docs/vision.md", "docs/mvp.md", "docs/decisions.md"];
 const ENV_FILE = /(^|\/)\.env(\.[^/]*)?$/;
 const ENV_EXAMPLE = ".env.example";
 const MAX_SCAN = 1024 * 1024;
-// Hosts that are never a project's own (RFC 2606 and 6761), so `example` doesn't block every lesson.
-const RESERVED = /(^|\.)(localhost|test|example|invalid|local)$|(^|\.)example\.(com|net|org)$/;
+// Hosts that are never a project's own (RFC 2606 and 6761), so `example` doesn't block every lesson. Any `example`
+// label counts, as in a placeholder such as app.example.workers.dev.
+const RESERVED = /(^|\.)(localhost|test|invalid|local)$|(^|\.)example(\.|$)/;
 // A second-level label under a country code, as in co.uk, so the name label is the one before it.
 const SECOND_LEVEL = new Set(["co", "com", "org", "net", "ac", "gov", "edu"]);
 
 // Lowercase, and `_` read as `-`, so MY_VAR and my-var are the same term.
 const norm = (text) => text.toLowerCase().replaceAll("_", "-");
 const trimEnds = (word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+// Where a name breaks into parts: - . + _, a lower-to-upper step (GardenParty), the end of a capital run (APIKey) and
+// a letter-to-digit step (Tide4Lamp).
+const PART_BREAK = /[-.+_]|(?<=\p{Ll})(?=\p{Lu})|(?<=\p{Lu})(?=\p{Lu}\p{Ll})|(?<=\p{L})(?=\p{N})|(?<=\p{N})(?=\p{L})/u;
+const isEnvFile = (path) => ENV_FILE.test(path.replaceAll(sep, "/")) && basename(path) !== ENV_EXAMPLE;
+
+/** The singular of a plural term (notes to note, boxes to box), or null. Short words and -ss words keep their s. */
+export function singular(word) {
+  const stem = /(s|x|z|ch|sh)es$/.test(word) ? word.slice(0, -2) : /[^s]s$/.test(word) ? word.slice(0, -1) : null;
+  return word.length >= 4 && stem && stem.length >= 3 ? stem : null;
+}
 
 function git(dir, args) {
   try {
@@ -31,24 +43,65 @@ function git(dir, args) {
   }
 }
 
-function readText(path) {
+const inside = (root, path) => {
+  const rel = relative(root, path);
+  return rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+};
+
+// Reads files under root. A link is followed only when its real path isn't an .env file and stays under root (or,
+// with `anywhere`, for the person's own profile kept in a dotfiles folder, goes anywhere); a folder, a device or a
+// pipe is never opened, and a file over MAX_SCAN gives nothing.
+function reader(root, { anywhere = false } = {}) {
+  let top;
+  try { top = realpathSync(root); } catch { return { text: () => "", folder: () => null }; } // No such folder: nothing to read.
+  const locate = (path) => {
+    if (isEnvFile(path)) return null;
+    const real = realpathSync(join(top, path));
+    return (anywhere || inside(top, real)) && !isEnvFile(real) ? real : null;
+  };
+  const text = (path) => {
+    try {
+      const real = locate(path);
+      return real && lstatSync(real).isFile() ? readCapped(real) : "";
+    } catch {
+      // A missing or unreadable file adds nothing.
+      return "";
+    }
+  };
+  const folder = (path) => {
+    try { return locate(path); } catch { return null; } // No such folder.
+  };
+  return { text, folder };
+}
+
+// A regular file of at most MAX_SCAN bytes, as text; anything else, or a NUL byte, gives "".
+function readCapped(path) {
+  const fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
-    if (statSync(path).size > MAX_SCAN) return "";
-    const text = readFileSync(path, "utf8");
+    const info = fstatSync(fd);
+    if (!info.isFile()) return "";
+    // One byte past the size it says, so a file that grew past the cap is still caught.
+    const buffer = Buffer.allocUnsafe(Math.min(info.size, MAX_SCAN) + 1);
+    let size = 0;
+    for (let n; size < buffer.length && (n = readSync(fd, buffer, size, buffer.length - size, size)) > 0;) size += n;
+    if (size > MAX_SCAN) return "";
+    const text = buffer.toString("utf8", 0, size);
     return text.includes("\0") ? "" : text;
-  } catch {
-    // A missing or unreadable file adds nothing.
-    return "";
+  } finally {
+    closeSync(fd);
   }
 }
 
-// A term and, split on - . +, each of its parts. Kit words never enter: `review` in a repo name can't block every lesson.
+// A term, each of its parts, and the parts joined by `-` and by a space. Kit words never enter, nor a term whose
+// singular or plural is one: `review` or `reviews` in a repo name can't block every lesson.
 function adder(terms, kitWords) {
+  const isKit = (word) => [word, `${word}s`, `${word}es`, singular(word)].some((form) => form && kitWords.has(form));
   const add = (raw, kind, { split = true } = {}) => {
-    const term = trimEnds(norm(raw));
-    const parts = split ? term.split(/[-.+]/) : [];
-    for (const word of [term, ...parts]) {
-      if (word.length >= 2 && !kitWords.has(word) && !terms.has(word)) terms.set(word, kind);
+    const clean = trimEnds(raw);
+    const parts = split ? clean.split(PART_BREAK).map((part) => trimEnds(part.toLowerCase())).filter(Boolean) : [];
+    const joined = parts.length > 1 ? [parts.join("-"), parts.join(" ")] : [];
+    for (const word of [norm(clean), ...parts, ...joined]) {
+      if (word.length >= 2 && !isKit(word) && !terms.has(word)) terms.set(word, kind);
     }
   };
   return add;
@@ -73,11 +126,11 @@ function remoteTerms(dir, add) {
   }
 }
 
-function packageTerms(dir, files, add) {
+function packageTerms(read, files, add) {
   const paths = new Set(["package.json", ...files.filter((f) => basename(f) === "package.json" && !f.includes("node_modules/"))]);
   for (const path of paths) {
     let name;
-    try { name = JSON.parse(readText(join(dir, path))).name; } catch { continue; } // Not JSON: no name to add.
+    try { name = JSON.parse(read.text(path)).name; } catch { continue; } // Not JSON: no name to add.
     if (typeof name === "string") for (const part of name.split(/[@/]/)) add(part, "package name");
   }
 }
@@ -99,21 +152,22 @@ function docWords(text) {
   return words;
 }
 
-function docTerms(dir, add) {
+function docTerms(read, add) {
   let decisions = [];
+  const folder = read.folder("docs/decisions");
   try {
-    decisions = readdirSync(join(dir, "docs/decisions")).filter((f) => f.endsWith(".md")).map((f) => `docs/decisions/${f}`);
+    if (folder) decisions = readdirSync(folder).filter((f) => f.endsWith(".md")).map((f) => `docs/decisions/${f}`);
   } catch {
-    // No decisions folder: only the single files count.
+    // Not a folder: only the single files count.
   }
   for (const path of [...DOCS, ...decisions]) {
-    for (const word of docWords(readText(join(dir, path)))) add(word, "docs");
+    for (const word of docWords(read.text(path))) add(word, "docs");
   }
 }
 
 // [me] name and github_owner from the project's profile, else the person's own.
-function profileTerms(dir, home, add) {
-  const text = readText(join(dir, "docs/profile.toml")) || readText(join(homeDir(home), "profile.toml"));
+function profileTerms(read, home, add) {
+  const text = read.text("docs/profile.toml") || reader(homeDir(home), { anywhere: true }).text("profile.toml");
   const me = /^\[me\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(text)?.[1] ?? "";
   for (const key of ["name", "github_owner"]) {
     const value = new RegExp(`^\\s*${key}\\s*=\\s*"([^"]*)"`, "m").exec(me)?.[1] ?? "";
@@ -135,47 +189,60 @@ function authorTerms(dir, add) {
   }
 }
 
-// Hosts in URLs and email addresses in tracked files. .env files are skipped by name, before any read.
-function domainTerms(dir, files, add) {
+// Hosts in URLs and email addresses in tracked files. A file the kit ships, unchanged, holds none of the project's.
+function domainTerms(read, files, kitFiles, add) {
   const host = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^\s/@]+@)?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})|[\w.+-]+@([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})\b/gi;
   for (const path of files) {
-    if (ENV_FILE.test(path) && basename(path) !== ENV_EXAMPLE) continue;
-    for (const match of readText(join(dir, path)).matchAll(host)) addDomain(add, match[1] ?? match[2], "domain");
+    const text = read.text(path);
+    if (Object.hasOwn(kitFiles, path) && kitFiles[path] === hash(Buffer.from(text))) continue;
+    for (const match of text.matchAll(host)) addDomain(add, match[1] ?? match[2], "domain");
   }
 }
 
-function envTerms(dir, add) {
-  for (const match of readText(join(dir, ENV_EXAMPLE)).matchAll(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)) {
+function envTerms(read, add) {
+  for (const match of read.text(ENV_EXAMPLE).matchAll(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)) {
     add(match[1], "env name", { split: false });
   }
 }
 
-/** The project's own terms, lowercase, each mapped to its source kind. Reads local files and local git only. */
-export function denySet(projectDir, { home = homedir(), kitWords = GLOSSARY } = {}) {
+/**
+ * The project's own terms, lowercase, each mapped to its source kind. Reads local files and local git only.
+ * `kitFiles` maps a kit path to its sha256, as the kit manifest does.
+ */
+export function denySet(projectDir, { home = homedir(), kitWords = GLOSSARY, kitFiles = {} } = {}) {
   const terms = new Map();
   const add = adder(terms, kitWords);
+  const read = reader(projectDir);
   const files = git(projectDir, ["ls-files", "-z"]).split("\0").filter(Boolean);
   remoteTerms(projectDir, add);
-  packageTerms(projectDir, files, add);
-  docTerms(projectDir, add);
-  profileTerms(projectDir, home, add);
+  packageTerms(read, files, add);
+  docTerms(read, add);
+  profileTerms(read, home, add);
   authorTerms(projectDir, add);
-  domainTerms(projectDir, files, add);
-  envTerms(projectDir, add);
+  domainTerms(read, files, kitFiles, add);
+  envTerms(read, add);
   return terms;
 }
 
 const matchers = new WeakMap();
 
-/** The source kind of the first project term in text, whole-word and case-blind, or null. */
+// One pattern for every term and its singular, each with an optional plural `s` or `es` after it.
+function matcher(terms) {
+  const forms = new Map();
+  for (const [term, kind] of terms) {
+    for (const form of [term, singular(term)]) if (form && !forms.has(form)) forms.set(form, kind);
+  }
+  const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll(" ", "\\s+");
+  const alternatives = [...forms.keys()].sort((a, b) => b.length - a.length).map(escape);
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(${alternatives.join("|")})(?:e?s)?(?![\\p{L}\\p{N}])`, "u");
+  return { forms, pattern };
+}
+
+/** The source kind of the first project term in text, whole-word, case-blind and in either number, or null. */
 export function projectTerm(text, terms) {
   if (terms.size === 0) return null;
-  let pattern = matchers.get(terms);
-  if (!pattern) {
-    const alternatives = [...terms.keys()].sort((a, b) => b.length - a.length).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    pattern = new RegExp(`(?<![\\p{L}\\p{N}])(?:${alternatives.join("|")})(?![\\p{L}\\p{N}])`, "u");
-    matchers.set(terms, pattern);
-  }
+  if (!matchers.has(terms)) matchers.set(terms, matcher(terms));
+  const { forms, pattern } = matchers.get(terms);
   const found = pattern.exec(norm(text));
-  return found ? terms.get(found[0]) : null;
+  return found ? forms.get(found[1].replace(/\s+/g, " ")) : null;
 }

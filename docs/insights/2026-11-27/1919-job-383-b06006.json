@@ -8,6 +8,6 @@
   "job": "build",
   "tool": "claude-code",
   "model": "claude-opus-5-5",
-  "effort": "low",
+  "effort": "unknown",
   "outcome": "finished"
 }

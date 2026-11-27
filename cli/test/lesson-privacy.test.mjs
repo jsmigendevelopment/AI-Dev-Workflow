@@ -30,6 +30,9 @@ const PLANTED = {
   issueNumber: "#41",
   codeLine: "await chargeCard(orderTotal)",
   decisionName: "Grant",
+  docsWord: "Orders",
+  pascalName: "StoneParty",
+  pluralApp: "notes",
 };
 
 function git(dir, args) {
@@ -43,7 +46,8 @@ function fixture({ repoName = PLANTED.appName, packageName = PLANTED.appName } =
   const dir = tmp("onrails-privacy-");
   const files = {
     "package.json": JSON.stringify({ name: packageName, private: true }),
-    "docs/vision.md": `# Garden\n\nGarden keeps a small shop's Orders in one place.\n`,
+    "docs/vision.md": `# Garden\n\nGarden keeps a small shop's ${PLANTED.docsWord} in one place.\n`,
+    "packages/notes/package.json": JSON.stringify({ name: PLANTED.pluralApp }),
     "docs/decisions.md": `# Decisions\n\n| 1 | Signed off by ${PLANTED.decisionName} after ${PLANTED.issueNumber}, which kept \`${PLANTED.codeLine}\` in ${PLANTED.filePath}. |\n`,
     "docs/profile.toml": `[me]\nname = "${PLANTED.person}"\ngithub_owner = "${PLANTED.owner}"\n`,
     "src/api.ts": `export const BASE = "https://api.${PLANTED.codeDomain}.io/v1";\n`,
@@ -56,6 +60,7 @@ function fixture({ repoName = PLANTED.appName, packageName = PLANTED.appName } =
   for (const [path, text] of Object.entries(files)) put(dir, path, text);
   git(dir, ["init", "-q"]);
   git(dir, ["remote", "add", "origin", `https://github.com/${PLANTED.owner}/${repoName}.git`]);
+  git(dir, ["remote", "add", "upstream", `https://github.com/${PLANTED.owner}/${PLANTED.pascalName}.git`]);
   git(dir, ["add", "-A"]);
   git(dir, ["commit", "-q", "-m", "start"]);
   return dir;
@@ -95,6 +100,17 @@ const ROWS = [
   { detail: "issueNumber", record: good({ lesson: `The builder reopened ${PLANTED.issueNumber} on the branch.` }) },
   { detail: "codeLine", record: good({ suggested_fix: `Keep ${PLANTED.codeLine} on the branch.` }) },
   { detail: "decisionName", deny: true, record: good({ lesson: "The builder asked grant before the merge." }) },
+  // A name in another form: its camelCase parts spaced or hyphenated, or its singular or plural. `carries` is the form.
+  { detail: "pascalName", form: "spaced", carries: "stone party", deny: true,
+    record: good({ lesson: "The builder broke the stone party check before the merge." }) },
+  { detail: "pascalName", form: "hyphenated", carries: "stone-party", deny: true,
+    record: good({ suggested_fix: "Run the stone-party check before the merge." }) },
+  { detail: "pluralApp", form: "singular", carries: "note", deny: true,
+    record: good({ lesson: "The builder broke the note check before the merge." }) },
+  { detail: "decisionName", form: "plural", carries: "grants", deny: true,
+    record: good({ lesson: "The builder asked grants before the merge." }) },
+  { detail: "docsWord", form: "singular", carries: "order", deny: true,
+    record: good({ lesson: "The builder lost an order before the merge." }) },
 ];
 
 const CLEAN = [
@@ -107,8 +123,9 @@ const CLEAN = [
 const results = [];
 
 for (const row of ROWS) {
-  test(`AC-322-1: WHEN a lesson carries the planted ${row.detail} THEN lesson check --project refuses it`, () => {
-    assert.match(JSON.stringify(row.record), new RegExp(escape(PLANTED[row.detail]), "i"), "the row carries its detail");
+  const form = row.form ? ` (${row.form})` : "";
+  test(`AC-322-1: WHEN a lesson carries the planted ${row.detail}${form} THEN lesson check --project refuses it`, () => {
+    assert.match(JSON.stringify(row.record), new RegExp(escape(row.carries ?? PLANTED[row.detail]), "i"), "the row carries its detail");
     if (row.deny) assert.equal(checkLesson(row.record, { manifest }).ok, true, "the allowlist alone passes it");
     const r = check(row.record);
     results.push(r);
@@ -140,8 +157,11 @@ test("AC-322-4: WHEN every lesson lesson check accepts is scanned for every plan
   for (const r of accepted) {
     for (const [name, value] of Object.entries(PLANTED)) {
       assert.doesNotMatch(r.text, new RegExp(escape(value), "i"), `${name} got through`);
-      for (const word of value.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3)) {
-        assert.doesNotMatch(r.text, new RegExp(`\\b${word}\\b`, "i"), `part of ${name} got through`);
+      // Each part, camelCase parts too, in either number.
+      const parts = value.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3);
+      for (const word of parts) {
+        const stem = word.replace(/([^s])s$/, "$1");
+        assert.doesNotMatch(r.text, new RegExp(`\\b(${word}|${stem})(e?s)?\\b`, "i"), `part of ${name} got through`);
       }
     }
   }
@@ -152,6 +172,26 @@ test("AC-322-6: WHEN the repo is named after a kit word such as review THEN a le
   const r = check(good({ lesson: "The builder waited on the review before the merge." }), dir);
   assert.equal(r.status, 0, r.stderr);
   assert.equal(check(good({ lesson: "The builder broke the garden check." }), dir).status, 1);
+});
+
+test("AC-322-6: WHEN the repo is named review THEN its plural reviews is accepted too", () => {
+  const dir = fixture({ repoName: "review", packageName: "review" });
+  const r = check(good({ lesson: "The builder waited on two reviews before the merge." }), dir);
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test("lesson check: an app named after a kit file name (board, vision-flow) is still refused, and a skill name leaves the set", () => {
+  const board = fixture({ repoName: "Board", packageName: "vision-flow" });
+  for (const lesson of ["The builder broke the board check.", "The builder broke the vision flow check."]) {
+    const r = check(good({ lesson }), board);
+    assert.equal(r.status, 1, lesson);
+    assert.match(r.stderr, /^ {2}lesson: contains a project term \((git remote|package name)\)$/m);
+  }
+  // The component field holds a name from the kit's own closed list, so it carries nothing from the project.
+  assert.equal(check(good({ component: "board" }), board).status, 0);
+  const grill = fixture({ repoName: "grill", packageName: "grill" });
+  const r = check(good({ lesson: "The builder ran grill before the merge." }), grill);
+  assert.equal(r.status, 0, r.stderr);
 });
 
 test("AC-322-7: WHEN a record is refused for a project term THEN the output names the field and the source kind, never the term", () => {

@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "./child.mjs";
 import { checkLesson } from "../src/lesson-check.mjs";
+import { denySet } from "../src/lesson-deny.mjs";
 import { loadKit } from "../src/kit.mjs";
 import { put, safeEnv, tmp } from "./helpers.mjs";
 
@@ -119,4 +120,32 @@ test("lesson check: bad usage exits 2", () => {
   const missing = spawnSync(process.execPath, [CLI, "lesson", "check", join(tmp("onrails-lesson-"), "none.json")],
     { encoding: "utf8", env: safeEnv() });
   assert.equal(missing.status, 2);
+});
+
+test("lesson check: a value that passed its closed list is never refused as a project term, free text still is", () => {
+  const project = tmp("onrails-project-");
+  put(project, "docs/vision.md", "# Garden\n\nBuilt with Claude Code and Opus for the Gate team.\n");
+  const deny = denySet(project, { home: tmp("onrails-home-") });
+  assert.equal(checkLesson(good(), { manifest, deny }).ok, true);
+  const refused = checkLesson(good({ lesson: "The builder broke the garden check.", tool: "codex", category: "nope" }), { manifest, deny });
+  assert.deepEqual(refused.errors.map((e) => `${e.field}:${e.rule}`), ["category:not-allowed", "lesson:contains a project term (docs)"]);
+});
+
+test("lesson check: --project with no value, an unknown option or two lesson files exit 2, and --project=<dir> is read", () => {
+  const dir = tmp("onrails-lesson-");
+  put(dir, "lesson.json", JSON.stringify(good({ lesson: "The builder broke the garden check before the merge." })));
+  put(dir, "other.json", JSON.stringify(good()));
+  const project = tmp("onrails-project-");
+  put(project, "package.json", JSON.stringify({ name: "garden" }));
+  const cli = (...args) => spawnSync(process.execPath, [CLI, "lesson", "check", join(dir, "lesson.json"), ...args],
+    { encoding: "utf8", env: safeEnv({ HOME: dir, USERPROFILE: dir }), cwd: dir });
+  for (const args of [["--project"], ["--frobnicate"], [join(dir, "other.json"), "--project", project]]) {
+    const r = cli(...args);
+    assert.equal(r.status, 2, args.join(" "));
+    assert.match(r.stderr, /Usage: npx onrails lesson check/);
+  }
+  assert.equal(cli(`--project=${dir}`).status, 0);
+  const r = cli(`--project=${project}`);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /^ {2}lesson: contains a project term \(package name\)$/m);
 });

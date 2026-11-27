@@ -18,6 +18,8 @@ const ENUMS = {
 const COST = { extra_runs: ["0", "1", "2-5", "6+"], hours_stuck: ["0", "<1", "1-4", "4+"] };
 const KEYS = ["kit_version", "component", "category", "tool", "model_family", "automation", "cost", "lesson",
   "suggested_fix", "repo_key"];
+// The free-text fields. Every other field must hold a value from a closed list.
+const FREE_TEXT = ["lesson", "suggested_fix"];
 const SENTENCE_MAX = 200;
 const DETAIL = "[detail]";
 
@@ -36,18 +38,30 @@ const SENTENCE_RULES = [
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
-// The component names the kit ships: skill folders, script and hook names, and template names.
-export function componentNames(manifest) {
-  const names = new Set(["unknown"]);
-  const paths = [...Object.keys(manifest.core ?? {})];
+// Every file path the kit ships, templates under templates/<name>/.
+function kitPaths(manifest) {
+  const paths = Object.keys(manifest.core ?? {});
   for (const [name, files] of Object.entries(manifest.templates ?? {})) {
-    names.add(name);
     paths.push(...Object.keys(files).map((p) => `templates/${name}/${p}`));
   }
-  for (const path of paths) {
+  return paths;
+}
+
+// The skill folder a kit path sits in, or null.
+function skillOf(path) {
+  const parts = path.split("/");
+  const at = parts.indexOf("skills");
+  return at >= 0 && parts.length > at + 2 ? parts[at + 1] : null;
+}
+
+// The kit's skill names: the folders under skills/ in its manifest.
+const skillNames = (manifest) => new Set(kitPaths(manifest).map(skillOf).filter(Boolean));
+
+// The component names the kit ships: skill folders, script and hook names, and template names.
+export function componentNames(manifest) {
+  const names = new Set(["unknown", ...Object.keys(manifest.templates ?? {}), ...skillNames(manifest)]);
+  for (const path of kitPaths(manifest)) {
     const parts = path.split("/");
-    const skill = parts.indexOf("skills");
-    if (skill >= 0 && parts.length > skill + 2) names.add(parts[skill + 1]);
     const file = parts.at(-1);
     if (file.endsWith(".mjs")) names.add(file.slice(0, -4));
     else if (parts.some((p) => /template/i.test(p))) names.add(file.replace(/\.[^.]+$/, "").toLowerCase());
@@ -107,10 +121,14 @@ function stringFields(record) {
   return fields;
 }
 
-// A project term in any string field (#322), named by its field and source kind, never by the term.
+// A project term in a free-text field (#322), named by its field and source kind, never by the term. A field that
+// passed its closed list is skipped: its value is the kit's own (`claude-code`, a component such as `board`), so it
+// carries nothing from the project even when the project's docs or name use the same word.
 function checkDeny(record, deny, errors) {
+  const refused = new Set(errors.map((e) => e.field));
   const seen = new Set();
   for (const [field, value] of stringFields(record)) {
+    if (!FREE_TEXT.includes(field) && !refused.has(field)) continue;
     const kind = projectTerm(value, deny);
     if (!kind || seen.has(field)) continue;
     seen.add(field);
@@ -173,8 +191,10 @@ export function lessonCheck(file, dir, { kitDir, home } = {}) {
   let record;
   try { record = JSON.parse(text); } catch { return refuse([{ field: "record", rule: "not-json" }]); }
   const manifest = readManifest(kitDir);
-  const kitWords = new Set([...GLOSSARY, ...componentNames(manifest)]);
-  const deny = denySet(dir ?? currentRepo(), { home, kitWords });
+  // Only glossary words and skill names leave the deny set (decision 322-1): an app named after a kit file such as
+  // board or vision is still the app's name.
+  const kitWords = new Set([...GLOSSARY, ...skillNames(manifest)]);
+  const deny = denySet(dir ?? currentRepo(), { home, kitWords, kitFiles: manifest.core ?? {} });
   const { ok, errors } = checkLesson(record, { manifest, deny });
   if (!ok) return refuse(errors);
   console.log("Lesson accepted.");
