@@ -7,6 +7,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 ### Added
 
 - **clean-up-server reads more negations and rarer background forms (#192).** `AC-151-3-says-so` accepts "isn't", "never" and "neither … nor"; `AC-6-nothing-left` catches `{ npm run dev & }` and `&# note` and ignores a quoted `&`; a `server.pids` line with no start time counts only a PID running `server.mjs`.
+- **The local merge gate drops what it can't check, and only that (#158).** A claim or a weakening-review pass from a login whose access has no answer is dropped instead of stopping the run: `own-branch.mjs` exits 2 only when no checked writer claims the branch, and the guard fails only on an unchecked fail. gh's status is read from its trailing `(HTTP nnn)`, so a 403 that quotes "HTTP 404" exits 2. A second identical exit 2 on one pull request sends one FYI. Decision 158-1 words pause like `AGENTS.md` rule 15.
 - **short-on-memory catches every stop that hits more than one record (#176).** Its two stopped-processes checks now also see `procs.mjs ps --stop mine`, `ps --stop all` and `npx onrails ps --stop all --yes`, with a test for each form.
 
 - **test-by-hand-zero's checks close four holes (#147).** A load with `--length=2m` no longer counts as trying 2m, a Generate press after `cd scripts` is caught, "Nothing wrong… 0 min" no longer counts as calling 0 min wrong, and a prediction in words ("about 30 seconds, 1, 2, 3 and 5 minutes") passes. A "Predicted" column counts, the run's summary lists the opt-in scenarios it left out, the skill fails only a 0 the prediction didn't expect, and README's standing-rule count matches `AGENTS.md`, with a test. Decision 147-1.
@@ -22,6 +23,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
+- **push-secrets hides the value in a failing tool's error (#161).** A `gh` or `wrangler` error that echoes what it was given prints `<hidden>` in the FAILED line, the rule `connect` uses.
 - **The CLI tests pass with `TMPDIR` unset (#282).** `preflight-read-gate.test.mjs` put an unset `TMPDIR` back as the string "undefined", so the two #169 tests after it failed to make a temp folder. It now deletes it, and a new test fails any test file that puts a saved env value back without the unset case. Decision 282-1.
 - **The temp-folder and safe-PATH tests pass on newer Node and with `FORCE_COLOR` set (#277).** Every test that reads a nested `node --test` run's output now asks for the TAP report and drops `FORCE_COLOR` and `NO_COLOR` from the child's env, so a Node that prints the spec report when piped no longer fails AC-142-2 or AC-180-3 when every sample passed. Decision 277-1.
 - **The bind-mount preflight test no longer fails for a non-root user (#276).** In an unprivileged user namespace the real git's folder shows as `nobody`, so preflight rightly won't run it and the test's "real git did the probe" check failed, and AC-180-3 with it. The test now skips there with that reason; as root it still runs. Preflight's ownership rule is unchanged. decision 276-1.

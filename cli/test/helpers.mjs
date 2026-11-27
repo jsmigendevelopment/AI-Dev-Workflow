@@ -115,7 +115,7 @@ const argv = process.argv.slice(2);
 fs.appendFileSync(process.env.FAKE_LOG, argv.join(" ") + "\\n");
 const api = JSON.parse(fs.readFileSync(process.env.FAKE_API, "utf8"));
 const path = argv.filter((a) => a !== "api" && !a.startsWith("--")).at(-1);
-if (!(path in api)) { process.stderr.write("HTTP 404: " + path + "\\n"); process.exit(1); }
+if (!(path in api)) { process.stderr.write("gh: Not Found (HTTP 404)\\n"); process.exit(1); }
 let answer = api[path];
 if (Array.isArray(answer?.sequence)) {
   const seen = fs.readFileSync(process.env.FAKE_LOG, "utf8").split("\\n").filter((l) => l.split(" ").at(-1) === path).length;
