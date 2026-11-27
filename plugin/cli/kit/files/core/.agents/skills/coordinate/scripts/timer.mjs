@@ -12,6 +12,7 @@
 //   node timer.mjs fired <tag> [kind]             0: the line names this timer (next moves on); 1: stale or duplicate,
 //                                                 and for a repeating kind it prints stale-cancel <tag>
 //   node timer.mjs interval <10|30>               rewrites the interval only; prints changed or same
+//   node timer.mjs refresh                        0: a busy coordinator mid-turn moves next on (#222); 1: no timer
 //   node timer.mjs cancelled                      writes none
 // The supervisor (#206) restarts a loop whose session died. Its line sits under the sweep timer's:
 //   Supervisor: live · <kind> · <id> · every 60 min
@@ -130,6 +131,11 @@ export function run(args, text, now) {
       if (timer.interval === interval) return { code: 0, out: "same" };
       return { code: 0, out: "changed", text: withLine(text, { ...timer, interval }) };
     }
+    case "refresh": {
+      if (!timer) return { code: 1, out: "none: no timer to refresh" };
+      const next = { ...timer, next: at(now, timer.interval) };
+      return { code: 0, out: format(next), text: withLine(text, next) };
+    }
     case "cancelled":
       return { code: 0, out: "Sweep timer: none", text: withLine(text, null) };
     case "supervisor-armed": {
@@ -146,7 +152,7 @@ export function run(args, text, now) {
       if (!supervisors(text).length) return { code: 1, out: "stopped" };
       return shouldArm(timer, now) ? { code: 0, out: "restart" } : { code: 1, out: "alive" };
     default:
-      return usage("status | should-arm | dead-id | armed <kind> <id> <interval-min> | fired <tag> [kind] | interval <10|30> | cancelled | supervisor-armed <kind> <id> | supervisor-cancelled | supervise");
+      return usage("status | should-arm | dead-id | armed <kind> <id> <interval-min> | fired <tag> [kind] | interval <10|30> | refresh | cancelled | supervisor-armed <kind> <id> | supervisor-cancelled | supervise");
   }
 }
 
