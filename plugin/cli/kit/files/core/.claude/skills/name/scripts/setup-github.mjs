@@ -173,6 +173,8 @@ const labels = [
   ["size-exception", "fef2c0"],
   ["lane:tiny", "c2e0c6"], ["lane:normal", "0e8a16"], ["lane:risky", "b60205"],
   ["status:ready", "0e8a16"], ["status:in-progress", "fbca04"], ["needs-human", "d93f0b"], ["human-approved", "5319e7"], ["weakening-reviewed", "c5def5"],
+  // `ask` labels a blocker and a handoff record; `gh issue create --label` fails on a label the repo lacks.
+  ["blocker", "b60205"], ["handoff", "bfdadc"],
 ];
 await step("labels", ANY, () => {
   for (const [name, color] of labels) run(["label", "create", name, "--color", color, "--force", "--repo", repo]);
