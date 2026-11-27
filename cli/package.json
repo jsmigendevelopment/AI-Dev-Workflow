@@ -1,6 +1,6 @@
 {
   "name": "onrails",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Install and update onRails in your project: agent rules, skills, guardrails and stack packs for Claude Code and Codex.",
   "keywords": [
     "onrails",
