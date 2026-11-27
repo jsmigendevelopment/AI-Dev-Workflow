@@ -259,3 +259,20 @@ test("AC-131-1: only a real read, triage or none, or a 404 for the user, is no w
   assert.equal(odd.stdout, "");
   assert.match(odd.stderr, /Couldn't check odd's access/);
 });
+
+// #158: a claim only adds trust, so one from a login that can't be checked is dropped, never a reason to stop.
+test("AC-158-1: an unchecked login's claim beside a checked writer's claim exits 0", unixOnly, () => {
+  const r = own({ comments: [CLAIM("feat/5-share", "keeper"), CLAIM("feat/5-share")], api: { [PERM("keeper")]: REFUSED } });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, `${HEAD}: feat/5-share is this loop's branch for #5\n`);
+  const alone = own({ comments: [CLAIM("feat/5-share", "keeper")], api: { [PERM("keeper")]: REFUSED } });
+  assert.equal(alone.status, 2, "no checked writer claims it, and one claimer couldn't be checked");
+  assert.equal(alone.stdout, "");
+});
+
+test("AC-158-3: a 403 whose message quotes \"HTTP 404\" exits 2, not 1", unixOnly, () => {
+  const r = own({ api: { [PERM("builder")]: { ghError: "gh: Blocked: the mirror said HTTP 404 for this path (HTTP 403)" } } });
+  assert.equal(r.status, 2, r.stderr);
+  assert.equal(r.stdout, "");
+  assert.doesNotMatch(r.stderr, /without write access/);
+});

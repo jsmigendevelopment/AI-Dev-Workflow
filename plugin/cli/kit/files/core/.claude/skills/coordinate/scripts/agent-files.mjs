@@ -136,8 +136,8 @@ export function headVerdict(comments, head, trusted) {
   return verdicts.includes("fail") ? "fail" : verdicts.includes("pass") ? "pass" : null;
 }
 
-/** Pass or fail, and why. */
-export function decide({ changed = [], labels = [], stack = "", comments = [], head = "", trusted = new Set(), expected = null, total = null, modules = [], packages = {}, deleted = [] }) {
+/** Pass or fail, and why. `unchecked` maps a voter whose access got no answer to why. */
+export function decide({ changed = [], labels = [], stack = "", comments = [], head = "", trusted = new Set(), unchecked = new Map(), expected = null, total = null, modules = [], packages = {}, deleted = [] }) {
   if (expected && head && expected !== head) return { pass: false, why: `The pull request's head moved from ${expected} to ${head}. The run for the new head decides.` };
   if (total !== null && (total > MAX_FILES || total > changed.length)) {
     return { pass: false, why: `The pull request changes ${total} files, and the API listed ${changed.length} (it stops at ${MAX_FILES}). The guard can't see them all, so it fails. Split the pull request.` };
@@ -147,6 +147,8 @@ export function decide({ changed = [], labels = [], stack = "", comments = [], h
   const rules = [...new Set([...changed.filter(isProtected), ...modules.map((p) => `${p} (a submodule)`), ...packageChanges(changed, packages), ...deleted])];
   if (!rules.length) return { pass: true, why: "no agent rule, check or level files changed" };
   const full = level(stack) === "full";
+  const blocked = comments.find((c) => unchecked.has(c.user?.login) && verdictOf(c.body, head) === "fail");
+  if (blocked) return { pass: false, why: `${unchecked.get(blocked.user.login)}. The guard fails until GitHub answers: a fail is never dropped.` };
   const verdict = headVerdict(comments, head, trusted);
   if (verdict === "fail") {
     return { pass: false, why: `The weakening review failed at ${head}. A fail refuses on every level, whatever the labels say:\n${rules.join("\n")}` };
@@ -189,7 +191,8 @@ export const pages = (path) => JSON.parse(gh("--paginate", "--slurp", path)).fla
 /** An access check that got no answer: a proxy's 403, a 5xx, a rate limit, the network. Never "no access". */
 export class AccessUnknown extends Error {}
 
-const httpStatus = (error) => Number(String(error.stderr ?? "").match(/\bHTTP (\d{3})\b/)?.[1]) || null;
+// gh ends its error with "(HTTP nnn)". Only that trailing status counts, not one quoted in the message (#158).
+const httpStatus = (error) => Number(String(error.stderr ?? "").trim().match(/\(HTTP (\d{3})\)$/)?.[1]) || null;
 const reason = (error) => String(error.stderr || error.message).trim();
 
 // Some proxies refuse the permission path with a 403 but allow `user` and `repos/<repo>` (#131). For the
@@ -220,12 +223,22 @@ function canWrite(repo, login, me) {
 }
 
 /**
- * Logins with write, maintain or admin access. A check with no answer throws AccessUnknown, so every caller
- * fails closed: own-branch.mjs exits 2 and checks nothing out, and the guard below fails. Dropping the login
- * instead would hide a writer's fail verdict, so a pass could win.
+ * Sorts logins by access: `writers` have write, maintain or admin; `unchecked` maps each login whose check got
+ * no answer to why. A claim or a pass only adds trust, so a caller drops the unchecked ones there. A fail must
+ * never be dropped, so an unchecked fail still fails the guard (#158).
  */
-export function writers(repo, logins) {
-  return new Set(logins.filter((login) => canWrite(repo, login, me)));
+export function access(repo, logins) {
+  const writers = new Set();
+  const unchecked = new Map();
+  for (const login of logins) {
+    try {
+      if (canWrite(repo, login, me)) writers.add(login);
+    } catch (error) {
+      if (!(error instanceof AccessUnknown)) throw error;
+      unchecked.set(login, error.message);
+    }
+  }
+  return { writers, unchecked };
 }
 
 // The token's own login, read at most once per run.
@@ -309,9 +322,10 @@ function fromApi(repo, pr, expected, stackText) {
   const watched = modules.length || deleted.length || changed.some(isProtected) || packageChanges(changed, packages).length;
   const comments = watched ? pages(`repos/${repo}/issues/${pr}/comments`) : [];
   const labels = pages(`repos/${repo}/issues/${pr}/labels`).map((l) => l.name);
-  // writers() throws when a voter's access has no answer, so the guard fails closed (main, below).
+  // An unchecked voter's pass is dropped; its fail fails the guard (decide, above).
   const voters = [...new Set(comments.filter((c) => verdictOf(c.body, head)).map((c) => c.user?.login).filter(Boolean))];
-  return { changed, modules, packages, deleted, stack, comments, head, labels, trusted: writers(repo, voters), expected: expected || null, total: pull.changed_files };
+  const { writers: trusted, unchecked } = access(repo, voters);
+  return { changed, modules, packages, deleted, stack, comments, head, labels, trusted, unchecked, expected: expected || null, total: pull.changed_files };
 }
 
 /** The head's agent-files check runs, each with the workflow file and event that made it. */
@@ -364,7 +378,7 @@ export function main(argv, env = process.env) {
   try {
     r = run(argv, env);
   } catch (error) {
-    // A voter's access with no answer fails the guard: it never counts a pass or drops a fail.
+    // An access check with no answer outside the voters' sort fails the guard.
     if (!(error instanceof AccessUnknown)) throw error;
     r = { pass: false, why: `${error.message}. The guard fails until GitHub answers.` };
   }

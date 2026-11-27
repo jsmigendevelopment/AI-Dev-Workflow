@@ -89,3 +89,17 @@ test("#131 item 3: an access check with no answer fails the gate, even when it w
   });
   assert.equal(own.status, 0, `the token's own login passes on the repo's permissions: ${own.stderr}`);
 });
+
+// #158: an unchecked voter's pass is dropped, and its fail still fails the guard.
+test("AC-158-2: an unchecked pass beside a writer's pass passes; an unchecked fail fails", unixOnly, () => {
+  const refused = { ghError: "gh: Access to this GitHub API path is not permitted through this proxy. (HTTP 403)" };
+  const api = { "repos/acme/app/collaborators/keeper/permission": refused };
+  const keeper = (comment) => ({ ...comment, user: { login: "keeper" } });
+  const pass = gate(["7", "--repo", "acme/app", "--head", HEAD], { comments: [keeper(PASS()), PASS()], api });
+  assert.equal(pass.status, 0, pass.stderr);
+  const alone = gate(["7", "--repo", "acme/app", "--head", HEAD], { comments: [keeper(PASS())], api });
+  assert.equal(alone.status, 1, "an unchecked pass alone counts for nothing");
+  const fail = gate(["7", "--repo", "acme/app", "--head", HEAD], { comments: [PASS(), keeper(FAIL())], api });
+  assert.equal(fail.status, 1, fail.stdout);
+  assert.match(fail.stderr, /Couldn't check keeper's access.*guard fails until GitHub answers/i);
+});
