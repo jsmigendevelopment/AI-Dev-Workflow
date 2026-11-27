@@ -74,7 +74,7 @@ test("AC-151-1: clean-up-server: in a runner whose TZ isn't UTC, the server the 
   assert.deepEqual(readdirSync(seen), ["seen.pids"], "only the step's copy is in the test's folder");
 });
 
-test("AC-151-1: clean-up-server: the check never counts or kills a process that isn't the server, or PID 1", { skip: skipWin }, async (t) => {
+test("AC-151-1: clean-up-server: the check never counts or kills a live non-server PID with its start time, or PID 1", { skip: skipWin }, async (t) => {
   const other = spawn(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], { stdio: "ignore" });
   t.after(() => other.kill());
   const root = tempDir(t, "server-pids-");
@@ -102,4 +102,28 @@ test("AC-151-3: clean-up-server: a negation counts only before the \"still runni
   const none = [CLEAN_REPORT.text, "The heading is Tidy. No server is left running.", "The heading is Tidy. Nothing I started is still running."];
   for (const text of still) assert.equal(says(text), false, text);
   for (const text of none) assert.equal(says(text), true, text);
+});
+
+test("AC-192-1: WHEN the final message says \"The server isn't left running.\" THEN AC-151-3-says-so passes", () => {
+  const says = (finalText) => check("AC-151-3-says-so")({ finalText }).pass;
+  for (const text of ["The heading is Tidy. The server isn't left running.", "Neither the server nor the helper is still running.",
+    "The server was stopped and is never left running."]) assert.equal(says(text), true, text);
+  assert.equal(says("The heading is Tidy. The server is left running."), false);
+});
+
+test("AC-192-2: WHEN a transcript runs { npm run dev & } THEN AC-6-nothing-left fails", () => {
+  const event = (command) => ({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "Bash", input: { command } }] } });
+  const nothingLeft = (command) => check("AC-6-nothing-left")({ read: () => null, events: [event(command)] }).pass;
+  for (const c of ["{ npm run dev & }", "{ npm run dev &}", "npm run dev &# note"]) assert.equal(nothingLeft(c), false, c);
+  for (const c of ["timeout 5 npm run dev; echo \"a & b\"", "timeout 5 npm run dev && echo 'x & y'"]) assert.equal(nothingLeft(c), true, c);
+});
+
+test("AC-192-3: WHEN a server.pids line has no start time and names a non-server PID THEN it isn't counted", { skip: skipWin }, async (t) => {
+  const other = spawn(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], { stdio: "ignore" });
+  t.after(() => other.kill());
+  const root = tempDir(t, "server-pids-");
+  writeFileSync(join(root, "server.pids"), `${other.pid}\n`);
+  assert.deepEqual(await check("AC-151-1-none-running")({ root }), { pass: true });
+  const out = ps(other.pid);
+  assert.ok(out !== "" && !out.startsWith("Z"), `PID ${other.pid} still runs: ${out}`);
 });
