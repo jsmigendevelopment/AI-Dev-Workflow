@@ -235,8 +235,10 @@ function textAt(repo, path, ref) {
     if (httpStatus(error) === 404) return null;
     throw error;
   }
-  // A folder, a symlink or a file over 1 MB comes back without base64 text.
+  // A folder, a symlink out of the repo or a file over 1 MB comes back without base64 text. A symlink to a file in
+  // the repo comes back as that file, with its own path: only a reply for the path asked for is the file itself.
   if (file?.type !== "file" || file.encoding !== "base64") throw new Error(`the contents API gave no text (type ${file?.type}, encoding ${file?.encoding})`);
+  if (file.path !== path) throw new Error("the contents API answered with another file (a symlink?)");
   return Buffer.from(file.content, "base64").toString("utf8");
 }
 
@@ -262,7 +264,9 @@ function packagesFromApi(repo, pull, files) {
   if (!wanted.size) return {};
   let mergeBase;
   try {
-    mergeBase = JSON.parse(gh(`repos/${repo}/compare/${pull.base.sha}...${pull.head.sha}`)).merge_base_commit.sha;
+    // The live base branch, not the base tip GitHub stored for the pull request: the merge that will really happen.
+    const base = pull.base.ref.split("/").map(encodeURIComponent).join("/");
+    mergeBase = JSON.parse(gh(`repos/${repo}/compare/${base}...${pull.head.sha}`)).merge_base_commit.sha;
   } catch (error) {
     mergeBase = { error: `no merge base: ${reason(error)}` };
   }

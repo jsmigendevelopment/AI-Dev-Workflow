@@ -3,17 +3,16 @@
 // and at the head, and fails closed on a side it can't read or parse. `gate` reads both sides through a fake gh.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { decide } from "../../.agents/skills/coordinate/scripts/agent-files.mjs";
+import { spawnSync } from "./child.mjs";
 import { fakeGh, safeEnv, tmp, unixOnly } from "./helpers.mjs";
 
 const SCRIPT = fileURLToPath(new URL("../../.agents/skills/coordinate/scripts/agent-files.mjs", import.meta.url));
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const HEAD = "a".repeat(40);
-const BASE = "c".repeat(40);
 const MERGE_BASE = "d".repeat(40);
 const FULL = "## Automation level\n\n- **Level:** full\n";
 const RECOMMENDED = "## Automation level\n\n- **Level:** recommended\n";
@@ -106,19 +105,19 @@ test("AC-163-5: WHEN a changed package.json can't be read at one side, or isn't 
 // through the contents API at that commit.
 const P = "repos/acme/app";
 const at = (path, ref) => `${P}/contents/${path}?ref=${ref}`;
-const content = (text) => ({ type: "file", encoding: "base64", content: Buffer.from(text).toString("base64") });
+const content = (text, path = "package.json") => ({ type: "file", encoding: "base64", path, content: Buffer.from(text).toString("base64") });
 function gate({ files = [{ filename: "package.json", status: "modified" }], base = json(PKG), head = json(WEAKER), stack = RECOMMENDED, api = {} } = {}) {
   const dir = tmp("onrails-gate-pkg-");
   const path = files[0].filename;
   const fake = fakeGh(dir, {
-    [`${P}/pulls/7`]: { head: { sha: HEAD }, base: { sha: BASE }, changed_files: files.length },
+    [`${P}/pulls/7`]: { head: { sha: HEAD }, base: { sha: "e".repeat(40), ref: "main" }, changed_files: files.length },
     [`${P}/pulls/7/files`]: files,
     [`${P}/issues/7/comments`]: [],
     [`${P}/issues/7/labels`]: [],
-    [`${P}/contents/docs/stack.md`]: content(stack),
-    [`${P}/compare/${BASE}...${HEAD}`]: { merge_base_commit: { sha: MERGE_BASE } },
-    [at(path, MERGE_BASE)]: content(base),
-    [at(path, HEAD)]: content(head),
+    [`${P}/contents/docs/stack.md`]: content(stack, "docs/stack.md"),
+    [`${P}/compare/main...${HEAD}`]: { merge_base_commit: { sha: MERGE_BASE } },
+    [at(path, MERGE_BASE)]: content(base, path),
+    [at(path, HEAD)]: content(head, path),
     ...api,
   });
   const r = spawnSync(process.execPath, [SCRIPT, "gate", "7", "--repo", "acme/app", "--head", HEAD], { cwd: dir, encoding: "utf8", env: fake.env });
@@ -129,7 +128,7 @@ test("AC-163-6: WHEN gate runs with the fake gh on a pull request that changes p
   const r = gate();
   assert.equal(r.status, 1, r.stdout);
   assert.match(r.stderr, /package\.json \(scripts\)/);
-  assert.match(r.calls, new RegExp(`compare/${BASE}\\.\\.\\.${HEAD}`));
+  assert.match(r.calls, new RegExp(`compare/main\\.\\.\\.${HEAD}`));
   assert.ok(r.calls.includes(at("package.json", MERGE_BASE)), r.calls);
   assert.ok(r.calls.includes(at("package.json", HEAD)), r.calls);
   const bump = gate({ head: json(BUMPED) });
@@ -146,7 +145,7 @@ test("#163: gate fails closed when a side can't be read, or isn't where the file
   const big = gate({ api: { [at("package.json", HEAD)]: { type: "file", encoding: "none", content: "" } } });
   assert.equal(big.status, 1, big.stdout);
   assert.match(big.stderr, /package\.json \(couldn't read the head: .+\)/);
-  const noBase = gate({ api: { [`${P}/compare/${BASE}...${HEAD}`]: { ghError: "gh: Server Error (HTTP 502)" } } });
+  const noBase = gate({ api: { [`${P}/compare/main...${HEAD}`]: { ghError: "gh: Server Error (HTTP 502)" } } });
   assert.equal(noBase.status, 1, noBase.stdout);
   assert.match(noBase.stderr, /package\.json \(couldn't read the base: .*merge base.*HTTP 502/);
 });
@@ -155,13 +154,28 @@ test("#163: gate: a renamed package.json is read under both names, and an added 
   const files = [{ filename: "apps/site/package.json", previous_filename: "apps/web/package.json", status: "renamed" }];
   const gone = { ghError: "gh: Not Found (HTTP 404)" };
   const moved = gate({ files, base: json(PKG), head: json(PKG), api: { [at("apps/site/package.json", MERGE_BASE)]: gone, [at("apps/web/package.json", HEAD)]: gone,
-    [at("apps/web/package.json", MERGE_BASE)]: content(json(PKG)), [at("apps/site/package.json", HEAD)]: content(json(PKG)) } });
+    [at("apps/web/package.json", MERGE_BASE)]: content(json(PKG), "apps/web/package.json"), [at("apps/site/package.json", HEAD)]: content(json(PKG), "apps/site/package.json") } });
   assert.equal(moved.status, 1, moved.stdout);
   assert.match(moved.stderr, /^apps\/web\/package\.json \(scripts\)$/m);
   assert.match(moved.stderr, /^apps\/site\/package\.json \(scripts\)$/m);
   const added = gate({ files: [{ filename: "package.json", status: "added" }], head: json({ dependencies: { a: "1.0.0" } }),
     api: { [at("package.json", MERGE_BASE)]: gone } });
   assert.equal(added.status, 0, added.stderr);
+});
+
+test("#163 round 1: gate fails closed when the contents API answers with another file's path (a symlink to a file in the repo)", unixOnly, () => {
+  const linked = gate({ head: json(PKG), api: { [at("package.json", HEAD)]: content(json(PKG), "config/real-package.json") } });
+  assert.equal(linked.status, 1, `same text, but not the file asked for: ${linked.stdout}`);
+  assert.match(linked.stderr, /package\.json \(couldn't read the head: .*another file/);
+  const ok = gate({ head: json(PKG) });
+  assert.equal(ok.status, 0, `the same text from the file itself passes: ${ok.stderr}`);
+});
+
+test("#163 round 1: gate takes the merge base against the live base branch, not the base sha stored on the pull request", unixOnly, () => {
+  const r = gate({ head: json(BUMPED) });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.calls, new RegExp(`compare/main\\.\\.\\.${HEAD}`));
+  assert.doesNotMatch(r.calls, /compare\/e{40}/);
 });
 
 test("#163: a pull request with no package.json reads no contents and no merge base", unixOnly, () => {
