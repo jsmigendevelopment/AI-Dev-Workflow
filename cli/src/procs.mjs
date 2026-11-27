@@ -23,7 +23,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureWatcher, readGuard, reap, sessionEnd, sessionStart, watch } from "./procs-hooks.mjs";
+import { ensureWatcher, printable, readGuard, reap, sessionEnd, sessionStart, watch } from "./procs-hooks.mjs";
 import { MINUTE, SCRIPT, age, iso, newId, newRecord, survey, whoAmI } from "./procs-records.mjs";
 import { FIX, askAgain, fixable, homeDir, logFor, registryPath, untrusted, update } from "./procs-store.mjs";
 import { GRACE_S, NO_LIST, floor, forget, guarded, stopRecords } from "./procs-stop.mjs";
@@ -32,12 +32,15 @@ import { realSys } from "./procs-sys.mjs";
 const SELF = fileURLToPath(import.meta.url);
 const PAUSE_HOURS = 2;
 
+// Each field a record holds as text, escaped and quoted when it isn't plain, never cut (#250).
+const shown = (text, none) => printable(text, { bare: true, max: Infinity, none });
+
 function row(r, now) {
   const state = r.stale ? `STALE: ${r.stale}` : r.state === "paused" ? `paused until ${r.pausedUntil}` : "running";
   const usage = [r.cpu, r.mem ? `${Math.round(r.mem / 1024)} MB` : null].filter(Boolean).join(" · ");
   const owner = r.owner === "unknown" ? r.label : `${r.label} (${r.owner})`;
-  return [`- ${r.id} · ${state} · pid ${r.pid} · ${age(now - Date.parse(r.startedAt))}${usage ? ` · ${usage}` : ""} · owner ${owner}`,
-    `    ${r.command} · why: ${r.why} · until: ${r.until}`].join("\n");
+  return [`- ${shown(r.id, "no id")} · ${state} · pid ${r.pid} · ${age(now - Date.parse(r.startedAt))}${usage ? ` · ${usage}` : ""} · owner ${owner}`,
+    `    ${shown(r.command, "no command")} · why: ${shown(r.why, "none")} · until: ${shown(r.until, "none")}`].join("\n");
 }
 
 /** For doctor: how many records there are, the stale ones, and why each registry skipped for a mode was skipped. It writes nothing. */

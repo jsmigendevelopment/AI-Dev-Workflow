@@ -34,6 +34,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 ### Fixed
 
 - The opt-in eval `live-thread-loop` also fails "built nothing" when the live thread leaves uncommitted changes under `src/` that no sub-agent edit made, such as a Bash redirect (#287).
+- `list`, `npx onrails ps` and `doctor` print a process record's id, command, reason and stop condition through the same escaping as the session hooks, so an odd record can't drive the terminal or pass for another (#250).
 - **The Windows process registry counts inherit-only rules on its own folders (#268).** A write grant to another account that only applies to what is made later, on `.onrails`, its `logs` folder or the folder that holds `.onrails`, now refuses the registry up front with the usual fix line; on the folders above a repo root it still doesn't count. Decision 268-1.
 - **Windows process registry: no link followed on a peeked index path (#267).** Before the index is checked, a path it lists with a symlink or junction on the way, found with `lstat` from the root down, stays out of the one ACL batch, so neither `existsSync` nor `Get-Acl` follows it. Decision 267-1.
 
