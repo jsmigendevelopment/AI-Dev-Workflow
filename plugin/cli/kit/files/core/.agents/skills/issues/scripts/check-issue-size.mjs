@@ -3,7 +3,8 @@
 // exception, or a split parent that names its open children. Read only: it writes nothing. The consistency check runs it.
 // Usage:  gh issue list --limit 200 --json number,title,body,labels | node check-issue-size.mjs    issues on stdin
 //         node check-issue-size.mjs docs/issues/*.md     issue files, before GitHub; a `Status: done` file is skipped
-// Exit 0: every issue passes. Exit 1: one line per issue with a gap. Exit 2: the input can't be read, or holds no issue.
+// Exit 0: every issue passes. Exit 1: one line per issue with a gap. Exit 2: the input can't be read, holds no issue,
+// or has a split parent with no labels.
 // It fails closed: an estimate it can't read in the one shape below fails, so it never passes 1,000 or more.
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
@@ -14,24 +15,46 @@ export const LIMIT = 1000; // changed lines; at this or over, the issue is split
 // A Size: value starts a line (after a list dash or bold) or follows a "·". Any case; "**Size:**" or "**Size**:".
 const SIZE = /^\**size\**[ \t]*:\**[ \t]*/i;
 const LIST_MARK = /^[ \t]*(?:[-*+][ \t]+)?/;
-// The one estimate shape: an optional qualifier, one number or a range (each with an optional k), an optional
-// "changed", then "lines" or "loc". Thousands are grouped by a comma or a space; a decimal needs a k ("1.5k").
+// The one estimate shape: an optional qualifier, one number or a range (each with an optional k), then "lines" or
+// "loc", with "changed" before or after. Thousands are grouped by a comma or a space; a decimal needs a k ("1.5k").
 const QTY = String.raw`(\d+(?:[.,]\d{1,2})?\s*k|\d{1,3}(?:[,    ]\d{3})+|\d+)`;
 const ESTIMATE = new RegExp(
   String.raw`^(?:(?:about|around|roughly|approximately|approx\.?|under|up to|at most|~|≈|<|≤)\s*)?` +
-    String.raw`${QTY}(?:\s*(?:-|to|[‐-―−])\s*${QTY})?\s*(?:changed\s+)?(?:lines?|loc)\.?$`,
+    String.raw`${QTY}(?:\s*(?:-|to|[‐-―−])\s*${QTY})?\s*(?:changed\s+)?(?:lines?|loc)(?:\s+changed)?\.?$`,
   "i",
 );
 const LIMIT_WORD = /^(?:under|up to|at most|<|≤)/i;
-// A number of lines in a later part of the value: a second estimate. "#1024" or "1200-x.ts" isn't one.
-const SECOND = /\d\s*k?\s*(?:changed\s+)?(?:lines?|loc)(?!\p{L})/iu;
+// A number of lines in a later part of the value, one word allowed before the unit: a second estimate. So is "test"
+// next to a number, after a bracket, a dash, a qualifier or a word like "code" ("tests: about 600", "tests (600)",
+// "tests - 600", "test code: 600", "600 in tests").
+// "#1024", "1200-x.ts", "test/12-x.ts" or "AC-12-1 tests" isn't one.
+const SECOND = /\d\+?\s*k?\s*(?:\p{L}+\s+)?(?:lines?|loc)(?!\p{L})/iu;
+const TESTS = /(?<![\p{L}\p{N}])tests?(?![\p{L}\p{N}/._-])(?:\s+(?:code|files?|cases?|suites?))?[\s:=~≈+(\[\-–—]*(?:(?:about|around|roughly|approximately|approx\.?|another|add|adds|plus)\s*)?\d|(?<![\p{L}\p{N}#/._-])\d[\d,.]*\s*k?\s*(?:\p{L}+\s+)?tests?(?![\p{L}\p{N}/._-])/iu;
 // The two whole forms, each only at the start of the value or right after a "·".
 const EXCEPTION = /^exception:\s*/i;
 const SPLIT = /^split into\s+(#\d+(?:\s*(?:,|&|and)\s*#\d+)*)\s*$/i;
-// A reason that says there is none, once its punctuation is gone: "n/a", "-", "<reason>", "TBD.".
-const PLACEHOLDERS = new Set(["", "none", "na", "no", "nil", "null", "tbd", "todo", "unknown", "reason"]);
-// Size written in a way the value reader skips: a table cell, "_Size_:", a full-width colon, "Size -".
-const MENTION = /(?<!\p{L})size(?!\p{L})[\s_*`]*[:：|=\-–—][^\n]*?\d[^\n]*?(?<!\p{L})k?(?:lines?|loc)(?!\p{L})/iu;
+// A reason that says there is none, once its punctuation is gone: "n/a", "-", "<reason>", "TBD.", "not needed", or one
+// that starts with none, tbd, tbc, todo or n/a ("none yet", "TBD later"). "none of it splits" and "no way to split" are real.
+const PLACEHOLDERS = new Set(["", "none", "na", "no", "nil", "null", "tbd", "tbc", "todo", "unknown", "reason", "nope",
+  "nothing", "later", "no reason", "no reason yet", "no reason given", "not needed", "not applicable", "no need",
+  "to be decided", "to be confirmed", "unknown yet"]);
+const PLACEHOLDER_START = /^(?:none(?! of\b)|tbd|tbc|todo|na)\b/;
+// A reason that names an issue or says it is split is a split parent written as an exception: "split into", "splitting
+// into", "broken into", "already split", "Split.", "child issues", "children 12 and 13". A "no", "can't", "too" or the
+// like in the same clause, right before it, makes it a real reason ("can't be split into parts"); one in an earlier
+// clause doesn't ("too big, split into child issues").
+const SPLIT_SAID = new RegExp(
+  String.raw`(?<!\p{L})(?:(?:already|was|been|is|are|now|got)\s+split|split(?:s|ting)?(?:\s+up)?\s+(?:into|in|across|between|as)` +
+    String.raw`|(?:broken|cut)(?:\s+up)?\s+into|split\s*[.!]?\s*$|child(?:ren)?\s+issues?|children\s+#?\d+)(?!\p{L})`,
+  "giu",
+);
+// A clause ends at punctuation, a dash or slash, or "so", "and", "then" or "but": "too big - split into ..." fails.
+const CLAUSE = /[,;:.()\/–—]|\s-\s|(?<!\p{L})(?:so|and|then|but)(?!\p{L})/iu;
+const NEGATION = /(?<!\p{L})(?:no|not|never|cannot|can['’]?t|won['’]?t|don['’]?t|doesn['’]?t|isn['’]?t|unable|without|hard|too)(?!\p{L})/iu;
+// Size written in a way the value reader skips: a table cell, "_Size_:", a full-width colon, "Size -". As on main, the
+// unit may follow the number anywhere in the same clause ("1,500 (est.) lines", "1,500 new code lines"). Only a number
+// with a size unit after it (px, MB) is skipped, so "font size: 16px, line-height: 24px" isn't one.
+const MENTION = /(?<!\p{L})size(?!\p{L})[\s_*`]*[:：|=\-–—][^\n]*?\d(?!\s*(?:px|pt|em|rem|vh|vw|kb|mb|gb|tb|bytes?)(?!\p{L}))[^\n,;:\d]*?(?<!\p{L})k?(?:lines?|loc)(?!\p{L})/iu;
 // CommonMark: up to 3 spaces of indent, closed by a run of the same character at least as long.
 const FENCE = /^ {0,3}((`|~)\2{2,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1\2*[ \t]*$|(?![\s\S]))/gm;
 const QUOTE = /^[ \t]*>.*$/gm;
@@ -77,7 +100,7 @@ function parse(value) {
     else if (/\d/.test(head)) size.unreadable = head;
     if (match && LIMIT_WORD.test(head)) size.limit = true;
   }
-  const second = segments.slice(1).find((s) => !EXCEPTION.test(s) && !SPLIT.test(s) && SECOND.test(s));
+  const second = segments.slice(1).find((s) => !EXCEPTION.test(s) && !SPLIT.test(s) && (SECOND.test(s) || TESTS.test(s)));
   if (second !== undefined) size.second = second;
   if (split) size.split = split[1].match(/\d+/g).map(Number);
   return size;
@@ -89,8 +112,12 @@ export function readSize(body) {
   return value === undefined ? null : parse(value);
 }
 
-const noReason = (reason) =>
-  PLACEHOLDERS.has(reason.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim());
+const noReason = (reason) => {
+  const words = reason.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+  return PLACEHOLDERS.has(words) || PLACEHOLDER_START.test(words);
+};
+const splitReason = (reason) =>
+  /#\d+/.test(reason) || [...reason.matchAll(SPLIT_SAID)].some((m) => !NEGATION.test(reason.slice(0, m.index).split(CLAUSE).pop()));
 const labelledReady = (labels) =>
   (labels ?? []).some((l) => String(typeof l === "string" ? l : l?.name).toLowerCase() === "status:ready");
 // A file is ready unless it says blocked: coordinate's local mode adds `Status: ready` to a file with no status line.
@@ -116,7 +143,7 @@ function sizeProblem(issue, open) {
   const size = parse(values[0]);
   if (size.unreadable) return `can't read this estimate: "${size.unreadable}". ${total}`;
   if (size.second !== undefined) return `a second estimate after the "·": "${size.second}". ${total}`;
-  if (size.exception !== null && size.split) return "the Size: line states both an exception and a split. Keep one.";
+  if (size.exception !== null && (size.split || splitReason(size.exception))) return "the Size: line states both an exception and a split. Keep one.";
   if (size.exception !== null) return noReason(size.exception) ? "the Size: exception has no reason. Write `Size: exception: <reason>`." : null;
   if (size.split) return splitProblem(issue, size.split, open);
   if (size.estimate === null) return "the Size: line has no estimate. Write `Size: <estimate> lines · <files or modules>`.";
@@ -144,11 +171,14 @@ function fromFile(path) {
   return { number: Number.isNaN(number) ? basename(path) : number, title, body, file: true, done: statusOf(body) === "done" };
 }
 
-// The REST API sends an empty body as null. Labels, when there, are `gh issue list --json labels`'s list.
+// The REST API sends an empty body as null. Labels are `gh issue list --json labels`'s list. Only a split parent
+// needs them, to tell whether it is ready, so one with no labels can't be read as not ready.
 function fromStdin() {
   const issues = JSON.parse(readFileSync(0, "utf8"));
   if (!Array.isArray(issues) || !issues.every((i) => i && (typeof i.body === "string" || i.body === null))) throw new Error("not a list");
   if (!issues.every((i) => i.labels == null || Array.isArray(i.labels))) throw new Error("labels must be a list");
+  const bare = issues.find((i) => i.labels == null && scan(i.body ?? "").values.some((v) => parse(v).split));
+  if (bare) throw new Error(`#${bare.number} is a split parent with no labels, so whether it is ready can't be read`);
   return issues;
 }
 
@@ -157,7 +187,7 @@ function main(args) {
   try {
     all = args.length ? args.map(fromFile) : fromStdin();
   } catch (error) {
-    console.error(`check-issue-size: expected a JSON list of issues with number, title and body on stdin, or issue files (${error.message}).`);
+    console.error(`check-issue-size: expected a JSON list of issues with number, title, body and labels on stdin, or issue files (${error.message}).`);
     return 2;
   }
   const issues = all.filter((issue) => !issue.done);

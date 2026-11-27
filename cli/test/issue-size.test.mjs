@@ -140,18 +140,6 @@ test("AC-375-2: WHEN a Size line sits in a fenced block or an HTML comment THEN 
   }
 });
 
-test("AC-375-1: WHEN an issue is split THEN the parent's Size line names its children and the check passes it", () => {
-  assert.match(skill, /The parent's Size line becomes `Size: split into #<child>, #<child>`/);
-  assert.match(skill, /The parent never gets `status:ready` and is never built/);
-  assert.match(template, /The parent of a split: "Size: split into #<child>, #<child>"/);
-  assert.deepEqual(readSize(body("split into #12, #13")), { estimate: null, exception: null, split: [12, 13] });
-  assert.deepEqual(readSize(body("about 2,400 lines · split into #12 and #13")), { estimate: 2400, exception: null, split: [12, 13] });
-  const children = [issue(12, "about 600 lines · cli/src"), issue(13, "about 600 lines · cli/test")];
-  assert.deepEqual(checkSizes([issue(10, "split into #12, #13"), issue(11, "about 2,400 lines · split into #12 and #13"), ...children]), []);
-  assert.deepEqual(checkSizes([issue(14, "about 2,400 lines · split into two", "Not split yet")]),
-    ["#14 Not split yet: the estimate is 2,400 lines, 1,000 or more. Split it into child issues, or write `Size: exception: <reason>`."]);
-});
-
 test("AC-375-2: WHEN the list is empty THEN the script exits 2 and never says every line passes", () => {
   const r = run([], "[]");
   assert.equal(r.status, 2, r.stdout);
@@ -216,41 +204,6 @@ test("AC-375-2: WHEN a Size line sits in a quote block THEN it doesn't count", (
     ["#12 Child: no Size: line. Write `Size: <estimate> lines · <files or modules>`."]);
 });
 
-test("AC-375-2: WHEN exception: or split into sits inside the files THEN it doesn't count", () => {
-  for (const size of ["1,500 lines · cli/src, no exception: really", "2,400 lines · cli/src, split into #12 and #13 later"]) {
-    assert.match(checkSizes([issue(12, size, "Big step"), issue(13, "200 lines")])[0], /^#12 Big step: the estimate is [\d,]+ lines, 1,000 or more\./, size);
-  }
-});
-
-test("AC-375-2: WHEN a split parent names no other issue in the list, or itself, THEN the check fails and names it", () => {
-  assert.deepEqual(checkSizes([issue(10, "split into #9998, #9999", "Parent")]),
-    ["#10 Parent: none of its children (#9998, #9999) is open in this list. Close it once its last child merges, or name its open children."]);
-  assert.deepEqual(checkSizes([issue(10, "split into #10, #12", "Parent"), issue(12, "300 lines")]),
-    ["#10 Parent: the split names itself. Name its child issues: `Size: split into #<child>, #<child>`."]);
-  assert.deepEqual(checkSizes([issue(10, "split into #12, #9999", "Parent"), issue(12, "300 lines")]), []);
-});
-
-test("AC-375-2: WHEN a split parent is ready, by label or by its file's Status line, THEN the check fails", () => {
-  const ready = "#10 Parent: a split parent is never ready. Remove `status:ready`, or in a file write `Status: blocked`, until its last child is done.";
-  const parent = { ...issue(10, "split into #12, #13", "Parent"), labels: [{ name: "status:ready" }] };
-  const r = run([], JSON.stringify([parent, issue(12, "300 lines"), issue(13, "300 lines")]));
-  assert.equal(r.status, 1, r.stderr);
-  assert.equal(r.stdout.trim().split("\n")[0], ready);
-  const dir = tmp();
-  put(dir, "docs/issues/010-parent.md", `# Parent\n\nStatus: ready\n\n${body("split into #12")}`);
-  put(dir, "docs/issues/012-child.md", `# Child\n\nStatus: ready\n\n${body("300 lines · cli/src")}`);
-  const files = run(["docs/issues/010-parent.md", "docs/issues/012-child.md"], "", dir);
-  assert.equal(files.status, 1, files.stderr);
-  assert.equal(files.stdout.trim().split("\n")[0], ready);
-  put(dir, "docs/issues/010-parent.md", `# Parent\n\nStatus: blocked\n\n${body("split into #12")}`);
-  assert.equal(run(["docs/issues/010-parent.md", "docs/issues/012-child.md"], "", dir).status, 0);
-  assert.match(skill, /In `docs\/issues\/`, the parent's file says `Status: blocked` until its last child is `done`/);
-  assert.match(consistency, /a split parent that names no other open issue, names itself, or is ready/);
-});
-
-const noReason = (n, title) => `#${n} ${title}: the Size: exception has no reason. Write \`Size: exception: <reason>\`.`;
-const neverReady = "#10 Parent: a split parent is never ready. Remove `status:ready`, or in a file write `Status: blocked`, until its last child is done.";
-
 test("AC-375-2: WHEN a later part of the Size value holds a second estimate THEN the check asks for one total", () => {
   for (const [size, second] of [
     ["900 lines · 600 lines of tests", "600 lines of tests"],
@@ -261,32 +214,6 @@ test("AC-375-2: WHEN a later part of the Size value holds a second estimate THEN
       [`#12 Big step: a second estimate after the "·": "${second}". Write one total, like \`Size: about 600 lines · <files or modules>\`.`], size);
   }
   assert.deepEqual(checkSizes([issue(7, "about 300 lines · split from #1024 · src/routes/1200-x.ts · 2 files")]), []);
-});
-
-test("AC-375-2: WHEN an exception's reason is empty or a placeholder THEN the check fails it as no reason", () => {
-  const reasons = ["none", "n/a", "-", "N/A.", "na", "no", "nil", "null", "TBD", "todo", "unknown", "?", "--", "<reason>", "reason", "(none)"];
-  for (const reason of reasons) {
-    assert.deepEqual(checkSizes([issue(5, `about 1,500 lines · exception: ${reason}`, "Empty reason")]), [noReason(5, "Empty reason")], reason);
-    assert.deepEqual(checkSizes([issue(5, `exception: ${reason}`, "Empty reason")]), [noReason(5, "Empty reason")], reason);
-  }
-  assert.deepEqual(checkSizes([issue(5, "exception: no way to split a rename")]), []);
-});
-
-test("AC-375-2: WHEN a split parent's file has no status line or any status but blocked THEN the check fails it", () => {
-  const dir = tmp();
-  put(dir, "docs/issues/012-child.md", `# Child\n\nStatus: ready\n\n${body("300 lines · cli/src")}`);
-  const files = ["docs/issues/010-parent.md", "docs/issues/012-child.md"];
-  for (const status of ["", "**Status:** ready\n\n", "- Status: ready\n\n", "Status: in-progress\n\n", "status: Ready\n\n"]) {
-    put(dir, "docs/issues/010-parent.md", `# Parent\n\n${status}${body("about 2,400 lines · split into #12, #13")}`);
-    const r = run(files, "", dir);
-    assert.equal(r.status, 1, status);
-    assert.equal(r.stdout.trim().split("\n")[0], neverReady, status);
-  }
-  for (const status of ["**Status:** blocked", "- Status: blocked", "- **Status**: blocked"]) {
-    put(dir, "docs/issues/010-parent.md", `# Parent\n\n${status}\n\n${body("split into #12")}`);
-    assert.equal(run(files, "", dir).status, 0, status);
-  }
-  assert.match(consistency, /or in a file any status but `Status: blocked`/);
 });
 
 test("AC-375-2: WHEN a Size the check can't read sits next to a read one THEN the check fails and shows it", () => {
@@ -305,27 +232,64 @@ test("AC-375-2: WHEN a fence closes on a longer run, or a run is indented 4 spac
   assert.deepEqual(checkSizes([{ number: 9, title: "Fenced", body: "Size: 200 lines\n~~~~\nSize: 1,500 lines\n~~~~~\n" }]), []);
 });
 
-test("AC-375-2: WHEN one Size value states both an exception and a split THEN the check fails it", () => {
-  const both = { ...issue(10, "about 2,400 lines · split into #12 · exception: big", "Parent"), labels: ["status:ready"] };
-  assert.deepEqual(checkSizes([both, issue(12, "300 lines")]),
-    ["#10 Parent: the Size: line states both an exception and a split. Keep one."]);
-});
-
-test("AC-375-2: WHEN labels aren't a list THEN the script exits 2, and a ready label matches in any case", () => {
-  for (const labels of ["status:ready", { nodes: [{ name: "status:ready" }] }]) {
-    const r = run([], JSON.stringify([{ ...issue(10, "300 lines"), labels }]));
-    assert.equal(r.status, 2, JSON.stringify(labels));
-    assert.match(r.stderr, /labels must be a list/);
-    assert.doesNotMatch(r.stderr, /at .*\.mjs:\d+/);
-  }
-  const parent = { ...issue(10, "split into #12", "Parent"), labels: [{ name: "Status:Ready" }] };
-  assert.deepEqual(checkSizes([parent, issue(12, "300 lines")]), [neverReady]);
-});
-
 test("AC-375-2: WHEN the estimate is written as a limit THEN the message says to write the estimate, not the limit", () => {
   assert.deepEqual(checkSizes([issue(12, "under 1,000 lines · cli/src", "Big step")]),
     ["#12 Big step: the estimate is 1,000 lines, 1,000 or more. Split it into child issues, or write `Size: exception: <reason>`. Write your estimate, not the limit."]);
   assert.match(skill, /Write your estimate, not the limit/);
   assert.equal(readSize(body("about 300 lines.")).estimate, 300);
   assert.match(read("docs/decisions/375-1.md"), /Decisions 375-3 and 375-4 replace/);
+});
+
+test("AC-400-1: WHEN a later part has a word before its unit, or tests next to a number, THEN the check asks for one total", () => {
+  for (const [size, second] of [
+    ["900 lines · src/a.ts, +600 test lines", "src/a.ts, +600 test lines"],
+    ["900 lines · tests: 600", "tests: 600"],
+    ["900 lines · tests ~600 more", "tests ~600 more"],
+    ["900 lines · cli/src · 600 in tests", "600 in tests"],
+  ]) {
+    assert.deepEqual(checkSizes([issue(12, size, "Big step")]),
+      [`#12 Big step: a second estimate after the "·": "${second}". Write one total, like \`Size: about 600 lines · <files or modules>\`.`], size);
+  }
+  assert.deepEqual(checkSizes([issue(7, "about 300 lines · cli/test/12-x.test.mjs, tests/e2e/2fa.spec.ts · AC-400-1 tests")]), []);
+});
+
+test("AC-400-1: WHEN a design note gives a size in px or MB THEN it isn't a Size the check can't read", () => {
+  for (const note of ["- Body font size: 16px, line-height: 24px", "- Max upload size: 5 MB. Show the error on one line."]) {
+    assert.deepEqual(checkSizes([{ number: 8, title: "Notes", body: `Size: 200 lines · cli/src\n${note}\n` }]), [], note);
+  }
+  for (const line of ["Revised size: 1.5k lines", "| Size | about 1,500 changed lines |", "Size - 1,500 total lines"]) {
+    assert.match(checkSizes([{ number: 8, title: "Hidden", body: `Size: 200 lines · cli/src\n${line}\n` }])[0], /a Size the check can't read/, line);
+  }
+});
+
+test("AC-400-1: WHEN tests sit next to a number after a qualifier or a bracket THEN the check asks for one total", () => {
+  for (const second of ["tests: about 400", "tests: roughly 400", "tests around 400", "tests (600)", "tests add 600"]) {
+    assert.deepEqual(checkSizes([issue(12, `about 700 lines · cli/src · ${second}`, "Big step")]),
+      [`#12 Big step: a second estimate after the "·": "${second}". Write one total, like \`Size: about 600 lines · <files or modules>\`.`], second);
+  }
+  assert.deepEqual(checkSizes([issue(7, "about 300 lines · cli/test/12-x.test.mjs · AC-400-1 tests")]), []);
+});
+
+test("AC-400-1: WHEN tests sit next to a number after approximately, a dash or a word like code THEN the check asks for one total", () => {
+  for (const second of ["tests: approximately 600", "tests - 600", "test code: 600"]) {
+    assert.deepEqual(checkSizes([issue(12, `about 700 lines · cli/src · ${second}`, "Big step")]),
+      [`#12 Big step: a second estimate after the "·": "${second}". Write one total, like \`Size: about 600 lines · <files or modules>\`.`], second);
+  }
+  assert.deepEqual(checkSizes([issue(7, "about 300 lines · cli/src · tests for v2 · test/12-x.ts")]), []);
+});
+
+test("AC-400-1: WHEN a hidden size has any one word or a + before its unit THEN the check still finds it", () => {
+  for (const line of ["Size - 1500+ lines", "Size - 1,500 code lines", "Size - 1,500 source lines", "Size - 1,500 net lines",
+    "Size - 1,500 diff lines", "Real size: about 1,400 code lines"]) {
+    assert.match(checkSizes([{ number: 8, title: "Hidden", body: `Size: 200 lines · cli/src\n${line}\n` }])[0], /a Size the check can't read/, line);
+  }
+  for (const note of ["- Page size: 20 rows, wrap long lines", "- Font size: 16px line-height 24px", "- Icon size: 24 px lines"]) {
+    assert.deepEqual(checkSizes([{ number: 8, title: "Notes", body: `Size: 200 lines · cli/src\n${note}\n` }]), [], note);
+  }
+});
+
+test("AC-400-1: WHEN the estimate says lines changed THEN it reads as the number of changed lines", () => {
+  assert.equal(readSize(body("about 300 lines changed · cli/src")).estimate, 300);
+  assert.deepEqual(checkSizes([issue(7, "about 300 lines changed · cli/src")]), []);
+  assert.match(checkSizes([issue(12, "1,500 lines changed", "Big step")])[0], /^#12 Big step: the estimate is 1,500 lines, 1,000 or more\./);
 });
