@@ -8,6 +8,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 - **A test child's env is checked in the folder it starts in (#229).** `cli/test/child.mjs` wraps `spawnSync`, `spawn` and `execFileSync` so each call checks the child's `PATH` against that spawn's own `cwd`, with `args` given or left out; every CLI test file now imports them from there, and the safe-PATH scan (now in `cli/test/safe-path-scan.mjs`) flags a test that takes them from `child_process` by name, by a default or namespace import, or at run time, `createRequire` included. Both temp-folder guards also catch a saved or renamed `tmpdir`, `tmpdir ()`, a read of `process.env.TMPDIR`, and a saved read used as a folder. A test file run alone that throws while it loads, which fires no `exit` event on Node 22, no longer leaves its copy of `node` behind: `helpers.mjs`'s throw monitor removes it. When the guard throws as a process loads, the copy is removed by its `exit` handler as the process exits, not first as the #197 entry said. Decision row 118.
 
+### Fixed
+
+- **The bind-mount preflight test no longer fails for a non-root user (#276).** In an unprivileged user namespace the real git's folder shows as `nobody`, so preflight rightly won't run it and the test's "real git did the probe" check failed, and AC-180-3 with it. The test now skips there with that reason; as root it still runs. Preflight's ownership rule is unchanged. Decision row 119.
+
 ## [0.7.1] - 2026-11-27
 
 ### Added
