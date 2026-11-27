@@ -110,11 +110,11 @@ With no DSN the app builds, tests pass and nothing is sent.
 10. Keys stay with the person: they create the Sentry project, set `SENTRY_DSN` with `pnpm exec wrangler secret put SENTRY_DSN --env test` and `--env production` (the `vars` from step 4 name the environment), and keep the source-map token where the deploys run (step 8).
 11. Sort the imports this add-on added and format its files, and only its files. Make the Worker's types first: `worker-configuration.d.ts` is git-ignored, so a fresh copy has none until a lint or typecheck runs, and without it the typed rules' fixes misread the code (they drop type assertions that are needed, and typecheck fails).
     ```sh
-    pnpm cf-typegen
-    pnpm exec eslint --fix src/server.ts src/client.tsx src/lib/monitoring.ts src/lib/monitoring.test.ts src/lib/security-headers.ts src/env.d.ts vite.config.ts eslint.config.js
+    pnpm cf-typegen &&
+    pnpm exec eslint --fix src/server.ts src/client.tsx src/lib/monitoring.ts src/lib/monitoring.test.ts src/lib/security-headers.ts src/env.d.ts vite.config.ts eslint.config.js &&
     pnpm exec prettier --write src/server.ts src/client.tsx src/lib/monitoring.ts src/lib/monitoring.test.ts src/lib/security-headers.ts src/env.d.ts vite.config.ts eslint.config.js wrangler.jsonc
     ```
-    Never `eslint --fix .` here: a whole-project fix can rewrite files this add-on never touched.
+    The `&&` stops the step if the types can't be made. Never `eslint --fix .` here: a whole-project fix can rewrite files this add-on never touched.
 12. `pnpm check`.
 
 ### With the `jobs` add-on

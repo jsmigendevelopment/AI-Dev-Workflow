@@ -5,7 +5,7 @@
 // add-on needs a network install, so this reads ADDON.md; the full run on a fresh app is checked by hand.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAddon } from "../src/addon-doc.mjs";
@@ -14,9 +14,13 @@ const ADDON = fileURLToPath(new URL("../../stacks/tanstack-start-addons/sentry/"
 const PACK = fileURLToPath(new URL("../../stacks/tanstack-start/", import.meta.url));
 const { apply } = parseAddon(readFileSync(join(ADDON, "ADDON.md"), "utf8"));
 
-// The pack's files the Apply steps edit by hand, besides the ones copied from files/ (and the
-// package.json and lockfile that `pnpm add` writes).
-const EDITED = ["src/env.d.ts", "wrangler.jsonc", "vite.config.ts", "eslint.config.js", ".env.example",
+// The pack's files the Apply steps edit by hand: every backticked path outside a code block that is
+// a file in the pack. The package.json and lockfile that `pnpm add` writes are named only in code.
+const isPackFile = (f) => existsSync(join(PACK, f)) && statSync(join(PACK, f)).isFile();
+const EDITED = [...new Set([...apply.replace(/```[\s\S]*?```/g, "").matchAll(/`([^`\s]+)`/g)].map((m) => m[1]))]
+  .filter(isPackFile);
+// The ones the steps edit today: a floor, so a parser that finds nothing can't pass.
+const KNOWN = ["src/env.d.ts", "wrangler.jsonc", "vite.config.ts", "eslint.config.js", ".env.example",
   "src/lib/security-headers.ts"];
 
 function copied(dir = join(ADDON, "files")) {
@@ -35,10 +39,7 @@ function lintStep() {
 const args = (cmd) => cmd.split(/\s+/).slice(cmd.startsWith("pnpm exec") ? 3 : 2).filter((a) => !a.startsWith("-"));
 
 test("AC-320-1: WHEN the Sentry add-on's lint step runs THEN it lints and formats only the files the add-on touched", () => {
-  for (const f of EDITED) {
-    assert.ok(apply.includes(`\`${f}\``), `Apply edits ${f}`);
-    assert.ok(existsSync(join(PACK, f)), `the pack has ${f}`);
-  }
+  for (const f of KNOWN) assert.ok(EDITED.includes(f), `Apply edits ${f}`);
   const cmds = lintStep();
   const eslint = cmds.find((c) => c.startsWith("pnpm exec eslint --fix"));
   const prettier = cmds.find((c) => c.startsWith("pnpm exec prettier --write"));
@@ -50,9 +51,12 @@ test("AC-320-1: WHEN the Sentry add-on's lint step runs THEN it lints and format
   }
   assert.ok(!cmds.some((c) => /^pnpm (format|lint)\b/.test(c)), "no whole-project format or lint");
   assert.ok(prettier, "the step formats the add-on's files with prettier --write");
-  // Every source file the add-on touched still gets its imports sorted.
+  // Every source file the add-on touched still gets its imports sorted, and every file Prettier
+  // formats is formatted, or step 12's `prettier --check` fails.
   const linted = new Set(args(eslint));
   for (const f of touched) if (/\.(ts|tsx|js)$/.test(f)) assert.ok(linted.has(f), `${f} is linted`);
+  const formatted = new Set(args(prettier));
+  for (const f of touched) if (/\.(ts|tsx|js|json|jsonc)$/.test(f)) assert.ok(formatted.has(f), `${f} is formatted`);
 });
 
 test("AC-320-1: WHEN the Sentry add-on's lint step runs THEN it makes the Worker's types first, so the typed fixes see real types", () => {
@@ -60,6 +64,7 @@ test("AC-320-1: WHEN the Sentry add-on's lint step runs THEN it makes the Worker
   const typegen = cmds.indexOf("pnpm cf-typegen");
   assert.ok(typegen >= 0, "the step runs pnpm cf-typegen");
   assert.ok(typegen < cmds.findIndex((c) => c.includes("eslint")), "before ESLint");
+  assert.match(apply, /pnpm cf-typegen &&\s+pnpm exec eslint --fix/, "ESLint runs only once the types are made");
   // Why it's needed: the pack's own lint does the same, and a fresh copy has no generated types.
   const pack = JSON.parse(readFileSync(join(PACK, "package.json"), "utf8"));
   assert.match(pack.scripts["cf-typegen"], /^wrangler types\b/);
