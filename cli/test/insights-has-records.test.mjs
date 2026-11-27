@@ -146,7 +146,7 @@ test("AC-333-4: WHEN the merge step merged main into the branch THEN carry runs 
 test("AC-333-4: WHEN carry exits 0 THEN the old head's qa and security verdicts stand for the merge commit too, and step 6 says so", () => {
   assert.match(mergeStep(), /`carry` exits 0[^\n]*`qa` and security verdicts stand for the merge commit/);
   const text = readFileSync(join(REPO, ".agents/skills/coordinate/SKILL.md"), "utf8");
-  assert.match(text, /A verdict stands until the commit changes, or until a clean merge of main that step 7's `carry` proves/);
+  assert.match(text, /A verdict stands until the commit changes\. Never re-run a reviewer to get a different answer\. A clean merge of main that step 7's `carry` proves doesn't count as a change: the old head's verdicts stand for the merge commit\./);
 });
 
 test("AC-333-4: WHEN carry exits 2 THEN the merge step fetches the branch and runs carry once more in the same step", () => {
