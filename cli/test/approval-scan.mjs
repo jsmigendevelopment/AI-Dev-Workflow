@@ -9,7 +9,8 @@ export const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, impo
 // says below Full. The exceptions are the owner's standing ones: paying, the person's own logins and the always-stop
 // list, plus the lines that define the Full override itself.
 const WHO = "(?:the person|the owner|them|you)";
-const ASKS_APPROVAL = new RegExp([
+/** Main's shapes as of #199, kept so a test can show #211 drops no ask main catches. */
+export const SHAPES_199 = [
   "`human-approved`", "yes, merge", "\\badd the (?:`human-approved` )?label\\b",
   `\\bask(?:s|ing)? ${WHO}\\b[^.]*(?:\\b(?:approv|review|yes\\b|go-ahead|sign[- ]?off)|before merg|\\b(?:open|try) it\\b)`,
   "\\bwait(?:s|ing)? (?:for|on) (?:their |the person.s |the owner.s |your |a |an |any )?(?:approv|yes\\b|go-ahead|sign[- ]?off|ok\\b|okay\\b)",
@@ -38,7 +39,19 @@ const ASKS_APPROVAL = new RegExp([
   "(?<!\\b(?:doesn.t|does not|don.t|do not|never) )\\bask first(?: \\([^)]*\\))?[.!][*_]*$",
   `\\bwarn ${WHO} (?:first|before)\\b`, `\\bask ${WHO} to (?:close|click|dismiss|press|accept)\\b`,
   `\\bask (?:${WHO} )?how to (?:go on|proceed|continue)\\b`,
-].join("|"), "i");
+];
+const ASK_FIRST = SHAPES_199.findIndex((p) => p.includes("ask first"));
+// #211: "ask first" is an ask when the agent is told to: a sentence that ends on it, unless its subject is someone else
+// ("We ask first.") or it names a topic ("What to ask first."), or mid-sentence after a colon, comma, bracket or bold,
+// or after "and", "then", "or", "so", "must", "should" or "always" ("Ask first, then wait.", "(money: ask first)").
+// Then "ask the person to <any verb>", "ask what to do" and "stop and ask", appended last so no older match changes.
+const SHAPES = SHAPES_199.with(ASK_FIRST,
+  "(?<!\\b(?:doesn.t|does not|don.t|do not|never|what to|we|they|I|who) )\\bask first(?: \\([^)]*\\))?[.!][*_]*$|(?:^|[:;,(]\\s*|\\*\\*|\\b(?:and|then|or|so|must|should|always) )ask first\\b",
+).concat(`\\bask ${WHO} to [a-z]`, `\\bask (?:${WHO} )?what to do\\b`, "\\bstop and ask\\b");
+const ASKS_APPROVAL = new RegExp(SHAPES.join("|"), "i");
+/** #211 AC-2: whether main's shapes as of #199, or today's, read a sentence as an ask. */
+export const asks199 = (s) => new RegExp(SHAPES_199.join("|"), "i").test(s);
+export const asks = (s) => ASKS_APPROVAL.test(s);
 // #173: "(on Full" alone isn't a condition: "(on Full too)" keeps the person. A parenthetical counts only when it names
 // who stands in for the person on Full, or says nothing waits.
 const ON_FULL_STAND_IN = /\(on Full[,:] [^)]*(?:\bnothing waits\b|\bno person\b|\bnever (?:a|the) person\b|\bAI pick\b|`qa`|\ban extra review\b|\bit decides\b)[^)]*\)/i;
@@ -130,6 +143,16 @@ export const ALLOWED = [
   [".agents/skills/test-by-hand-as-the-user/SKILL.md", "**In the person's own browser or accounts, ask first.**", "the person's own logins; parked on Full"],
   ["stacks/python-fastapi/PACK.md", "Paying for Workers Paid or a container host is spending money: **ask first.**", "paying"],
   ["stacks/unity/PACK.md", "Store accounts cost money: **ask first.**", "store accounts cost money: paying"],
+  // #211: what "ask the person to <verb>", "ask first" mid-sentence and "stop and ask" found that is an owner exception.
+  [".agents/skills/name/SKILL.md", "ask them to run `gh auth login` first.", "the person's own login"],
+  [".agents/skills/secrets/SKILL.md", "Ask the person to open those files and paste each value in", "the person's own keys: their one paste"],
+  [".agents/skills/secrets/SKILL.md", "Tell them, and ask them to rotate that key.", "a key in the person's own account: their login"],
+  [".agents/skills/secrets/providers/sentry.md", "With the CLI (ask first), in your own terminal.", "the person's own login, in their terminal"],
+  ["stacks/electron-desktop/PACK.md", "(money: ask first)", "paying"],
+  ["stacks/monorepo-expo/README.md", "All of these cost money or touch production", "paying and production: always-stop"],
+  ["stacks/unity/PACK.md", "Ask the person to read Unity's terms, or use a paid seat.", "a licence: paying"],
+  ["stacks/tanstack-start-addons/analytics/ADDON.md", "Ask the person to create the site in the Cloudflare dashboard", "the person's own login"],
+  ["stacks/tanstack-start-addons/database-supabase/ADDON.md", "otherwise stop and ask the person, because moving real data", "migrating real data: always-stop"],
 ];
 /** Every unconditional ask in these files that no ALLOWED entry names, and the entries that were used. */
 export const scan = (files) => {
