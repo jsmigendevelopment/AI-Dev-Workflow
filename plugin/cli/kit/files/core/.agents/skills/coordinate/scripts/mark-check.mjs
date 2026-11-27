@@ -10,10 +10,10 @@
 // 3: refused, and main requires `onrails/check` (or its rules couldn't be read, or gh isn't installed): run
 // setup-github from this session.
 // --record <file> (#331): the gate's file, {pr, fence, commands: [{command, result, seconds}], failed, rerun}. Before
-// the post, it writes one `check` insights record into this checkout's docs/insights/, on exit 0, 1 and 3 alike.
-// A file it can't read is a usage error: exit 2, no record, no post. ONRAILS_NOW sets the record's clock (tests).
-import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+// the post, it writes one `check` insights record into docs/insights/ of the checkout this script sits in, whatever
+// folder it runs from, on exit 0, 1 and 3 alike. A file it can't read, or a command name over 200 characters or
+// with a control character, is a usage error: exit 2, no record, no post. ONRAILS_NOW sets the record's clock (tests).
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gh, pages } from "./agent-files.mjs";
@@ -22,7 +22,16 @@ import { TEXT_CAP, VERSION, dayFolder, fileName, validate } from "./insights-rec
 const CHECK = "onrails/check";
 const SETUP = "node .agents/skills/name/scripts/setup-github.mjs";
 const RESULTS = ["pass", "fail", "skipped"];
+// The checkout this script sits in (<root>/.agents/skills/coordinate/scripts/), found without git: the coordinator
+// may run it from any folder, and never runs git in the head's clone (step 6.1.3).
+const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
+// C0 controls, DEL and C1 controls. The summary and the merge check print records later, and an escape or a
+// carriage return would garble that output.
+const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
+const CONTROLS = new RegExp(CONTROL.source, "g");
 const reason = (error) => String(error.stderr || error.message).split("\n").find((l) => l.trim())?.trim() ?? "refused";
+/** A command name a record can keep: text of at most TEXT_CAP characters, with no control character. */
+const plainName = (text) => typeof text === "string" && text !== "" && text.length <= TEXT_CAP && !CONTROL.test(text);
 
 /** What is wrong with the gate's file, or null. */
 function gateProblem(gate) {
@@ -31,7 +40,8 @@ function gateProblem(gate) {
   if (!Array.isArray(gate.commands) || gate.commands.length === 0) return "commands: must list each command the gate ran";
   const bad = (c) => typeof c?.command !== "string" || !c.command || !RESULTS.includes(c.result) || !(typeof c.seconds === "number" && c.seconds >= 0);
   if (gate.commands.some(bad)) return "commands: each needs command, result (pass, fail or skipped) and seconds";
-  if (gate.failed !== null && (typeof gate.failed !== "string" || !gate.failed)) return "failed: must be the red command, or null";
+  if (!gate.commands.every((c) => plainName(c.command))) return `commands: a command name must be at most ${TEXT_CAP} characters, with no control character`;
+  if (gate.failed !== null && !plainName(gate.failed)) return `failed: must be the red command (at most ${TEXT_CAP} characters, no control character), or null`;
   if (typeof gate.rerun !== "boolean") return "rerun: must be true or false";
   if (gate.fence !== undefined && typeof gate.fence !== "string") return "fence: must be the Fence: line";
   return null;
@@ -49,8 +59,9 @@ function checkRecord(file, sha, state) {
   if (problem) return problem;
   const at = new Date(process.env.ONRAILS_NOW || Date.now());
   if (Number.isNaN(at.getTime())) return "ONRAILS_NOW isn't a time";
-  // The fence line can carry a long reason; the record keeps its first line, capped like any text field.
-  const fence = gate.fence?.split("\n")[0].slice(0, TEXT_CAP);
+  // The fence line can carry a long reason; the record keeps its first line without control characters, capped like
+  // any text field.
+  const fence = gate.fence?.split("\n")[0].replace(CONTROLS, "").slice(0, TEXT_CAP);
   const record = {
     v: VERSION, kind: "check", at: at.toISOString(), issue: null, pr: gate.pr, sha, job: null, tool: null,
     model: "unknown", effort: "unknown", state, ...(fence ? { fence } : {}),
@@ -61,10 +72,10 @@ function checkRecord(file, sha, state) {
   return errors.length ? errors.join("; ") : record;
 }
 
-/** Writes the record into this checkout's docs/insights/<day>/ and returns its path. Throws when it can't. */
+/** Writes the record into this script's checkout, docs/insights/<day>/, and returns its path. Throws when it can't. */
 function writeRecord(record) {
-  const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-  const dir = join(root, dayFolder(record));
+  if (!existsSync(join(ROOT, "docs"))) throw new Error(`no docs/ folder in ${ROOT}, the checkout this script sits in`);
+  const dir = join(ROOT, dayFolder(record));
   mkdirSync(dir, { recursive: true });
   const path = join(dir, fileName(record));
   writeFileSync(path, `${JSON.stringify(record, null, 2)}\n`, { flag: "wx" });
