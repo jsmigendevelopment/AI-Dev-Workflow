@@ -110,3 +110,38 @@ test("AC-375-2: WHEN labels aren't a list THEN the script exits 2, and a ready l
   assert.deepEqual(checkSizes([parent, issue(12, "300 lines")]), [neverReady]);
 });
 
+test("AC-400-1: WHEN an exception's reason names an issue or says it is split THEN the check fails it as both", () => {
+  const both = "#10 Parent: the Size: line states both an exception and a split. Keep one.";
+  const children = [issue(12, "300 lines"), issue(13, "300 lines")];
+  for (const size of ["exception: split into #12, #13", "about 2,400 lines · exception: split into #12, #13",
+    "exception: see #12", "exception: split into child issues", "exception: already split", "exception: was split in two"]) {
+    assert.deepEqual(checkSizes([{ ...issue(10, size, "Parent"), labels: ["status:ready"] }, ...children]), [both], size);
+  }
+  for (const reason of ["no way to split a rename", "can't be split into parts: one generated client", "too risky to split up",
+    "splitting it would break the migration order", "a mechanical rename across every module"]) {
+    assert.deepEqual(checkSizes([issue(5, `exception: ${reason}`)]), [], reason);
+  }
+});
+
+test("AC-400-1: WHEN an exception's reason is a placeholder of more than one word THEN the check fails it as no reason", () => {
+  for (const reason of ["no reason", "none yet", "not needed", "TBD later", "nope", "None for now.", "n/a yet", "TODO: write one"]) {
+    assert.deepEqual(checkSizes([issue(5, `exception: ${reason}`, "Empty reason")]), [noReason(5, "Empty reason")], reason);
+  }
+  for (const reason of ["none of it can be split: one generated client", "null checks across every module", "no way to split a rename"]) {
+    assert.deepEqual(checkSizes([issue(5, `exception: ${reason}`)]), [], reason);
+  }
+});
+
+test("AC-400-1: WHEN a split parent on stdin has no labels field THEN the script exits 2 and names labels", () => {
+  const children = [issue(12, "300 lines"), issue(13, "300 lines")];
+  const parent = issue(10, "split into #12, #13", "Parent");
+  for (const input of [parent, { ...parent, labels: null }]) {
+    const r = run([], JSON.stringify([input, ...children]));
+    assert.equal(r.status, 2, r.stdout);
+    assert.match(r.stderr, /expected a JSON list of issues with number, title, body and labels/);
+    assert.match(r.stderr, /#10 is a split parent with no labels/);
+  }
+  assert.equal(run([], JSON.stringify([{ ...parent, labels: [] }, ...children])).status, 0);
+  assert.equal(run([], JSON.stringify(children)).status, 0, "issues that split nothing still read without labels");
+  assert.match(read("docs/decisions/375-1.md"), /\*\*Decision:\*\*[^\n]*--json number,title,body,labels/);
+});

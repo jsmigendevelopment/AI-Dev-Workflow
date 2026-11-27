@@ -239,3 +239,31 @@ test("AC-375-2: WHEN the estimate is written as a limit THEN the message says to
   assert.equal(readSize(body("about 300 lines.")).estimate, 300);
   assert.match(read("docs/decisions/375-1.md"), /Decisions 375-3 and 375-4 replace/);
 });
+
+test("AC-400-1: WHEN a later part has a word before its unit, or tests next to a number, THEN the check asks for one total", () => {
+  for (const [size, second] of [
+    ["900 lines · src/a.ts, +600 test lines", "src/a.ts, +600 test lines"],
+    ["900 lines · tests: 600", "tests: 600"],
+    ["900 lines · tests ~600 more", "tests ~600 more"],
+    ["900 lines · cli/src · 600 in tests", "600 in tests"],
+  ]) {
+    assert.deepEqual(checkSizes([issue(12, size, "Big step")]),
+      [`#12 Big step: a second estimate after the "·": "${second}". Write one total, like \`Size: about 600 lines · <files or modules>\`.`], size);
+  }
+  assert.deepEqual(checkSizes([issue(7, "about 300 lines · cli/test/12-x.test.mjs, tests/e2e/2fa.spec.ts · AC-400-1 tests")]), []);
+});
+
+test("AC-400-1: WHEN a design note gives a size in px or MB THEN it isn't a Size the check can't read", () => {
+  for (const note of ["- Body font size: 16px, line-height: 24px", "- Max upload size: 5 MB. Show the error on one line."]) {
+    assert.deepEqual(checkSizes([{ number: 8, title: "Notes", body: `Size: 200 lines · cli/src\n${note}\n` }]), [], note);
+  }
+  for (const line of ["Revised size: 1.5k lines", "| Size | about 1,500 changed lines |", "Size - 1,500 total lines"]) {
+    assert.match(checkSizes([{ number: 8, title: "Hidden", body: `Size: 200 lines · cli/src\n${line}\n` }])[0], /a Size the check can't read/, line);
+  }
+});
+
+test("AC-400-1: WHEN the estimate says lines changed THEN it reads as the number of changed lines", () => {
+  assert.equal(readSize(body("about 300 lines changed · cli/src")).estimate, 300);
+  assert.deepEqual(checkSizes([issue(7, "about 300 lines changed · cli/src")]), []);
+  assert.match(checkSizes([issue(12, "1,500 lines changed", "Big step")])[0], /^#12 Big step: the estimate is 1,500 lines, 1,000 or more\./);
+});
