@@ -14,10 +14,12 @@ How: docs.sentry.io was blocked here, so these were read from Sentry's public do
 SENTRY_DSN           Worker var (not secret)
 SENTRY_ENVIRONMENT   in wrangler.jsonc vars, e.g. test
 VITE_SENTRY_DSN      build time; the deploy's shell (GitHub variable SENTRY_DSN on ci = "actions")
-SENTRY_AUTH_TOKEN    deploy builds only; the deploy's shell (GitHub secret on ci = "actions")
-SENTRY_ORG           deploy builds only; the deploy's shell, the org slug (GitHub variable on ci = "actions")
-SENTRY_PROJECT       deploy builds only; the deploy's shell, the project slug (GitHub variable on ci = "actions")
+SENTRY_AUTH_TOKEN    deploy builds only; .env.sentry.local, loaded into the deploy's shell (GitHub secret on ci = "actions")
+SENTRY_ORG           deploy builds only; .env.sentry.local, the org slug (GitHub variable on ci = "actions")
+SENTRY_PROJECT       deploy builds only; .env.sentry.local, the project slug (GitHub variable on ci = "actions")
 ```
+
+On `ci = "local"`, `pnpm connect` writes the three deploy values to `.env.sentry.local` and nothing to GitHub. One value serves both deploys, so it asks once. On `ci = "actions"` it also sets the GitHub ones.
 
 A DSN only lets someone send events, not read them, so it isn't a secret. `[V]` The auth token is.
 
@@ -32,9 +34,9 @@ A DSN only lets someone send events, not read them, so it isn't a secret. `[V]` 
   "vars": {
     "SENTRY_DSN": {"secret": false, "scope": ["test", "production"], "to": ["wrangler", "github"], "shape": {"prefix": ["https://"]}},
     "VITE_SENTRY_DSN": {"secret": false, "scope": ["local"], "to": [".env.local"], "shape": {"prefix": ["https://"]}},
-    "SENTRY_AUTH_TOKEN": {"secret": true, "scope": ["test", "production"], "to": ["github"]},
-    "SENTRY_ORG": {"secret": false, "scope": ["test", "production"], "to": ["github"]},
-    "SENTRY_PROJECT": {"secret": false, "scope": ["test", "production"], "to": ["github"]}
+    "SENTRY_AUTH_TOKEN": {"secret": true, "scope": ["local", "test", "production"], "to": [".env.sentry.local", "github"]},
+    "SENTRY_ORG": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.sentry.local", "github"]},
+    "SENTRY_PROJECT": {"secret": false, "scope": ["local", "test", "production"], "to": [".env.sentry.local", "github"]}
   }
 }
 ```
@@ -64,18 +66,18 @@ Sentry publishes a guide for agents. Its route, in order: the `sentry` CLI (`sen
    ```
    No code: `pnpm dlx sentry@0.50.0 auth login`. Then `pnpm dlx sentry@0.50.0 project create <org>/<name>:<platform>` and `pnpm dlx sentry@0.50.0 dsn list <org>/<project>`. Full recipe: `.agents/skills/secrets/setup/sentry.md`.
    Without it: in Sentry, create a project for the JavaScript / Cloudflare platform. The DSN is in the setup snippet, or later in **Settings → Projects → your project → Client Keys (DSN)**. `[V]`
-3. Put the DSN in both places the add-on reads it: a Worker secret (for the server) and a GitHub variable (for the browser build):
+3. Put the DSN where the add-on reads it: a Worker secret for the server, and `VITE_SENTRY_DSN` in `.env.local` for the browser build. On `ci = "actions"` only, also a GitHub variable:
    ```bash
    pnpm exec wrangler secret put SENTRY_DSN --env test
    gh variable set SENTRY_DSN --env test
    ```
    (and again with `--env production`). `[V]` for the add-on's steps.
-4. Make an **Organization Token** for source maps: `https://sentry.io/orgredirect/organizations/:orgslug/settings/auth-tokens/` (**Settings → Developer Settings → Organization Tokens**). It's shown once. `[V]`
+4. Make an **Organization Token** for source maps: `https://sentry.io/orgredirect/organizations/:orgslug/settings/auth-tokens/` (**Settings → Developer Settings → Organization Tokens**). It's shown once. `[V]` Paste it into `pnpm connect`: it goes to `.env.sentry.local`, and on `ci = "actions"` only also to the GitHub secrets:
    ```bash
    gh secret set SENTRY_AUTH_TOKEN --env test
    gh secret set SENTRY_AUTH_TOKEN --env production
    ```
-5. The org and project slugs are in the URL: `sentry.io/organizations/<org>/projects/<project>/`. Set them: `[U]` for the URL shape.
+5. The org and project slugs are in the URL: `sentry.io/organizations/<org>/projects/<project>/`. `[U]` for the URL shape. They go to `.env.sentry.local` too, and on `ci = "actions"` only also to the GitHub variables:
    ```bash
    gh variable set SENTRY_ORG --env test
    gh variable set SENTRY_PROJECT --env test
@@ -92,5 +94,5 @@ Sentry's free plan is the **Developer** plan, with monthly quotas per event type
 
 - **Use an Organization Token for the uploads, not a personal one.** It has only the upload permissions, and it keeps working if the person who made it leaves. `[V]`
 - **No events:** the DSN is empty in that build. `VITE_SENTRY_DSN` is read at build time, so set it for the deploy (the deploy's shell, or the GitHub variable on `ci = "actions"`) and redeploy.
-- **Minified stack traces:** `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` or `SENTRY_PROJECT` is missing from the deploy's shell (on `ci = "actions"`, from that GitHub environment). Source maps upload only from the deploy builds, never from pull requests (the add-on's rule).
+- **Minified stack traces:** `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` or `SENTRY_PROJECT` is missing from the deploy's shell: load `.env.sentry.local` into it (on `ci = "actions"`, the value is missing from that GitHub environment). Source maps upload only from the deploy builds, never from pull requests (the add-on's rule).
 - **A DSN leaked and spam arrives:** rotate it in **Client Keys (DSN)**. `[V]`

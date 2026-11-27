@@ -49,6 +49,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
+- **No Actions, part 7 (#227, first part).** The Markdown scan in `cli/test/no-actions-mentions.test.mjs` tracks `~~~` fences, opts a section in only on an "Only on/for/when..." lead, catches `gh run`, required status checks and the Actions tab, and reads "Do not merge if CI is red" as waiting on CI (decision 227-3). `show-it-early` counts `sed -Ei` and `sed -ri`. On `ci = "local"`, `pnpm connect sentry` writes the three Sentry deploy values to `.env.sentry.local` (decision 227-2). The code scan is #387, the README picture #388 (decision 227-1).
 - The opt-in eval `live-thread-loop` also fails "built nothing" when the live thread leaves uncommitted changes under `src/` that no sub-agent edit made, such as a Bash redirect (#287).
 - **Windows: no bare `gh` in agent-files and research-library (#274).** Both start `gh` through `command-for.mjs` (synced copies next to each), by its full path on PATH, never a `gh.exe` in the current folder or the repo. `roots()` compares the home folder case-blind on Windows, so a git repo at `~` no longer refuses tools under home. The `secrets` skill now says a plain variable may go on `--body`; secret values go only on stdin.
 - `list`, `npx onrails ps` and `doctor` print a process record's id, command, reason and stop condition through the same escaping as the session hooks, so an odd record can't drive the terminal or pass for another (#250).

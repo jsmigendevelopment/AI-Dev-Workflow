@@ -10,8 +10,11 @@ import { fileURLToPath } from "node:url";
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const read = (path) => readFileSync(join(REPO, path), "utf8");
 
-/** The issue's grep: `grep -ri "workflow\|github actions\|\bCI\b"`. */
-const HIT = /workflow|github actions|\bCI\b/i;
+/**
+ * The issue's grep, `grep -ri "workflow\|github actions\|\bCI\b"`, and the Actions words it misses: `gh run`, a
+ * required status check and the Actions tab (#227).
+ */
+const HIT = /workflow|github actions|\bCI\b|\bgh run\b|required status checks?|Actions tab/i;
 // Names that hold the word but aren't GitHub Actions: Lighthouse CI (`pnpm lhci`, run locally), npm's clean install, a
 // tool's `--ci` flag, the profile's `[workflow]` table, this kit ("a repo that uses this workflow", its old name),
 // Cloudflare's and Expo's own Workflows products, the Claude Code Workflow tool, the TanStack pack's Access service
@@ -22,10 +25,16 @@ const NOT_ACTIONS = /Lighthouse CI|\bnpm ci\b|--ci\b|\[workflow\]|\b(?:this|the 
 // A negation word. "Instead" counts only as "instead of", which starts its own clause: a bare "instead" at the end
 // means "use this one".
 const NEGATION = /\b(?:no|never|not|nothing|neither|nor|ignored?|ignores|instead of|off|removes?|removed|drops?|dropped|replaces?|swaps?)\b|n['’]t\b/i;
-/** The hit is about not using Actions: a negation in the same clause. "Without" after another one is a double negative. */
-function negated(text) {
-  const other = NEGATION.test(text);
-  return /\bwithout\b/i.test(text) ? !other : other;
+// A negation that governs merging, not CI: "Do not merge if CI is red" waits on CI (#227). "No merge waits on a
+// workflow" rules the workflow out, so "no" isn't one.
+const MERGE_BAN = /\b(?:never|not|nothing)\s+merges?\b|n['’]t\s+merge\b/gi;
+/**
+ * The hit is about not using Actions: a negation in the same clause, other than one that bans a merge. "Without" after
+ * another negation, or in a sentence that bans a merge ("Without CI, never merge"), is a double negative.
+ */
+function negated(text, mergeBan = false) {
+  const other = NEGATION.test(text.replace(MERGE_BAN, ""));
+  return /\bwithout\b/i.test(text) ? !(other || mergeBan) : other;
 }
 // The hit names the local replacement in the same clause. A pack's command name alone isn't one: "CI runs
 // `pnpm test:e2e`" names a command, not who runs it.
@@ -61,9 +70,13 @@ function withSections(text) {
   const lines = text.split("\n");
   const out = [];
   let stack = [];
-  let fenced = false;
+  // The mark that opened the code block: only the same mark closes it.
+  let fence = null;
   for (let i = 0; i < lines.length; i++) {
-    if (/^\s*```/.test(lines[i])) fenced = !fenced;
+    const mark = /^\s*(```|~~~)/.exec(lines[i])?.[1];
+    if (mark && !fence) fence = mark;
+    else if (mark === fence) fence = null;
+    const fenced = fence !== null;
     // A `# comment` in a code block isn't a heading.
     const heading = fenced ? null : /^(#{1,6})\s+(.*)$/.exec(lines[i]);
     if (heading) {
@@ -74,7 +87,8 @@ function withSections(text) {
       for (; j < lines.length && lines[j].trim() && !/^#{1,6}\s/.test(lines[j]); j++) lead += `${lines[j]}\n`;
       stack = stack.filter((s) => s.level < level);
       const first = sentences(lead.replace(/^\*\*[^*]*\*\*\s*/, ""))[0];
-      const optIn = optsIn(heading[2]) || (/^Only\b/.test(first) && optsIn(first));
+      // "Only on ci = actions" sets a condition; "Only the person turns on ci = actions" states a fact (#227).
+      const optIn = optsIn(heading[2]) || (/^Only (?:on|for|when|with|in|if)\b/.test(first) && optsIn(first));
       stack.push({ level, never: heading[2].trim() === "Never", optIn });
     }
     out.push({ line: lines[i], never: stack.some((s) => s.never), optIn: stack.some((s) => s.optIn) });
@@ -87,10 +101,13 @@ export function badMentions(text) {
   const out = [];
   for (const { line, never, optIn } of withSections(text)) {
     if (never || optIn) continue;
-    for (const c of sentences(line.replace(URL_TEXT, "").replace(NOT_ACTIONS, "")).flatMap(clauses)) {
-      if (!HIT.test(c)) continue;
-      if (negated(c) || LOCAL.test(c) || optsIn(c)) continue;
-      out.push(c.trim());
+    for (const sentence of sentences(line.replace(URL_TEXT, "").replace(NOT_ACTIONS, ""))) {
+      const mergeBan = sentence.search(MERGE_BAN) >= 0;
+      for (const c of clauses(sentence)) {
+        if (!HIT.test(c)) continue;
+        if (negated(c, mergeBan) || LOCAL.test(c) || optsIn(c)) continue;
+        out.push(c.trim());
+      }
     }
   }
   return out;
@@ -197,6 +214,46 @@ test("AC-141-1: the scan reads a section's heading and lead: a Never list, and a
   // A `# comment` in a code block starts no section.
   assert.deepEqual(badMentions("## Never\n\n```bash\n# a comment\n```\n\nCI runs it.\n"), []);
   assert.deepEqual(badMentions("## Steps\n\n```bash\n# Never\n```\n\nCI runs it.\n"), ["CI runs it."]);
+});
+
+test("#227: a code block opened with tildes starts no section, and a lead that only states a fact opts nothing in", () => {
+  assert.deepEqual(badMentions("## Steps\n\n~~~bash\n# Never\n~~~\n\nCI runs it.\n"), ["CI runs it."]);
+  assert.deepEqual(badMentions("## Steps\n\n~~~\n```\n# Never\n~~~\n\nCI runs it.\n"), ["CI runs it."]);
+  assert.deepEqual(badMentions("## The token\n\nOnly the person turns on `ci = \"actions\"`.\n\nWait for CI.\n"), ["Wait for CI."]);
+  assert.deepEqual(badMentions("## The token\n\nOnly on `ci = \"actions\"` (`docs/stack.md`).\n\nWait for CI.\n"), []);
+});
+
+test("#227: the scan catches a line that uses Actions without the grep's words", () => {
+  for (const bad of [
+    "Watch the run with `gh run watch`.",
+    "Add `test` to the required status checks.",
+    "Open the Actions tab and rerun the job.",
+  ]) assert.equal(badMentions(bad).length, 1, bad);
+  for (const ok of [
+    "Never wait with `gh run watch`.",
+    "No required status check waits on a workflow.",
+  ]) assert.deepEqual(badMentions(ok), [], ok);
+});
+
+test("#227: a negation that governs merging doesn't pass the CI it waits on", () => {
+  for (const bad of [
+    "Do not merge if CI is red.",
+    "Never merge when CI is red.",
+    "Never merge a pull request whose CI is red.",
+    "Don't merge with a red CI run.",
+    "Nothing merges once the workflow fails.",
+    "Without CI, never merge.",
+  ]) assert.equal(badMentions(bad).length, 1, bad);
+  for (const ok of [
+    "Merge without waiting for CI.",
+    "Never merge on ci = \"local\" before the local gate passes.",
+    "Never wait on a workflow before a merge.",
+  ]) assert.deepEqual(badMentions(ok), [], ok);
+});
+
+test("#227: coordinate's check for an old required check says once that nothing posts it", () => {
+  const line = read(".agents/skills/coordinate/SKILL.md").split("\n").find((l) => l.includes("Does main's rule still require a check")) ?? "";
+  assert.equal(line.match(/\b(?:nothing|no workflow) posts\b/g)?.length, 1, line);
 });
 
 test("AC-141-1: no Markdown file in .agents/, evals/, guide/, stacks/ or README.md tells an agent to use, write or wait on a workflow", () => {
