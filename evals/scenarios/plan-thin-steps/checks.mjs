@@ -35,7 +35,7 @@ export const checks = [
     id: "steps-are-small",
     description: "No step is above size 4 without a reason, at most one in three is, and each has a line estimate under 1,000",
     check: (t) => {
-      const bad = errorsAbout(t, /size|Size|Lines|line estimate|no steps table/);
+      const bad = errorsAbout(t, /size|Size|Lines|line estimate|splits an issue|no steps table/);
       return result(bad.length === 0, some(bad));
     },
   },

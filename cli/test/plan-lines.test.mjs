@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { checkPlan, readSteps } from "../../.agents/skills/pyramid/scripts/check-plan.mjs";
+import { checks as evalChecks } from "../../evals/scenarios/plan-thin-steps/checks.mjs";
 import { spawnSync } from "./child.mjs";
 import { put, safeEnv, tmp } from "./helpers.mjs";
 
@@ -95,4 +96,45 @@ test("AC-376-1: WHEN the pyramid writes the plan THEN the template, the skill an
   assert.match(skill, /under 1,000 changed lines/);
   assert.match(skill, /1,000 or more is cut again before the issues are written/);
   assert.match(read(".agents/skills/pyramid/references/slicing.md"), /line estimate/);
+});
+
+// A step for a second table, with its Lines cell last: "Rename an item" after step 4.
+const RENAME = ["7", "Rename an item", "Shared list", "Click \"milk\", type \"oat milk\": the new name shows", "2", "4"];
+const BIG = [...RENAME, "about 1,500 lines"];
+
+test("AC-405-1: WHEN a plan has a second steps table with a 1,500-line step THEN the checker fails and names it", () => {
+  const text = `${plan()}\n${TABLE}${row(BIG)}\n`;
+  assert.deepEqual(readSteps(text).map((s) => s.id), [...STEPS.map((s) => s[0]), "7"]);
+  assert.match(errors(text), /step 7 .*the line estimate is 1,500 lines, 1,000 or more/);
+});
+
+test("#405: WHEN a second steps table has no Lines column, or a table has two THEN the checker fails that table", () => {
+  const noLines = `${plan()}\n| # | Step | Slice | Try it | Size | After |\n|---|---|---|---|---|---|\n| ${RENAME.join(" | ")} |\n`;
+  assert.match(errors(noLines), /the steps table at line \d+ has no Lines column/);
+  const twoLines = plan(STEPS, "| # | Step | Slice | Try it | Size | Lines | After | Lines |\n|---|---|---|---|---|---|---|---|\n",
+    (s) => `${row(s)} ${s[0] === "4" ? "about 1,500 lines" : s[6]} |`);
+  assert.match(errors(twoLines), /plan: the steps table has more than one Lines column/);
+});
+
+test("AC-405-2: WHEN a steps table sits inside an HTML comment THEN the checker ignores it", () => {
+  const hidden = `<!-- An older cut, kept for reference.\n${TABLE}${row(["1", "Build the API", "slice 0", "curl it", "9", "", "about 1,500 lines"])}\n-->\n\n`;
+  const text = plan(STEPS, hidden + TABLE);
+  assert.deepEqual(readSteps(text).map((s) => s.id), STEPS.map((s) => s[0]));
+  assert.deepEqual(checkPlan(text).errors, []);
+  const allHidden = plan(STEPS, `<!--\n${TABLE}`, row).replace("\n\n## Gate record", "\n-->\n\n## Gate record");
+  assert.equal(readSteps(allHidden), null);
+  assert.match(errors(allHidden), /plan: no steps table/);
+});
+
+test("#405: WHEN a plan has no steps table THEN the error asks for the Lines column too", () => {
+  assert.match(errors("# Plan\n"), /no steps table\. The current pass needs one with the columns: # \| step \| slice \| try it \| size \| lines \| after$/);
+});
+
+test("AC-405-3: WHEN a cell says `split into #12, #13` THEN the eval's steps-are-small check fails", () => {
+  const small = evalChecks.find((c) => c.id === "steps-are-small");
+  const run = (text) => small.check({ read: () => text });
+  assert.deepEqual(run(plan()), { pass: true });
+  const split = run(withLines(3, "split into #12, #13"));
+  assert.equal(split.pass, false);
+  assert.match(split.detail, /step 4 .*splits an issue/);
 });
