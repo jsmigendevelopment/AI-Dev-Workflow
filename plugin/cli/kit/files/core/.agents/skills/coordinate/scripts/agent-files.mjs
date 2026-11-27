@@ -39,8 +39,8 @@ export const RULE_FILES = /(?:^|\/)(?:\.agents|\.claude|\.codex)(?:\/|$)|^\.gith
 // the check folders and `check-*` files; its deploy, connect, cloudflare and generate scripts aren't checks.
 export const CHECK_FILES = new RegExp([
   String.raw`(?:^|/)(?:\.mcp\.json|eslint(?:\.[^/]+)?\.config\.[^/]+|\.eslintrc[^/]*|\.eslintignore|eslint-rules\.[^/]+|\.prettierrc[^/]*`,
-  String.raw`|prettier\.config\.[^/]+|\.prettierignore|knip\.jsonc?|knip\.config\.[^/]+|\.jscpd\.json|lefthook\.ya?ml|\.semgrep\.yml`,
-  String.raw`|tsconfig[^/]*\.json|(?:vitest\.(?:config|workspace)|jest\.config|playwright\.config)\.[^/]+|lighthouserc\.[^/]+`,
+  String.raw`|prettier\.config\.[^/]+|\.prettierignore|knip\.jsonc?|knip\.config\.[^/]+|\.jscpd\.json|lefthook\.ya?ml|\.semgrep\.ya?ml`,
+  String.raw`|tsconfig[^/]*\.jsonc?|(?:vitest\.(?:config|workspace)|jest\.config|playwright\.config)\.[^/]+|\.?lighthouserc\.[^/]+`,
   // Package-manager settings and other manifest names change how scripts run (#220, decision 220-1); .gitattributes
   // decides what the size rule counts (#220).
   String.raw`|\.npmrc|\.yarnrc(?:\.ya?ml)?|pnpm-workspace\.ya?ml|\.pnpmfile\.c?js|package\.ya?ml|package\.json5|\.gitattributes)$`,

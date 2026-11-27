@@ -226,7 +226,7 @@ At every risk and automation level, the agent stops and asks before:
 | [`pr-security`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/pr-security/SKILL.md) | Risky lane | A fresh agent reads the diff against `docs/security-policy.md`: access, input, injection, secrets, data exposure, dependencies, abuse and money. |
 | [`qa`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/qa/SKILL.md) | Normal and risky lanes | A fresh agent opens the preview in a real browser. It tries to read and delete another user's data. |
 | Secret scan | Every pull request | gitleaks in the local gate (`pnpm check:merge`). |
-| Agent-file guard | Every pull request | Below Full, a change to the agents' own rules can't merge until you add the `human-approved` label. On Full there's no label: a fresh weakening review decides. |
+| Agent-file guard | Every pull request | It covers the agents' own rules and the check files (lint, type, test and budget config, check scripts): the list is in [`full.md`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/automation/references/full.md#the-weakening-review). Below Full, such a change can't merge until you add the `human-approved` label. On Full there's no label: a fresh weakening review decides. |
 | Second opinion | Personal data or money | A reviewer from another vendor's model, if you have one. |
 
 ### Code rules that fail the build

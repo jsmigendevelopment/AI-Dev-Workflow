@@ -10,7 +10,7 @@ Two stages, both in the background while the grill goes on.
 | Stage | Starts when | Tier · effort (see `routing`) | Draws |
 |---|---|---|---|
 | **1. Layout** | the grill's main-flow topic ends | Everyday · medium | every main-flow screen: structure and content, grey boxes, no theme |
-| **2. Detailed UI and UX** | the look-and-feel topic is answered | Strongest · high. Ask first unless the profile says not to. On Full automation, use the current model. | the agreed layout as the full design: tokens, states, spacing, motion, interactions, light and dark |
+| **2. Detailed UI and UX** | the look-and-feel topic is answered | Strongest · high. Below Full, ask first unless the profile says not to. On Full automation, use the current model. | the agreed layout as the full design: tokens, states, spacing, motion, interactions, light and dark |
 
 Before the repo exists, write to `kickoff/` instead of `docs/`. `name` moves it.
 
