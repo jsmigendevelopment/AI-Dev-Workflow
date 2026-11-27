@@ -40,7 +40,10 @@ export const RULE_FILES = /(?:^|\/)(?:\.agents|\.claude|\.codex)(?:\/|$)|^\.gith
 export const CHECK_FILES = new RegExp([
   String.raw`(?:^|/)(?:\.mcp\.json|eslint(?:\.[^/]+)?\.config\.[^/]+|\.eslintrc[^/]*|\.eslintignore|eslint-rules\.[^/]+|\.prettierrc[^/]*`,
   String.raw`|prettier\.config\.[^/]+|\.prettierignore|knip\.jsonc?|knip\.config\.[^/]+|\.jscpd\.json|lefthook\.ya?ml|\.semgrep\.yml`,
-  String.raw`|tsconfig[^/]*\.json|(?:vitest\.(?:config|workspace)|jest\.config|playwright\.config)\.[^/]+|lighthouserc\.[^/]+)$`,
+  String.raw`|tsconfig[^/]*\.json|(?:vitest\.(?:config|workspace)|jest\.config|playwright\.config)\.[^/]+|lighthouserc\.[^/]+`,
+  // Package-manager settings and other manifest names change how scripts run (#220, decision 220-1); .gitattributes
+  // decides what the size rule counts (#220).
+  String.raw`|\.npmrc|\.yarnrc(?:\.ya?ml)?|pnpm-workspace\.ya?ml|\.pnpmfile\.c?js|package\.ya?ml|package\.json5|\.gitattributes)$`,
   String.raw`|(?:^|/)\.semgrep(?:/|$)`,
   String.raw`|(?:^|/)scripts/(?:(?:budgets|checks|lint|pr|migrations)/|(?:[^/]+/)*check-[^/]*$)`,
 ].join(""), "i");
@@ -48,8 +51,13 @@ export const CHECK_FILES = new RegExp([
 const isProtected = (path) => RULE_FILES.test(path) || CHECK_FILES.test(path);
 /** A package.json at any depth (#163): its scripts and inline check config are check code, its dependencies aren't. */
 export const PACKAGE_FILE = /(?:^|\/)package\.json$/i;
-/** The package.json keys that are check code: `pnpm check` lives in `scripts`, the rest hold check config inline. */
-export const CHECK_KEYS = ["scripts", "eslintConfig", "prettier", "jest", "knip", "jscpd", "lint-staged"];
+/**
+ * The package.json keys that are check code: `pnpm check` lives in `scripts`, the rest hold check config inline,
+ * pick the packages the checks run over (`workspaces`), or can swap a checker for another package (`pnpm`,
+ * `overrides`, `resolutions`; #220, decision 220-1).
+ */
+export const CHECK_KEYS = ["scripts", "eslintConfig", "eslintIgnore", "prettier", "stylelint", "jest", "knip", "jscpd", "lint-staged",
+  "workspaces", "pnpm", "overrides", "resolutions"];
 
 // One side of a package.json as an object. A missing side is empty; an unreadable or unparsable one is an error.
 function packageSide(side, name) {
