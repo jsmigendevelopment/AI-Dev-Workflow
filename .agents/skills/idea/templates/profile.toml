@@ -72,7 +72,8 @@ voice = "plain"      # how the copy sounds
 references = []      # apps or sites whose look you like
 
 [routing]
-# Your models per tier. Leave a tier empty if you don't have it.
+# Your models per tier, as notes for you and the agent: no skill reads them by name.
+# The routing skill picks a tier; you map it to your model. Leave a tier empty if you don't have it.
 strongest = ""                  # e.g. "Claude Fable 5.2"
 everyday = ""                   # e.g. "Claude Opus 5.5"
 creative = ""                   # e.g. "ChatGPT, top model"

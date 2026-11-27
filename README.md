@@ -117,9 +117,9 @@ onRails ships its maker's own preferences. They are a starting point, not the on
 | `[design]` | The look and feel, light or dark, roomy or dense, and how your app's text sounds |
 | `[routing]` | Your model for each tier, and whether to ask before the strongest one |
 
-Below Full, the grill still shows each pick for you to confirm; on Full, each pick is an "AI pick, not reviewed" in an FYI. What you say in the session beats the profile. Only two stack packs are ready: TanStack Start, and TanStack Start with an Expo mobile app. For another stack, the agent sets up the same parts by hand. The risk dial and the automation level change who merges, but the review steps stay.
+On every level below Full, the grill shows each pick for you to confirm. On Full, nothing waits: each pick is recorded as an "AI pick, not reviewed" and listed in an FYI. What you say in the session beats the profile. Only two stack packs are ready: TanStack Start, and TanStack Start with an Expo mobile app. For another stack, the agent sets up the same parts by hand. The risk dial and the automation level change who merges, but the review steps stay.
 
-**What the profile can't change yet:** the rules in `AGENTS.md` and the skills, such as the writing rules and the review steps. Today you edit those files in your project. `update` keeps your edits and puts the kit's new copy next to yours to compare. Layered settings and personal rules, with no kit files to edit, are planned in [#124](https://github.com/jsmigendevelopment/onRails/issues/124). They haven't shipped yet.
+**What the profile can't change yet:** the rules in `AGENTS.md` and the skills, such as the writing rules and the review steps. Today you edit those files in your project. `npx onrails update` keeps your edits and puts the kit's new copy next to yours to compare. Layered settings and personal rules, with no kit files to edit, are planned in [#124](https://github.com/jsmigendevelopment/onRails/issues/124). They haven't shipped yet.
 
 **This is not a guarantee.** Agents can still be wrong, even with these rules and checks. You own what you ship.
 
