@@ -8,6 +8,7 @@ import { PARK_PLAN } from "./full-never-parks-plan.mjs";
 import { LOOP_PLAN } from "./live-thread-loop-plan.mjs";
 import { MEM_PLAN } from "./short-on-memory-plan.mjs";
 import { SHOW_PLAN } from "./show-it-early-plan.mjs";
+import { SIZE_PLAN } from "./size-send-back-plan.mjs";
 
 const CART = `const DISCOUNTS = { SAVE10: 10 };
 // The cart's total in integer cents, after a discount code.
@@ -169,6 +170,7 @@ export const SCENARIO_PLANS = {
   "short-on-memory": MEM_PLAN,
   "back-on-full": BACK_PLAN,
   "live-thread-loop": LOOP_PLAN,
+  "size-send-back": SIZE_PLAN,
   "one-prompt": {
     with: { steps: [{ write: "kickoff/review.md", content: ONE_PROMPT_REVIEW }, { tool: "Bash", input: { command: "node .claude/hooks/notify.mjs --level fyi --title \"Kickoff review: AI picks, not reviewed\" --link kickoff/review.md" }, ok: true }, { write: "docs/issues/001-the-skeleton.md", content: FIRST_ISSUE }, { tool: "Skill", input: { skill: "coordinate" }, ok: true }, { bash: "git checkout -qb feat/1-the-skeleton && mkdir -p src && printf 'export const app = 1;\\n' > src/app.mjs && git add src && git commit -qm '#1 The skeleton'" }, { text: "Full automation, auto grill. The review is in kickoff/review.md, every pick an AI pick, not reviewed. Issue #1 is built on feat/1-the-skeleton, and the loop goes on." }] },
     without: { steps: [{ write: "src/app.js", content: "x" }, { tool: "AskUserQuestion", input: { questions: [{ question: "Add sign-in next?" }] } }, { text: "I built a first version. Want me to add sign-in next?" }] },

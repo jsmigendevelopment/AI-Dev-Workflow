@@ -1,0 +1,1 @@
+Keep building. #1 and #2 are built and waiting for review. There's no GitHub in this folder: the issues are the files in docs/issues/. The shell here runs one plain command at a time (git, node, npm, ls, cat, mkdir or grep; no echo, no && or ;).

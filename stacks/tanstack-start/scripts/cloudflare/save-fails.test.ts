@@ -76,7 +76,12 @@ describe('when wrangler secret put SITE_PASSWORD fails', () => {
   })
 
   it('AC-160-3: WHEN the rerun with --new-password succeeds THEN the Worker and the file match again', async () => {
-    const world: World = { ...freshWorld(), testSecrets: ['SITE_PASSWORD'], passwordPutFails: true, secretsMade: 0 }
+    const world: World = {
+      ...freshWorld(),
+      testSecrets: ['SITE_PASSWORD'],
+      passwordPutFails: true,
+      secretsMade: 0,
+    }
     const first = await run(world, files(), { protect: 'password', newPassword: true })
     world.passwordPutFails = false
     const again = await run(world, files(), { protect: 'password', newPassword: true })
