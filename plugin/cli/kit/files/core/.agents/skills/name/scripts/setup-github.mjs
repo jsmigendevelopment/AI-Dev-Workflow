@@ -170,6 +170,7 @@ const labels = [
   ["priority:p0", "b60205"], ["priority:p1", "d93f0b"], ["priority:p2", "fbca04"], ["priority:p3", "c5def5"],
   ["pass:1", "1d76db"], ["pass:2", "5319e7"], ["pass:3", "8b5cf6"],
   ["slice:core", "8b5cf6"], ["slice:support", "bfd4f2"],
+  ["size-exception", "fef2c0"],
   ["lane:tiny", "c2e0c6"], ["lane:normal", "0e8a16"], ["lane:risky", "b60205"],
   ["status:ready", "0e8a16"], ["status:in-progress", "fbca04"], ["needs-human", "d93f0b"], ["human-approved", "5319e7"], ["weakening-reviewed", "c5def5"],
   // `ask` labels a blocker and a handoff record; `gh issue create --label` fails on a label the repo lacks.
