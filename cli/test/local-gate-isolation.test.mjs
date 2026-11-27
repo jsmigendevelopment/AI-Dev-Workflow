@@ -101,7 +101,7 @@ test("#225 round 2, must 2: pr-rules.mjs counts linguist-generated only from mai
   ]) {
     const r = rules({ files: HUGE, ...run });
     assert.equal(r.status, 1, `${why}: ${r.stderr}`);
-    assert.match(r.stderr, /5000 changed lines \(over 400/, why);
+    assert.match(r.stderr, /5000 changed lines \(the limit is under 1000/, why);
   }
   // Committed ones count, a nested one included.
   const nested = checkout("plugin/** linguist-generated\n");
@@ -158,7 +158,7 @@ test("#225 round 2, nice item 3: the files' changes must add up to the pull requ
 test("#225 round 3, nice item 1: pr-rules.mjs starts every git with GIT_ATTR_NOSYSTEM=1, so the system attributes file never counts", unixOnly, () => {
   const r = rules({ files: HUGE, attributes: "plugin/** linguist-generated\n", logGit: true, env: { GIT_ATTR_NOSYSTEM: "0" } });
   assert.equal(r.status, 1, r.stderr);
-  assert.match(r.stderr, /5000 changed lines \(over 400/);
+  assert.match(r.stderr, /5000 changed lines \(the limit is under 1000/);
   const calls = r.gitCalls();
   assert.ok(calls.some((c) => c.argv.includes("check-attr")), "the fake git saw check-attr");
   for (const call of calls) assert.equal(call.attrNosystem, "1", call.argv.join(" "));
@@ -168,7 +168,7 @@ test("#225 round 3, nice item 2: where git init sets core.ignorecase=true, plugi
   const files = [["PLUGIN/huge.ts", 5000, 0], ["Plugin/x.ts", 500, 0], ["plugin/a.md", 900, 0]];
   const r = rules({ files, attributes: "plugin/** linguist-generated\n", ignorecase: true });
   assert.equal(r.status, 1, r.stderr);
-  assert.match(r.stderr, /5500 changed lines \(over 400/);
+  assert.match(r.stderr, /5500 changed lines \(the limit is under 1000/);
   assert.ok(r.gitCalls().some((c) => c.argv.includes("init")), "the fake git made the scratch repo");
 });
 

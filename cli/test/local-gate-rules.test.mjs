@@ -195,12 +195,13 @@ test("AC-225-4: WHEN a project has no pr:rules THEN pr-rules.mjs still checks th
 });
 
 test("AC-225-4: WHEN a project has no pr:rules THEN pr-rules.mjs still checks the size, without lockfiles or files main marks generated", unixOnly, () => {
-  const big = [["src/a.ts", 300, 150]];
+  const big = [["src/a.ts", 700, 350]];
   const over = rules({ files: big });
   assert.equal(over.status, 1);
-  assert.match(over.stderr, /450 changed lines \(over 400, lockfiles and generated files not counted\)\. Split the pull request, or add the large-pr label/);
-  assert.equal(rules({ files: big, labels: ["large-pr"] }).status, 0, "the large-pr label");
-  assert.equal(rules({ files: [["src/a.ts", 200, 200]] }).status, 0, "400 is fine");
+  assert.match(over.stderr, /1050 changed lines \(the limit is under 1000; lockfiles, generated files and test fixtures not counted\)\. Split the pull request, or add the size-exception label/);
+  assert.equal(rules({ files: big, labels: ["size-exception"], body: "Closes #5\n\nSize exception: a mechanical rename" }).status, 0, "the size-exception label and a reason (#377)");
+  assert.equal(rules({ files: big, labels: ["large-pr"] }).status, 1, "the old large-pr label no longer skips it (#377)");
+  assert.equal(rules({ files: [["src/a.ts", 500, 499]] }).status, 0, "999 is fine");
   const skipped = rules({
     files: [["src/a.ts", 10, 5], ["pnpm-lock.yaml", 900, 800], ["app/package-lock.json", 500, 0], ["yarn.lock", 1, 1], ["plugin/skills/a.md", 600, 0], ["docs/b.md", 3, 0]],
     attributes: "plugin/** linguist-generated\n",
@@ -213,10 +214,10 @@ test("AC-225-4: a renamed file is skipped only when its old and new names are bo
   const attributes = "plugin/** linguist-generated\n";
   const moved = rules({ files: [["plugin/moved.ts", 700, 650, "src/core.ts"]], attributes });
   assert.equal(moved.status, 1, "a rename into plugin/ counts");
-  assert.match(moved.stderr, /1350 changed lines \(over 400/);
-  const locked = rules({ files: [["pnpm-lock.yaml", 900, 0, "src/data.json"]], attributes });
+  assert.match(moved.stderr, /1350 changed lines \(the limit is under 1000/);
+  const locked = rules({ files: [["pnpm-lock.yaml", 1200, 0, "src/data.json"]], attributes });
   assert.equal(locked.status, 1, "a rename to pnpm-lock.yaml counts");
-  assert.match(locked.stderr, /900 changed lines \(over 400/);
+  assert.match(locked.stderr, /1200 changed lines \(the limit is under 1000/);
   const both = rules({ files: [["plugin/b.md", 900, 0, "plugin/a.md"], ["pnpm-lock.yaml", 800, 0, "app/pnpm-lock.yaml"], ["src/a.ts", 3, 0]], attributes });
   assert.equal(both.status, 0, both.stderr);
   assert.match(both.stdout, /3 changed lines/);
@@ -239,11 +240,11 @@ test("AC-225-4: WHEN GitHub lists fewer files than the pull request changes on t
 
 test("#225: the kit repo's .gitattributes counts the two plugin manifests people edit, and the pack marks its generated files", unixOnly, () => {
   const kit = rules({
-    files: [["plugin/.claude-plugin/plugin.json", 300, 0], ["plugin/.codex-plugin/plugin.json", 200, 0], ["plugin/skills/a.md", 900, 0], [".claude/skills/b.md", 900, 0], ["cli/README.md", 500, 0]],
+    files: [["plugin/.claude-plugin/plugin.json", 600, 0], ["plugin/.codex-plugin/plugin.json", 400, 0], ["plugin/skills/a.md", 900, 0], [".claude/skills/b.md", 900, 0], ["cli/README.md", 500, 0]],
     attributes: read(".gitattributes"),
   });
   assert.equal(kit.status, 1);
-  assert.match(kit.stderr, /500 changed lines \(over 400/);
+  assert.match(kit.stderr, /1000 changed lines \(the limit is under 1000/);
   const pack = rules({
     files: [["src/routeTree.gen.ts", 500, 0], ["migrations/meta/0001_snapshot.json", 2000, 0], ["e2e/visual.spec.ts-snapshots/home.txt", 700, 0], ["worker-configuration.d.ts", 4000, 0], ["src/a.ts", 10, 5]],
     attributes: read("stacks/tanstack-start/.gitattributes"),

@@ -20,7 +20,7 @@ export function checkout(attributes = "") {
   const dir = tmp("onrails-rules-");
   git(dir, "init", "-q");
   mkdirSync(join(dir, SCRIPTS), { recursive: true });
-  for (const name of ["pr-rules.mjs", "agent-files.mjs", "command-for.mjs"]) copyFileSync(source(name), join(dir, SCRIPTS, name));
+  for (const name of ["pr-rules.mjs", "pr-size.mjs", "agent-files.mjs", "command-for.mjs"])copyFileSync(source(name), join(dir, SCRIPTS, name));
   writeFileSync(join(dir, ".gitattributes"), attributes);
   git(dir, "add", "-A");
   git(dir, "commit", "-q", "-m", "main");
