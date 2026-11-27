@@ -1,5 +1,5 @@
-# Copies the kit's scripts write (sync-skills.mjs, the CLI bundle, npm-readme.mjs). The local gate's pr-rules.mjs
-# doesn't count them toward a pull request's 400-line size rule.
+# Copies the kit's scripts write (sync-skills.mjs, the CLI bundle, npm-readme.mjs). pr-size.mjs, the size rule the
+# local gate's pr-rules.mjs uses, doesn't count them toward a pull request's 1,000-line limit.
 .claude/skills/** linguist-generated
 plugin/** linguist-generated
 cli/README.md linguist-generated

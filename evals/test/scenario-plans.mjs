@@ -24,7 +24,7 @@ const items = [{ priceCents: 1000, qty: 2 }];
 test("AC-7-1: WHEN the code is SAVE10 THEN the total is 10% off", () => assert.equal(total(items, "SAVE10"), 1800));
 test("AC-7-2: WHEN the code is unknown THEN the total is the full price", () => assert.equal(total(items, "NOPE"), 2000));
 `;
-// A pass 1 cut into thin steps: nine rows, two or more per slice, a try line and a size on each.
+// A pass 1 cut into thin steps: nine rows, two or more per slice, a try line, a size and a line estimate on each.
 const THIN_PLAN = `# Tracer-bullet pyramid
 
 ## Slices
@@ -45,18 +45,18 @@ const THIN_PLAN = `# Tracer-bullet pyramid
 
 ## Current pass: steps
 
-| # | Step | Slice | Try it | Size | After |
-|---|---|---|---|---|---|
-| 1 | The skeleton | slice 0 | Open the test URL: the starter page loads | 5 · sets up the app, CI and the test deploy | |
-| 2 | Sign in | Sign-in | Click Continue with Google: your name shows in the header | 3 | 1 |
-| 3 | Sign out | Sign-in | Click Sign out: /list sends you to the sign-in page | 2 | 2 |
-| 4 | Make a household | Household | Type a name and save: the household page shows you as its member | 4 | 2 |
-| 5 | Join from an invite link | Household | Open the link as a second user: both names show as members | 4 | 4 |
-| 6 | See the list | Shared list | Open /list: the seeded items show, newest first | 4 | 4 |
-| 7 | Add an item | Shared list | Type "milk" and press Enter: it shows at the top | 3 | 6 |
-| 8 | Tick an item off | Shared list | Click the box next to "milk": it is struck through | 2 | 6 |
-| 9 | Enter a spend | Cost split | Open /split, type 12.50 and save: it shows in this month's list | 4 | 4 |
-| 10 | See who owes whom | Cost split | Open /split with two spends: each flatmate's share shows | 3 | 9 |
+| # | Step | Slice | Try it | Size | Lines | After |
+|---|---|---|---|---|---|---|
+| 1 | The skeleton | slice 0 | Open the test URL: the starter page loads | 5 · sets up the app, CI and the test deploy | exception: copies the stack pack's starter whole | |
+| 2 | Sign in | Sign-in | Click Continue with Google: your name shows in the header | 3 | about 300 lines | 1 |
+| 3 | Sign out | Sign-in | Click Sign out: /list sends you to the sign-in page | 2 | about 100 lines | 2 |
+| 4 | Make a household | Household | Type a name and save: the household page shows you as its member | 4 | about 500 lines | 2 |
+| 5 | Join from an invite link | Household | Open the link as a second user: both names show as members | 4 | about 450 lines | 4 |
+| 6 | See the list | Shared list | Open /list: the seeded items show, newest first | 4 | about 450 lines | 4 |
+| 7 | Add an item | Shared list | Type "milk" and press Enter: it shows at the top | 3 | about 300 lines | 6 |
+| 8 | Tick an item off | Shared list | Click the box next to "milk": it is struck through | 2 | about 150 lines | 6 |
+| 9 | Enter a spend | Cost split | Open /split, type 12.50 and save: it shows in this month's list | 4 | about 400 lines | 4 |
+| 10 | See who owes whom | Cost split | Open /split with two spends: each flatmate's share shows | 3 | about 250 lines | 9 |
 `;
 const COARSE_PLAN = "# Plan\n\n## Phase 1\n\n1. Set up the database schema\n2. Build the API\n3. Build the UI\n";
 

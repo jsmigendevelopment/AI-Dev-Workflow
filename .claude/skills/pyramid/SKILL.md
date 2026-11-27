@@ -1,6 +1,6 @@
 ---
 name: pyramid
-description: Use when planning how to build an app or a big feature, or checking how a plan is sliced ("plan the build", "break this into milestones", "how should we slice this", "plan the next pass", "is this plan thin enough") - the CTO step. Plans slice 0 (the running app first, then the local checks and a test deploy), cuts the MVP into vertical tracer-bullet slices, stacks them into three passes (Works, Real, Ready), cuts only the current pass into thin steps a person can try, checks the cut with a script, designs the schema and API from the approved wireframes, and re-plans at each pass gate.
+description: Use when planning how to build an app or a big feature, or checking how a plan is sliced ("plan the build", "break this into milestones", "how should we slice this", "plan the next pass", "is this plan thin enough") - the CTO step. Plans slice 0 (the running app first, then the local checks and a test deploy), cuts the MVP into vertical tracer-bullet slices, stacks them into three passes (Works, Real, Ready), cuts only the current pass into thin steps a person can try, each under 1,000 changed lines, checks the cut with a script, designs the schema and API from the approved wireframes, and re-plans at each pass gate.
 ---
 
 # Pyramid: see it working early, then make it great
@@ -81,7 +81,7 @@ pass 1  ████ ████ ████ ████ ████
 5. **Outline every pass.** For each: the milestone name, its slices, and one line per slice on what "better" means.
 6. **Cut the current pass into steps,** and only the current pass. For each of its slices, list the smallest changes a person can try, and put each through the thin test below. Order them: slice 0 first, then the step that proves the riskiest idea, usually in the core. Fill in "After" only where one step truly needs another, so steps that don't can be built at the same time.
 7. **Write `docs/pyramid.md`** from the `idea` skill's template: the steps go in its steps table, and the current pass is marked `building`.
-8. **Check the cut:** `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md`. Fix an error by cutting again, not by rewording the row. **Done when** it exits 0 (an empty plan, or a slice the current pass covers with no step, fails it), every pass has an outline row, and only the current pass has steps. Read each warning: it flags a possible layer or developer check. Fix it if you agree. Then hand off to `issues` for that pass only.
+8. **Check the cut:** `node .agents/skills/pyramid/scripts/check-plan.mjs docs/pyramid.md`. Fix an error by cutting again, not by rewording the row. **Done when** it exits 0 (an empty plan, a slice the current pass covers with no step, or a step with no line estimate or one at 1,000 or more, fails it), every pass has an outline row, and only the current pass has steps. Read each warning: it flags a possible layer or developer check. Fix it if you agree. Then hand off to `issues` for that pass only.
 
 ## The thin test
 
@@ -89,7 +89,7 @@ A step passes when all four are true:
 
 1. **A person can try it.** Write the try line: what they do on the test site, and what they see. *"Type milk and press Enter: it shows at the top of the list."* Can't write one? It isn't a step. Fold it into the first step that shows something.
 2. **It cuts through every layer it needs:** the screen, the logic and the data together. "Set up the database" and "build the API" are layers, not steps.
-3. **It's small:** size 4 or under on the complexity scale in `issues`, which is one screen, form or rule on a module that exists. A 5 to 7 says why it can't be cut, and at most one step in three is that big.
+3. **It's small:** size 4 or under on the complexity scale in `issues`, which is one screen, form or rule on a module that exists. A 5 to 7 says why it can't be cut, and at most one step in three is that big. **Its pull request stays under 1,000 changed lines,** not counting generated files, lockfiles and test fixtures. Write the estimate, tests included, in the Lines column: `about 300 lines`. Aim for about 400. A step at 1,000 or more is cut again before the issues are written. Only a change that can't be split, like a mechanical rename, writes `exception: <reason>`. The issue's `Size:` line starts from this cell, and the checker reads it the same way the issues check does.
 4. **It's one thing:** one path, one rule or one state. An "and" in its name often means two steps; the checker warns on it.
 
 - **Count them.** Fewer than two steps per slice means you listed slices, not steps. Cut again.

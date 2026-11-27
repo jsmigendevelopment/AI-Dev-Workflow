@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { spawnSync } from "./child.mjs";
 import { safeEnv, unixOnly } from "./helpers.mjs";
 import { toLine, validate } from "../src/insights-record.mjs";
+import { exceptionReason } from "../../.agents/skills/coordinate/scripts/pr-size.mjs";
 import { JOB, ME, OLD, REPO, REVIEW, SHA, SIZE_LINE, branch, git, json, pathOf, pullOf, put, record, records, run, setup } from "./insights-land-fakes.mjs";
 
 const comment = (id, login, body) => ({ id, user: { login }, body });
@@ -154,6 +155,8 @@ test("AC-332-3: WHEN the checkout has two record files not on origin/main (a tem
   assert.ok(r.calls.includes(`-f head=${BRANCH} -f base=main repos/acme/app/pulls\n`), r.calls);
   assert.equal(r.calls.match(LABELS)?.[1], "77", `labels no-issue and size-exception: ${r.calls}`);
   assert.ok(r.calls.includes(`\n${SIZE_LINE}\n`), "the body has the size exception line");
+  const body = r.calls.slice(r.calls.indexOf("-f body=") + 8, r.calls.indexOf(" -f head="));
+  assert.equal(exceptionReason(body), "insights records only, each checked by land --verify", "#377's size rule reads it");
 });
 
 test("#332: after the records pull request merges, the coordinator's git pull --ff-only is clean", unixOnly, () => {
