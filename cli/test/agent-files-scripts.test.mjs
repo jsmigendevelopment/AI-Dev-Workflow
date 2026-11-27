@@ -109,7 +109,7 @@ const content = (text, path = "package.json") => ({ type: "file", encoding: "bas
 function gate({ files = [{ filename: "package.json", status: "modified" }], base = json(PKG), head = json(WEAKER), stack = RECOMMENDED, api = {} } = {}) {
   const dir = tmp("onrails-gate-pkg-");
   const path = files[0].filename;
-  const fake = fakeGh(dir, {
+  const fake = fakeGh(tmp("onrails-gh-"), { // gh outside the folder it runs in (#274)
     [`${P}/pulls/7`]: { head: { sha: HEAD }, base: { sha: "e".repeat(40), ref: "main" }, changed_files: files.length },
     [`${P}/pulls/7/files`]: files,
     [`${P}/issues/7/comments`]: [],

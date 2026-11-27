@@ -27,6 +27,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { commandFor } from "./command-for.mjs";
 
 /** Paths that change the agents' rules, the checks, or the automation level the guard reads. */
 // Any case: a case-insensitive checkout (macOS, Windows) puts `.Claude/x` in `.claude/` and opens
@@ -192,7 +193,13 @@ export function verifyRuns(runs) {
 }
 
 /** `gh api` with these arguments, its output as text. Throws when gh fails. */
-export const gh = (...args) => execFileSync("gh", ["api", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+export function gh(...args) {
+  // By gh's full path on PATH, never a gh.exe in the current folder or the repo (#274).
+  const how = commandFor("gh", ["api", ...args]);
+  // Not on PATH is ENOENT, as a bare gh's start would say: callers tell the person to install it.
+  if (how.why) throw Object.assign(new Error(how.why), { code: /isn't on your PATH$/.test(how.why) ? "ENOENT" : undefined });
+  return execFileSync(how.file, how.args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: how.env, windowsVerbatimArguments: how.verbatim });
+}
 /** Every page of an API list, as one array. */
 export const pages = (path) => JSON.parse(gh("--paginate", "--slurp", path)).flat();
 

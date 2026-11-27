@@ -33,6 +33,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
+- **Windows: no bare `gh` in agent-files and research-library (#274).** Both start `gh` through `command-for.mjs` (synced copies next to each), by its full path on PATH, never a `gh.exe` in the current folder or the repo. `roots()` compares the home folder case-blind on Windows, so a git repo at `~` no longer refuses tools under home. The `secrets` skill now says a plain variable may go on `--body`; secret values go only on stdin.
 - `list`, `npx onrails ps` and `doctor` print a process record's id, command, reason and stop condition through the same escaping as the session hooks, so an odd record can't drive the terminal or pass for another (#250).
 
 - **The Windows process registry counts inherit-only rules on its own folders (#268).** A write grant to another account that only applies to what is made later, on `.onrails`, its `logs` folder or the folder that holds `.onrails`, now refuses the registry up front with the usual fix line; on the folders above a repo root it still doesn't count. Decision 268-1.

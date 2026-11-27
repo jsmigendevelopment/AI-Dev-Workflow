@@ -32,7 +32,7 @@ function gate(args, { comments = [PASS()], stack = FULL, local = null, env = {},
     writeFileSync(join(dir, "docs", "stack.md"), local);
   }
   const p = "repos/acme/app";
-  const fake = fakeGh(dir, {
+  const fake = fakeGh(tmp("onrails-gh-"), { // gh outside the folder it runs in (#274)
     [`${p}/pulls/7`]: { head: { sha: HEAD }, changed_files: 1 },
     [`${p}/pulls/7/files`]: [{ filename: "AGENTS.md" }],
     [`${p}/issues/7/comments`]: comments,
