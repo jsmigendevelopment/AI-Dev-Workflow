@@ -2,7 +2,7 @@
 // AC-131-1: step 6.1 runs the checks on the exact head commit, and only for a pull request the loop started.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { fakeGh, tmp, unixOnly } from "./helpers.mjs";

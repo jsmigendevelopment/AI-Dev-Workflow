@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { exists, put, safeEnv, tmp } from "./helpers.mjs";

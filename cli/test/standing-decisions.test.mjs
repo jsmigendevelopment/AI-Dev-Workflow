@@ -4,7 +4,7 @@
 // decision-lifts-gate; AC-4 is in doctor.test.mjs and update.test.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "./child.mjs";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

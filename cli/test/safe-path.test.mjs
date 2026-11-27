@@ -5,11 +5,12 @@
 // child that would get the shell's PATH. The scan reads this file too, so its samples are built from pieces.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
+import { spawn, spawnSync } from "./child.mjs";
+import { chmodSync, existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { basename, delimiter, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { checkPath, fake, nodeOnly, put, safeEnv, safePath, tmp, unixOnly } from "./helpers.mjs";
+import { inherits } from "./safe-path-scan.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const CLI = fileURLToPath(new URL("..", import.meta.url));
@@ -66,48 +67,6 @@ test("#197: the runtime guard never skips an empty PATH item, which a child read
   assert.deepEqual(checkPath({ PATH: [a, b].join(delimiter) }), { PATH: [a, b].join(delimiter) });
 });
 
-// The forms that give a child the shell's PATH. Each pattern is written so it can't match its own source.
-const READS_PATH = /process\.env\s*(?:\??\.\s*path\b|\[\s*["'`]path["'`]\s*\])(?!\s*=[^=])/i;
-const WHOLE_ENV = /process\.env\b(?!\s*(?:\??\.|\[))/;
-const PATH_KEY = /\bPath\s*:|["'`][Pp]ath["'`]\s*:/;
-// helpers.mjs strips every PATH key from the shell's env on the same line; a lookup (findCommand, commandFor) starts
-// nothing, so its Path key is a test of Windows casing.
-const STRIPS = "PATH_KEY.test(";
-const LOOKUP = /\b(?:findCommand|commandFor)\(/;
-const CHILD_PROCESS = /["'](?:node:)?child_process["']/;
-// A claude or codex named by its path in node's own folder, which no PATH reaches (#197).
-const TOOL_FILE = String.raw`[/\\"'\x60](?:claude|codex)(?:\.cmd|\.exe)?["'\x60]`;
-const NEXT_TO_NODE = new RegExp(String.raw`\bexecPath\b.*${TOOL_FILE}|${TOOL_FILE}.*\bexecPath\b`, "i");
-
-// The text from just after an opening paren to its closing one.
-function args(text, start) {
-  let depth = 1, i = start;
-  for (; i < text.length && depth > 0; i++) depth += text[i] === "(" ? 1 : text[i] === ")" ? -1 : 0;
-  return text.slice(start, i - 1);
-}
-
-/** Each way the file's text could start a child with the shell's PATH, one line each. */
-function inherits(text) {
-  const found = [];
-  text.split("\n").forEach((line, i) => {
-    if (READS_PATH.test(line)) found.push(`line ${i + 1}: reads the shell's PATH`);
-    if (WHOLE_ENV.test(line) && !line.includes(STRIPS)) found.push(`line ${i + 1}: passes the shell's whole env`);
-    if (PATH_KEY.test(line) && !LOOKUP.test(line)) found.push(`line ${i + 1}: sets a Path key`);
-    if (NEXT_TO_NODE.test(line)) found.push(`line ${i + 1}: names a claude or codex next to node`);
-  });
-  const imports = [...text.matchAll(/import\s*(\{[^}]*\}|\*\s*as\s+\w+)\s*from\s*(["'][^"']+["'])/g)].filter((m) => CHILD_PROCESS.test(m[2]));
-  if (imports.some((m) => m[1].startsWith("*")) || /require\(\s*["'](?:node:)?child_process["']\s*\)/.test(text)) {
-    found.push("child_process isn't imported by name, so its calls can't be checked");
-  }
-  const names = imports.flatMap((m) => m[1].slice(1, -1).split(",")).map((n) => n.trim().split(/\s+as\s+/).at(-1)).filter((n) => /^[\w$]+$/.test(n));
-  for (const name of names) {
-    for (const m of text.matchAll(new RegExp(`(?<![.\\w$])${name}\\(`, "g"))) {
-      if (!/(?<![.\w$])env\s*[:,}]/.test(args(text, m.index + m[0].length))) found.push(`${name}() with no env inherits the shell's PATH`);
-    }
-  }
-  return found;
-}
-
 test("AC-191-2: WHEN a test file spawns the CLI with the inherited PATH THEN the guard test fails", () => {
   const E = "process" + ".env", S = "spawn" + "Sync", CP = '"node:child' + '_process"';
   const imp = `import { ${S} } from ${CP};\n`;
@@ -127,15 +86,18 @@ test("AC-191-2: WHEN a test file spawns the CLI with the inherited PATH THEN the
     `import * as cp from ${CP};\ncp.${S}(process.execPath, [CLI]);`,
   ];
   for (const form of bad) assert.notDeepEqual(inherits(form), [], form);
+  // Good forms import from child.mjs (#229); the same call from child_process is flagged by AC-229-2.
+  const mine = `import { ${S} } from "./child.mjs";\n`;
   const good = [
-    `${imp}${S}(process.execPath, [CLI, "doctor"], { encoding: "utf8", env: safeEnv() });`,
-    `${imp}const env = safeEnv({ HOME: h });\n${S}(process.execPath, [CLI], { cwd, env, input: "" });`,
-    `${imp}${S}(process.execPath, [CLI], { env: checkPath({ PATH: bin, HOME: h }) });`,
+    `${mine}${S}(process.execPath, [CLI, "doctor"], { encoding: "utf8", env: safeEnv() });`,
+    `${mine}const env = safeEnv({ HOME: h });\n${S}(process.execPath, [CLI], { cwd, env, input: "" });`,
+    `${mine}${S}(process.execPath, [CLI], { env: checkPath({ PATH: bin, HOME: h }) });`,
     `const log = ${E}.FAKE_LOG;`,
     `assert.equal(findCommand("codex", { env: { ${"Pa" + "th"}: bin } }), null);`,
   ];
   for (const form of good) assert.deepEqual(inherits(form), [], form);
-  const files = readdirSync(HERE).filter((name) => name.endsWith(".mjs"));
+  // child.mjs is the one file that calls node:child_process itself.
+  const files = readdirSync(HERE).filter((name) => name.endsWith(".mjs") && name !== "child.mjs");
   assert.ok(files.includes(basename(fileURLToPath(import.meta.url))), "the scan reads this file too");
   const leaks = files.flatMap((name) => inherits(readFileSync(join(HERE, name), "utf8")).map((why) => `${name}: ${why}`));
   assert.deepEqual(leaks, [], "give each child env: safeEnv(...) from helpers.mjs");
@@ -153,6 +115,54 @@ test("#197: the scan flags a claude or codex started by its path in node's own f
   for (const form of bad) assert.notDeepEqual(inherits(form), [], form);
   const good = [run(X), run(`join(dirname(${X}), "npm")`), `const env = safeEnv({ CLAUDE_PROJECT_DIR: dirname(${X}) });`];
   for (const form of good) assert.deepEqual(inherits(form), [], form);
+});
+
+test("AC-229-1: WHEN a test checks folder A and spawns in folder B holding a claude reachable through an empty or relative PATH item THEN the helper throws and nothing runs", unixOnly, () => {
+  const a = tmp(), b = tmp(), log = join(tmp(), "calls.log");
+  put(b, "claude", `#!/bin/sh\necho ran >> '${log}'\n`);
+  chmodSync(join(b, "claude"), 0o755);
+  for (const entry of ["", ".", "./"]) {
+    const env = safeEnv({ PATH: [entry, safePath()].join(delimiter) }, { cwd: a });
+    assert.throws(() => spawnSync("claude", ["--version"], { cwd: b, env }), /isn't one of this test's fakes/, JSON.stringify(entry));
+    assert.throws(() => spawn("claude", [], { cwd: b, env }), /isn't one of this test's fakes/, `spawn ${JSON.stringify(entry)}`);
+    const url = pathToFileURL(b);
+    assert.throws(() => spawnSync("claude", ["--version"], { cwd: url, env }), /isn't one of this test's fakes/, `a URL cwd ${JSON.stringify(entry)}`);
+    // Args left as undefined or null: node:child_process still reads the third argument as the options (#229 review).
+    for (const none of [undefined, null]) {
+      assert.throws(() => spawnSync("claude", none, { cwd: b, env }), /isn't one of this test's fakes/, `args ${none} ${JSON.stringify(entry)}`);
+      assert.throws(() => spawn("claude", none, { cwd: b, env }), /isn't one of this test's fakes/, `spawn, args ${none} ${JSON.stringify(entry)}`);
+    }
+  }
+  assert.equal(existsSync(log), false, "the claude in folder B ran");
+});
+
+test("AC-229-2: WHEN a CLI test file starts a child without the helper THEN the safe-PATH scan flags it", () => {
+  const CP = '"node:child' + '_process"', S = "spawn" + "Sync", run = `(process.execPath, [CLI], { env: safeEnv() });`;
+  for (const name of [S, "spawn", "execFile" + "Sync", "execFile"]) {
+    assert.notDeepEqual(inherits(`import { ${name} } from ${CP};\n${name}${run}`), [], name);
+    assert.notDeepEqual(inherits(`import { ${name} as go } from ${CP};\ngo${run}`), [], `${name} renamed`);
+    assert.deepEqual(inherits(`import { ${name} } from "./child.mjs";\n${name}${run}`), [], `${name} from child.mjs`);
+  }
+  assert.deepEqual(inherits(`import { ${S} } from "./child.mjs";\n${S}("git", ["init"]);`), [`${S}() with no env inherits the shell's PATH`]);
+  // A default, mixed or run-time import of child_process (#229 review).
+  const bad = [
+    `import cp from ${CP};\ncp.${S}${run}`,
+    `import cp from ${CP};\ncp?.${S}${run}`,
+    `import cp from ${CP};\ncp["${S}"]${run}`,
+    `import cp, { ${S} } from ${CP};\n${S}${run}`,
+    `import cp, { ${S} as go } from ${CP};\ngo${run}`,
+    `import cp from ${CP};\nconst go = cp.${S};\ngo${run}`,
+    `import cp from ${CP};\nconst { ${S} } = cp;\n${S}${run}`,
+    `import cp from ${CP};\nstart(cp);`,
+    `const { ${S} } = await import(${CP});\n${S}${run}`,
+    `const cp = await import(${CP});\ncp.${S}${run}`,
+    `const cp = createRequire(import.meta.url)(${CP});\ncp.${S}${run}`,
+    `createRequire(import.meta.url)(${CP}).${S}${run}`,
+  ];
+  for (const form of bad) assert.notDeepEqual(inherits(form), [], form);
+  // A stub: assigned to, and the real one saved under its own name to put back (windows-npx-ci-local.test.mjs).
+  const stub = `import cp from ${CP};\nconst real = { ${S}: cp.${S} };\ncp.${S} = () => ({ status: 0 });\ncp.${S} = real.${S};`;
+  assert.deepEqual(inherits(stub), [], "a stub of the default import");
 });
 
 // #197: `npm test` loads the safe PATH before any test file. These run test files the way it does: node with the
@@ -195,14 +205,27 @@ test("AC-197-2: WHEN the runtime guard throws at import THEN no node copy is lef
   }
 });
 
+test("#229: WHEN a test file run alone throws while it loads THEN no node copy is left in TMPDIR", unixOnly, () => {
+  // Run alone, not under `npm test`, the file's own process makes the copy; Node 22 fires no `exit` event after this throw.
+  const dir = tmp();
+  put(dir, "throws.test.mjs", `import ${asUrl(join(HERE, "helpers.mjs"))};\nthrow new Error("broken while loading");\n`);
+  for (const [how, flags] of [["node --test", ["--test"]], ["node", []]]) {
+    const temp = tmp();
+    const env = safeEnv({ NODE_TEST_CONTEXT: undefined, ONRAILS_TEST_NODE: undefined, TMPDIR: temp });
+    const r = spawnSync(process.execPath, [...flags, join(dir, "throws.test.mjs")], { cwd: CLI, encoding: "utf8", env, timeout: 120_000 });
+    assert.match(r.stdout + r.stderr, /broken while loading/, `${how}: the file threw`);
+    assert.deepEqual(readdirSync(temp), [], `${how}: the node copy was left behind`);
+  }
+});
+
 test("#197: WHEN ONRAILS_TEST_SYSTEM_DIRS holds an empty or relative entry THEN the preload throws before any test runs", unixOnly, () => {
   // The test file runs a claude by name in a folder that holds one. An empty or relative PATH item finds it there.
   const dir = tmp(), log = join(tmp(), "calls.log");
   fake(dir, "claude", `#!/bin/sh\necho "claude $*" >> '${log}'\n`);
-  const S = "spawn" + "Sync";
+  const S = "spawn" + "Sync", CP = '"node:child' + '_process"';
   put(dir, "runs.test.mjs", [
     `import { test } from "node:test";`,
-    `import { ${S} } from "node:child_process";`,
+    `import { ${S} } from ${CP};`,
     `test("runs claude by name", () => { ${S}("claude", ["--version"], { cwd: ${JSON.stringify(dir)} }); });`,
   ].join("\n"));
   for (const system of ["", ["/usr/bin", "", "/bin"].join(delimiter), ".", "bin"]) {

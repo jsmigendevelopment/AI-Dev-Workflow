@@ -3,7 +3,7 @@
 // when the probes are skipped, and a repo's own yarn release left alone until the repo is read.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { main, probe, render, satisfies } from "../src/preflight.mjs";

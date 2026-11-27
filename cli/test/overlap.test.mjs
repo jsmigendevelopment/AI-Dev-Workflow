@@ -1,7 +1,7 @@
 // Tests for overlap.mjs (#255): no two issues in flight share a module. A fake gh answers the API.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { fakeGh, tmp, unixOnly } from "./helpers.mjs";

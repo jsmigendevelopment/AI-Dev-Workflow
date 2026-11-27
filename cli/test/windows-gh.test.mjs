@@ -4,7 +4,7 @@
 // and gets /v:off, in command-for.mjs and in launch. A fake win32 and a recorded execFileSync: nothing runs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";

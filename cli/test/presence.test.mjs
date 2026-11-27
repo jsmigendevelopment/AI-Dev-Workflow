@@ -3,7 +3,7 @@
 // The sheet itself goes through the connector, so these tests pass its row in as JSON.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "./child.mjs";
 import { fileURLToPath } from "node:url";
 import { put, read, safeEnv, tmp } from "./helpers.mjs";
 
