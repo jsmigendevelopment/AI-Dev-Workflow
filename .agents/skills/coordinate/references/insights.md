@@ -32,7 +32,7 @@ Text is capped at 200 characters. A list is comma-separated or a JSON list.
 | Kind | Fields (required in bold) |
 |---|---|
 | `job` | **outcome** (`started`, `pr-opened`, `finished`, `handed-off`, `stopped`, `failed`, `swept`, `paused`, `ended`, `pass`, `fail`), started, ended |
-| `check` | **commands** (JSON list of `{name, result: pass\|fail\|skipped, seconds}`), failed_step, flaky_rerun |
+| `check` | **commands** (JSON list of `{name, result: pass\|fail\|skipped, seconds}`), failed_step (null on a pass), flaky_rerun, state (`success`, `failure`), fence. The local gate's `mark-check.mjs --record <file>` writes it (#331) |
 | `review` | **round**, **verdict** (`pass`, `changes`), **must**, **nice**, categories |
 | `fix-round` | **round**, **fixed** |
 | `ask` | **rule** (`<path>:<line>`, `hook:<event>` or `missing`), **level** (`blocker`, `decision`, `fyi`), waited_minutes, full_should_prevent, rule_ok, title |
