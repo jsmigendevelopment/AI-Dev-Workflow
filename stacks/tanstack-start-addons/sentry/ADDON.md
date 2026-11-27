@@ -7,7 +7,8 @@ Error monitoring with Sentry: uncaught errors and the controllers' "unhandled" l
 | **Choose it when** | real people use the app and you need to hear about errors before they tell you |
 | **Alternatives** | Cloudflare Workers Logs alone (already on: `observability` in `wrangler.jsonc`, server side only); Highlight or GlitchTip (self-hosted, Sentry-compatible) |
 | **Env vars** | Worker: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`. Build: `VITE_SENTRY_DSN`. Deploy builds: `SENTRY_AUTH_TOKEN` (secret), `SENTRY_ORG`, `SENTRY_PROJECT` |
-| **Packages** | `@sentry/cloudflare@11.13.0`, `@sentry/react@11.13.0`; dev: `@sentry/vite-plugin@11.13.0` |
+| **Packages** | `@sentry/cloudflare@11.19.0`, `@sentry/react@11.19.0`; dev: `@sentry/vite-plugin@11.19.0` |
+| **Why these packages** | On Workers, `@sentry/cloudflare` (`withSentry`) is the SDK that runs. Sentry's TanStack Start guide adds `@sentry/tanstackstart-react` only for server-function tracing (off here), and it needs a `@ts-expect-error`: decision 257-1. Checked on npm 2026-11-27. |
 | **Issue** | `Skills: build, web-security` · lane `normal` (`risky` if the person's risk dial treats a new data processor as risky) |
 | **Vendor setup** | Sentry's agent handoff and CLI sign-in, the kit's way (the handoff code is a credential): `.agents/skills/secrets/setup/sentry.md`. Keys: `.agents/skills/secrets/providers/sentry.md` |
 
@@ -36,8 +37,8 @@ With no DSN the app builds, tests pass and nothing is sent.
    with `import { AppError } from '@/lib/app-error'` and `type ErrorInfo` from `react`.
 2. Install:
    ```sh
-   pnpm add @sentry/cloudflare@11.13.0 @sentry/react@11.13.0
-   pnpm add -D @sentry/vite-plugin@11.13.0
+   pnpm add @sentry/cloudflare@11.19.0 @sentry/react@11.19.0
+   pnpm add -D @sentry/vite-plugin@11.19.0
    ```
 3. `wrangler.jsonc`: the Worker's entry stays the pack's (`main` is already this).
    ```jsonc
