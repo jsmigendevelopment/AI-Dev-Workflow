@@ -101,3 +101,23 @@ test("a usage or API error exits 2 and passes nothing", unixOnly, () => {
   assert.equal(refused.status, 2);
   assert.doesNotMatch(refused.calls, /graphql/);
 });
+
+test("AC-269-3: new files under docs/decisions/ on both sides don't clash", unixOnly, () => {
+  const r = overlap({
+    issues: { 7: "features/lists, docs/decisions/", 5: "features/auth, docs/decisions" },
+    refs: ["feat/5-sign-in"],
+    compares: { "feat/5-sign-in": ["docs/decisions/5-1.md", "src/features/auth/login.ts"] },
+  });
+  assert.equal(r.status, 0, r.stderr);
+  const docs = overlap({ issues: { 7: "docs", 5: "features/auth" }, refs: ["feat/5-sign-in"], compares: { "feat/5-sign-in": ["docs/decisions/5-2.md"] } });
+  assert.equal(docs.status, 0, "a decision file inside the candidate's docs module doesn't clash");
+});
+
+test("AC-269-4: the words \"synced copies\" at the end of two Modules lines are no shared module", unixOnly, () => {
+  const r = overlap({ issues: { 7: "`.agents/skills/qa/SKILL.md`, synced copies", 5: "`.agents/skills/ask/SKILL.md` and synced copies" } });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /modules \.agents\/skills\/qa\/SKILL\.md\)/);
+  const real = overlap({ issues: { 7: "`.agents/skills/qa/SKILL.md`, synced copies", 5: "`.agents/skills/qa` and synced copies" } });
+  assert.equal(real.status, 1, "the real paths still clash");
+  assert.doesNotMatch(real.stderr, /synced copies/);
+});
