@@ -87,6 +87,36 @@ function args(text, start) {
   return text.slice(start, i - 1);
 }
 
+// Every static import: a default binding, then named ones in braces or a namespace (#229 review).
+const IMPORT = /\bimport(?:\s+([\w$]+)\s*(?:,\s*|(?=from\b)))?\s*(\{[^}]*\}|\*\s*as\s+[\w$]+)?\s*from\s*(["'][^"']+["'])/g;
+const LOADS_CHILD_PROCESS = /\b(?:require|import)\(\s*["'](?:node:)?child_process["']\s*\)/;
+
+/** The imports from child_process or child.mjs: [default binding, names in braces or namespace, source]. */
+function childImports(text) {
+  return [...text.matchAll(IMPORT)].filter((m) => (m[1] || m[2]) && CHILD_PROCESS.test(m[3])).map((m) => [m[1], m[2] ?? "", m[3]]);
+}
+
+/**
+ * Each use of child_process's default binding that could start a child (#229 review). It may only be assigned to
+ * (`cp.spawnSync = stub`) or saved to restore in a key of the same name (`{ spawnSync: cp.spawnSync }`): a call, a
+ * read into a variable, or the binding itself passed on or taken apart is flagged.
+ */
+function defaultUses(text, name) {
+  const found = [];
+  const body = text.replace(IMPORT, "");
+  const member = new RegExp(String.raw`(?<![.\w$])${name}\s*(?:\??\.\s*([\w$]+)|\[\s*["'\x60]([\w$]+)["'\x60]\s*\])`, "g");
+  for (const m of body.matchAll(member)) {
+    const prop = m[1] ?? m[2];
+    if (!STARTS.test(prop)) continue;
+    const after = body.slice(m.index + m[0].length);
+    const saved = new RegExp(String.raw`(?<![.\w$])${prop}\s*:\s*$`).test(body.slice(0, m.index));
+    if (!/^\s*=(?!=)/.test(after) && !saved) found.push(`${name}.${prop} from child_process is used, not child.mjs's`);
+  }
+  const bare = new RegExp(String.raw`(?<![.\w$])${name}\b(?!\s*(?:\??\.|\[))`, "g");
+  if (body.match(bare)) found.push(`${name} from child_process is passed on or taken apart, so its calls can't be checked`);
+  return found;
+}
+
 /** Each way the file's text could start a child with the shell's PATH, one line each. */
 function inherits(text) {
   const found = [];
@@ -96,14 +126,16 @@ function inherits(text) {
     if (PATH_KEY.test(line) && !LOOKUP.test(line)) found.push(`line ${i + 1}: sets a Path key`);
     if (NEXT_TO_NODE.test(line)) found.push(`line ${i + 1}: names a claude or codex next to node`);
   });
-  const imports = [...text.matchAll(/import\s*(\{[^}]*\}|\*\s*as\s+\w+)\s*from\s*(["'][^"']+["'])/g)].filter((m) => CHILD_PROCESS.test(m[2]));
+  const imports = childImports(text);
   // #229: a child starts through child.mjs, which checks its env in the spawn's own working folder.
-  const starts = imports.filter((m) => !m[1].startsWith("*") && !m[2].includes("child.mjs")).flatMap((m) => m[1].slice(1, -1).split(",")).map((n) => n.trim().split(/\s+as\s+/)[0]);
+  const direct = imports.filter(([, , source]) => !source.includes("child.mjs"));
+  const starts = direct.filter(([, named]) => named.startsWith("{")).flatMap(([, named]) => named.slice(1, -1).split(",")).map((n) => n.trim().split(/\s+as\s+/)[0]);
   for (const name of starts.filter((n) => STARTS.test(n))) found.push(`${name} comes from child_process, not child.mjs`);
-  if (imports.some((m) => m[1].startsWith("*")) || /require\(\s*["'](?:node:)?child_process["']\s*\)/.test(text)) {
+  for (const [name] of direct.filter(([binding]) => binding)) found.push(...defaultUses(text, name));
+  if (imports.some(([, named]) => named.startsWith("*")) || LOADS_CHILD_PROCESS.test(text)) {
     found.push("child_process isn't imported by name, so its calls can't be checked");
   }
-  const names = imports.flatMap((m) => m[1].slice(1, -1).split(",")).map((n) => n.trim().split(/\s+as\s+/).at(-1)).filter((n) => /^[\w$]+$/.test(n));
+  const names = imports.filter(([, named]) => named.startsWith("{")).flatMap(([, named]) => named.slice(1, -1).split(",")).map((n) => n.trim().split(/\s+as\s+/).at(-1)).filter((n) => /^[\w$]+$/.test(n));
   for (const name of names) {
     for (const m of text.matchAll(new RegExp(`(?<![.\\w$])${name}\\(`, "g"))) {
       if (!/(?<![.\w$])env\s*[:,}]/.test(args(text, m.index + m[0].length))) found.push(`${name}() with no env inherits the shell's PATH`);
@@ -170,6 +202,8 @@ test("AC-229-1: WHEN a test checks folder A and spawns in folder B holding a cla
     const env = safeEnv({ PATH: [entry, safePath()].join(delimiter) }, { cwd: a });
     assert.throws(() => spawnSync("claude", ["--version"], { cwd: b, env }), /isn't one of this test's fakes/, JSON.stringify(entry));
     assert.throws(() => spawn("claude", [], { cwd: b, env }), /isn't one of this test's fakes/, `spawn ${JSON.stringify(entry)}`);
+    const url = pathToFileURL(b);
+    assert.throws(() => spawnSync("claude", ["--version"], { cwd: url, env }), /isn't one of this test's fakes/, `a URL cwd ${JSON.stringify(entry)}`);
   }
   assert.equal(existsSync(log), false, "the claude in folder B ran");
 });
@@ -182,6 +216,23 @@ test("AC-229-2: WHEN a CLI test file starts a child without the helper THEN the 
     assert.deepEqual(inherits(`import { ${name} } from "./child.mjs";\n${name}${run}`), [], `${name} from child.mjs`);
   }
   assert.deepEqual(inherits(`import { ${S} } from "./child.mjs";\n${S}("git", ["init"]);`), [`${S}() with no env inherits the shell's PATH`]);
+  // A default, mixed or run-time import of child_process (#229 review).
+  const bad = [
+    `import cp from ${CP};\ncp.${S}${run}`,
+    `import cp from ${CP};\ncp?.${S}${run}`,
+    `import cp from ${CP};\ncp["${S}"]${run}`,
+    `import cp, { ${S} } from ${CP};\n${S}${run}`,
+    `import cp, { ${S} as go } from ${CP};\ngo${run}`,
+    `import cp from ${CP};\nconst go = cp.${S};\ngo${run}`,
+    `import cp from ${CP};\nconst { ${S} } = cp;\n${S}${run}`,
+    `import cp from ${CP};\nstart(cp);`,
+    `const { ${S} } = await import(${CP});\n${S}${run}`,
+    `const cp = await import(${CP});\ncp.${S}${run}`,
+  ];
+  for (const form of bad) assert.notDeepEqual(inherits(form), [], form);
+  // A stub: assigned to, and the real one saved under its own name to put back (windows-npx-ci-local.test.mjs).
+  const stub = `import cp from ${CP};\nconst real = { ${S}: cp.${S} };\ncp.${S} = () => ({ status: 0 });\ncp.${S} = real.${S};`;
+  assert.deepEqual(inherits(stub), [], "a stub of the default import");
 });
 
 // #197: `npm test` loads the safe PATH before any test file. These run test files the way it does: node with the
@@ -221,6 +272,19 @@ test("AC-197-2: WHEN the runtime guard throws at import THEN no node copy is lef
     const r = spawnSync(process.execPath, [...flags, "--test", join(dir, "loads.test.mjs")], { cwd: CLI, encoding: "utf8", env, timeout: 120_000 });
     assert.match(r.stdout + r.stderr, /isn't one of this test's fakes/, `${how}: the guard threw`);
     assert.deepEqual(readdirSync(temp), [], `${how}: a node copy or temp folder was left behind`);
+  }
+});
+
+test("#229: WHEN a test file run alone throws while it loads THEN no node copy is left in TMPDIR", unixOnly, () => {
+  // Run alone, not under `npm test`, the file's own process makes the copy; Node 22 fires no `exit` event after this throw.
+  const dir = tmp();
+  put(dir, "throws.test.mjs", `import ${asUrl(join(HERE, "helpers.mjs"))};\nthrow new Error("broken while loading");\n`);
+  for (const [how, flags] of [["node --test", ["--test"]], ["node", []]]) {
+    const temp = tmp();
+    const env = safeEnv({ NODE_TEST_CONTEXT: undefined, ONRAILS_TEST_NODE: undefined, TMPDIR: temp });
+    const r = spawnSync(process.execPath, [...flags, join(dir, "throws.test.mjs")], { cwd: CLI, encoding: "utf8", env, timeout: 120_000 });
+    assert.match(r.stdout + r.stderr, /broken while loading/, `${how}: the file threw`);
+    assert.deepEqual(readdirSync(temp), [], `${how}: the node copy was left behind`);
   }
 });
 

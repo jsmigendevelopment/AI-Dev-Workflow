@@ -35,10 +35,35 @@ const CALL = /\bmkdtemp(?:Sync)?\(/g;
 // What comes just before a remover's one allowed tmpdir(: its mkdtemp call, so the folder is the one it removes.
 const IN_MKDTEMP = /\bmkdtemp(?:Sync)?\(\s*(?:join\(\s*)?$/;
 
+// Every mention of tmpdir: a call (a space before its paren too), a plain import, or the function saved or renamed (#229).
+const TMPDIR = /\btmpdir\b(\s*\()?/g;
+const IN_IMPORT = /\bimport\s*\{[^}]*$/;
+const TEMP_ENV = /process\.env\s*(?:\??\.\s*|\[\s*["'`])(TMPDIR|TMP|TEMP)\b["'`]?\s*\]?/g;
+
+/**
+ * Whether the env's temp folder is read as a folder to use. A test may set it, delete it, or save it to put back
+ * (`const was = process.env.TMPDIR;`, `{ TMPDIR: process.env.TMPDIR }`); any other read counts as a use (#229).
+ */
+function readsTempEnv(text) {
+  return [...text.matchAll(TEMP_ENV)].some((m) => {
+    const before = text.slice(0, m.index), after = text.slice(m.index + m[0].length);
+    if (/^\s*=(?!=)/.test(after) || /\bdelete\s+$/.test(before)) return false;
+    return !(/=\s*$/.test(before) && /^\s*;/.test(after)) && !new RegExp(`\\b${m[1]}\\s*:\\s*$`).test(before);
+  });
+}
+
+/** Whether the tmpdir mention m is allowed: imported under its own name, or called inside a remover's mkdtemp. */
+function allowed(text, m, remover) {
+  const before = text.slice(0, m.index);
+  if (!m[1]) return IN_IMPORT.test(before) && /^\s*[,}]/.test(text.slice(m.index + m[0].length));
+  return remover && IN_MKDTEMP.test(before);
+}
+
 /** Whether a file's text makes a temp folder it may not: a remover may make one, with one mkdtemp call. Each call counts. */
 function leaks(text, remover) {
   if (remover ? (text.match(CALL) ?? []).length > 1 : /mkdtemp/.test(text)) return true;
-  return [...text.matchAll(/tmpdir\(/g)].some((m) => !(remover && IN_MKDTEMP.test(text.slice(0, m.index))));
+  if (readsTempEnv(text)) return true;
+  return [...text.matchAll(TMPDIR)].some((m) => !allowed(text, m, remover));
 }
 
 /** The .mjs, .js and .cjs files in dir and its subfolders that make a temp folder no remover removes, as paths from dir. */
@@ -54,6 +79,7 @@ test("AC-142-1: every CLI test file makes its temp folders through helpers.mjs, 
   assert.deepEqual(leaks, [], "use tmp() from helpers.mjs, so the folder is removed when the file ends");
 });
 
+const IMPORT = "import { mkdtempSync } from \"node:fs\";\nimport { homedir, tmpdir } from \"node:os\";\n";
 const MAKE = "const dir = mkdtempSync(join(tmpdir(), \"onrails-\"));\n";
 const OWN_FOLDER = "mkdirSync(join(tmpdir(), \"onrails-mine\"), { recursive: true });\n";
 // Each case is a planted folder of files, and the files the guard must name.
@@ -69,7 +95,16 @@ const PLANTED = {
     { "helpers.mjs": "const dir = mkdtempSync(join(tmpdir(), \"onrails-\")); mkdirSync(join(tmpdir(), \"mine\"));\n" }, ["helpers.mjs"]],
   "a .js helper that calls mkdtemp": [{ "sub/planted.js": MAKE }, ["sub/planted.js"]],
   "a .cjs helper that calls mkdtemp": [{ "sub/planted.cjs": MAKE }, ["sub/planted.cjs"]],
-  "each remover's one mkdtemp": [{ "helpers.mjs": MAKE, "safe-path-preload.mjs": MAKE }, []],
+  // A tmpdir saved, renamed, called with a space, or TMPDIR read from the env (#229).
+  "tmpdir saved to a variable": [{ "planted.test.mjs": "const t = tmpdir;\nmkdirSync(join(t(), \"x\"));\n" }, ["planted.test.mjs"]],
+  "tmpdir renamed on import": [{ "planted.test.mjs": "import { tmpdir as td } from \"node:os\";\nmkdirSync(join(td(), \"x\"));\n" }, ["planted.test.mjs"]],
+  "tmpdir called with a space": [{ "planted.test.mjs": "mkdirSync(join(tmpdir (), \"x\"));\n" }, ["planted.test.mjs"]],
+  "TMPDIR read from the env": [{ "planted.test.mjs": "mkdirSync(join(process.env.TMPDIR, \"x\"));\n" }, ["planted.test.mjs"]],
+  "TMPDIR read from the env with brackets": [{ "planted.test.mjs": "const dir = join(process.env[\"TMPDIR\"], \"x\");\n" }, ["planted.test.mjs"]],
+  "TMPDIR set, saved and put back": [{ "planted.test.mjs": "const was = process.env.TMPDIR;\nconst saved = { TMPDIR: process.env.TMPDIR };\nprocess.env.TMPDIR = dir;\ndelete process.env.TMPDIR;\n" }, []],
+  "a remover's renamed tmpdir in its mkdtemp": [
+    { "helpers.mjs": "import { tmpdir as td } from \"node:os\";\nconst dir = mkdtempSync(join(td(), \"onrails-\"));\n" }, ["helpers.mjs"]],
+  "each remover's one mkdtemp": [{ "helpers.mjs": `${IMPORT}${MAKE}`, "safe-path-preload.mjs": `${IMPORT}${MAKE}` }, []],
 };
 
 test("AC-180-2: WHEN a planted file in cli/test/ or a subfolder calls mkdirSync(join(tmpdir(), ...)), or a remover gains a second mkdtemp THEN the CLI guard fails", () => {

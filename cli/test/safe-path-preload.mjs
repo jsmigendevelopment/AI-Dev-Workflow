@@ -66,8 +66,9 @@ function copyNode() {
   copyFileSync(process.execPath, file);
   const npm = process.platform === "win32" ? [] : ["npm", "npx"].map((name) => [name, findCommand(name)]).filter(([, found]) => found);
   for (const [name, found] of npm) symlinkSync(realpathSync(found), join(dir, name));
-  process.on("exit", () => rmSync(dir, { recursive: true, force: true, maxRetries: 3 }));
-  return { file, dir };
+  const remove = () => rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+  process.on("exit", remove);
+  return { file, dir, remove };
 }
 
 const shared = process.env[SHARED];
@@ -75,6 +76,12 @@ const made = shared && existsSync(shared) ? null : copyNode();
 
 /** This run's copy of node: the one the process that started this one made, or this process's own. */
 export const ownNode = made?.file ?? shared;
+
+/**
+ * Removes the copy this process made, if it made one. A test file run alone that throws while it loads ends with no
+ * `exit` event on Node 22 (exit code 7), so helpers.mjs calls this from that throw's monitor (#229).
+ */
+export const removeOwnNode = () => made?.remove();
 
 /** A safe PATH: the given folders of fakes, then the copy of node (with npm and npx), then the system folders. */
 export function safePath(...dirs) {

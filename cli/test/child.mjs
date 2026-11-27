@@ -2,12 +2,15 @@
 // (this process's when none is given), so a relative or empty PATH item is read where the child really starts.
 // Same names and arguments as node:child_process; the safe-PATH scan flags a test file that imports that instead.
 import * as cp from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { checkPath } from "./safe-path-preload.mjs";
 
 // The options object: the last argument when args were left out, as node:child_process reads it.
 function checked(args, options) {
   const opts = Array.isArray(args) ? options : args;
-  checkPath(opts?.env ?? process.env, opts?.cwd === undefined ? process.cwd() : String(opts.cwd));
+  // A URL cwd, which node:child_process takes too, is checked as the folder it names.
+  const cwd = opts?.cwd === undefined ? process.cwd() : opts.cwd instanceof URL ? fileURLToPath(opts.cwd) : String(opts.cwd);
+  checkPath(opts?.env ?? process.env, cwd);
 }
 
 /** node:child_process spawnSync, after checking the child's env in its own working folder. */
