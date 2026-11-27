@@ -79,6 +79,14 @@ You rarely need these. The four commands call them for you.
 
 <sub>Example setup, checked 2026-11. Swap in your own models.</sub>
 
+| Role | Default | Does |
+|---|---|---|
+| **CTO** | Fable 5.2 high | Research, architecture, the pyramid, writing the issues |
+| **Coordinator** | Opus 5.5 medium | The loop, gates, reviews, security reviews, merges |
+| **Builder** | Sonnet 5.5 medium | Most issues. Opus for risky changes and big slices. Codex outside security. |
+
+**Your profile wins:** `cto`, `coordinator` or `builder` in `[routing]`. Said "no Fable"? `cto = "Claude Opus 5.5"` puts the CTO on Opus.
+
 | Job | Tier · effort | Example |
 |---|---|---|
 | 🗣️ Your live thread (you talk to it) | Everyday · low | Opus 5.5 low |
@@ -86,13 +94,13 @@ You rarely need these. The four commands call them for you.
 | 🔥 Grill, planning chat | Everyday · medium | Opus 5.5 medium |
 | ✏️ Wireframes stage 1, layout | Everyday · medium | Opus 5.5 medium |
 | 🏛️ CTO: research, pyramid, schema, API, wireframes stage 2 | **Strongest · high** | Fable 5.2 high |
-| 📋 Writing issues from the plan | Everyday · medium | Opus 5.5 medium |
-| 🔨 Build an issue | Everyday · low at complexity 1–4, medium at 5–7 or from pass 2 | Opus 5.5 low / medium |
-| 🔍 Code review | Never below the builder | Opus 5.5 low / medium |
+| 📋 Writing issues from the plan (CTO) | **Strongest · high** | Fable 5.2 high |
+| 🔨 Build an issue | Fast · medium; Everyday · medium for risky or complexity 5–7 | Sonnet 5.5 medium / Opus 5.5 medium |
+| 🔍 Code review | Never below the builder | Opus 5.5 medium |
 | 🛡️ Security review (risky only) | One step above review, plus a second vendor for personal data or money | Opus 5.5 medium + ChatGPT |
 | 🎨 Art | Creative | ChatGPT |
 
-**Start low. Escalate one step only after a verified failure.**
+**Start on the default. Escalate one step per verified failure, two steps at most: Sonnet to Opus, then effort up. Infrastructure errors don't count.**
 
 ---
 
