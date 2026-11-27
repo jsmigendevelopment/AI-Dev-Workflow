@@ -194,4 +194,5 @@ Every agent and every app on one account shares one hourly limit. Git pushes and
 | File | Load when |
 |---|---|
 | `board.md` | Step 10, or any board, sheet or Presence tab command. |
+| `references/insights.md` | Writing an insights record (`scripts/insights.mjs write` or `line`): the format, the kinds and where each lands. |
 | `references/local-mode.md` | Start, step 2: no remote, a remote that isn't GitHub, or GitHub's API is rate-limited. |
