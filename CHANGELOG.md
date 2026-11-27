@@ -16,6 +16,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 ### Fixed
 
 - **The temp-folder and safe-PATH tests pass on newer Node and with `FORCE_COLOR` set (#277).** Every test that reads a nested `node --test` run's output now asks for the TAP report and drops `FORCE_COLOR` and `NO_COLOR` from the child's env, so a Node that prints the spec report when piped no longer fails AC-142-2 or AC-180-3 when every sample passed. Decision 277-1.
+- **The bind-mount preflight test no longer fails for a non-root user (#276).** In an unprivileged user namespace the real git's folder shows as `nobody`, so preflight rightly won't run it and the test's "real git did the probe" check failed, and AC-180-3 with it. The test now skips there with that reason; as root it still runs. Preflight's ownership rule is unchanged. decision 276-1.
 
 ## [0.7.1] - 2026-11-27
 
