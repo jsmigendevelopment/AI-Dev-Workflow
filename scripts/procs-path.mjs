@@ -1,7 +1,8 @@
 // The folders on the way to a registry, for the process registry's store (procs-store.mjs, #231): whoever can write
-// one of them can rename what is below it and put another folder in its place. No dependencies.
+// one of them can rename what is below it and put another folder in its place. On Windows the same comes from each
+// folder's ACL, all read in one PowerShell start (#248). No dependencies.
 // The master copy is scripts/procs-path.mjs in the kit; sync-skills.mjs copies it next to procs.mjs.
-import { lstatSync, readlinkSync } from "node:fs";
+import { existsSync, lstatSync, readlinkSync } from "node:fs";
 import { dirname, isAbsolute, join, parse, resolve, sep } from "node:path";
 
 const MAX_LINKS = 40; // as Linux's own limit: a loop of links ends here
@@ -96,4 +97,58 @@ function homeProblem(sys, home, group) {
   if (s.uid !== sys.uid) return `the home folder ${home} belongs to another user: ${HOME_OFF}`;
   if (s.mode & 0o002) return `others can write the home folder ${home}: run chmod o-w ${home}`;
   return group(sys, s, home, `the group can write the home folder ${home}`);
+}
+
+// Windows: each path's ACL once per command, read in batches by sys.winAcls, one PowerShell start each (#248).
+const acls = new WeakMap();
+/** Forgets the ACLs read so far, so the next check asks again. */
+export const forgetAcls = (sys) => { if (sys.winAcls) acls.delete(sys.winAcls); };
+
+/** Reads, in one PowerShell start, the ACL of each path that is there and wasn't read yet in this command. */
+export function readAcls(sys, paths) {
+  if (sys.platform !== "win32" || !sys.winAcls) return;
+  const memo = acls.get(sys.winAcls) ?? new Map();
+  acls.set(sys.winAcls, memo);
+  const todo = [...new Set(paths)].filter((p) => !memo.has(p) && existsSync(p));
+  if (!todo.length) return;
+  const got = sys.winAcls(todo);
+  for (const p of todo) memo.set(p, got?.get(p) ?? null);
+}
+const winAcl = (sys, path) => { readAcls(sys, [path]); return acls.get(sys.winAcls)?.get(path) ?? null; };
+
+/** Every folder above dir, from the drive or filesystem root down. */
+export function above(dir) {
+  const up = [];
+  for (let at = dirname(dir); !up.includes(at) && at !== dir; dir = at, at = dirname(at)) up.unshift(at);
+  return up;
+}
+
+/**
+ * On Windows, why path can't be trusted, or null: it must be owned by this user (or SYSTEM, Administrators or
+ * TrustedInstaller), and no other account may write it. A folder made directly under C:\ lets every signed-in user
+ * write, and what is made inside it inherits that (#174). The home folder (home) gets its own words: a repo can move,
+ * the home folder can't.
+ */
+export function aclProblem(sys, path, home = false) {
+  const acl = winAcl(sys, path), where = home ? `the home folder ${path}` : path, off = home ? `: ${HOME_OFF}` : "";
+  if (!acl) return `who can write ${where} can't be read, so its owner can't be checked${off}`;
+  if (!acl.owned) return `${where} belongs to another account${off}`;
+  if (!acl.writers.length) return null;
+  const fix = home ? "take their write access away, or the home registry and the index stay off" : "keep the repo in your user folder, or take their write access away";
+  return `${where} can be written by other accounts (${acl.writers.join(", ")}): ${fix}`;
+}
+
+/**
+ * On Windows, why a folder above a repo root can't be trusted, or null: #231's rule with the ACL. Owned as aclProblem
+ * says, and no other account may rename, remove or replace what is in it. Making a new folder there is no swap, as in
+ * a sticky folder: every signed-in user may make one under C:\ (#248).
+ */
+export function winAboveProblem(sys, root) {
+  for (const dir of above(root)) {
+    const acl = winAcl(sys, dir);
+    if (!acl) return `who can change ${dir}, above ${root}, can't be read, so the folders on the way to the repo can't be checked`;
+    if (!acl.owned) return `${dir}, above ${root}, belongs to another account: keep the repo in your user folder`;
+    if (acl.movers.length) return `${dir}, above ${root}, can be changed by other accounts (${acl.movers.join(", ")}): keep the repo in your user folder`;
+  }
+  return null;
 }

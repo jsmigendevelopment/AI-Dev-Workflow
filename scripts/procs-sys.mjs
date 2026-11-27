@@ -5,8 +5,8 @@
 //   git(dir, args) its output, "" for nothing, null when git failed · uid, gid this user's ids (null on Windows)
 //   privateGroup(gid) true when this user is the group's one member, false when not, null when it can't tell
 //   acl(path) true when the path has a POSIX ACL, false when it has none, null when it can't tell
-//   winAcl(path) on Windows { owned, writers }: whether this user (or the admins) owns it, and every other account
-//   that can write it; null when it can't tell, and off Windows
+//   winAcls(paths) on Windows a Map of each path to { owned, writers, movers } (procs-winacl.mjs); null off Windows
+//   fresh() drops the Windows process list, so the next info() or table() reads it again
 //   fsType(path) on Linux the file system a real folder is on, from /proc/self/mountinfo (null when it can't tell);
 //   undefined elsewhere
 // Linux and macOS read ps; Windows reads Win32_Process through PowerShell. No dependencies.
@@ -14,6 +14,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { closeSync, constants, existsSync, openSync, readFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
+import { readWinAcls } from "./procs-winacl.mjs";
 
 /**
  * The real machine. platform is for tests: the checks that only Linux can answer. run(cmd, args, opts) is how a tool
@@ -37,6 +38,10 @@ export function realSys({ platform = process.platform, run, fullPath = false } =
   };
   const pwsh = (script) => out("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script]);
   const children = new Map();
+  // On Windows every process comes from one PowerShell start, kept until something can change it: a signal, a spawn
+  // or a wait. info() and table() both read it, so a command that does neither starts PowerShell once for them (#248).
+  let procs;
+  const snapshot = () => (procs ??= { rows: windowsProcs(pwsh(WIN_PROCS)) }).rows;
   return {
     platform, env: process.env, home: homedir(), cwd: process.cwd(), parentPid: process.ppid, selfPid: process.pid, uid: process.getuid?.() ?? null,
     gid: process.getgid?.() ?? null,
@@ -44,13 +49,7 @@ export function realSys({ platform = process.platform, run, fullPath = false } =
     privateGroup: (gid) => (platform !== "linux" ? null : soleMember(gid, userName(), groupSources(out, strict, gid))),
     // Only Linux is asked: there the tools are known. Anywhere else it can't tell, so the caller refuses.
     acl: (path) => (platform !== "linux" ? null : hasAcl(aclSources(strict, path))),
-    // The path goes in the environment, never in the command line, so no quoting can change the script.
-    winAcl(path) {
-      if (platform !== "win32") return null;
-      const r = run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WIN_ACL],
-        { encoding: "utf8", timeout: 15000, windowsHide: true, env: { ...process.env, ONRAILS_ACL_PATH: path } });
-      return r.error || r.status !== 0 ? null : winAccess(r.stdout);
-    },
+    winAcls: (paths) => (platform === "win32" ? readWinAcls(run, paths) : null),
     // Read each time: a small file, and a mount can change while the watcher runs.
     fsType: (path) => (platform !== "linux" ? undefined : mountType(readOrNull("/proc/self/mountinfo"), path)),
     now: () => Date.now(),
@@ -63,18 +62,22 @@ export function realSys({ platform = process.platform, run, fullPath = false } =
       const r = run("git", fullPath ? args : ["-C", dir, ...args], { ...where, encoding: "utf8", timeout: 15000, windowsHide: true });
       return r.error || r.status !== 0 ? null : r.stdout.trim();
     },
-    info: (pids) => (platform === "win32" ? windowsInfo(pwsh, pids) : posixInfo(out, pids)),
-    table: () => (platform === "win32" ? windowsTable(pwsh) : posixTable(out)),
-    signal(pid, sig) { try { process.kill(pid, sig); return true; } catch { return false; } },
-    taskkill: (pid, force) => out("taskkill", ["/PID", String(pid), "/T", ...(force ? ["/F"] : [])]) !== null,
+    info: (pids) => (platform === "win32" ? windowsInfo(snapshot(), pids) : posixInfo(out, pids)),
+    table: () => (platform === "win32" ? snapshot()?.map(({ pid, ppid, args }) => ({ pid, ppid, pgid: null, args })) ?? null : posixTable(out)),
+    // Drops the process list, so the next info() or table() reads what is there now: a stop calls it before it checks,
+    // since a prompt can sit open for minutes while a PID is reused (#248).
+    fresh: () => { procs = undefined; },
+    signal(pid, sig) { procs = undefined; try { process.kill(pid, sig); return true; } catch { return false; } },
+    taskkill: (pid, force) => { procs = undefined; return out("taskkill", ["/PID", String(pid), "/T", ...(force ? ["/F"] : [])]) !== null; },
     spawn(argv, opts) {
+      procs = undefined;
       const child = spawnDetached(platform, argv, opts);
       if (child?.pid) children.set(child.pid, child);
       return child?.pid ?? null;
     },
     // Through the child's own handle: once it has exited, Node sends nothing, so a reused PID is never hit.
-    killSpawned: (pid) => children.get(pid)?.kill("SIGKILL") ?? false,
-    sleep: (ms) => new Promise((done) => setTimeout(done, ms)),
+    killSpawned: (pid) => { procs = undefined; return children.get(pid)?.kill("SIGKILL") ?? false; },
+    sleep: (ms) => { procs = undefined; return new Promise((done) => setTimeout(done, ms)); },
     stdin: readStdin,
   };
 }
@@ -147,43 +150,6 @@ export function mountType(text, path) {
   return type;
 }
 
-// The ACL of $env:ONRAILS_ACL_PATH: this user's SID, the owner's, "nodacl" for a null DACL (everyone has full
-// access), then one line per rule, "<Allow|Deny> <SID> <rights>". Single quotes only, as in windowsInfo.
-const WIN_ACL = ["$ErrorActionPreference = 'Stop'", "$t = [System.Security.Principal.SecurityIdentifier]",
-  "$a = Get-Acl -LiteralPath $env:ONRAILS_ACL_PATH", "'user ' + [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value",
-  "'owner ' + $a.GetOwner($t).Value", "if ($a.GetSecurityDescriptorSddlForm('Access') -match 'NO_ACCESS_CONTROL') { 'nodacl' }",
-  "foreach ($r in $a.GetAccessRules($true, $true, $t)) { '{0} {1} {2}' -f $r.AccessControlType, $r.IdentityReference.Value, [long]$r.FileSystemRights }"].join("; ");
-// Any right that changes what is in it, who may, or that it is there: write or append data (make files or folders),
-// write attributes, delete a child or itself, change its ACL or owner, and generic all or write.
-const WIN_WRITE = 0x2 | 0x4 | 0x10 | 0x40 | 0x100 | 0x10000 | 0x40000 | 0x80000 | 0x10000000 | 0x40000000;
-// Accounts that may write besides this user: SYSTEM, Administrators, CREATOR OWNER and OWNER RIGHTS (they stand for
-// the owner) and TrustedInstaller. They can already do anything on the machine. The owner may be this user, SYSTEM or
-// Administrators, which an elevated session makes the owner of what it creates.
-const WIN_TRUSTED = ["S-1-5-18", "S-1-5-32-544", "S-1-3-0", "S-1-3-4", "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"];
-const WIN_OWNERS = ["S-1-5-18", "S-1-5-32-544"];
-const SID = /^S-1(-\d+)+$/;
-
-/**
- * winAcl() from its PowerShell output: { owned, writers }, owned when this user, SYSTEM or Administrators owns the
- * path, writers every other account an Allow rule lets write it (a deny is ignored: it can't take away another
- * rule's grant to someone else). null for output it doesn't know, so the caller refuses.
- */
-export function winAccess(text) {
-  let user = null, owner = null;
-  const writers = new Set();
-  for (const line of (text ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
-    const [word, sid, rights, ...more] = line.split(" ");
-    if (line === "nodacl") writers.add("S-1-1-0");
-    else if (more.length || !SID.test(sid ?? "")) return null;
-    else if (word === "user" && rights === undefined) user = sid;
-    else if (word === "owner" && rights === undefined) owner = sid;
-    else if (!["Allow", "Deny"].includes(word) || !/^-?\d+$/.test(rights ?? "")) return null;
-    else if (word === "Allow" && (Number(rights) >>> 0) & WIN_WRITE) writers.add(sid);
-  }
-  if (!user || !owner) return null;
-  return { owned: [user, ...WIN_OWNERS].includes(owner), writers: [...writers].filter((s) => s !== user && !WIN_TRUSTED.includes(s)) };
-}
-
 // Append, create, and never through a symlink (Windows has no O_NOFOLLOW; the store checks the folder there).
 const LOG_FLAGS = constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND | (constants.O_NOFOLLOW ?? 0);
 
@@ -238,22 +204,28 @@ function posixTable(out) {
     .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), pgid: Number(m[3]), args: m[4] }));
 }
 
-// Single quotes only: the script goes through Windows' command-line quoting as one argument.
-function windowsInfo(pwsh, pids) {
-  const list = pidList(pids);
-  if (!list.length) return new Map();
-  const filter = list.map((p) => `ProcessId=${p}`).join(" OR ");
-  const text = pwsh(`Get-CimInstance Win32_Process -Filter '${filter}' | ForEach-Object { '{0}|{1}|{2}|{3}|{4}' -f $_.ProcessId, $_.ParentProcessId, $_.CreationDate.ToUniversalTime().ToString('o'), $_.WorkingSetSize, [math]::Round(($_.KernelModeTime + $_.UserModeTime) / 1e7) }`);
+// Every process, "<pid>|<parent>|<start>|<bytes>|<cpu s>|<command line>", one per line. Any program picks its own
+// command line, so its CR and LF become spaces: it can never start a line of its own (#248). Single quotes only: the
+// script goes through Windows' command-line quoting as one argument.
+const WIN_PROCS = "Get-CimInstance Win32_Process | ForEach-Object { '{0}|{1}|{2}|{3}|{4}|{5}' -f $_.ProcessId, $_.ParentProcessId, "
+  + "$(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().ToString('o') }), $_.WorkingSetSize, "
+  + "[math]::Round(($_.KernelModeTime + $_.UserModeTime) / 1e7), ($(if ($_.CommandLine) { $_.CommandLine } else { $_.Name }) -replace '[\\r\\n]', ' ') }";
+
+/**
+ * The Windows process list from WIN_PROCS's output: [{ pid, ppid, start, cpu, mem, args }], or null when it failed.
+ * A PID on two lines can't be told: one of them may be text from a command line, so the whole list is null and the
+ * caller refuses (#248). The command line is the rest of the line, whatever it holds, so no character drops a process.
+ */
+export function windowsProcs(text) {
   if (text === null) return null;
-  const map = new Map();
-  for (const [pid, parent, start, bytes, cpu] of text.split(/\r?\n/).filter(Boolean).map((l) => l.trim().split("|"))) {
-    map.set(Number(pid), { parent: Number(parent), group: null, start, cpu: `${cpu} s CPU`, mem: Math.round(Number(bytes) / 1024) });
-  }
-  return map;
+  const rows = text.split(/\r?\n/).map((l) => /^(\d+)\|(\d+)\|([^|]*)\|(\d*)\|(\d*)\|(.*)$/s.exec(l.trim())).filter(Boolean)
+    .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), start: m[3], cpu: `${m[5]} s CPU`, mem: Math.round(Number(m[4]) / 1024), args: m[6] }));
+  return new Set(rows.map((r) => r.pid)).size === rows.length ? rows : null;
 }
 
-function windowsTable(pwsh) {
-  const text = pwsh("Get-CimInstance Win32_Process | ForEach-Object { '{0}|{1}|{2}' -f $_.ProcessId, $_.ParentProcessId, $(if ($_.CommandLine) { $_.CommandLine } else { $_.Name }) }");
-  if (text === null) return null;
-  return text.split(/\r?\n/).map((l) => /^(\d+)\|(\d+)\|(.*)$/.exec(l.trim())).filter(Boolean).map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), pgid: null, args: m[3] }));
+function windowsInfo(rows, pids) {
+  const list = new Set(pidList(pids));
+  if (!list.size) return new Map();
+  if (!rows) return null;
+  return new Map(rows.filter((r) => list.has(r.pid)).map(({ pid, ppid, start, cpu, mem }) => [pid, { parent: ppid, group: null, start, cpu, mem }]));
 }

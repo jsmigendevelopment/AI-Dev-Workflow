@@ -18,6 +18,7 @@ export const repoFile = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, 
 // user is the only member of a group (true, false, or null for "can't tell"). acl: what it answers when asked
 // whether a folder has a POSIX ACL (true, false for none, or null for "can't tell"). winAcl(path): the fake Windows
 // ACL reader, { owned, writers } or null; by default every path is this user's and no other account can write it.
+// Its writers are its movers too (#248), unless it gives movers of its own.
 // fsType(path): the file system a folder is on, as /proc/self/mountinfo names it (#231); ext4 by default.
 // lstat(path): what the walk to a registry's folder sees (#231); the real lstat by default, so a test can give a
 // folder or a link another owner without root's chown. home: the home folder, a new temp folder by default.
@@ -33,7 +34,7 @@ export function fakeSys({ platform = "linux", env = { CLAUDE_CODE_SESSION_ID: "s
     platform, env, home, cwd: tmp("procs-cwd-"), parentPid: 900, selfPid: 999, uid: process.getuid?.() ?? null, gid: process.getgid?.() ?? null, calls, live,
     privateGroup: () => privateGroup,
     acl: () => acl,
-    winAcl: (path) => winAcl(path),
+    winAcls: (paths) => new Map(paths.map((p) => { const a = winAcl(p); return [p, a && { movers: a.writers, ...a }]; })),
     fsType: (path) => fsType(path),
     lstat: (path) => lstat(path),
     now: () => clock, advance: (ms) => { clock += ms; },
