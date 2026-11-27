@@ -5,6 +5,7 @@
 //   git(dir, args) its output, "" for nothing, null when git failed · uid, gid this user's ids (null on Windows)
 //   privateGroup(gid) true when this user is the group's one member, false when not, null when it can't tell
 //   acl(path) true when the path has a POSIX ACL, false when it has none, null when it can't tell
+//   macAcls(paths) on macOS a Map of each path to the accounts its ACL lets write it, or null (procs-path.mjs); null elsewhere
 //   winAcls(paths) on Windows a Map of each path to { owned, writers, heirs, movers } (procs-winacl.mjs); null off Windows
 //   fresh() drops the Windows process list, so the next info() or table() reads it again
 //   fsType(path) on Linux the file system a real folder is on, from /proc/self/mountinfo (null when it can't tell);
@@ -14,6 +15,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { closeSync, constants, existsSync, openSync, readFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
+import { macAclText } from "./procs-path.mjs";
 import { readWinAcls } from "./procs-winacl.mjs";
 
 /**
@@ -50,6 +52,8 @@ export function realSys({ platform = process.platform, run, fullPath = false } =
     // Only Linux is asked: there the tools are known. Anywhere else it can't tell, so the caller refuses.
     acl: (path) => (platform !== "linux" ? null : hasAcl(aclSources(strict, path))),
     winAcls: (paths) => (platform === "win32" ? readWinAcls(run, paths) : null),
+    // macOS: every path's extended ACL from one /bin/ls start (#249). A failed ls leaves every path "can't tell".
+    macAcls: (paths) => (platform === "darwin" ? macAclText(strict("/bin/ls", ["-lde", "--", ...paths]), paths, userName()) : null),
     // Read each time: a small file, and a mount can change while the watcher runs.
     fsType: (path) => (platform !== "linux" ? undefined : mountType(readOrNull("/proc/self/mountinfo"), path)),
     now: () => Date.now(),
