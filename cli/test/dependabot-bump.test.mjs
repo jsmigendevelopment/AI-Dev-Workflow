@@ -45,7 +45,7 @@ function bump({ files = changed("package.json", "pnpm-lock.yaml"), commits = [co
     ...Object.entries({ "package.json": BUMPED, "pnpm-lock.yaml": LOCK_BUMPED, ...after }).map(([p, t]) => at(p, HEAD, t)),
   ];
   const dir = tmp("onrails-bump-");
-  const fake = fakeGh(dir, Object.assign({
+  const fake = fakeGh(tmp("onrails-gh-"), Object.assign({ // gh outside the folder it runs in (#274)
     [`${REPO}/pulls/7`]: pullOf({ files: files.length, commits: commits.length, ...pull }),
     [`${REPO}/pulls/7/files`]: files,
     [`${REPO}/pulls/7/commits`]: commits,

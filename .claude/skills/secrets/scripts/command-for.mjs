@@ -1,6 +1,7 @@
 // How push-secrets.mjs and setup-github.mjs start gh and npx: by the full path on PATH, never a copy the repo ships
 // (#237, #238). The rule of toolPath and launch in the CLI's system.mjs, which skill scripts can't import. The master
-// is .agents/skills/secrets/scripts/command-for.mjs; scripts/sync-skills.mjs copies it next to setup-github.mjs.
+// is .agents/skills/secrets/scripts/command-for.mjs; scripts/sync-skills.mjs copies it next to setup-github.mjs,
+// agent-files.mjs and every research-library.mjs (#274).
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, sep, win32 } from "node:path";
@@ -37,8 +38,10 @@ function roots() {
   const project = (dir) => [".onrails.json", ".ai-dev-workflow.json"].some((name) => existsSync(join(dir, name)));
   const top = realDir(repoRoot(process.cwd()) ?? process.cwd());
   const cwd = realDir(process.cwd());
+  // The same folder whatever the case on Windows, where a path's case doesn't matter (#274).
+  const same = (a, b) => (process.platform === "win32" ? relative(a.toLowerCase(), b.toLowerCase()) : relative(a, b)) === "";
   return [
-    { dir: top && (top === cwd || top !== home || project(top)) ? top : null, label: "this repo" },
+    { dir: top && (same(top, cwd ?? "") || !same(home, top) || project(top)) ? top : null, label: "this repo" },
     { dir: cwd, label: "the current folder" },
   ].filter(({ dir }) => dir && dirname(dir) !== dir);
 }

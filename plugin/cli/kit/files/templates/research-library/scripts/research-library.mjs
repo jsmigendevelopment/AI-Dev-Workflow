@@ -14,6 +14,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { commandFor } from "./command-for.mjs";
 
 export const SCHEMA = "research-library/1";
 export const MANIFEST = "research-library.json";
@@ -152,8 +153,15 @@ export function insertEntry(text, index, vars) {
   return lines.join("\n");
 }
 
+// A tool by its full path on PATH, never one in the current folder or the repo (#274). Throws when it can't start or fails.
+function startTool(cmd, args) {
+  const how = commandFor(cmd, args);
+  if (how.why) throw new Error(how.why);
+  return execFileSync(how.file, how.args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: how.env, windowsVerbatimArguments: how.verbatim });
+}
+
 /** Asks GitHub whether repo is private. run(cmd, args) returns stdout; the default runs gh. */
-export function checkPrivate(repo, { run = (cmd, args) => execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }) } = {}) {
+export function checkPrivate(repo, { run = startTool } = {}) {
   if (typeof repo !== "string" || !REPO.test(repo)) return { ok: false, reason: `"${repo}" is not owner/repo` };
   let answer;
   try { answer = run("gh", ["api", `repos/${repo}`, "--jq", ".private"]).trim(); }
