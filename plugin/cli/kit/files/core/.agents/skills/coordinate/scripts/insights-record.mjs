@@ -30,8 +30,17 @@ export const ENVELOPE = {
   source: str(false, ["board"]),
 };
 
+/** Why a run's work went back (#380): too big, a must-fix finding, a red check, the machine, or a process rule. */
+const SEND_BACKS =["size", "review-must", "checks", "infra", "process"];
+/** The outcomes a send-back may come with: a run that passed or finished sent nothing back. */
+const SENT_BACK = ["fail", "failed", "stopped", "handed-off"];
+
 export const KINDS = {
-  job: { outcome: str(true, OUTCOMES), started: str(false), ended: str(false) },
+  // usage_before and usage_after are the provider's reading as the tool shows it, or unknown; usage_from says where (#380).
+  job: {
+    outcome: str(true, OUTCOMES), started: str(false), ended: str(false),
+    usage_before: str(false), usage_after: str(false), usage_from: str(false), send_back: str(false, SEND_BACKS),
+  },
   // state, fence and a null failed_step come from the local gate's mark-check.mjs --record (#331, decision 331-1).
   check: {
     commands: list(true, "object"), failed_step: { type: "str", req: false, nullable: true }, flaky_rerun: bool(false),
@@ -117,6 +126,19 @@ function checkCommands(commands) {
   return null;
 }
 
+/** The run-cost rules of a job record (#380). Records from before #380 have none of these fields, so they pass. */
+function jobProblems(record, board) {
+  const errors = [];
+  if (record.send_back !== undefined && record.outcome !== undefined && !SENT_BACK.includes(record.outcome)) {
+    errors.push(`send_back: only on a run that sent work back (outcome ${SENT_BACK.join(", ")})`);
+  }
+  const reading = record.usage_before !== undefined || record.usage_after !== undefined;
+  if (reading && !board && record.usage_from === undefined) {
+    errors.push("usage_from: required with a usage reading (where it was read, or where you looked)");
+  }
+  return errors;
+}
+
 /** The problems with a record, each starting with the field's name. An empty list means it is valid. */
 export function validate(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) return ["record: must be an object"];
@@ -145,6 +167,7 @@ export function validate(record) {
     const e = checkCommands(record.commands);
     if (e) errors.push(e);
   }
+  if (record.kind === "job") errors.push(...jobProblems(record, board));
   if (record.kind === "note" && !board && record.kind_of !== "went-right" && !(Array.isArray(record.links) && record.links.length)) {
     errors.push("links: required unless kind_of is went-right");
   }

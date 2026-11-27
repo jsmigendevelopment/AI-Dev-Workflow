@@ -15,6 +15,7 @@ const skill = (name) => readFileSync(join(REPO, ".agents/skills", name, "SKILL.m
 const FAKE = {
   n: "12", pr: "40", sha: "b".repeat(40), model: "opus", effort: "low", tool: "claude-code",
   round: "1", must: "0", nice: "2", categories: "tests,bugs",
+  "usage-before": "unknown", "usage-after": "unknown", "usage-from": "get_session",
 };
 
 /** Every backticked insights.mjs command in a skill. */

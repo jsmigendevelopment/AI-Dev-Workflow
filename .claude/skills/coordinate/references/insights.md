@@ -31,7 +31,7 @@ Text is capped at 200 characters. A list is comma-separated or a JSON list, and 
 
 | Kind | Fields (required in bold) |
 |---|---|
-| `job` | **outcome** (`started`, `pr-opened`, `finished`, `handed-off`, `stopped`, `failed`, `swept`, `paused`, `ended`, `pass`, `fail`), started, ended |
+| `job` | **outcome** (`started`, `pr-opened`, `finished`, `handed-off`, `stopped`, `failed`, `swept`, `paused`, `ended`, `pass`, `fail`), started, ended, usage_before, usage_after, usage_from (required with either usage field), send_back (`size`, `review-must`, `checks`, `infra`, `process`; only with outcome `fail`, `failed`, `stopped` or `handed-off`). See "What a run cost" |
 | `check` | **commands** (JSON list of `{name, result: pass\|fail\|skipped, seconds}`), failed_step (null on a pass), flaky_rerun, state (`success`, `failure`), fence. The local gate's `mark-check.mjs --record <file>` writes it (#331) |
 | `review` | **round**, **verdict** (`pass`, `changes`), **must**, **nice**, categories |
 | `fix-round` | **round**, **fixed** |
@@ -44,10 +44,30 @@ Text is capped at 200 characters. A list is comma-separated or a JSON list, and 
 | `gate` | **pass**, **issues_done**, **hours_to_ready** |
 | `note` | **kind_of** (`went-right`, `went-wrong`, `look-again`), **belongs** (`project`, `kit`, `tool`), **text**, links (record file names; required unless `went-right`) |
 
+## What a run cost (#380)
+
+A builder's finish record and each reviewer's job line carry the run's cost:
+
+- `model` and `effort`: what the session shows, else `unknown`.
+- `usage_before` and `usage_after`: the provider's usage reading as the tool shows it, at the start and at the end (for example the plan's `41%`). No reading you can see? `unknown`. Never estimate a number the tool didn't report.
+- `usage_from`: where you read it, or where you looked (for example `get_session: no usage percentage`).
+- `send_back`: why the work went back, on a run that sent it back:
+
+| Reason | Who writes it |
+|---|---|
+| `size` | `coordinate` 6.1.1, a `job=size-check` record when `pr-size.mjs` exits 1 |
+| `review-must` | `pr-review` and `pr-security`, on request changes |
+| `checks` | `qa`, when an acceptance check failed. The local gate's own red run is its `check` record with `state: failure` |
+| `infra` | `qa` when the preview or browser wouldn't run; `build` when it stopped on the machine, a tool or a service |
+| `process` | `build`, when a rule or a gate stopped it |
+
+Records from before #380 have none of these fields and stay valid.
+
 ## One example per kind
 
 ```
 insights.mjs write job job=build issue=12 sha=<40 hex> outcome=started model=opus effort=low
+insights.mjs line job job=review-code pr=40 sha=<40 hex> outcome=fail send_back=review-must usage_before=unknown usage_after=unknown usage_from=get_session
 insights.mjs write check pr=40 'commands=[{"name":"lint","result":"pass","seconds":4}]'
 insights.mjs line review pr=40 round=1 verdict=pass must=0 nice=2 categories=naming,tests
 insights.mjs write fix-round pr=40 round=2 fixed=3
