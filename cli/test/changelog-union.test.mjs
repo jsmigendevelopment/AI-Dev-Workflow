@@ -15,9 +15,11 @@ const ADDED = "## [Unreleased]\n\n### Added\n\n";
 
 test("AC-362-1: two branches that each add a line under the same Unreleased heading merge with no conflict and keep both", () => {
   const dir = tmp("changelog-union-");
-  // No global or system git config, so only the committed .gitattributes decides how CHANGELOG.md merges.
-  const env = safeEnv({ GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" });
-  const git = (...args) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir, encoding: "utf8", env });
+  // No global or system git config or attributes file, as pr-rules.mjs's SAFE_GIT, so only the committed
+  // .gitattributes decides how CHANGELOG.md merges. GIT_CONFIG_NOSYSTEM doesn't cover $(prefix)/etc/gitattributes.
+  const env = safeEnv({ GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_ATTR_NOSYSTEM: "1" });
+  const SAFE_GIT = ["-c", "core.attributesFile=/dev/null", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"];
+  const git = (...args) => spawnSync("git", [...SAFE_GIT, ...args], { cwd: dir, encoding: "utf8", env });
   git("init", "-q", "-b", "main");
   for (const file of [".gitattributes", "CHANGELOG.md"]) copyFileSync(join(REPO, file), join(dir, file));
   assert.ok(read("CHANGELOG.md").includes(ADDED), "CHANGELOG.md has an Added heading under Unreleased");
@@ -44,6 +46,8 @@ test("AC-362-2: coordinate step 7 names the attribute and says to check the merg
   const step7 = read(".agents/skills/coordinate/SKILL.md").split("7. **Merge through one queue,**")[1].split("\n8. ")[0];
   assert.match(step7, /`CHANGELOG\.md merge=union`/);
   assert.match(step7, /check the merged `CHANGELOG\.md` once/);
+  // One side's edit is enough: union keeps a reworded entry's old wording next to the other side's new line.
+  assert.match(step7, /either side reworded an entry/);
 });
 
 test("AC-362-3: the kit's .gitattributes and the one the web pack writes into an app both merge CHANGELOG.md with union", () => {
