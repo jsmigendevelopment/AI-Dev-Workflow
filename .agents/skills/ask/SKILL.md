@@ -97,7 +97,7 @@ Then, for both:
 2. Show the proof: `P list --mine`, `timer.mjs status` if you or the loop armed a timer, and the loop's own list when it reports back; don't wait for it. After a stop: `Nothing this session started is running.` and `none`.
 3. Touch only what this session started, except the supervisor above. Another thread's processes, other projects and the person's own servers stay. Below Full, to stop one, ask first: `P stop all`, another live session's id and a PID the registry didn't record are refused without `--yes`, which you add only after the person's yes. On Full, leave it running and put it in the FYI.
 
-Back from a pause: `P resume`. **Done when** the proof shows only paused items (pause) or nothing (stop), and the resume note is written.
+Back from a pause: `P resume`. **Done when** the proof shows only paused items (pause) or nothing (stop), and the resume note is written. The loop's part of the proof counts once the loop reports back. Never wait for it.
 
 ## The message
 
