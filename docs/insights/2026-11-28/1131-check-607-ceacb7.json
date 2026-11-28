@@ -1,0 +1,58 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T11:31:45.149Z",
+  "issue": null,
+  "pr": 607,
+  "sha": "c1d9ad759bfc1ea09710bba49995ec923ab74d11",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "fence": "Fence: none (merge helper ran the kit checks unfenced in a fresh clone with a safe PATH)",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0.045
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0.028
+    },
+    {
+      "name": "cd cli && npm run bundle (no diff)",
+      "result": "pass",
+      "seconds": 0.757
+    },
+    {
+      "name": "cd cli && npm test",
+      "result": "pass",
+      "seconds": 118
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 74.609
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0.051
+    },
+    {
+      "name": "pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0.084
+    },
+    {
+      "name": "pr-rules.mjs 607",
+      "result": "pass",
+      "seconds": 2.506
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}
