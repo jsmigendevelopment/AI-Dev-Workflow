@@ -75,7 +75,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
 A short look back, so the next run goes better. `/afk` runs it at the hard stop too.
 
-1. **Read the record, not your memory:** the board, `docs/state.md`, the merged and parked issues, failed checks, rejected reviews and `needs-human` items since the last retro. Add the flow numbers: `gh pr list --state merged --limit 200 --json number,createdAt,mergedAt,additions,deletions,headRefName > <tmp>/merged.json`, then `node .agents/skills/coordinate/scripts/flow.mjs --github <tmp>/merged.json`.
+1. **Read the record, not your memory:** the board, `docs/state.md`, the merged and parked issues, failed checks, rejected reviews and `needs-human` items since the last retro. Add the flow numbers: `gh pr list --state merged --limit 200 --json number,title,createdAt,mergedAt,additions,deletions,headRefName > <tmp>/merged.json`, then `node .agents/skills/coordinate/scripts/flow.mjs --github <tmp>/merged.json`.
 2. **Ask three questions:**
    - **What went wrong?** A failed check, a rejected review, a parked issue, a bug that reached test.
    - **What was slow?** An issue that took many rounds, a long hunt for a file or a fact, a wait on a limit. In the flow numbers: the longest gap between merges and what caused it, and the slowest pull requests.
@@ -86,6 +86,7 @@ A short look back, so the next run goes better. `/afk` runs it at the hard stop 
    - **A problem in this app** (its code, tests, docs, checks or setup): open an issue here with the `issues` skill. Below Full, don't add `status:ready`: the person picks it. On Full, add `status:ready` and a priority, so the loop builds it.
    - **A flaw in the kit itself** (a skill step that's wrong or missing, a script, a hook, a template): draft an issue for the kit's repo, `jsmigendevelopment/onRails`. Title, what happened, where in the run, and the fix you suggest. Leave out app code, secrets and private names. Below Full, put the draft under "Retro" in `docs/state.md` and show it to the person. **Never file it there without their yes.** On a yes: `gh issue create --repo jsmigendevelopment/onRails`. On Full, file it now with that command and link it under "Retro"; no `gh`, or it fails? Keep the draft there and list it in the FYI, never as waiting on the person.
 6. **Write it down.** Add a "Retro" section to `docs/state.md`: the date, one line per finding with its issue link or "draft for the kit". **Done when** every finding has an issue or a draft, and the section is written.
+7. **Land the held records** (#748): `node .agents/skills/coordinate/scripts/insights.mjs land --now --repo <owner>/<repo>` from your checkout of main, so the retro's own records leave this checkout. The loop's later sweeps land the rest by batch. Exit 2: note it under "Retro".
 
 ---
 

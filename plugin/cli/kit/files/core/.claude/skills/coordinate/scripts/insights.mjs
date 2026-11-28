@@ -21,7 +21,8 @@
 //       line is `Checks: pass|fail @ <sha>`, or `Code review: approve|request changes @ <sha>` with one such line
 //       later (the reviewer's verdict comment), the sha is the record's and pass or fail fits its state.
 //       A record's id is a hash of it, so a rerun writes nothing; a different file on that name is named and kept.
-//   land [--verify <pr>] [--repo <owner>/<name>]   lands the records on main: insights-land.mjs says how.
+//   land [--now] [--repo <owner>/<name>] | land --verify <pr> [--repo <owner>/<name>]   lands the records on main, in
+//       batches (#748): insights-land.mjs says how. Another flag exits 2 with the usage, before any git or API call.
 // harvest and land exit 2 on a usage, git or API error.
 //
 // The merge step's records (#333), after a harvest, in the same checkout:
@@ -41,10 +42,10 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileS
 import { join } from "node:path";
 import { pages } from "./agent-files.mjs";
 import { carry, heldRecords, kindsAt, save } from "./insights-carry.mjs";
-import { canonical, checkoutAt, land, ownAccount, recordProblem } from "./insights-land.mjs";
+import { LAND_USAGE, canonical, checkoutAt, land, ownAccount, parseLand, recordProblem } from "./insights-land.mjs";
 import { ASK_FILE, KINDS, LINE_START, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
 
-const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | has-records --issue <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
+const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--now] [--repo <owner>/<name>] | land --verify <pr> [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | has-records --issue <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
 // [^\r\n], not ".": a dot stops at U+2028 and U+2029, so a valid line holding one was skipped without a word (#424).
 const LINE = /<!-- onrails-insights ([^\r\n]*?) -->/g;
 
@@ -296,6 +297,7 @@ function hasRecords(args) {
 const [cmd, ...rest] = process.argv.slice(2);
 if (cmd === "write" || cmd === "line") writeOrLine(cmd, rest[0], rest.slice(1));
 else if (cmd === "has-records") hasRecords(rest);
+else if (cmd === "land" && !parseLand(rest)) fail(2, LAND_USAGE);
 else if (cmd === "harvest" || cmd === "land" || cmd === "carry") {
   try {
     if (cmd === "harvest") harvest(rest);

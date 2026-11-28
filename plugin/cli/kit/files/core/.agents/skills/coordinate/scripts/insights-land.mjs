@@ -1,15 +1,19 @@
 // `insights.mjs land` and the record-file check it shares with `harvest` (#332). Run it through insights.mjs:
-//   land [--repo <owner>/<name>]   lands every valid record file in the checkout that isn't on main. gh's own
+//   land [--repo <owner>/<name>] [--now]   lands every valid record file in the checkout that isn't on main. gh's own
 //       open records pull request (a chore/insights- branch it opened in this repo) gets the missing files as one more
 //       commit, a fast-forward, and its number is printed. With none open, it pushes chore/insights-<day>-<hhmm> off
 //       main with only those files, opens a pull request and prints its number. Either way the pull request
 //       gets the no-issue and size-exception labels and the "Size exception:" body line it lacks (#377's size rule).
 //       Nothing pending: prints nothing and calls no API. It stages the files in the checkout, so the pull after the merge is
-//       clean (decision 332-2).
+//       clean (decision 332-2). Held (#748): under HOLD_RECORDS pending records whose oldest is under HOLD_MINUTES old
+//       and no --now: one `held:` line, no API call, nothing staged, exit 0. The files stay in the checkout (harvest
+//       and has-records read them there) and the next land counts them again. Age is the record's own `at`.
 //   land --verify <pr> [--repo <owner>/<name>]   the review of a records-only pull request (decision 332-1): exit 0
 //       and the head sha only if gh's own login opened it from a chore/insights- branch of this repo (same repo id)
 //       against main, and every changed file is an added plain file under docs/insights/, at most CAP bytes, in the
 //       writer's exact bytes, a valid record, with the name the writer gives it. Exit 1 names each file that isn't.
+// Any other flag, a repeated one, a flag without its value, or --verify with --now: exit 2 with LAND_USAGE, before any
+// git or API call (#748).
 // Main is always refs/remotes/origin/main, fetched with an explicit refspec, never the short name origin/main, which a
 // tag or a local branch can shadow (#422). Every git call drops the variables that move the repository (MOVES_REPO).
 // Exit 2: a usage, git or API error, or a head that moved while it was read.
@@ -22,6 +26,10 @@ import { dayFolder, fileName, validate } from "./insights-record.mjs";
 import { exceptionReason } from "./pr-size.mjs";
 
 const BASE = "main";
+/** Records wait for a batch (#748): land when this many are pending, or the oldest is this old, or with --now. An AI pick. */
+export const HOLD_RECORDS = 12;
+export const HOLD_MINUTES = 90;
+export const LAND_USAGE = "usage: insights.mjs land [--repo <owner>/<name>] [--now] | land --verify <pr> [--repo <owner>/<name>]";
 /** Main as land reads it: never by the short name origin/main, which a tag or a local branch of that name shadows (#422). */
 const MAIN = "refs/remotes/origin/main";
 /** The most bytes a record file may have: the writer's biggest real record is under 2 KB. */
@@ -175,9 +183,23 @@ function mark(repo, pull) {
   if (!exceptionReason(body)) gh("-X", "PATCH", "-f", `body=${[SIZE_LINE, body.trimEnd()].filter(Boolean).join("\n\n")}\n`, `repos/${repo}/pulls/${pull.number}`);
 }
 
-function open(root, repo) {
+/** The whole minutes since the oldest of these record files' own `at`, never below 0. */
+function oldestMinutes(root, files) {
+  const at = Math.min(...files.map((f) => Date.parse(JSON.parse(readFileSync(join(root, f), "utf8")).at)));
+  const now = Date.parse(process.env.ONRAILS_NOW ?? "") || Date.now();
+  return Math.max(0, Math.floor((now - at) / 60000));
+}
+
+function open(root, repo, now) {
   const files = pending(root);
   if (!files.length) return;
+  if (!now && files.length < HOLD_RECORDS) {
+    const age = oldestMinutes(root, files);
+    if (age < HOLD_MINUTES) {
+      process.stdout.write(`held: ${files.length} record${files.length === 1 ? "" : "s"}, oldest ${age} min; lands at ${HOLD_RECORDS} records, ${HOLD_MINUTES} min or with --now\n`);
+      return;
+    }
+  }
   const me = ownLogin();
   const mine = pages(`repos/${repo}/pulls?state=open&per_page=100`).filter((p) => !notRecordsPull(p, me)).sort((a, b) => a.number - b.number);
   for (const extra of mine.slice(1)) warn(`#${extra.number} is another open records pull request: close it and delete its branch`);
@@ -210,7 +232,6 @@ function badFiles(root, sha) {
 }
 
 function verify(root, repo, pr) {
-  if (!/^\d+$/.test(pr ?? "")) throw new Error("usage: insights.mjs land --verify <pr> [--repo <owner>/<name>]");
   const pull = JSON.parse(gh(`repos/${repo}/pulls/${pr}`));
   const refuse = (why) => {
     warn(`#${pr} isn't a records-only pull request: ${why}`);
@@ -225,13 +246,26 @@ function verify(root, repo, pr) {
   process.stdout.write(`${sha}\n`);
 }
 
+/** The flags of `land` as { repo, verify, now }, or null for anything LAND_USAGE doesn't allow. Reads no git, no API. */
+export function parseLand(args) {
+  const got = { repo: undefined, verify: undefined, now: false };
+  for (let i = 0; i < args.length; i++) {
+    const name = args[i].slice(2);
+    if (args[i] === "--now" && !got.now) got.now = true;
+    else if ((name === "repo" || name === "verify") && args[i].startsWith("--") && got[name] === undefined && args[i + 1] !== undefined && !args[i + 1].startsWith("-")) got[name] = args[++i];
+    else return null;
+  }
+  return got.verify !== undefined && (got.now || !/^\d+$/.test(got.verify)) ? null : got;
+}
+
 /** `land` and `land --verify`, from the checkout at root. */
 export function land(root, args) {
-  const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+  const flags = parseLand(args);
+  if (!flags) throw new Error(LAND_USAGE);
   const origin = /github\.com[:/]+([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(git(root, ["remote", "get-url", "origin"]))?.[1];
-  const repo = flag("--repo") ?? origin;
+  const repo = flags.repo ?? origin;
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo ?? "")) throw new Error("pass --repo <owner>/<name>: origin isn't a GitHub URL");
   git(root, ["fetch", "-q", "--no-tags", "origin", `+refs/heads/${BASE}:${MAIN}`]);
-  if (args.includes("--verify")) verify(root, repo, flag("--verify"));
-  else open(root, repo);
+  if (flags.verify !== undefined) verify(root, repo, flags.verify);
+  else open(root, repo, flags.now);
 }
