@@ -45,7 +45,7 @@ Three roles do most of the work. The Jobs table below says which role runs each 
 - **Start on the role's default.** Escalate only after a verified failure: a failed check or a rejected review, not a hunch.
 - **One step per verified failure, two steps at most.** The builder goes Sonnet to Opus, then effort up: Sonnet · medium, Opus · medium, Opus · high. A builder that starts on Opus · medium goes to high, then extra-high where the model has it.
 - **Infrastructure errors and process blocks don't count against the model:** a network or rate-limit error, a sandbox block, a missing key, a runner that's down, a merge conflict. Fix the cause, then run the same step again.
-- **Still failing after two steps?** Stop climbing. `coordinate`'s review cap says what's next. Escalation never reaches the strongest tier on its own. Where the cap says "the next tier up", this section wins: with a step left, the extra round takes that step, never the next tier; with none left, go straight to the split (#406).
+- **Still failing after two steps?** Stop climbing. `coordinate`'s review cap says what's next. Escalation never reaches the strongest tier on its own. `coordinate`'s review cap follows this: with a step left, the extra round takes that step, never the next tier; with none left, go straight to the split (#406).
 - **The profile's pick is step one.** No step above it in the profile? Don't climb. For example, a profile whose builder is already its `everyday` model at its highest effort has no step left.
 
 ## Jobs

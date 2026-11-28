@@ -17,6 +17,8 @@ export const DEFAULTS = {
 const EFFORTS = ["low", "medium", "high", "extra-high"];
 
 const HEADER = /^\s*\[\s*routing\s*\]\s*(?:#.*)?$/;
+// [[routing]] or [routing.<name>]: a header that names routing but isn't the [routing] table.
+const OTHER_ROUTING = /^\s*\[\[?\s*(?:routing|"routing"|'routing')\s*(?:\.|\]\])/;
 const PAIR = /^\s*(?:([A-Za-z0-9_-]+)|"([^"\\\n]*)"|'([^'\n]*)')\s*=\s*(.*)$/;
 const ESCAPES = { b: "\b", t: "\t", n: "\n", f: "\f", r: "\r", '"': '"', "\\": "\\" };
 
@@ -39,20 +41,26 @@ function stringValue(raw) {
   return bad ? null : value;
 }
 
-// A value with a control character would break the one-line-per-role output, so it can't be used.
-const usable = (value) => (value === null || /[\u0000-\u001f\u007f]/.test(value) ? null : value);
+// A value with a control character (C0, DEL, C1) or a line or paragraph separator would break the
+// one-line-per-role output, so it can't be used.
+const usable = (value) => (value === null || /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(value) ? null : value);
 const normalEffort = (value) => (value.toLowerCase() === "xhigh" ? "extra-high" : value.toLowerCase());
 
 /**
  * A profile's [routing] table. keys: key -> its string, or null when the key is there but its value can't be read.
- * misplaced: routing was set before any table, as an inline table or a dotted key, which this reader skips.
+ * misplaced: routing was set outside [routing] (a value or a dotted key before any table, [[routing]] or
+ * [routing.<name>]), which this reader skips.
  */
 export function readRouting(toml) {
   const keys = new Map();
   let table = null;
   let misplaced = false;
   for (const line of toml.split(/\r?\n/)) {
-    if (/^\s*\[/.test(line)) { table = HEADER.test(line) ? "routing" : "other"; continue; }
+    if (/^\s*\[/.test(line)) {
+      if (OTHER_ROUTING.test(line)) misplaced = true;
+      table = HEADER.test(line) ? "routing" : "other";
+      continue;
+    }
     if (table === null && /^\s*(?:routing|"routing"|'routing')\s*[.=]/.test(line)) misplaced = true;
     const pair = table === "routing" && PAIR.exec(line);
     if (!pair) continue;
@@ -64,20 +72,22 @@ export function readRouting(toml) {
 
 /**
  * Each role's { model, effort, from }. profiles: [{ label, text }], the project's first; per key, the first
- * readable value wins. warn gets one line per key that is set but can't be used.
+ * readable value wins. warn gets one line per key that is set but can't be used. only: one role to resolve, so
+ * the key warnings are about it alone; omitted, every role.
  */
-export function resolveRoles(profiles, warn = () => {}) {
+export function resolveRoles(profiles, warn = () => {}, only) {
   const tables = profiles.map(({ label, text }) => {
     try {
       const { keys, misplaced } = readRouting(text);
-      if (misplaced) warn(`roles.mjs: ${label} sets routing as an inline table or a dotted key; write it under [routing]. Skipped.`);
+      if (misplaced) warn(`roles.mjs: ${label} sets routing outside [routing] (a value, an inline table, a dotted key, [[routing]] or [routing.<name>]); that part is skipped and the [routing] table is still read, so write it under [routing].`);
       return { label, keys };
     } catch (error) {
       warn(`roles.mjs: could not read ${label}: ${error.message}; using the next profile or the default.`);
       return { label, keys: new Map() };
     }
   });
-  return Object.fromEntries(Object.entries(DEFAULTS).map(([role, fallback]) => {
+  const wanted = Object.entries(DEFAULTS).filter(([role]) => only === undefined || role === only);
+  return Object.fromEntries(wanted.map(([role, fallback]) => {
     const notes = [];
     const pick = (key, valid = () => true) => {
       for (const { label, keys } of tables) {
@@ -142,8 +152,8 @@ function main(argv) {
   const profiles = [[join(resolve(project), "docs", "profile.toml"), "docs/profile.toml"], homeProfile()]
     .map(([path, label]) => readProfile(path, label))
     .filter(Boolean);
-  for (const [name, r] of Object.entries(resolveRoles(profiles, (line) => console.error(line)))) {
-    if (!role || name === role) console.log(`${name}: ${r.model} · ${r.effort} (${r.from})`);
+  for (const [name, r] of Object.entries(resolveRoles(profiles, (line) => console.error(line), role))) {
+    console.log(`${name}: ${r.model} · ${r.effort} (${r.from})`);
   }
   return 0;
 }
