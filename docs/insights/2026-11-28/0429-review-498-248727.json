@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T04:29:41.287Z",
+  "issue": 421,
+  "pr": 498,
+  "sha": "3dc47ca9cec44df162364b08f2bbe24f3d9a5b0e",
+  "job": "carry-review",
+  "tool": null,
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 2,
+  "categories": [
+    "tests",
+    "docs"
+  ],
+  "model_from": "coordinator brief"
+}
