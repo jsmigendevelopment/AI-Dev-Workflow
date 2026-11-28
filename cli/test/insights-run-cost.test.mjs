@@ -15,7 +15,7 @@ const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const WRITER = join(REPO, ".agents/skills/coordinate/scripts/insights.mjs");
 const skill = (name) => readFileSync(join(REPO, ".agents/skills", name, "SKILL.md"), "utf8");
 const sizeReference = () => readFileSync(join(REPO, ".agents/skills/coordinate/references/size-send-back.md"), "utf8");
-const REASONS =["size", "review-must", "checks", "infra", "process"];
+const REASONS = ["size", "review-must", "checks", "infra", "process"];
 const COST = ["model", "effort", "usage_before", "usage_after", "usage_from", "outcome"];
 const FAKE = {
   n: "40", issue: "12", pr: "40", sha: "c".repeat(40), model: "opus", effort: "low", tool: "codex",
