@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T11:35:17.082Z",
+  "issue": null,
+  "pr": 612,
+  "sha": "626fa14a33c7a34bd29cb367ab5df01aee6c9add",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "outcome": "pass",
+  "model_from": "session shows the model id only, no effort",
+  "started": "2026-11-28T11:27:30Z"
+}
