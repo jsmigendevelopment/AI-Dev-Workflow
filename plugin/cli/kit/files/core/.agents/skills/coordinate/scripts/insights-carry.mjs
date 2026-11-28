@@ -13,7 +13,7 @@
 //       <to>, through the writer. A rerun writes nothing new. Exit 1 says why, and the merge commit goes to a fresh
 //       pr-review. Exit 2: a usage or git error, or a sha that isn't a commit in this checkout.
 // heldRecords() is what has-records and carry count: a file only when `land` would land it as it is.
-// fetchMain() and mergedFrom() are carry's proof of a clean merge; agent-files.mjs gate follows it too (#478).
+// checkoutOf(), fetchMain() and mergedFrom() are carry's proof of a clean merge; agent-files.mjs gate follows it too (#478).
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -161,6 +161,11 @@ function notCleanMerge(root, from, to) {
   if (merged.why) return `git couldn't redo the merge to prove it (${merged.why})`;
   const tree = git(root, ["rev-parse", "--verify", "--end-of-options", `${to}^{tree}`]);
   return merged.tree === tree ? null : `${to}'s tree isn't the clean merge of main: it holds a change of its own`;
+}
+
+/** The checkout that holds dir, by isolated git, so no GIT_ variable, config or hook can point it elsewhere. Throws when none. */
+export function checkoutOf(dir) {
+  return git(dir, ["rev-parse", "--show-toplevel"]);
 }
 
 /** Fetches main into refs/remotes/origin/main for the checkout at root, as carry's proof reads it. Throws when it can't. */

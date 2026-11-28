@@ -12,22 +12,26 @@ import { SCRIPTS, branch, git, put } from "./insights-land-fakes.mjs";
 
 const P = "repos/acme/app";
 const FULL = "## Automation level\n\n- **Level:** full\n";
-const stack = { type: "file", encoding: "base64", path: "docs/stack.md", content: Buffer.from(FULL).toString("base64") };
+const RECOMMENDED = "## Automation level\n\n- **Level:** recommended\n";
+const stackFile = (text) => ({ type: "file", encoding: "base64", path: "docs/stack.md", content: Buffer.from(text).toString("base64") });
 const say = (login, verdict, sha) => ({ user: { login }, body: `Weakening review: ${verdict} @ ${sha}` });
 const ACCESS = { writer: "write", reader: "read" };
 
-/** The gate, run from the coordinator's checkout of main (fx.dir) at `head`, with these comments on the pull request. */
-function gate(fx, head, comments) {
+/**
+ * The gate in the coordinator's checkout of main (fx.dir) at `head`, with these comments on the pull request. `cwd` is
+ * the folder it is started in (main's checkout unless a test says otherwise); `stack` is docs/stack.md on main.
+ */
+function gate(fx, head, comments, { cwd = fx.dir, stack = FULL } = {}) {
   const fake = fakeGh(tmp("onrails-gh-"), {
     [`${P}/pulls/40`]: { head: { sha: head }, base: { sha: "e".repeat(40), ref: "main" }, changed_files: 1 },
     [`${P}/pulls/40/files`]: [{ filename: ".agents/skills/build/SKILL.md", status: "modified" }],
     [`${P}/issues/40/comments`]: comments,
     [`${P}/issues/40/labels`]: [],
-    [`${P}/contents/docs/stack.md`]: stack,
+    [`${P}/contents/docs/stack.md`]: stackFile(stack),
     ...Object.fromEntries(Object.entries(ACCESS).map(([login, permission]) => [`${P}/collaborators/${login}/permission`, { permission }])),
   });
   const script = join(fx.dir, SCRIPTS, "agent-files.mjs");
-  return spawnSync(process.execPath, [script, "gate", "40", "--repo", "acme/app", "--head", head], { cwd: fx.dir, encoding: "utf8", env: fake.env });
+  return spawnSync(process.execPath, [script, "gate", "40", "--repo", "acme/app", "--head", head], { cwd, encoding: "utf8", env: fake.env });
 }
 
 /** Main moves on again after the branch merged it. */
@@ -113,4 +117,54 @@ test("#478: a fail at any commit of the chain blocks the carried pass", unixOnly
   const r = gate(fx, chain[2], [say("writer", "pass", chain[0]), say("writer", "fail", chain[1])]);
   assert.equal(r.status, 1, r.stdout);
   assert.ok(r.stderr.includes(chain[1]), `names the commit that failed: ${r.stderr}`);
+});
+
+test("#478 round 1: the proof reads main's checkout, where the script is, even when the gate starts in the branch's clone", unixOnly, () => {
+  // The branch adds a merge rule that joins both sides of README.md, so the merge is clean only under the branch's rules.
+  const fx = reviewed({ ...CLASH, feature: { "README.md": "feature\n", ".gitattributes": "*.md merge=union\n" } });
+  const head = mergeMain(fx);
+  const comments = [say("writer", "pass", fx.from)];
+  const fromClone = gate(fx, head, comments, { cwd: fx.seed });
+  assert.equal(fromClone.status, 1, `started in the branch's clone: ${fromClone.stdout}`);
+  assert.match(fromClone.stderr, /conflicts/, fromClone.stderr);
+  const fromMain = gate(fx, head, comments);
+  assert.equal(fromMain.status, 1, fromMain.stdout);
+  assert.match(fromMain.stderr, /conflicts/, fromMain.stderr);
+});
+
+test("#478 round 1: the carry stops after 20 clean merges of main, and says so", unixOnly, () => {
+  const fx = reviewed();
+  const chain = [fx.from];
+  for (let i = 1; i <= 21; i++) {
+    if (i > 1) moveMain(fx, { [`main-${i}.txt`]: `${i}\n` });
+    chain.push(mergeMain(fx));
+  }
+  const head = chain[21];
+  const twenty = gate(fx, head, [say("writer", "pass", chain[1])]);
+  assert.equal(twenty.status, 0, `20 merges back carries: ${twenty.stderr}`);
+  const past = gate(fx, head, [say("writer", "pass", chain[0])]);
+  assert.equal(past.status, 1, `21 merges back doesn't: ${past.stdout}`);
+  assert.match(past.stderr, /within 20 clean merges of main/, past.stderr);
+  assert.ok(past.stderr.includes(`Weakening review: pass @ ${head}`), past.stderr);
+});
+
+test("#478 round 1: on Recommended a clean merge of main carries nothing, and the gate asks for the label", unixOnly, () => {
+  const fx = reviewed();
+  const head = mergeMain(fx);
+  const r = gate(fx, head, [say("writer", "pass", fx.from)], { stack: RECOMMENDED });
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stderr, /human-approved label/, r.stderr);
+  assert.doesNotMatch(r.stderr, /carr/, `no carry on Recommended: ${r.stderr}`);
+});
+
+test("#478 round 1: a merge of a branch that isn't main carries nothing", unixOnly, () => {
+  const fx = reviewed();
+  branch(fx.seed, "other", { "other.txt": "other\n" });
+  git(fx.seed, "checkout", "-q", FEAT);
+  git(fx.seed, "merge", "-q", "--no-edit", "origin/other");
+  const head = push(fx);
+  const r = gate(fx, head, [say("writer", "pass", fx.from)]);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stderr, /isn't on origin\/main/, r.stderr);
+  assert.ok(r.stderr.includes(`Weakening review: pass @ ${head}`), r.stderr);
 });
