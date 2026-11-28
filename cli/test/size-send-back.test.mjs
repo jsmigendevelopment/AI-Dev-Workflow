@@ -121,3 +121,15 @@ test("#378 round 1, nice 1 and 2: --head is refused in pull request mode, and wi
   assert.equal(pull.status, 2);
   assert.match(pull.stderr, /^Usage: /);
 });
+
+test("AC-418-2: WHEN coordinate 6.1.1 is read THEN a child of a size split gets no free send-back", () => {
+  const size = sizeFirst();
+  assert.match(size, /A child of a size split \(its issue says `Split from #<n>`\) gets no free send-back: its first head at 1,000 or more counts as a failed review round\./);
+  assert.match(size, /Put `Split from #<n>` on each child issue/);
+});
+
+test("AC-418-2: WHEN coordinate 6.1.1 is read THEN the send-back line goes on the issue too, and the free send-back is looked for there", () => {
+  const size = sizeFirst();
+  assert.match(size, /Comment `Sent back · <sha> · size: <count> counted lines, over 1,000` with the split brief on the pull request and on its issue/);
+  assert.match(size, /Before you call a send-back free, look for an earlier `Sent back · <sha> · size:` line on the issue, not only on this pull request/);
+});
