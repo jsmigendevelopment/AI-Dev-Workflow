@@ -16,6 +16,7 @@ A handoff is work one session passes to another: a builder brief, a prompt for a
    ```
 
    - Copy the owner's words. Never paraphrase them. Your summary goes next to them, never in their place.
+   - Dictated words stay as typed. Your reading goes beside them when it differs: `Owner's words: "…10 stack start…" (read as: TanStack Start)` (`voice.md`).
    - No owner's words (the loop picked a ready issue)? The issue is the record. Write `Owner's words: the issue body`.
    - The coordinator's `Claimed by` comment is the record for a builder brief (`coordinate`, step 4).
    - **Starting or handing on the loop** (a coordinator in another thread, a sub-agent, another account)? The brief and the record add the standing answers, copied word for word, so the receiver never asks what they settle (rule 16 in `AGENTS.md`):

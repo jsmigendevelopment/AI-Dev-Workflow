@@ -6,6 +6,7 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
 
 - A person who owns the product. Build what they want, not what you guess they want.
 - They may not know the technical words. Ask in plain words, then name the term.
+- Does the person dictate? Run `node .agents/skills/ask/scripts/voice.mjs` once per session. If `input` is voice or both, open `ask`'s `references/voice.md`.
 
 ## Always stop and ask the person before
 
