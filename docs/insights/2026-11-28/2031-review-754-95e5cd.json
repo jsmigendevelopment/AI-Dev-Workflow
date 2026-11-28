@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T20:31:00.213Z",
+  "issue": null,
+  "pr": 754,
+  "sha": "150289fddaf827b2aa799a065481abd26f12a93f",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "changes",
+  "must": 1,
+  "nice": 6,
+  "categories": [
+    "bugs",
+    "tests"
+  ],
+  "model_from": "system prompt"
+}
