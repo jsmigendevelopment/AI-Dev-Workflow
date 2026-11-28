@@ -18,10 +18,9 @@ Load this when `node .agents/skills/ask/scripts/voice.mjs` prints `input: voice`
 A risky spot is money, deleting, deploying or publishing, or a name or number that picks which account, environment or thing gets changed, where a mishearing would change what happens.
 
 - Cheap to undo (a stack pick, a doc, a draft, a name in a plan)? Take the likely reading and go on.
-- Risky, and your reading is a guess? Confirm before the step, in one line, with your reading: `I read "10 stack start" as TanStack Start, right?` Ask nothing else, then do what they confirm.
+- Risky, and your reading is a guess? Confirm before the step, in one line, with your reading: `I read "10 stack start" as TanStack Start, right?` Ask nothing else, then do what they confirm. A glossary line makes a reading likelier, not certain: still confirm.
   - **Below Full:** wait for the answer.
   - **On Full:** don't wait. Take the likely reading, say it in one line as you go, record it as an AI pick, not reviewed, and go on.
-- A mishearing already in the glossary: no question, even in a risky spot.
 
 ## Handoffs stay word for word
 

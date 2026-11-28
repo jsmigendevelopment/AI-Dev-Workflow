@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 // voice.mjs: whether the person types or dictates, and their glossary of voice-to-text mishearings (#457).
 // Usage:  node voice.mjs [status]             print `input: typing|voice|both|unset`, then the glossary unless it's typing
-//         node voice.mjs input <typing|voice|both>   save [me] input in ~/.onrails/profile.toml
+//         node voice.mjs input <typing|voice|both>   save [me] input in ~/.onrails/profile.toml (exit 2, nothing written, if the profile has it in a form this can't edit)
 //         node voice.mjs add "<heard>" "<meant>"     add or update a line in ~/.onrails/glossary.toml
 // Exit 0 done, 2 bad usage. Reading writes nothing. Both files are personal: never copy them into a repo.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 const CHOICES = ["typing", "voice", "both"];
 const MAX = 80;
 const HEADER = /^\s*\[([^\]]+)\]\s*(#.*)?$/;
-const INPUT_LINE = /^(\s*input\s*=\s*)"([^"\n]*)"/;
+// `input = "x"` or `input = 'x'`, then only a comment. Anything else (a multi-line string, a bare word) is not ours to edit.
+const INPUT_LINE = /^(\s*input\s*=\s*)(?:"([^"\n]*)"|'([^'\n]*)')(\s*(?:#.*)?\s*)$/;
+// Forms of [me] input that a one-line edit would turn into invalid TOML: `[[me]]`, a root `me.input` or `me = {...}`, a quoted `"input"` key.
+const ARRAY_ME = /^\s*\[\[\s*["']?me["']?\s*[.\]]/;
+const ROOT_ME = /^\s*["']?me["']?\s*[.=]/;
+const OTHER_INPUT = /^\s*["']?input["']?\s*[=.]/;
 const GLOSSARY_LINE = /^\s*"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"\s*(?:#.*)?$/;
 const GLOSSARY_HEAD = `# Words your voice to text gets wrong: "what it wrote" = "what you meant".
 # An agent adds a line only after you confirm it, and reads this file at the start of a session.
@@ -27,7 +32,8 @@ function personalDir() {
   return !existsSync(now) && existsSync(old) ? old : now;
 }
 
-const readText = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "");
+// A folder or other non-file at the path reads as empty; writing there then fails with a plain line (see save).
+const readText = (path) => (existsSync(path) && statSync(path).isFile() ? readFileSync(path, "utf8") : "");
 
 /** `[me] input` of a TOML text: typing, voice or both, else "". */
 function inputOf(toml) {
@@ -36,14 +42,18 @@ function inputOf(toml) {
     const header = HEADER.exec(line);
     if (header) section = header[1].trim();
     else if (section === "me" && INPUT_LINE.test(line)) {
-      const value = INPUT_LINE.exec(line)[2];
+      const match = INPUT_LINE.exec(line);
+      const value = match[2] ?? match[3];
       return CHOICES.includes(value) ? value : "";
     }
   }
   return "";
 }
 
-/** The TOML text with `[me] input` set: its line replaced, or added under [me], or a new [me] at the end. */
+/**
+ * The TOML text with `[me] input` set: its line replaced (single quotes become double), or added under [me], or a new [me]
+ * at the end. null when the file has `me` in a shape one line can't edit safely.
+ */
 function withInput(toml, value) {
   const lines = toml.split("\n");
   let section = "", meAt = -1;
@@ -52,9 +62,13 @@ function withInput(toml, value) {
     if (header) {
       section = header[1].trim();
       if (section === "me" && meAt < 0) meAt = i;
+    } else if (ARRAY_ME.test(lines[i]) || (section === "" && ROOT_ME.test(lines[i]))) {
+      return null;
     } else if (section === "me" && INPUT_LINE.test(lines[i])) {
-      lines[i] = lines[i].replace(INPUT_LINE, `$1"${value}"`);
+      lines[i] = lines[i].replace(INPUT_LINE, (_all, key, _dq, _sq, tail) => `${key}"${value}"${tail}`);
       return lines.join("\n");
+    } else if (section === "me" && OTHER_INPUT.test(lines[i])) {
+      return null;
     }
   }
   if (meAt >= 0) return lines.toSpliced(meAt + 1, 0, `input = "${value}"`).join("\n");
@@ -81,11 +95,11 @@ function glossaryLines(text) {
   });
 }
 
-/** The person's lines first, then the kit's names they haven't overridden. A key matches in any case. */
+/** The person's confirmed lines, and the kit's own names they haven't overridden. A key matches in any case. */
 function glossary() {
   const mine = glossaryLines(readText(join(personalDir(), "glossary.toml")));
   const taken = new Set(mine.map((e) => e.heard.toLowerCase()));
-  return [...mine, ...SEED.filter(([heard]) => !taken.has(heard)).map(([heard, meant]) => ({ heard, meant }))];
+  return { mine, kit: SEED.filter(([heard]) => !taken.has(heard)).map(([heard, meant]) => ({ heard, meant })) };
 }
 
 const bad = (message) => {
@@ -93,11 +107,22 @@ const bad = (message) => {
   process.exit(2);
 };
 
+/** Writes a personal file, or says in one plain line why it can't (a folder at the path, no permission) and exits 2. */
+function save(path, content) {
+  try {
+    mkdirSync(personalDir(), { recursive: true });
+    writeFileSync(path, content);
+  } catch (error) {
+    bad(`Can't write ${path} (${error.code ?? "unknown error"}). Nothing was changed.`);
+  }
+}
+
 function setInput(args) {
   if (args.length !== 1 || !CHOICES.includes(args[0])) bad("Usage: voice.mjs input <typing|voice|both>. The answer is typing, voice or both.");
   const path = join(personalDir(), "profile.toml");
-  mkdirSync(personalDir(), { recursive: true });
-  writeFileSync(path, withInput(readText(path), args[0]));
+  const next = withInput(readText(path), args[0]);
+  if (next === null) bad(`Can't edit [me] input in ${path}: it is written in a form this script leaves alone. Set input = "${args[0]}" under [me] by hand. Nothing was changed.`);
+  save(path, next);
   console.log(`Saved [me] input = "${args[0]}" in ${path}`);
 }
 
@@ -112,8 +137,7 @@ function addLine(args) {
   // The first spelling stays, so a repeat confirmation changes the meaning and never doubles the line.
   if (found) lines[found.index] = `${JSON.stringify(found.heard)} = ${JSON.stringify(meant)}`;
   else lines.splice(lines.at(-1) === "" ? lines.length - 1 : lines.length, 0, `${JSON.stringify(heard)} = ${JSON.stringify(meant)}`);
-  mkdirSync(personalDir(), { recursive: true });
-  writeFileSync(path, lines.join("\n").replace(/\n*$/, "\n"));
+  save(path, lines.join("\n").replace(/\n*$/, "\n"));
   console.log(`${found ? "Updated" : "Added"} ${JSON.stringify(heard)} -> ${JSON.stringify(meant)} in ${path}`);
 }
 
@@ -121,8 +145,13 @@ function status() {
   const input = currentInput();
   console.log(`input: ${input || "unset"}`);
   if (input === "typing") return;
-  console.log("glossary, heard -> meant (read by sound; these are confirmed):");
-  for (const { heard, meant } of glossary()) console.log(`${JSON.stringify(heard)} -> ${JSON.stringify(meant)}`);
+  const { mine, kit } = glossary();
+  const show = ({ heard, meant }) => console.log(`${JSON.stringify(heard)} -> ${JSON.stringify(meant)}`);
+  console.log("confirmed by the person, heard -> meant (a hint, read by sound):");
+  mine.forEach(show);
+  if (!mine.length) console.log("(none yet)");
+  console.log("kit names, heard -> meant (built in, not confirmed by the person):");
+  kit.forEach(show);
 }
 
 const [command = "status", ...args] = process.argv.slice(2);

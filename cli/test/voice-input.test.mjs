@@ -71,6 +71,52 @@ test("AC-457-1: WHEN the answer isn't typing, voice or both THEN nothing is writ
   assert.equal(read(home, ".onrails/profile.toml"), '[me]\ninput = "voice"\n');
 });
 
+test("AC-457-1: WHEN input is single-quoted THEN that line is replaced with a double-quoted one, and the file stays valid", () => {
+  const home = tmp();
+  put(home, ".onrails/profile.toml", "[me]\nname = 'Ada'\ninput = 'typing'   # mine\n");
+  assert.match(voice([], { home }).out, /^input: typing$/m, "a single-quoted value is read");
+  assert.equal(voice(["input", "voice"], { home }).code, 0);
+  assert.equal(read(home, ".onrails/profile.toml"), "[me]\nname = 'Ada'\ninput = \"voice\"   # mine\n");
+});
+
+test("AC-457-1: WHEN [me] input is in a form the script can't edit THEN it says so in one line, exits 2 and writes nothing", () => {
+  const shapes = {
+    "dotted me.input": 'me.input = "typing"\n[defaults]\nautomation = "full"\n',
+    "a [[me]] table": '[[me]]\nname = "Ada"\n',
+    "an inline me table": 'me = { input = "typing" }\n',
+    "a quoted key": '[me]\n"input" = "typing"\n',
+    "a multi-line string": '[me]\ninput = """typing"""\n',
+    "a bare word": "[me]\ninput = typing\n",
+  };
+  for (const [name, toml] of Object.entries(shapes)) {
+    const home = tmp();
+    put(home, ".onrails/profile.toml", toml);
+    const r = voice(["input", "voice"], { home });
+    assert.equal(r.code, 2, name);
+    assert.equal(r.err.trim().split("\n").length, 1, `${name}: one plain line`);
+    assert.match(r.err, /by hand/, name);
+    assert.doesNotMatch(r.err, /at .*\.mjs:\d+/, `${name}: no stack trace`);
+    assert.equal(read(home, ".onrails/profile.toml"), toml, `${name}: file untouched`);
+  }
+});
+
+test("AC-457-1: WHEN a folder sits where the profile or glossary should be THEN it exits 2 with one plain line, not a stack trace", () => {
+  for (const [args, file] of [[["input", "voice"], "profile.toml"], [["add", "sub thread", "subthread"], "glossary.toml"]]) {
+    const home = tmp();
+    put(home, `.onrails/${file}/keep.txt`, "x");
+    const r = voice(args, { home });
+    assert.equal(r.code, 2, file);
+    assert.equal(r.err.trim().split("\n").length, 1, `${file}: one plain line`);
+    assert.match(r.err, /Can't write/);
+    assert.doesNotMatch(r.err, /at .*\.mjs:\d+/, `${file}: no stack trace`);
+  }
+  const home = tmp();
+  put(home, ".onrails/profile.toml/keep.txt", "x");
+  const r = voice([], { home });
+  assert.equal(r.code, 0, "reading a folder as the profile is the same as no profile");
+  assert.match(r.out, /^input: unset$/m);
+});
+
 test("AC-457-1: WHEN only the project's docs/profile.toml sets input THEN it is read, and the personal one wins", () => {
   const project = tmp(), home = tmp();
   put(project, "docs/profile.toml", '[me]\ninput = "voice"\n');
@@ -152,7 +198,8 @@ test("AC-457-3: WHEN a likely mishearing would change a money, delete or deploy 
   assert.match(confirm, /Below Full/);
   assert.match(confirm, /On Full[^\n]*likely reading[^\n]*AI pick, not reviewed/);
   assert.match(confirm, /cheap to undo[^\n]*go on/i);
-  assert.match(confirm, /glossary[^\n]*no question|no question[^\n]*glossary/i);
+  assert.doesNotMatch(confirm, /no question/i, "a glossary hit is no exemption");
+  assert.match(confirm, /glossary[^\n]*not certain[^\n]*still confirm/i, "a glossary hit in a risky spot still confirms below Full");
 });
 
 test("AC-457-3: WHEN a handoff carries dictated words THEN they stay word for word, with the reading beside them", () => {
@@ -177,6 +224,20 @@ test("AC-457-4: WHEN the glossary is read THEN the kit's own names are already i
     assert.ok(out.includes(`"${heard}" -> "${meant}"`), `${heard} -> ${meant}`);
   }
   assert.ok(!exists(home, ".onrails/glossary.toml"));
+});
+
+test("AC-457-4: WHEN the glossary is printed THEN the person's confirmed lines and the built-in kit names are separate groups", () => {
+  const home = tmp();
+  const [kitFirst] = voice([], { home }).out.split("\n").filter((l) => /^kit names/.test(l));
+  assert.match(kitFirst, /not confirmed by the person/);
+  voice(["add", "sign in the issue", "assign the issue"], { home });
+  const out = voice([], { home }).out;
+  const [confirmed, kit] = out.split(/^kit names.*$/m);
+  assert.match(confirmed, /^confirmed by the person/m);
+  assert.match(confirmed, /^"sign in the issue" -> "assign the issue"$/m);
+  assert.doesNotMatch(confirmed, /"10 stack"/, "a seed is never listed as confirmed");
+  assert.match(kit, /^"10 stack" -> "TanStack"$/m);
+  assert.doesNotMatch(kit, /sign in the issue/);
 });
 
 test("AC-457-4: WHEN the same words are confirmed again THEN the line is replaced, never doubled, and a seed can be overridden", () => {
