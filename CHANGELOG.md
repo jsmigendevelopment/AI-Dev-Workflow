@@ -7,6 +7,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 ### Fixed
 
 - **Every add-on's lint step, and the pack's pre-commit hook, make the Worker's types before `eslint --fix` (#425).** The `analytics`, `database-supabase`, `email-resend`, `jobs`, `r2-uploads` and `stripe` add-ons now run `pnpm cf-typegen`, then `eslint --fix` and `prettier --write` on their own files only, as the Sentry add-on does since #320. The lefthook pre-commit job runs `pnpm cf-typegen` first, so it no longer fails on `no-unsafe-argument` in a fresh copy or drops a needed type assertion from a staged file (decision 425-1).
+- The pull request size check never passes what it can't count (#407). Any file that shows as binary but isn't a known binary type (an image, font, archive and the like), such as a UTF-16 `.md` or an extensionless script, is exit 2 with its name. In a pull request, an added or modified file with 0/0, no patch and content is exit 2, an empty new file isn't listed as binary, and a git error other than a missing path is exit 2. A `Size exception:` line inside a `<script>` or `<style>` block doesn't count (decisions 377-2 and 407-1).
 
 ## [0.7.2] - 2026-11-28
 
