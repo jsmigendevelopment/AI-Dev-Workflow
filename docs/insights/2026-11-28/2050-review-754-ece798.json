@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T20:50:29.463Z",
+  "issue": 747,
+  "pr": 754,
+  "sha": "c6638e07cdb82445d3379d38d21050907955d014",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "round": 2,
+  "verdict": "changes",
+  "must": 1,
+  "nice": 3,
+  "categories": [
+    "regression",
+    "performance"
+  ]
+}
