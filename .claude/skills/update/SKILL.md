@@ -31,12 +31,24 @@ Always run the CLI from a new temp folder outside the project, and pass the proj
    - The project kit changed? Its files aren't committed. They reach main through a pull request, like any change (`AGENTS.md`, rule 12). A changed `AGENTS.md`, `.agents/` or `.claude/` gets the weakening review (`coordinate`, Rules).
    - Kept files (`.onrails-new`)? List them. `/join` merges the project's; the global ones are compared by hand.
 
+## On Full, as a pull request
+
+`coordinate` and `/back` start this when `plan` says `pr` (below): a minor or patch release, and no update pull request or issue open. One builder does it. Never cut a release: no version bump, tag or publish.
+
+1. Branch from a fresh `origin/main`: `chore/<n>-update-onrails`, where `<n>` is the issue "Update onRails to <version>" the loop filed.
+2. Run the update for this project only, from a new temp folder outside it: `(cd "$(mktemp -d /tmp/onrails-update.XXXXXX)" && npx --yes onrails@latest update "<project root>")`. Leave out `--all`: the plugins and global skills belong to the machine, not to a pull request.
+3. Run the project's checks, commit what changed, and open the pull request with `Closes #<n>`. It goes through the normal review, with the weakening review for a changed `AGENTS.md`, `.agents/` or `.claude/`.
+4. Kept files (`.onrails-new`)? Merge them by hand in the same pull request, as `join` does.
+
+A major release is never opened this way: it stays a suggestion and an FYI.
+
 ## Knowing a newer one is out
 
 `scripts/latest.mjs` (#448) asks npm for the latest onRails at most once a day, keeps the answer in `~/.onrails/latest.json`, and gives up after 2 seconds. The session-start hook and `/back` run it. It sends nothing about the project.
 
 - `node .agents/skills/update/scripts/latest.mjs line` prints one line when this repo or a plugin is behind, and nothing when it can't reach npm.
-- The switch is in the profile: `[updates] check = "daily" | "weekly" | "off"` (default `daily`).
+- `node .agents/skills/update/scripts/latest.mjs plan --prs <file> [--issues <file>]` says what Full does: `pr`, `wait`, `suggest` or `none`. The files are the open pull requests and issues, saved from `gh api "repos/<owner>/<repo>/pulls?state=open&per_page=100" --paginate --slurp` and the same with `issues?state=open&per_page=100`. A list it can't read exits 2, and it never says `pr` then.
+- The switches are in the profile: `[updates] check = "daily" | "weekly" | "off"` (default `daily`) and `on_full = "pr" | "suggest"` (default `pr`).
 
 **No kit here** (no `ask` skill, as outside an onRails project)? A blocker goes at the top of your report instead, as a "Setup step for you": the one command to run, where to run it, and the error it gave. The project kit was skipped, so nothing needs a pull request.
 

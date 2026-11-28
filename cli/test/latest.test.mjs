@@ -85,11 +85,11 @@ test("AC-448-2: WHEN the registry hangs THEN nothing is printed, and the session
   await withFake({ registry: { hang: true } }, async ({ reg, dir, home }) => {
     const out = await run(HOOK, [], { dir, home, reg });
     assert.ok(!/onRails .* is out|major release/.test(out.stdout), out.stdout);
-    assert.ok(out.ms < 3000, `session start took ${out.ms} ms`);
+    assert.ok(out.ms < 2500, `session start took ${out.ms} ms`);
     assert.equal(reg.count(), 1);
     const direct = await line(dir, home, reg, at(2 * DAY));
     assert.deepEqual([direct.stdout, direct.stderr, direct.status], ["", "", 0]);
-    assert.ok(direct.ms < 3000, `the check took ${direct.ms} ms`);
+    assert.ok(direct.ms < 2500, `the check took ${direct.ms} ms`);
   });
 });
 

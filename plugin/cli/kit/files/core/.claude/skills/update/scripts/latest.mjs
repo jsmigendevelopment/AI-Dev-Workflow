@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// Is a newer onRails on npm? (#448) Used by the session-start hook and /back (`line`) and doctor.
+// Is a newer onRails on npm? (#448) Used by the session-start hook and /back (`line`), the loop (`plan`) and doctor.
 //   node latest.mjs line [--root <dir>]    one line when something is behind, else nothing
+//   node latest.mjs plan --prs <file> [--issues <file>] [--root <dir>]
+//                                          JSON: what Full does about it (pr, wait, suggest or none); exit 2 if a list is unreadable
 // It reads https://registry.npmjs.org/onrails/latest at most once a day, keeps the answer in ~/.onrails/latest.json, and
 // gives up after 2 seconds. Offline, a timeout, a proxy refusal or bad data: it prints nothing and never fails the session.
 // The request is a plain GET: nothing about the project, no identifiers, no headers of ours.
-// [updates] check = "daily" | "weekly" | "off" in docs/profile.toml, else ~/.onrails/profile.toml.
+// [updates] check = "daily" | "weekly" | "off" and on_full = "pr" | "suggest" in docs/profile.toml, else ~/.onrails/profile.toml.
 // ONRAILS_REGISTRY and ONRAILS_CHANGELOG_URL point the check at a fake in tests; ONRAILS_NOW sets the clock.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -18,6 +20,9 @@ const TIMEOUT_MS = 2000;
 const DAY_MS = 24 * 3600e3;
 const WINDOW_DAYS = { daily: 1, weekly: 7 };
 const VERSION = /^\d+\.\d+\.\d+$/;
+// What marks an update in flight: the branch of its pull request, and the title of the issue the loop files for it.
+const UPDATE_BRANCH = /^chore\/\d+-update-onrails$/;
+const UPDATE_ISSUE = /^Update onRails to \d+\.\d+\.\d+$/;
 
 // ~/.onrails, or ~/.ai-dev-workflow (its name before the rename) while only that one exists, as notify.mjs reads it.
 function homeDir(home) {
@@ -38,10 +43,13 @@ function setting(root, home, section, key) {
   return undefined;
 }
 
-/** The [updates] switch: check is daily, weekly or off. An unknown value means daily. */
+/** The [updates] switches: check (daily, weekly or off) and on_full (pr or suggest). An unknown value means the default. */
 export function settings(root, home = homedir()) {
-  const check = setting(root, home, "updates", "check")?.toLowerCase();
-  return { check: ["daily", "weekly", "off"].includes(check) ? check : "daily" };
+  const pick = (key, allowed, fallback) => {
+    const value = setting(root, home, "updates", key)?.toLowerCase();
+    return allowed.includes(value) ? value : fallback;
+  };
+  return { check: pick("check", ["daily", "weekly", "off"], "daily"), onFull: pick("on_full", ["pr", "suggest"], "pr") };
 }
 
 const parts = (v) => v.split(".").map(Number);
@@ -160,6 +168,42 @@ export function updateLine({ latest, kit = null, plugins = [] }) {
   return `onRails ${latest.version} is out ${where}. Run /update to get it.`;
 }
 
+/** The open update pull request's branch, or null. prs: GitHub's list (head.ref, or headRefName from gh pr list). */
+export function openUpdatePr(prs) {
+  return prs.map((p) => p?.head?.ref ?? p?.headRefName).find((ref) => UPDATE_BRANCH.test(ref ?? "")) ?? null;
+}
+
+/** The number of the open issue "Update onRails to <version>" the loop files for an update, or null. */
+export function openUpdateIssue(issues) {
+  return issues.find((i) => UPDATE_ISSUE.test(i?.title ?? ""))?.number ?? null;
+}
+
+/**
+ * What Full does about the latest release: "pr" (open one update pull request), "wait" (an update pull request or its
+ * issue is open, so never a second), "suggest" (a major version, a level below Full, or on_full = "suggest": say it, and a
+ * major also gets an FYI) or "none" (nothing newer).
+ */
+export function plan({ latest, kit, level, onFull = "pr", prs = [], issues = [] }) {
+  const bump = bumpKind(latest, kit);
+  if (!bump) return { action: "none" };
+  const out = { version: latest, bump, fyi: bump === "major" };
+  if (bump === "major" || level !== "full" || onFull !== "pr") return { action: "suggest", ...out };
+  const [branch, issue] = [openUpdatePr(prs), openUpdateIssue(issues)];
+  return branch || issue ? { action: "wait", ...(branch && { pr: branch }), ...(issue && { issue }), ...out } : { action: "pr", ...out };
+}
+
+// The automation level in docs/stack.md ("- **Level:** full"), read as agent-files.mjs and notify.mjs read it.
+function automationLevel(root) {
+  try { return readFileSync(join(root, "docs", "stack.md"), "utf8").match(/\*\*Level:\*\*\s*`?([a-z-]+)/i)?.[1].toLowerCase() ?? "recommended"; } catch { return "recommended"; }
+}
+
+// A list from `gh api ... --paginate --slurp` (a list of pages) or a plain list, as one flat list. Anything else throws.
+function readList(path) {
+  const data = JSON.parse(readFileSync(path ?? "", "utf8"));
+  if (!Array.isArray(data)) throw new TypeError("not a list");
+  return data.flat();
+}
+
 const flag = (argv, name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
 
 /** The command line. Returns the exit code; `line` is always 0. */
@@ -172,13 +216,28 @@ export async function main(argv, env = process.env, log = console.log) {
     home, check: switches.check, now: Number.isFinite(clock) ? clock : Date.now(),
     registry: (env.ONRAILS_REGISTRY ?? REGISTRY).replace(/\/$/, ""), changelog: env.ONRAILS_CHANGELOG_URL ?? CHANGELOG_URL,
   });
+  if (argv[0] === "plan") {
+    let prs;
+    let issues = [];
+    try {
+      prs = readList(flag(argv, "--prs"));
+      if (argv.includes("--issues")) issues = readList(flag(argv, "--issues"));
+    } catch (error) {
+      // Never guess: without the lists we can't tell that no update is already open, so a second one could follow.
+      console.error(`latest.mjs: can't read the open pull requests or issues (${error.code ?? error.message}). Pass --prs <file> with GitHub's open list.`);
+      return 2;
+    }
+    const latest = await read();
+    log(JSON.stringify(plan({ latest: latest?.version, kit: kitVersion(root), level: automationLevel(root), onFull: switches.onFull, prs, issues })));
+    return 0;
+  }
   if (argv[0] === "line") {
     const latest = await read();
     const text = latest ? updateLine({ latest, kit: kitVersion(root), plugins: pluginVersions(home, env) }) : "";
     if (text) log(text);
     return 0;
   }
-  console.error("Usage: latest.mjs line [--root <dir>]");
+  console.error("Usage: latest.mjs line [--root <dir>] | plan --prs <file> [--issues <file>] [--root <dir>]");
   return 2;
 }
 

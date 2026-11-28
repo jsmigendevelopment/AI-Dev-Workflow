@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // SessionStart hook for Claude Code (.claude/settings.json) and Codex (.codex/hooks.json):
 // give every new session the project's state up front. Local files and git only, and no
-// GitHub API calls; the one exception is the daily check for a newer onRails (latest.mjs). Prints plain text to stdout, which both tools add to
-// the session's context. Ignores the hook's stdin. Never fails the session.
+// GitHub API calls; the one exception is the daily check for a newer onRails (latest.mjs).
+// Prints plain text to stdout, which both tools add to the session's context.
+// Ignores the hook's stdin. Never fails the session.
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
