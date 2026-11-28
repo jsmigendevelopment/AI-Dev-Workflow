@@ -1,0 +1,58 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T09:49:24.227Z",
+  "issue": null,
+  "pr": 579,
+  "sha": "4c83520e6cd970cc1b375a135cee9c3f2e737722",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "fence": "Fence: none (fresh clone run by hand, temp HOME, fake claude and codex on PATH)",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0.04
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0.03
+    },
+    {
+      "name": "cd cli && npm run bundle",
+      "result": "pass",
+      "seconds": 0.69
+    },
+    {
+      "name": "cd cli && npm test",
+      "result": "pass",
+      "seconds": 117.69
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 62.49
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0.06
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0.09
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-rules.mjs 579 --repo jsmigendevelopment/onRails --head 4c83520e6cd970cc1b375a135cee9c3f2e737722",
+      "result": "pass",
+      "seconds": 3.44
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}
