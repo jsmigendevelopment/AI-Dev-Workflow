@@ -7,6 +7,7 @@ import { homeChecks } from "./home.mjs";
 import { agentInstallLines, installPlan, pnpmPlan } from "./installers.mjs";
 import { loadKit } from "./kit.mjs";
 import { pluginChecks } from "./plugin.mjs";
+import { readGoMod, satisfies } from "./preflight-versions.mjs";
 import { projectChecks } from "./project-checks.mjs";
 import { readProjectManifest } from "./sync.mjs";
 import { FAIL, INFO, OK } from "./marks.mjs";
@@ -42,6 +43,9 @@ export function runChecks(projectDir, { kitDir, sys = realSystem({ projectDir })
   add(pnpm?.ok ? OK : FAIL, pnpm?.ok ? `pnpm ${pnpm.out}` : notFound("pnpm not found", "pnpm"),
     "Run: corepack enable && corepack prepare pnpm@latest --activate", false, pnpmPlan(sys));
 
+  const goMod = readGoMod(projectDir);
+  if (goMod) add(...goCheck(goMod, sys, notFound));
+
   const claude = sys.probe("claude", ["--version"]);
   const codex = sys.probe("codex", ["--version"]);
   if (claude?.ok || codex?.ok) {
@@ -65,4 +69,19 @@ function kitVersionFor(projectDir, kitDir) {
   const manifest = readProjectManifest(projectDir);
   if (manifest) return manifest.kitVersion;
   try { return loadKit(kitDir).version; } catch { return null; } // a missing bundle is reported by projectChecks
+}
+
+// A Go project (#538): go is found, and new enough for go.mod's go line. It runs from the home folder, so no go.work or
+// toolchain line of the project's is read, and a go that is only in the project's node_modules/.bin never runs (#185).
+// Not required: the kit's own checks don't need Go.
+function goCheck(goMod, sys, notFound) {
+  const install = `Install Go ${goMod.want ? `${goMod.want} or newer ` : ""}from https://go.dev/dl/`;
+  const remedy = { print: [install] };
+  const have = sys.probe("go", ["version"], { cwd: sys.home });
+  if (!have) return [FAIL, notFound("go not found", "go"), install, false, remedy];
+  const version = have.ok ? /\bgo(\d+\.\d+(?:\.\d+)?)/.exec(have.out)?.[1] : null;
+  if (!version) return [FAIL, "go found, but `go version` printed no version", "Run: go version, and fix what it says", false];
+  if (!goMod.want) return [OK, `Go ${version} (go.mod has no go line)`];
+  if (!satisfies(version, `>=${goMod.want}`)) return [FAIL, `Go ${version} found, go.mod needs ${goMod.want}`, install, false, remedy];
+  return [OK, `Go ${version} (go.mod needs ${goMod.want})`];
 }
