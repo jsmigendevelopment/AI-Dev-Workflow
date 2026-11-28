@@ -91,29 +91,29 @@ The owner's preferences. Lint catches some. You follow all of them.
 - **Reuse first.** Search for an existing helper, component or util before you write one.
 - **Simplest thing that passes.** No new abstraction, layer, factory or generic until a second real use exists.
 - **No leftovers:** unused files, exports or dependencies; any `console.*` (use the logger); commented-out code; a TODO without an issue number (`TODO(#42)`).
-- **No escape hatches:** `any`, `@ts-ignore`, `@ts-expect-error`, `as unknown as`, `eslint-disable`. If one can't be avoided, add a comment with the reason and an issue number.
+- **No escape hatches:** a type check or lint rule switched off or got around. In TypeScript that is `any`, `@ts-ignore`, `@ts-expect-error`, `as unknown as` and `eslint-disable` (`code-style.md`); for Go, `code-style-go.md` lists them. If one can't be avoided, add a comment with the reason and an issue number.
 - **Size:** warn at 300 lines a file, never over 500. Functions under about 60 lines. Split by responsibility, not by line count.
 - **No swallowed errors:** no empty catch, and never drop a caught error. Use the project's one error shape.
 - **Comments say why, not what.** Each exported module API gets a one-line doc comment.
-- **Names and imports:** kebab-case files, the path alias instead of deep `../../..`, and the project's import order. No barrel `index.ts`: import from the file itself.
+- **Names and imports:** file names, import paths and import order follow the code style guide for the stack, `code-style.md` or `code-style-go.md`. No barrel file that only re-exports others: import from the file itself.
 
 ## App rules
 
-The shape is in `docs/architecture.md`.
+The shape is in `docs/architecture.md`. The how for the server-side rules below is in the conventions guide for the stack in `docs/stack.md`'s Backend row: `references/app-conventions.md` for a TypeScript backend or a static site, `references/app-conventions-go.md` for a Go backend. Rule numbers match in both.
 
 - **Rule of three:** search for an existing component first. Extract a shared one the third time, not before.
 - **State:** local `useState` or `useReducer` by default. Anything shareable or refresh-safe (filters, tabs, the selected item, the page) in typed search params. Zustand only for complex shared client state. Server data in TanStack Query, never copied to a store. Forms in TanStack Form, tables in TanStack Table. No props through more than two levels.
 - **UI layers:** the route prefetches and passes params; the view is static layout and never fetches; each section is `Suspense` > error boundary > content; components are presentational.
 - **Loading, empty and error states** for every dynamic area. Skeletons match the real layout's shape and size. `ErrorState` has an icon, a title, the code's message, a next action and the reference ID. `EmptyState` has an icon or illustration, a sentence and the primary action. Never a bare "Error", a raw `error.message` or a grey box. Queries in parallel.
-- **Errors:** `AppError` with a code from the one list. A specific message with a next step for every expected error. A reference ID for the rest. Logged once, at the boundary.
-- **Logs:** only through `lib/logger.ts`, never `console.*`. JSON lines with the standard fields, the right level, nothing personal, nothing in a loop.
-- **API:** public routes under `/api/v1`. A breaking change adds `/api/v2` beside it, on the same services. Internal server functions aren't versioned. Every public route and webhook is in the OpenAPI document, built from the same Zod schemas.
-- **Money:** the `Money` type, integer minor units plus the currency. No float or decimal `number` math. Half-even rounding, remainders allocated, `Intl.NumberFormat` at the edge. Tests for rounding and splitting.
-- **Time:** instants in UTC, calendar dates and zoned times kept apart, the injected `now`, no ambiguous parsing, `Intl.DateTimeFormat` at the edge. Daylight saving tests.
-- **Database:** Drizzle. snake_case plural tables, a server-made time-sortable `id`, `created_at` and `updated_at`, `<table_singular>_id` foreign keys with an index, `is_`/`has_` booleans, soft delete only where decided, forward-only migrations that are safe to roll out. Audit-log important actions.
-- **Env:** read only through `lib/env.ts`. A new variable updates `.env.example`, the schema and the docs in this pull request.
+- **Errors:** one typed error with a code from the one list. A specific message with a next step for every expected error. A reference ID for the rest. Logged once, at the boundary. Rule 5 in `app-conventions.md` or `app-conventions-go.md`.
+- **Logs:** only through the project's one logger, never a bare print such as `console.*`. JSON lines with the standard fields, the right level, nothing personal, nothing in a loop. Rule 13 in `app-conventions.md` or `app-conventions-go.md`.
+- **API:** public routes under `/api/v1`. A breaking change adds `/api/v2` beside it, on the same services. Internal calls that only the app's own web code makes aren't versioned. Every public route and webhook is in the OpenAPI document, built from the same schemas that check the requests. Rules 8 and 15 in `app-conventions.md` or `app-conventions-go.md`.
+- **Money:** the `Money` type, integer minor units plus the currency. No float math. Half-even rounding, remainders allocated, formatting only at the edge. Tests for rounding and splitting. Rule 10 in `app-conventions.md` or `app-conventions-go.md`.
+- **Time:** instants in UTC, calendar dates and zoned times kept apart, the injected `now`, no ambiguous parsing, formatting only at the edge. Daylight saving tests. Rule 11 in `app-conventions.md` or `app-conventions-go.md`.
+- **Database:** the stack's one database layer. snake_case plural tables, a server-made time-sortable `id`, `created_at` and `updated_at`, `<table_singular>_id` foreign keys with an index, `is_`/`has_` booleans, soft delete only where decided, forward-only migrations that are safe to roll out. Audit-log important actions. Rule 12 in `app-conventions.md` or `app-conventions-go.md`.
+- **Env:** read only through the project's one typed config. A new variable updates `.env.example`, the config's schema and the docs in this pull request. Rule 16 in `app-conventions.md` or `app-conventions-go.md`.
 - **Access:** owner filters in the repository, or `check(user, action, object)` through the port. No role checks in code.
-- **Text and events:** user-facing strings in the module's `copy.ts` (or its message files, if translation is on). Every event in the registry, sent only by `track()`, with no personal data. Unfinished work behind a flag.
+- **Text and events:** user-facing strings in the module's one text file (or its message files, if translation is on), rule 17 in `app-conventions.md`. Every event in the registry, sent only by `track()`, with no personal data. Unfinished work behind a flag.
 
 ## Never
 
@@ -132,6 +132,7 @@ Load a file only when its row fits.
 | `references/testing.md` | A test is hard to write, or you're unsure what to mock or whether a snapshot fits. |
 | `references/code-style.md` | A code rule above is unclear, or you think one should bend here. |
 | `references/app-conventions.md` | An app rule above is unclear and `docs/architecture.md` doesn't settle it. |
+| `references/app-conventions-go.md` | The same, and `docs/stack.md`'s Backend row says Go. Read it beside `app-conventions.md`. |
 
 ---
 
