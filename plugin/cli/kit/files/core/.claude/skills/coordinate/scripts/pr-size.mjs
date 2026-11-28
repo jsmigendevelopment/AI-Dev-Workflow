@@ -125,8 +125,8 @@ function operatorSafeDirectories() {
 let trustMemo;
 
 /** The folder above the script that holds `.git`, when the operator's list holds exactly that folder, or `*`, which in
- * git means every folder; else undefined. */
-function trustedRoot() {
+ * git means every folder; else undefined. insights-carry.mjs's checkoutOf() trusts the same folder on the same terms (#544). */
+export function trustedRoot() {
   if (!trustMemo) {
     const root = folderWithDotGit();
     const listed = root ? operatorSafeDirectories() : [];
