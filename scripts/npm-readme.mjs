@@ -4,7 +4,7 @@
 // story. Relative links and images would break on npm, so they become absolute GitHub URLs.
 //   node scripts/npm-readme.mjs          write cli/README.md
 //   node scripts/npm-readme.mjs --check  fail if cli/README.md is out of date
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, normalize } from "node:path";
 
@@ -36,7 +36,18 @@ export function build() {
   return `${note}${readme.trimEnd()}\n\n---\n\n${cli.trimEnd()}\n`;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+/** True when node started this file, also through a symlinked file or folder: import.meta.url is the real path, so
+ * argv[1] is resolved to its real path too (#506, as in pr-size.mjs, #439). */
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false; // An argv[1] that names no file (a REPL, a loader's stand-in) isn't this module.
+  }
+}
+
+if (isMainModule()) {
   const out = join(ROOT, "cli", "README.md");
   const next = build();
   if (process.argv.includes("--check")) {

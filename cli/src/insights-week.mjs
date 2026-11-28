@@ -10,7 +10,7 @@
 // (decision 381-2). ONRAILS_NOW sets the clock (tests). Exit 2: a bad week or argument.
 // This is the master copy: scripts/sync-skills.mjs copies it to the coordinate skill and to cli/src.
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SIZE_LIMIT, validate } from "./insights-record.mjs";
@@ -273,4 +273,15 @@ export function main(argv) {
   return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+/** True when node started this file, also through a symlinked file or folder: import.meta.url is the real path, so
+ * argv[1] is resolved to its real path too (#506, as in pr-size.mjs, #439). */
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false; // An argv[1] that names no file (a REPL, a loader's stand-in) isn't this module.
+  }
+}
+
+if (isMainModule()) process.exitCode = main(process.argv.slice(2));

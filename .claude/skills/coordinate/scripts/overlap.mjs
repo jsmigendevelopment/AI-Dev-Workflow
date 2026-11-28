@@ -9,7 +9,7 @@
 // with no Modules line is "unknown": it starts only when nothing else is in flight, and nothing starts beside it.
 // Shared hot spots (HOT_SPOTS below, lockfiles and files main marks `linguist-generated`) never clash on their own.
 // Exit 0: the candidate can start. 1: it waits, and stderr names each clash. 2: a usage or API error. Never a pass.
-import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { gh, pages } from "./agent-files.mjs";
 import { LOCKFILES, generated } from "./pr-size.mjs";
@@ -138,4 +138,15 @@ export function main(argv) {
   return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+/** True when node started this file, also through a symlinked file or folder: import.meta.url is the real path, so
+ * argv[1] is resolved to its real path too (#506, as in pr-size.mjs, #439). */
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false; // An argv[1] that names no file (a REPL, a loader's stand-in) isn't this module.
+  }
+}
+
+if (isMainModule()) process.exitCode = main(process.argv.slice(2));
