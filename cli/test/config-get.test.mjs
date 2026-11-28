@@ -138,6 +138,104 @@ test("a key whose name looks like a token, key, password or secret prints nothin
   assert.equal(get("x.monkey", s).out, "banana (project)");
 });
 
+/** Asserts a name is refused: exit 1, nothing on stdout, one stderr line that says secret and never holds the value. */
+function assertRefused(key, s, value) {
+  const r = get(key, s);
+  assert.equal(r.code, 1, key);
+  assert.equal(r.out, "", key);
+  assert.match(r.err, /secret/, key);
+  assert.doesNotMatch(r.err, new RegExp(value), key);
+  assert.equal(r.err.split("\n").length, 1, key);
+}
+
+test("AC-708-3: a plural name is refused too: [secrets] x, tokens, keys, passwords and [my-secrets]", () => {
+  const s = setup({
+    personal: '[secrets]\nx = "topsecretvalue"\n[my-secrets]\nx = "topsecretvalue"\n[notify]\ntokens = "topsecretvalue"\nkeys = "topsecretvalue"\npasswords = "topsecretvalue"\nsecrets = "topsecretvalue"\n',
+  });
+  for (const key of ["secrets.x", "my-secrets.x", "notify.tokens", "notify.keys", "notify.passwords", "notify.secrets"]) assertRefused(key, s, "topsecretvalue");
+  const r = cli(["get", "secrets.x", s.dir], s);
+  assert.equal(r.status, 1);
+  assert.equal(r.stdout, "");
+  assert.doesNotMatch(r.stderr, /topsecretvalue/);
+});
+
+test("AC-708-3: a name with a secret word glued on is refused: authtoken, accesstoken, secretkey, apikey, clientsecret", () => {
+  const s = setup({
+    personal: '[notify]\nauthtoken = "glued-value"\naccesstoken = "glued-value"\nsecretkey = "glued-value"\napikey = "glued-value"\nclientsecret = "glued-value"\nmypassword = "glued-value"\nprivatekey = "glued-value"\nsshkey = "glued-value"\n[repotokens]\nx = "glued-value"\n',
+  });
+  for (const key of ["notify.authtoken", "notify.accesstoken", "notify.secretkey", "notify.apikey", "notify.clientsecret", "notify.mypassword", "notify.privatekey", "notify.sshkey", "repotokens.x"]) assertRefused(key, s, "glued-value");
+});
+
+test("AC-708-3: pat, dsn, webhook, private and sk are refused as whole words, in a section or a key, in any case", () => {
+  const s = setup({
+    personal: '[ci]\npat = "word-value"\ndsn = "word-value"\nwebhook = "word-value"\nwebhook_url = "word-value"\nprivate = "word-value"\nsk = "word-value"\nGH_PAT = "word-value"\nsentryDsn = "word-value"\n[webhooks]\nurl = "word-value"\n',
+  });
+  for (const key of ["ci.pat", "ci.dsn", "ci.webhook", "ci.webhook_url", "ci.private", "ci.sk", "ci.GH_PAT", "ci.sentryDsn", "webhooks.url"]) assertRefused(key, s, "word-value");
+  // The plain look-alikes stay readable.
+  const plain = setup({ personal: '[web]\nauth = "Clerk"\nmonkey = "banana"\npath = "/x"\npatch = "1"\nskip = "yes"\nprivacy = "high"\n[defaults]\nvisibility = "private"\n' });
+  assert.equal(get("web.auth", plain).out, "Clerk (personal)");
+  assert.equal(get("web.monkey", plain).out, "banana (personal)");
+  assert.equal(get("web.path", plain).out, "/x (personal)");
+  assert.equal(get("web.patch", plain).out, "1 (personal)");
+  assert.equal(get("web.skip", plain).out, "yes (personal)");
+  assert.equal(get("web.privacy", plain).out, "high (personal)");
+  assert.equal(get("defaults.visibility", plain).out, "private (personal)");
+});
+
+test("AC-708-3: a value that starts like a credential is refused under a harmless name, and never printed", () => {
+  const values = ["sk-live-1234567890", "sk_live_abcdef", "ghp_abcdef123456", "gho_abcdef123456", "github_pat_11ABCDEF", "xoxb-1234-5678", "AKIAIOSFODNN7EXAMPLE", "-----BEGIN PRIVATE KEY-----"];
+  for (const value of values) {
+    const s = setup({ project: `[notify]\nharmless = "${value}"\n` });
+    const r = get("notify.harmless", s);
+    assert.equal(r.code, 1, value);
+    assert.equal(r.out, "", value);
+    assert.match(r.err, /secret/, value);
+    assert.ok(!r.err.includes(value), value);
+    assert.equal(r.err.split("\n").length, 1, value);
+    const c = cli(["get", "notify.harmless", s.dir], s);
+    assert.equal(c.status, 1, value);
+    assert.equal(c.stdout, "", value);
+    assert.ok(!c.stderr.includes(value), value);
+  }
+  const literal = setup({ personal: "[notify]\nharmless = 'ghp_literalform123'\n" });
+  assert.equal(get("notify.harmless", literal).code, 1);
+  assert.equal(get("notify.harmless", literal).out, "");
+  const ok = setup({ personal: '[notify]\nharmless = "skip this"\nother = "sky-blue"\n' });
+  assert.equal(get("notify.harmless", ok).out, "skip this (personal)");
+  assert.equal(get("notify.other", ok).out, "sky-blue (personal)");
+});
+
+test("AC-708-1: a [section] or key line inside a multi-line string is text, not a real line", () => {
+  const injected = '[q]\ntext = """\n[web]\nhosting = "INJECTED"\nv = "ML-INJECTED"\n"""\nv = "real"\n';
+  const s = setup({ project: injected });
+  assert.equal(get("q.v", s).out, "real (project)");
+  assert.equal(get("web.hosting", s).out, "Cloudflare Workers (kit default)", "a [web] inside the string opens no section");
+  const lit = setup({ project: "[q]\ntext = '''\n[web]\nhosting = \"INJECTED\"\n'''\nv = \"real\"\n" });
+  assert.equal(get("web.hosting", lit).out, "Cloudflare Workers (kit default)");
+  assert.equal(get("q.v", lit).out, "real (project)");
+  const oneLine = setup({ project: '[q]\ntext = """one line"""\nv = "real"\n' });
+  assert.equal(get("q.v", oneLine).out, "real (project)", "a multi-line string that opens and closes on one line leaves nothing open");
+  // The string itself is not a shape this reads: reported, and the lower layers are not used.
+  const own = setup({ personal: '[w]\nt = "personal"\n', project: '[w]\nt = """\nhello\n"""\n' });
+  const r = get("w.t", own);
+  assert.equal(r.code, 1);
+  assert.equal(r.out, "");
+  assert.match(r.err, /^w\.t\b[^\n]*project[^\n]*$/);
+});
+
+test("AC-708-1: a line like [1, 2], or [3] inside a multi-line array is not a header", () => {
+  const s = setup({ personal: '[a]\nk = "personal"\n', project: '[a]\nm = [\n  [1, 2],\n  [3],\n]\nk = "project"\n' });
+  assert.equal(get("a.k", s).out, "project (project)");
+  const bare = setup({ personal: '[a]\nk = "personal"\n', project: '[a]\nm = [\n[3]\n]\nk = "project"\n' });
+  assert.equal(get("a.k", bare).out, "project (project)", "a closed [3] line is not a header either");
+  const hidden = setup({ project: '[a]\nm = [\n  "[web]", # a [bracket] in a string\n  "x"\n]\n[web]\nhosting = "real"\n' });
+  assert.equal(get("web.hosting", hidden).out, "real (project)", "brackets in strings and comments do not count; the array closes");
+  const asked = setup({ personal: '[a]\nm = "personal"\n', project: '[a]\nm = [\n  [1, 2],\n]\n' });
+  const r = get("a.m", asked);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /project/);
+});
+
 test("the CLI never prints a secret-looking value, on either stream", () => {
   const s = setup({ personal: '[notify]\nntfy_token = "tok-abc123"\n' });
   const r = cli(["get", "notify.ntfy_token", s.dir], s);

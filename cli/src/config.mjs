@@ -2,6 +2,7 @@
 // Layers, first match wins: the project's docs/profile.toml, then your ~/.onrails/profile.toml, then the kit's profile
 // template. Reads `key = value` lines in a [section]: "strings", true/false and whole numbers, the shapes the template
 // uses. Arrays, inline tables and tables inside tables are not read. A blank value counts as not set, as latest.mjs reads it.
+// Lines inside a multi-line string or a multi-line array are skipped, so they never open a section or give a value.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { homedir } from "node:os";
@@ -10,12 +11,24 @@ import { loadKit } from "./kit.mjs";
 import { TEMPLATE, profilePath } from "./profile.mjs";
 
 const NAME = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
-// Words that mark a name as a credential. "auth" and "monkey" are not on it: a name counts only when a whole word matches.
-const SECRET_WORDS = new Set(["token", "secret", "password", "passwd", "passphrase", "key", "apikey", "credential", "credentials", "bearer"]);
+// A name is secret-looking when a word of it (split at . _ - and a lower-to-upper change) is one of these or the plural of one.
+// "auth" and "monkey" are not on the list: they are plain words, and a bare "key" only counts as a whole word.
+const SECRET_WORDS = new Set(["token", "secret", "password", "passwd", "passphrase", "key", "apikey", "credential", "bearer", "pat", "dsn", "webhook", "private", "sk"]);
+// These are long enough to refuse inside a word, so a glued name (authtoken, secretkey, clientsecret) is caught too.
+const SECRET_PARTS = ["token", "secret", "password", "passwd", "passphrase", "credential", "bearer", "apikey", "privatekey", "accesskey", "signingkey", "sshkey", "authkey", "webhook"];
+// A value that starts like one of these is a credential whatever its name says. Compared in lower case: over-refusing is the safe side.
+const SECRET_VALUE_STARTS = ["sk-", "sk_live", "ghp_", "gho_", "github_pat_", "xox", "akia", "-----begin"];
 
-/** True when a word of the section or key name (split at _ - and a lower-to-upper change) says it holds a credential. */
+/** True when a word of the section or key name says it holds a credential: a listed word, its plural, or a long one glued into a word. */
 export function looksSecret(name) {
-  return name.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().split(/[._-]+/).some((word) => SECRET_WORDS.has(word));
+  const words = name.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().split(/[._-]+/);
+  return words.some((word) => SECRET_WORDS.has(word) || SECRET_WORDS.has(word.replace(/s$/, "")) || SECRET_PARTS.some((part) => word.includes(part)));
+}
+
+/** True when a value starts the way an API token, key or private key does. */
+export function valueLooksSecret(value) {
+  const start = value.trimStart().toLowerCase();
+  return SECRET_VALUE_STARTS.some((prefix) => start.startsWith(prefix));
 }
 
 // What follows a value on its line: nothing, or a # comment.
@@ -43,18 +56,54 @@ function readValue(text) {
   return value === null || /[\u0000-\u0008\u000a-\u001f\u007f]/.test(value) ? null : value;
 }
 
+// How much a line opens (+) or closes (-) of a multi-line array: [ and ] outside "strings", 'literals' and a # comment.
+function bracketChange(text) {
+  let change = 0;
+  let quote = null;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === "\\" && quote === '"') i++;
+      else if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") quote = ch;
+    else if (ch === "#") break;
+    else if (ch === "[") change++;
+    else if (ch === "]") change--;
+  }
+  return change;
+}
+
+// A `key = value` line with a bare or quoted key: what follows the `=`.
+const ANY_PAIR = /^(?:[A-Za-z0-9_.-]+|"[^"]*"|'[^']*')\s*=\s*(.*)$/;
+const PAIR = /^([A-Za-z0-9_-]+)\s*=\s*(.*)$/;
+
 /** What one profile says about `section.key`: { found: false }, or { found: true, value } (value null: not a shape this reads). */
 export function lookup(toml, section, key) {
   let current = null;
+  let closing = null; // the """ or ''' that ends the multi-line string we are inside
+  let depth = 0; // how many [ of a multi-line array are still open
   for (const raw of toml.split(/\r?\n/)) {
     const line = raw.trim();
+    if (closing) {
+      if (line.includes(closing)) closing = null;
+      continue;
+    }
+    if (depth > 0) {
+      depth = Math.max(0, depth + bracketChange(line));
+      continue;
+    }
     if (line.startsWith("[")) {
       const header = /^\[\s*([^[\]]*?)\s*\]\s*(?:#.*)?$/.exec(line);
       current = header ? header[1].replace(/\s*\.\s*/g, ".") : null; // [[array tables]] and odd headers open no section
       continue;
     }
-    const pair = current === section ? /^([A-Za-z0-9_-]+)\s*=\s*(.*)$/.exec(line) : null;
+    const pair = current === section ? PAIR.exec(line) : null;
     if (pair?.[1] === key) return { found: true, value: readValue(pair[2]) };
+    const rest = ANY_PAIR.exec(line)?.[1];
+    if (rest === undefined) continue;
+    const opener = /^("""|''')/.exec(rest)?.[1];
+    if (opener && !rest.slice(3).includes(opener)) closing = opener;
+    else if (rest.startsWith("[")) depth = Math.max(0, bracketChange(rest));
   }
   return { found: false };
 }
@@ -83,6 +132,7 @@ export function configGet(name, dir = ".", { home = homedir(), kitDir, log = con
     const toml = read();
     const found = toml === null ? { found: false } : lookup(toml, section, key);
     if (!found.found || found.value === "") continue; // not here, or blank: ask the next layer
+    if (typeof found.value === "string" && valueLooksSecret(found.value)) return error(`${name} holds a value that looks like a token, key or secret, so config get prints nothing for it. Read the ${layer} profile file yourself.`), 1;
     if (found.value === null) return error(`${name} is set in the ${layer} profile in a form config get doesn't read (it reads "text", true, false and whole numbers).`), 1;
     return log(`${found.value} (${layer})`), 0;
   }
