@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T08:36:52.875Z",
+  "issue": 431,
+  "pr": null,
+  "sha": null,
+  "job": "build",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "outcome": "started",
+  "model_from": "effort: a sub-agent has no status line, and get_session shows the parent session",
+  "usage_before": "unknown",
+  "usage_window_before": "seven_day",
+  "usage_resets_before": "2026-12-04T14:00:00.000Z",
+  "usage_from": "get_session of the parent session: rate_limit_info, no percentage"
+}

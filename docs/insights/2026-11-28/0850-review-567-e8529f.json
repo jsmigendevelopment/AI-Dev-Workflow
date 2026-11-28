@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T08:50:37.164Z",
+  "issue": null,
+  "pr": 567,
+  "sha": "3c8025ebe9cd92043fb3a7bf5f17eee66ad29dc3",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 2,
+  "categories": [
+    "instructions"
+  ],
+  "model_from": "the session's own system prompt, no effort shown"
+}
