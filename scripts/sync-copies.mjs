@@ -37,7 +37,9 @@ export const COPIES = [
   // The weekly report (#381) reads the records with the format's validate, so it goes wherever that goes.
   [join("scripts", "insights-week.mjs"), join(SRC, "coordinate", "scripts", "insights-week.mjs")],
   [join("scripts", "insights-week.mjs"), join("cli", "src", "insights-week.mjs")],
-  // push-secrets' rule for starting gh and npx, also for setup-github's gh (#238): skill scripts can't import each other.
+  // push-secrets' rule for starting gh and npx, also for setup-github's gh (#238), copied next to each script that needs it.
+  // A skill script imports another skill's script only when both always ship together, as pyramid's check-plan.mjs
+  // imports issues' check-issue-size.mjs (#376).
   // Also next to every research-library.mjs copy and agent-files.mjs, which start gh the same way (#274).
   ...[join(SRC, "name", "scripts"), join(SRC, "coordinate", "scripts"), join(SRC, "research", "scripts"), "scripts", join("cli", "src"), join(TEMPLATE, "scripts")]
     .map((dir) => [join(SRC, "secrets", "scripts", "command-for.mjs"), join(dir, "command-for.mjs")]),
