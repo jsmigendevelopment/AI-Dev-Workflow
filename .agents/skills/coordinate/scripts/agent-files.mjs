@@ -46,7 +46,12 @@ export const CHECK_FILES = new RegExp([
   String.raw`|tsconfig[^/]*\.jsonc?|(?:vitest\.(?:config|workspace)|jest\.config|playwright\.config)\.[^/]+|\.?lighthouserc\.[^/]+`,
   // Package-manager settings and other manifest names change how scripts run (#220, decision 220-1); .gitattributes
   // decides what the size rule counts (#220).
-  String.raw`|\.npmrc|\.yarnrc(?:\.ya?ml)?|pnpm-workspace\.ya?ml|\.pnpmfile\.c?js|package\.ya?ml|package\.json5|\.gitattributes)$`,
+  String.raw`|\.npmrc|\.yarnrc(?:\.ya?ml)?|pnpm-workspace\.ya?ml|\.pnpmfile\.c?js|package\.ya?ml|package\.json5|\.gitattributes`,
+  // A Go app's lint config, the task runners a `check` script can call, and the generator config `check` compares output
+  // against: sqlc, and orval, which the Go pack's dossier picks for the TypeScript client (#532).
+  String.raw`|\.golangci\.(?:ya?ml|toml|json)|\.go-arch-lint\.ya?ml|(?:GNU)?makefile|\.?justfile|taskfile(?:\.dist)?\.ya?ml|sqlc\.(?:ya?ml|json)|orval\.config\.[^/]+)$`,
+  // Each Go tool is pinned in its own modfile under tools/ (the dossier's pick): a version swap there swaps the checker.
+  String.raw`|(?:^|/)tools/[^/]+\.mod$`,
   String.raw`|(?:^|/)\.semgrep(?:/|$)`,
   String.raw`|(?:^|/)scripts/(?:(?:budgets|checks|lint|pr|migrations)/|(?:[^/]+/)*check-[^/]*$)`,
 ].join(""), "i");
@@ -91,8 +96,8 @@ export function packageChanges(changed, packages = {}) {
     return keys.length ? [`${path} (${keys.join(", ")})`] : [];
   });
 }
-/** A test file (#164): `.test.` or `.spec.` in its name, or a test, e2e or snapshot folder on its path. */
-export const TEST_FILE = /(?:^|\/)[^/]*\.(?:test|spec)\.[^/]*$|(?:^|\/)(?:tests?|__tests__|e2e|__snapshots__|[^/]*-snapshots)\//i;
+/** A test file (#164): `.test.` or `.spec.` in its name, a Go `_test.go` file (#532), or a test, e2e, snapshot or Go `testdata` folder on its path. */
+export const TEST_FILE = /(?:^|\/)[^/]*(?:\.(?:test|spec)\.[^/]*|_test\.go)$|(?:^|\/)(?:tests?|__tests__|e2e|__snapshots__|testdata|[^/]*-snapshots)\//i;
 
 /**
  * Tests a pull request deletes (#164): a removed test file, or one renamed to a name that isn't a test. Adding or
