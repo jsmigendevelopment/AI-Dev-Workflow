@@ -9,6 +9,10 @@ Reading code and guessing is the default, and it's the trap. First build a check
 
 An easy question with a clear answer? Just answer it. This skill is for bugs you can't solve at first look: a flaky test, a regression, a symptom with no obvious cause.
 
+**Started by the person in the live thread** (the thread they talk to, rule 17 in `AGENTS.md`)? An easy answer stays there. For the rest, start a background sub-agent briefed *"Use the `diagnose` skill."* with the person's exact symptom, say so in one line, end the turn, and pass the cause and the fix on when it reports back.
+
+**Your brief came from another thread?** Never hand your own job down again: do it yourself, and start a sub-agent only where a step below says to.
+
 ## Before you start
 
 - **Bug in production?** That's a 🛑 blocker. Use the `ask` skill and ping now. Never touch production to reproduce or fix it: no real data, settings, secrets, deploys or extra logging there without the person's yes. Reproduce on your machine or the test environment, with test data.
