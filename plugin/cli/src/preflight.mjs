@@ -205,7 +205,7 @@ export async function probe(dir, sys = realSys(), given = {}, { bases } = {}) {
     const results = CHECKS.map((id) => ({ id, label: LABELS[id], ladder: [], ...found[id] }));
     const at = new Date(sys.now()).toISOString().replace(/:\d\d\.\d{3}Z$/, "Z");
     const ok = results.every((r) => r.status !== "fix" && r.status !== "blocked");
-    // Workflow files or Actions on (#133): a warning with its fix, never a failed row. Before the read, files only.
+    // Workflow files on ci = "local", or Actions on (#133): a warning with its fix, never a failed row. Before the read, files only.
     const warnings = await ciWarnings(dir, sys, read);
     return { tool, checkedAt: at, fingerprint: sandboxPrint(dir, tool, sys, pkg, read), ok, read, away: !read && Boolean(away),
       state: existsSync(join(dir, "docs", "state.md")), unsafe: [...new Set(unsafe)], results, warnings };

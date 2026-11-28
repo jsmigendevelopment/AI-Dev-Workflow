@@ -74,7 +74,7 @@ export function whoRules(who: Who, githubIdp?: string): Record<string, unknown>[
   ]
 }
 
-/** The Access application: what it covers, which logins it offers, CI's token and who may sign in. */
+/** The Access application: what it covers, which logins it offers, the smoke tests' service token and who may sign in. */
 export function accessAppBody(
   target: Target,
   idps: string[],

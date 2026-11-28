@@ -20,7 +20,7 @@ Runs each scenario twice, with the onRails kit installed and without, and compar
   --max-budget-usd <n>   Claude Code's spending stop per run (default: ${DEFAULTS.maxBudgetUsd})
   --max-runs <n>         refuse to start above this many runs (default: ${DEFAULTS.maxRuns}, never above ${HARD_CAP})
   --dry-run              print what would run; run nothing, write nothing
-  --summary <file>       also append the markdown summary to this file (CI: $GITHUB_STEP_SUMMARY)
+  --summary <file>       also append the markdown summary to this file
   --results-dir <dir>    where results go (default: evals/results)
   --scenarios-dir <dir>  where scenarios live (default: evals/scenarios)
   --claude <path>        the claude binary (default: claude on PATH)

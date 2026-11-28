@@ -1,4 +1,4 @@
-# Git hooks, installed by `pnpm install` (lefthook's install script; skipped in CI).
+# Git hooks, installed by `pnpm install` (lefthook's install script).
 # pre-commit formats and lints the staged files only, and re-stages what it fixed.
 # The merge gate runs the full `pnpm check` anyway, so `git commit --no-verify` never ships unlinted code.
 pre-commit:

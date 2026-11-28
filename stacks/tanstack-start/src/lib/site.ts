@@ -16,5 +16,5 @@ export const INDEXABLE_PAGES: ReadonlyArray<{ path: string; title: string; summa
   { path: '/', title: 'Home', summary: 'What the app is and how to start.' },
 ]
 
-/** Used when SITE_URL is not set: local dev, tests and CI. */
+/** Used when SITE_URL is not set: local dev, tests and `pnpm check`. */
 export const DEFAULT_SITE_URL = 'http://localhost:3000'
