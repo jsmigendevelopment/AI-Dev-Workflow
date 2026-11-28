@@ -11,8 +11,16 @@ import { parseAddon } from "../src/addon-doc.mjs";
 export const ADDONS = fileURLToPath(new URL("../../stacks/tanstack-start-addons/", import.meta.url));
 export const PACK = fileURLToPath(new URL("../../stacks/tanstack-start/", import.meta.url));
 
-// Generated files the pack's lint and format skip (src/routeTree.gen.ts): a step may name one, but never fixes it.
-const IGNORED = new Set(readFileSync(join(PACK, ".prettierignore"), "utf8").split("\n").map((l) => l.trim()));
+// Files the pack skips, from its own two lists (#515): `.prettierignore` for the format check, and the global
+// `ignores` in eslint.config.js for the lint check. They differ: ESLint lints `docs/` and `migrations/meta/`, Prettier
+// skips them. A step may name a generated file (src/routeTree.gen.ts) but never fixes it.
+const PRETTIER_IGNORED = readFileSync(join(PACK, ".prettierignore"), "utf8").split("\n")
+  .map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+// A global-ignores block is an object that holds only `ignores` (the other `ignores` sit beside `files`).
+const ESLINT_IGNORED = [...readFileSync(join(PACK, "eslint.config.js"), "utf8")
+  .matchAll(/\{\s*(?:\/\/[^\n]*\n\s*)*ignores:\s*\[([^\]]*)\],?\s*\}/g)]
+  .flatMap((m) => [...m[1].replace(/\/\/[^\n]*/g, "").matchAll(/(['"])(.+?)\1/g)].map((s) => s[2]));
+assert.ok(ESLINT_IGNORED.includes("src/routeTree.gen.ts"), "eslint.config.js still has a global `ignores` list with src/routeTree.gen.ts");
 // What the pack's lint covers: ESLint's file types, and the types `prettier --check .` formats.
 const LINTS = /\.(ts|tsx|js|mjs|cjs)$/;
 const FORMATS = /\.(ts|tsx|js|mjs|cjs|json|jsonc|css|md|ya?ml|html)$/;
@@ -30,6 +38,19 @@ export const ALLOWED = [
 ];
 const SHAPE = `${ALLOWED.map((a) => a.name).join(", then ")}, joined by &&`;
 
+// True when a list skips the path: a listed file, or anything in a listed folder. A Prettier line with a `/`
+// (`/docs`, `src/routeTree.gen.ts`) starts at the pack's root; one without (`node_modules`, `dist`) matches at any depth.
+// ESLint's patterns all start at the pack's root, and it always skips `node_modules` (a default ignore).
+function inList(list, f, anyDepth) {
+  return list.some((entry) => {
+    const rooted = entry.replace(/^\//, "").replace(/\/$/, "");
+    return anyDepth(entry) ? f.split("/").includes(rooted) : f === rooted || f.startsWith(`${rooted}/`);
+  });
+}
+const isPrettierIgnored = (f) => inList(PRETTIER_IGNORED, f, (entry) => !entry.includes("/"));
+const isEslintIgnored = (f) => inList(ESLINT_IGNORED, f, (entry) => entry === "node_modules")
+  || f.split("/").includes("node_modules");
+
 function copied(root, dir = root) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
     d.isDirectory() ? copied(root, join(dir, d.name)) : [relative(root, join(dir, d.name)).replaceAll("\\", "/")]);
@@ -38,11 +59,19 @@ function copied(root, dir = root) {
 // Any way to run ESLint or Prettier (or the pack's format and fix scripts) by hand. The lint step is the one
 // place an add-on runs them, on its own files: a whole-project run in another step rewrites files it never touched,
 // and one before the types exist misreads the code. Each pattern ends at the end of the line or the closing backtick.
+// Named forms (#515): a package manager, with flags and `exec`, `run`, `dlx` or `x` (`pnpm -s exec eslint`); a
+// one-off runner (`npx`, `bunx`, `pnpx`); and the binary itself, by any path (`./node_modules/.bin/eslint`).
+// `eslint.config.js` and `eslint-plugin-x` don't match: the tool name must end there.
+const PM = String.raw`(?:pnpm|npm|yarn|bun)\s+(?:-\S+\s+)*`;
+const REST = "[^\\n`]*";
+const TOOL = String.raw`(?:eslint|prettier)(?![\w.-])` + REST;
 const STRAY = [
-  /\b(?:pnpm|npm|yarn|npx)\s+(?:(?:exec|run|dlx)\s+)?(?:eslint|prettier)(?![\w.-])[^\n`]*/,
-  /\bpnpm\s+(?:run\s+)?(?:format|fix|lint:fix)(?![\w:-])/,
-  /\bpnpm\s+(?:run\s+)?lint\b[^\n`]*--fix/,
-  /^[ \t]*(?:eslint|prettier)\s[^\n`]*/m,
+  new RegExp(String.raw`\b${PM}(?:(?:exec|run|dlx|x)\s+(?:-\S+\s+)*)?${TOOL}`),
+  new RegExp(String.raw`\b(?:npx|bunx|pnpx)\s+(?:-\S+\s+)*${TOOL}`),
+  new RegExp(String.raw`(?<![\w.~/-])/?(?:[\w.~-]+/)*node_modules/\.bin/${TOOL}`),
+  new RegExp(String.raw`\b${PM}(?:run\s+)?(?:format|fix|lint:fix)(?![\w:-])`),
+  new RegExp(String.raw`\b${PM}(?:run\s+)?lint\b${REST}--fix`),
+  new RegExp(String.raw`^[ \t]*(?:eslint|prettier)\s${REST}`, "m"),
 ];
 
 /**
@@ -62,10 +91,13 @@ export function addonLint(name, { edit = (text) => text } = {}) {
   // told from a prose mention: ship it in the add-on's files/ folder, which is always seen. The package.json and
   // lockfile that `pnpm add` writes are named only in code, and nothing lints them. So backtick a pack path only
   // for a file the steps really edit: every one counts as touched, and the lint step must lint and format it.
+  // #515: a path that both the pack's lint and its format skip (`node_modules/...`) is never touched, whatever the
+  // prose says. One that only Prettier skips (`docs/stack.md`, `migrations/meta/x.ts`) is still touched: ESLint lints it. The first folder is a plain name or a dot folder (`.github/x.yml`); a name with a dot inside, such as
+  // the host in `example.com/docs/a.html`, is not a folder the step makes.
   const isPackFile = (f) => existsSync(join(PACK, f)) && statSync(join(PACK, f)).isFile();
-  const isNewFile = (f) => /^\w[\w.-]*\/[\w./-]+\.\w+$/.test(f) && !f.includes("..");
+  const isNewFile = (f) => /^\.?\w[\w-]*\/[\w./-]+\.\w+$/.test(f) && !f.includes("..");
   const edited = [...new Set([...apply.replace(/```[\s\S]*?```/g, "").matchAll(/`([^`\s]+)`/g)].map((m) => m[1]))]
-    .filter((f) => (isPackFile(f) || isNewFile(f)) && !IGNORED.has(f));
+    .filter((f) => (isPackFile(f) || isNewFile(f)) && !(isEslintIgnored(f) && isPrettierIgnored(f)));
   const copiedFiles = existsSync(files) ? copied(files) : [];
   const touched = new Set([...copiedFiles, ...edited]);
   // A folder the add-on brings whole (new to the pack) may stand for all its files in the step.
@@ -117,8 +149,10 @@ export function addonLint(name, { edit = (text) => text } = {}) {
     for (const f of [...eslint, ...prettier]) assert.ok(touched.has(f) || ownFolder(f), `${name}: ${f} is a file the add-on touched`);
     // Every file the add-on touched that the pack's lint covers is fixed here, or the `pnpm check` after it fails.
     for (const f of touched) {
-      if (LINTS.test(f)) assert.ok(covers(eslint, f), `${name}: ${f} is linted${why(f)}`);
-      if (FORMATS.test(f)) assert.ok(covers(prettier, f), `${name}: ${f} is formatted${why(f)}`);
+      // A file the add-on ships is always checked, as before; a path the steps name is skipped where that tool skips it.
+      const shipped = copiedFiles.includes(f);
+      if (LINTS.test(f) && (shipped || !isEslintIgnored(f))) assert.ok(covers(eslint, f), `${name}: ${f} is linted${why(f)}`);
+      if (FORMATS.test(f) && (shipped || !isPrettierIgnored(f))) assert.ok(covers(prettier, f), `${name}: ${f} is formatted${why(f)}`);
     }
     // The old whole-project step is gone, not kept beside the new one.
     assert.doesNotMatch(apply, /`pnpm exec eslint --fix \.[ `]/, `${name}: no whole-project \`eslint --fix .\` step is left`);
