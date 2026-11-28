@@ -151,27 +151,53 @@ function authorTerms(dir, add) {
   }
 }
 
-// Hosts in URLs and email addresses in tracked files. A file the kit ships, unchanged, holds none of the project's.
-function domainTerms(read, files, kitFiles, add) {
-  const host = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^\s/@]+@)?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})|[\w.+-]+@([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})\b/gi;
+// A host in a URL or an email address, and a variable name at the start of a line of an env example.
+const HOST = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^\s/@]+@)?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})|[\w.+-]+@([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})\b/gi;
+const ENV_LINE = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/gm;
+const hostsIn = (text) => [...text.matchAll(HOST)].map((match) => (match[1] ?? match[2]).toLowerCase());
+
+// Hosts in tracked files. A file the kit ships, unchanged, holds none of the project's, and a host that a stack pack
+// ships in its own files is the kit's, even in a file the project has edited (#410).
+function domainTerms(read, files, kitFiles, packHosts, add) {
   for (const path of files) {
     const text = read.text(path);
     if (Object.hasOwn(kitFiles, path) && kitFiles[path] === hash(Buffer.from(text))) continue;
-    for (const match of text.matchAll(host)) addDomain(add, match[1] ?? match[2], "domain");
+    for (const host of hostsIn(text)) if (!packHosts.has(host)) addDomain(add, host, "domain");
   }
 }
 
-function envTerms(read, add) {
-  for (const match of read.text(ENV_EXAMPLE).matchAll(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)) {
-    add(match[1], "env name", { split: false });
+// A name that a stack pack ships in its own .env.example (SECURITY_CONTACT) is the kit's, not the project's (#410).
+function envTerms(read, packNames, add) {
+  for (const match of read.text(ENV_EXAMPLE).matchAll(ENV_LINE)) {
+    if (!packNames.has(match[1])) add(match[1], "env name", { split: false });
   }
 }
 
 /**
- * The project's own terms, lowercase, each mapped to its source kind. Reads local files and local git only.
- * `kitFiles` maps a kit path to its sha256, as the kit manifest does.
+ * The variable names and hosts that the stack packs of a loaded kit ship in their own files (#410), read from the
+ * bundled copy, never the network. They are the kit's own, so they carry nothing from a project.
  */
-export function denySet(projectDir, { home = homedir(), kitWords = GLOSSARY, kitFiles = {} } = {}) {
+export function packTerms(kit) {
+  const envNames = new Set();
+  const hosts = new Set();
+  for (const [pack, { files }] of Object.entries(kit.packs ?? {})) {
+    for (const path of Object.keys(files)) {
+      const bytes = kit.readPack(pack, path);
+      // A picture or a font holds no host and no name.
+      if (bytes.includes(0)) continue;
+      const text = bytes.toString("utf8");
+      if (basename(path) === ENV_EXAMPLE) for (const match of text.matchAll(ENV_LINE)) envNames.add(match[1]);
+      for (const host of hostsIn(text)) hosts.add(host);
+    }
+  }
+  return { envNames, hosts };
+}
+
+/**
+ * The project's own terms, lowercase, each mapped to its source kind. Reads local files and local git only.
+ * `kitFiles` maps a kit path to its sha256, as the kit manifest does; `packs` is `packTerms` of the bundled kit.
+ */
+export function denySet(projectDir, { home = homedir(), kitWords = GLOSSARY, kitFiles = {}, packs = packTerms({}) } = {}) {
   const terms = new Map();
   const add = adder(terms, kitWords);
   const read = reader(projectDir);
@@ -181,8 +207,8 @@ export function denySet(projectDir, { home = homedir(), kitWords = GLOSSARY, kit
   docTerms(read, add);
   profileTerms(read, home, add);
   authorTerms(projectDir, add);
-  domainTerms(read, files, kitFiles, add);
-  envTerms(read, add);
+  domainTerms(read, files, kitFiles, packs.hosts, add);
+  envTerms(read, packs.envNames, add);
   return terms;
 }
 
