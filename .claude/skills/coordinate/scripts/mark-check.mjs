@@ -14,8 +14,8 @@
 // folder it runs from, on exit 0, 1 and 3 alike. A file it can't read, or a command name over 200 characters or
 // with a control, format, line-separator or paragraph-separator character, is a usage error: exit 2, no record, no
 // post. ONRAILS_NOW sets the record's clock (tests).
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gh, pages } from "./agent-files.mjs";
 import { TEXT_CAP, VERSION, dayFolder, fileName, validate } from "./insights-record.mjs";
@@ -161,4 +161,15 @@ export function main(argv) {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+/** True when node started this file, also through a symlinked file or folder: import.meta.url is the real path, so
+ * argv[1] is resolved to its real path too (#506, as in pr-size.mjs, #439). */
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false; // An argv[1] that names no file (a REPL, a loader's stand-in) isn't this module.
+  }
+}
+
+if (isMainModule()) process.exitCode = main(process.argv.slice(2));
