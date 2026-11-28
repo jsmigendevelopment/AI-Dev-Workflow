@@ -15,16 +15,26 @@
 //       A record's id is a hash of it, so a rerun writes nothing; a different file on that name is named and kept.
 //   land [--verify <pr>] [--repo <owner>/<name>]   lands the records on main: insights-land.mjs says how.
 // harvest and land exit 2 on a usage, git or API error.
+//
+// The merge step's records (#333), after a harvest, in the same checkout:
+//   has-records --pr <n> --sha <sha>   exit 0 when docs/insights/ holds a job, a check and a review record whose pr
+//       is <n> and whose sha is <sha>, each a file land would land as it is; board records don't count. Presence, not
+//       pass: the verdicts are the Checks: comment's and the review's. Exit 1 names each missing kind and the job
+//       that makes it. Exit 2: a usage error, or a checkout it can't read. It writes nothing and calls no API; its
+//       only git call finds the checkout. Not `land --verify`, which checks a records-only pull request.
+//   carry --pr <n> --from <reviewed sha> --to <merge sha>   carries a review across a clean merge of main:
+//       insights-carry.mjs says how.
 // Format and kinds: references/insights.md. Plain Node 22, no dependencies.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pages } from "./agent-files.mjs";
+import { carry, heldRecords, save } from "./insights-carry.mjs";
 import { canonical, land, ownLogin, recordProblem } from "./insights-land.mjs";
 import { KINDS, VERSION, coerce, dayFolder, fileName, parseLine, toLine, validate } from "./insights-record.mjs";
 
-const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>]";
+const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
 const LINE = /<!-- onrails-insights (.*?) -->/g;
 
 function fail(code, message) {
@@ -34,12 +44,13 @@ function fail(code, message) {
 const warn = (message) => process.stderr.write(`insights: ${message}\n`);
 const flag = (args, name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 
-function gitRoot() {
+/** The checkout's root. Not in one: exit `code` (2 for a command that only reads, as no record can be missing). */
+function gitRoot(code = 1) {
   const start = process.env.CLAUDE_PROJECT_DIR || process.cwd();
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: start, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
   } catch {
-    return fail(1, `${start} isn't in a git repo, so there's no docs/insights/ to write to`);
+    return fail(code, `${start} isn't in a git repo, so there's no docs/insights/ here`);
   }
 }
 
@@ -64,15 +75,12 @@ function writeOrLine(cmd, kind, pairs) {
   if (!kind) fail(2, `kind: missing. ${USAGE}`);
   const record = build(kind, pairs);
   if (cmd === "line") return process.stdout.write(`${toLine(record)}\n`);
-  const dir = join(gitRoot(), dayFolder(record));
-  const path = join(dir, fileName(record));
+  const root = gitRoot();
   try {
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(path, canonical(record), { flag: "wx" });
+    return process.stdout.write(`${save(root, record)}\n`);
   } catch (e) {
-    fail(1, `couldn't write ${path}: ${e.code || e.message}`);
+    return fail(1, `couldn't write in ${join(root, dayFolder(record))}: ${e.code || e.message}`);
   }
-  return process.stdout.write(`${path}\n`);
 }
 
 /** The logins under [insights] writers = ["a", "b"] in docs/profile.toml, lower case. The list may span lines. */
@@ -140,11 +148,37 @@ function harvest(args) {
   }
 }
 
+/** The kinds the merge step needs for a head, and the job that makes each one again. */
+const NEEDED = {
+  job: "send this sha to a fresh pr-review: its verdict comment carries the job line. Then harvest",
+  check: "run the local gate (coordinate step 6.1) on this sha again: mark-check.mjs --record writes it",
+  review: "send this sha to a fresh pr-review: its verdict comment carries the review line. Then harvest",
+};
+
+function hasRecords(args) {
+  const pr = flag(args, "--pr");
+  const sha = flag(args, "--sha");
+  if (args.length !== 4 || !/^\d+$/.test(pr ?? "") || !/^[0-9a-f]{40}$/.test(sha ?? "")) fail(2, "usage: insights.mjs has-records --pr <n> --sha <sha> (the full 40-character head sha)");
+  let held;
+  try {
+    held = heldRecords(gitRoot(2));
+  } catch (e) {
+    fail(2, `couldn't read docs/insights/ (${e.code || e.message}), so nothing was checked. Fix the checkout and run this again.`);
+  }
+  const found = new Set(held.filter((r) => r.pr === Number(pr) && r.sha === sha).map((r) => r.kind));
+  const missing = Object.keys(NEEDED).filter((kind) => !found.has(kind));
+  if (!missing.length) return process.stdout.write(`#${pr} @ ${sha}: job, check and review records found\n`);
+  for (const kind of missing) warn(`#${pr} @ ${sha}: no ${kind} record. ${NEEDED[kind]}.`);
+  return fail(1, `don't merge #${pr} yet. Never write a missing record by hand: run the job that makes it, then this again.`);
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 if (cmd === "write" || cmd === "line") writeOrLine(cmd, rest[0], rest.slice(1));
-else if (cmd === "harvest" || cmd === "land") {
+else if (cmd === "has-records") hasRecords(rest);
+else if (cmd === "harvest" || cmd === "land" || cmd === "carry") {
   try {
     if (cmd === "harvest") harvest(rest);
+    else if (cmd === "carry") carry(gitRoot(2), rest);
     else land(gitRoot(), rest);
   } catch (e) {
     fail(2, String(e.stderr || e.message).trim());
