@@ -14,6 +14,8 @@ export const REPO = fileURLToPath(new URL("../..", import.meta.url));
 export const SCRIPTS = ".agents/skills/coordinate/scripts";
 export const SHA = "c".repeat(40);
 export const ME = "loop-bot";
+/** gh's own numeric user ID in the fakes: made up. */
+export const ME_ID = 1001;
 const NOW = "2026-11-27T14:32:00Z";
 const GIT_ENV = {
   GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1",
@@ -70,7 +72,7 @@ export function run(dir, args, api = {}, { env = {}, logGitEnv = false } = {}) {
   for (const name of ["claude", "codex"]) fake(join(ghDir, "bin"), name, `#!/bin/sh\necho "${name} $*" >> '${log}'\n`);
   const envLog = join(ghDir, "git-env.log");
   if (logGitEnv) fake(join(ghDir, "bin"), "git", `#!/bin/sh\n{ echo "git $*"; env | grep '^GIT_' | sort; echo; } >> '${envLog}'\nexec '${findCommand("git")}' "$@"\n`);
-  const gh = fakeGh(ghDir, { user: { login: ME }, ...api }, { ...GIT_ENV, ONRAILS_NOW: NOW, ...env });
+  const gh = fakeGh(ghDir, { user: { login: ME, id: ME_ID }, ...api }, { ...GIT_ENV, ONRAILS_NOW: NOW, ...env });
   const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "insights.mjs"), ...args], { cwd: dir, encoding: "utf8", env: gh.env });
   assert.equal(existsSync(log) ? readFileSync(log, "utf8") : "", "", "no claude or codex call");
   return { ...r, calls: gh.calls(), gitEnv: existsSync(envLog) ? readFileSync(envLog, "utf8") : "" };

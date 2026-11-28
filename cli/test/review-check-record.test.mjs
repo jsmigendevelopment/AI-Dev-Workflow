@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { spawnSync } from "./child.mjs";
 import { fake, safeEnv, tmp, unixOnly } from "./helpers.mjs";
 import { parseLine, validate } from "../src/insights-record.mjs";
-import { JOB, ME, REPO, REVIEW, SCRIPTS, SHA, git, json, pathOf, put, run } from "./insights-land-fakes.mjs";
+import { JOB, ME, ME_ID, REPO, REVIEW, SCRIPTS, SHA, git, json, pathOf, put, run } from "./insights-land-fakes.mjs";
 
 const SKILL = readFileSync(join(REPO, ".agents/skills/pr-review/SKILL.md"), "utf8");
 
@@ -117,7 +117,7 @@ test("AC-417-2: WHEN the printed command runs with fake values THEN it exits 0, 
   assert.match(before.stderr, /no check record/);
 
   const body = `Checks: pass @ ${SHA}\nFence: bubblewrap\n- node scripts/sync-skills.mjs --check: pass\n\n${printed.stdout}`;
-  const harvest = run(dir, ["harvest", "--pr", "40", "--repo", "acme/app"], { "repos/acme/app/issues/40/comments": [{ id: 7, user: { login: ME }, body }] });
+  const harvest = run(dir, ["harvest", "--pr", "40", "--repo", "acme/app"], { "repos/acme/app/issues/40/comments": [{ id: 7, user: { login: ME, id: ME_ID }, body }] });
   assert.equal(harvest.status, 0, harvest.stderr);
   assert.match(harvest.stdout, /-check-40-[0-9a-f]{6}\.json/, "harvest wrote the check record");
 

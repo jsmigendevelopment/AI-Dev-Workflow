@@ -9,7 +9,7 @@ import { spawnSync } from "./child.mjs";
 import { safeEnv, tmp, unixOnly } from "./helpers.mjs";
 import { parseLine, toLine, validate } from "../src/insights-record.mjs";
 import { recordProblem } from "../../.agents/skills/coordinate/scripts/insights-land.mjs";
-import { JOB, ME, SHA, record, records, run as runWriter, setup } from "./insights-land-fakes.mjs";
+import { JOB, ME, ME_ID, SHA, record, records, run as runWriter, setup } from "./insights-land-fakes.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const WRITER = join(REPO, ".agents/skills/coordinate/scripts/insights.mjs");
@@ -80,7 +80,7 @@ test("AC-424-2: WHEN a reviewer's comment line holds a line separator THEN harve
     const { dir } = setup();
     const job = record("job", { outcome: "pass", usage_before: "unknown", usage_after: "unknown", usage_from: `a${sep}b` });
     assert.deepEqual(validate(job), []);
-    const comments = [{ id: 3, user: { login: ME }, body: `Verdict\n${toLine(job)}\nRun: x\n` }];
+    const comments = [{ id: 3, user: { login: ME, id: ME_ID }, body: `Verdict\n${toLine(job)}\nRun: x\n` }];
     const r = runWriter(dir, ["harvest", "--pr", "40", "--repo", "acme/app"], { "repos/acme/app/issues/40/comments": comments });
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stderr, "", "nothing skipped");
@@ -91,8 +91,8 @@ test("AC-424-2: WHEN a reviewer's comment line holds a line separator THEN harve
 test("AC-424-2: WHEN a comment opens an insights line and never closes it THEN harvest names the comment instead of skipping it", unixOnly, () => {
   const { dir } = setup();
   const comments = [
-    { id: 8, user: { login: ME }, body: `Verdict\n<!-- onrails-insights {"v":1,"kind":"job"\n${toLine(JOB)}\n` },
-    { id: 9, user: { login: ME }, body: "A comment that never mentions the format.\n" },
+    { id: 8, user: { login: ME, id: ME_ID }, body: `Verdict\n<!-- onrails-insights {"v":1,"kind":"job"\n${toLine(JOB)}\n` },
+    { id: 9, user: { login: ME, id: ME_ID }, body: "A comment that never mentions the format.\n" },
   ];
   const r = runWriter(dir, ["harvest", "--pr", "40", "--repo", "acme/app"], { "repos/acme/app/issues/40/comments": comments });
   assert.equal(r.status, 0, r.stderr);

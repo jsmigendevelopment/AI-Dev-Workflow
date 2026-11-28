@@ -14,8 +14,10 @@
 //
 // The coordinator carries records to main (#332), from its own checkout of main:
 //   harvest --pr <n> --repo <owner>/<name>   writes each valid insights line from the pull request's comments that
-//       isn't on disk yet. Only comments by gh's own login, or a login under [insights] writers in docs/profile.toml,
-//       count. A line that fails validate, names another pull request or can't be a record file is skipped and named.
+//       isn't on disk yet. Only comments by gh's own account, or an account listed as "login:id" under [insights]
+//       writers in docs/profile.toml, count, by the numeric user ID (#408): a comment whose login matches but whose ID
+//       doesn't is skipped and named. A line that fails validate, names another pull request or can't be a record
+//       file is skipped and named.
 //       A record's id is a hash of it, so a rerun writes nothing; a different file on that name is named and kept.
 //   land [--verify <pr>] [--repo <owner>/<name>]   lands the records on main: insights-land.mjs says how.
 // harvest and land exit 2 on a usage, git or API error.
@@ -35,7 +37,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileS
 import { join } from "node:path";
 import { pages } from "./agent-files.mjs";
 import { carry, heldRecords, save } from "./insights-carry.mjs";
-import { canonical, land, ownLogin, recordProblem } from "./insights-land.mjs";
+import { canonical, land, ownAccount, recordProblem } from "./insights-land.mjs";
 import { ASK_FILE, KINDS, LINE_START, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
 
 const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
@@ -124,14 +126,36 @@ function writeOrLine(cmd, kind, pairs) {
   }
 }
 
-/** The logins under [insights] writers = ["a", "b"] in docs/profile.toml, lower case. The list may span lines. */
-function listedWriters(root) {
+/**
+ * The accounts harvest trusts (#408): gh's own, then each "login:id" under [insights] writers = ["a:1", "b:2"] in
+ * docs/profile.toml (the list may span lines). Trust is by the numeric user ID, which a rename or a recycled login
+ * can't take over; the login is only a label for the warnings. An entry with no ID is named and not trusted.
+ */
+function trustedAccounts(root) {
+  const me = ownAccount();
+  const accounts = [{ login: me.login.toLowerCase(), id: me.id, name: "gh's own login" }];
   let text;
-  try { text = readFileSync(join(root, "docs", "profile.toml"), "utf8"); } catch { return []; }
+  try { text = readFileSync(join(root, "docs", "profile.toml"), "utf8"); } catch { return accounts; }
   // A login holds no "#", so a "#" starts a TOML comment wherever it is.
   const body = (text.split(/^\[insights\]\s*$/m)[1]?.split(/^\[/m)[0] ?? "").replace(/#[^\n]*/g, "");
   const list = body.match(/^\s*writers\s*=\s*\[([^\]]*)\]/m)?.[1] ?? "";
-  return [...list.matchAll(/"([^"]+)"/g)].map((m) => m[1].toLowerCase());
+  for (const [, entry] of list.matchAll(/"([^"]+)"/g)) {
+    const pinned = /^([\w.-]+):(\d{1,15})$/.exec(entry);
+    if (pinned) accounts.push({ login: pinned[1].toLowerCase(), id: Number(pinned[2]), name: "a writer" });
+    else {
+      const login = /^[\w.-]+$/.test(entry) ? entry : "<login>";
+      warn(`writers entry ${JSON.stringify(entry)} has no user ID, so it isn't trusted. List it as "${login}:<id>"; gh api users/${login} --jq .id gives the ID.`);
+    }
+  }
+  return accounts;
+}
+
+/** Why a comment's author isn't one of `accounts`, or null when its user ID is. */
+function distrust(accounts, login, id) {
+  if (!Number.isSafeInteger(id)) return "its author has no user ID";
+  if (accounts.some((a) => a.id === id)) return null;
+  const same = accounts.find((a) => a.login === login.toLowerCase());
+  return same ? `the login matches ${same.name}, but its user ID ${id} isn't ${same.id}` : "not gh's own account or under [insights] writers";
 }
 
 function lineProblem(json) {
@@ -171,15 +195,16 @@ function harvest(args) {
   const repo = flag(args, "--repo");
   if (!/^\d+$/.test(pr ?? "") || !/^[\w.-]+\/[\w.-]+$/.test(repo ?? "")) fail(2, "usage: insights.mjs harvest --pr <n> --repo <owner>/<name>");
   const root = gitRoot();
-  const trusted = new Set([ownLogin().toLowerCase(), ...listedWriters(root)]);
+  const accounts = trustedAccounts(root);
   for (const c of pages(`repos/${repo}/issues/${pr}/comments`)) {
     const body = String(c.body ?? "");
     const lines = [...body.matchAll(LINE)];
     const opened = body.split(LINE_START).length - 1;
     const login = String(c.user?.login ?? "");
     if (!opened) continue;
-    if (!trusted.has(login.toLowerCase())) {
-      warn(`skipped comment ${c.id} by ${login}: not gh's own login or under [insights] writers`);
+    const untrusted = distrust(accounts, login, c.user?.id);
+    if (untrusted) {
+      warn(`skipped comment ${c.id} by ${login}: ${untrusted}`);
       continue;
     }
     if (opened > lines.length) warn(`skipped ${opened - lines.length} insights line(s) in comment ${c.id} by ${login}: opened but never closed with --> on the same line`);

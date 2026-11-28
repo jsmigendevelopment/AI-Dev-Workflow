@@ -8,9 +8,11 @@ import { spawnSync } from "./child.mjs";
 import { safeEnv, unixOnly } from "./helpers.mjs";
 import { toLine, validate } from "../src/insights-record.mjs";
 import { exceptionReason } from "../../.agents/skills/coordinate/scripts/pr-size.mjs";
-import { JOB, ME, OLD, REPO, REVIEW, SHA, SIZE_LINE, branch, git, json, pathOf, pullOf, put, record, records, run, setup, twoNew } from "./insights-land-fakes.mjs";
+import { JOB, ME, ME_ID, OLD, REPO, REVIEW, SHA, SIZE_LINE, branch, git, json, pathOf, pullOf, put, record, records, run, setup, twoNew } from "./insights-land-fakes.mjs";
 
-const comment = (id, login, body) => ({ id, user: { login }, body });
+// Made-up numeric user IDs (#408): harvest trusts an account by ID, never by login alone.
+const IDS = { [ME]: ME_ID, "review-bot": 2002, "qa-bot": 2003 };
+const comment = (id, login, body) => ({ id, user: { login, id: IDS[login.toLowerCase()] ?? 4000 + id }, body });
 const COMMENTS = "repos/acme/app/issues/40/comments";
 const harvest = (dir, comments) => run(dir, ["harvest", "--pr", "40", "--repo", "acme/app"], { [COMMENTS]: comments });
 const sorted = (list) => list.map((r) => JSON.stringify(r)).sort();
@@ -39,10 +41,10 @@ test("AC-332-1: WHEN a fake gh returns three comments, two with valid insights l
   assert.doesNotMatch(again.stdout, /docs\/insights/);
 });
 
-test("AC-332-1: a login listed under [insights] writers in docs/profile.toml counts, in any case, on one line or many", unixOnly, () => {
+test("AC-332-1: a login and user ID listed under [insights] writers in docs/profile.toml count, in any case, on one line or many", unixOnly, () => {
   const profiles = [
-    '[board]\ndir = "x"\n\n[insights]\nwriters = ["review-bot", "qa-bot"]\n',
-    '[insights]\nwriters = [\n  # the reviewers\n  "review-bot",\n  "qa-bot", # "not-a-writer"\n]\n\n[board]\ndir = "x"\n',
+    '[board]\ndir = "x"\n\n[insights]\nwriters = ["review-bot:2002", "qa-bot:2003"]\n',
+    '[insights]\nwriters = [\n  # the reviewers\n  "review-bot:2002",\n  "qa-bot:2003", # "not-a-writer:4009"\n]\n\n[board]\ndir = "x"\n',
   ];
   for (const profile of profiles) {
     const { dir } = setup();
@@ -254,7 +256,8 @@ test("AC-332-5: WHEN coordinate/SKILL.md is read THEN step 9 names harvest and t
 
 test("#332: the kit marks docs/insights/ generated, so the size rule leaves records out", () => {
   const attrs = readFileSync(join(REPO, ".gitattributes"), "utf8");
-  assert.match(attrs, /^docs\/insights\/\*\* linguist-generated$/m);
+  // Narrowed to record paths in #408: a stray file under docs/insights/ counts toward the size and fails the gate.
+  assert.match(attrs, /^docs\/insights\/\*\/\*\.json linguist-generated$/m);
   const r = spawnSync("git", ["check-attr", "linguist-generated", "--", "docs/insights/2026-11-27/1432-job-40-abcdef.json"], { cwd: REPO, encoding: "utf8", env: safeEnv() });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /linguist-generated: set$/m);
