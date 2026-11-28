@@ -113,7 +113,7 @@ function switchedOn(baseStatements, baseRequires, headStatements) {
     const line = named.get(s.args[0]);
     const old = baseRequires.get(s.args[0]);
     if (line && old.args[1] !== s.args[1]) {
-      return `bumps ${clip(s.args[0])} from ${old.args[1]} to ${s.args[1]}, a path line ${line.n} of the merge base names in a ${line.kind}: ${quoted(text(line))}`;
+      return `bumps ${clip(s.args[0])} from ${clip(old.args[1])} to ${clip(s.args[1])}, a path line ${line.n} of the merge base names in a ${line.kind}: ${quoted(text(line))}`;
     }
   }
   return null;

@@ -276,6 +276,14 @@ test("AC-581-2: WHEN the gate refuses a line THEN the reason quotes at most abou
     "a require twice": { mod: `${MOD_NEW}require github.com/acme/${long} v1.0.0\nrequire github.com/acme/${long} v1.0.0\n` },
     "a line of the merge base that is gone": { base: `${MOD_OLD}replace github.com/acme/other => ../${long}\n` },
     "a replace of a bumped path": { base: `${MOD_OLD}replace github.com/acme/lib v1.3.0 => ../${long}\n`, mod: `${MOD_NEW}replace github.com/acme/lib v1.3.0 => ../${long}\n` },
+    "a long prerelease on a replaced, bumped path": {
+      base: `${MOD_OLD}replace github.com/acme/lib => ../lib\n`,
+      mod: `${swap(MOD_NEW, "v1.3.0", `v1.3.0-${long}`)}replace github.com/acme/lib => ../lib\n`,
+    },
+    "a long version of a replaced path at the merge base": {
+      base: `${swap(MOD_OLD, "v1.2.0", `v1.2.0-${long}`)}replace github.com/acme/lib => ../lib\n`,
+      mod: `${MOD_NEW}replace github.com/acme/lib => ../lib\n`,
+    },
     "a go.sum line": { sum: `${SUM_NEW}github.com/acme/lib v1.3.1 ${h1("x")} ${long}\n` },
     "a go.sum line with a long path": { sum: `${SUM_NEW}github.com/acme/${long} v1.3.1 ${h1("x")} extra\n` },
   };
