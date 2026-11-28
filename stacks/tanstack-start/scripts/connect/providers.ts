@@ -181,7 +181,11 @@ export function parseProviders(files: Array<{ id: string; markdown: string }>): 
     .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
 }
 
-/** The prefixes a group may take: live keys only in production, test keys never there. */
+/**
+ * The prefixes a group may take: live keys only in production, test keys never there. Only the group
+ * named `production` counts as production. No value asked "for every deploy" has a prefix shape today
+ * (a test pins that); one that does needs that group counted as production here.
+ */
 export function prefixesFor(shape: Shape, group: string): string[] | undefined {
   const production = group === 'production'
   return shape.prefix?.filter((p) => (production ? !p.includes('_test_') : !p.includes('_live_')))
