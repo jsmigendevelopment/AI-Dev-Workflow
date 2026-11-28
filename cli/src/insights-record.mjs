@@ -152,6 +152,10 @@ function jobProblems(record, board) {
   return errors;
 }
 
+/** The fields the run line prints (#129). A control character there, a newline above all, could fake a second run line. */
+const PRINTED = ["job", "model", "effort", "model_from"];
+const CONTROL = /[\u0000-\u001f\u007f]/;
+
 /** The problems with a record, each starting with the field's name. An empty list means it is valid. */
 export function validate(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) return ["record: must be an object"];
@@ -167,6 +171,9 @@ export function validate(record) {
     if (e) errors.push(e);
   }
   for (const name of ["model", "effort"]) if (record[name] === undefined) errors.push(`${name}: required (unknown when not known)`);
+  for (const name of PRINTED) {
+    if (typeof record[name] === "string" && CONTROL.test(record[name])) errors.push(`${name}: holds a control character (U+0000 to U+001F or U+007F)`);
+  }
   for (const [name, spec] of Object.entries(kinds)) {
     const e = checkField(name, board ? { ...spec, req: false } : spec, record[name]);
     if (e) errors.push(e);

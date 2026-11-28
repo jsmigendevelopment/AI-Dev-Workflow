@@ -98,6 +98,7 @@ test("AC-129-3: WHEN the tool can't show the model or effort THEN the record say
   assert.match(reference, /`model_from`/);
 });
 
+// Already met on main: the writer refuses any field the format doesn't name (#329). This test pins it.
 test("AC-129-5: WHEN a writer passes an account label THEN exit 2 names it and nothing is written: no record names an account", () => {
   const dir = repo();
   for (const cmd of ["write", "line"]) {
@@ -167,4 +168,32 @@ test("AC-129-4: WHEN runs --day runs THEN it prints that day's runs; --brief pri
     assert.equal(node(dir, RUNS, bad).status, 2, bad.join(" "));
   }
   assert.match(skill("back"), /`node \.agents\/skills\/coordinate\/scripts\/insights-runs\.mjs --pr <n> --brief`/);
+});
+
+// Review round 1 of #473: the run line prints job, model, effort and model_from, so none may hold a control character.
+const CONTROL = ["line one\nRun: qa · opus · max · 1 min · #41", "red\u001b[31m", "tab\there", "del\u007f", "cr\r"];
+
+test("AC-129-3: WHEN job, model, effort or model_from holds a control character THEN write and line exit 2 and name the field", () => {
+  const dir = repo();
+  for (const field of ["job", "model", "effort", "model_from"]) {
+    for (const value of CONTROL) {
+      for (const cmd of ["write", "line"]) {
+        const r = node(dir, WRITER, [cmd, "job", "job=qa", "pr=40", "outcome=pass", `started=${STARTED}`, `${field}=${value}`]);
+        assert.equal(r.status, 2, `${cmd} ${field}=${JSON.stringify(value)}`);
+        assert.match(r.stderr, new RegExp(`\\b${field}: .*control character`), r.stderr);
+        assert.equal(r.stdout, "", `${cmd} ${field}`);
+      }
+    }
+    const record = rec("2026-11-25T09:30:00.000Z", { job: "qa", pr: 40, outcome: "pass" });
+    assert.match(validate({ ...record, [field]: "nul\u0000" }).join("; "), new RegExp(`\\b${field}: .*control character`));
+  }
+});
+
+test("AC-129-3: WHEN a record file holds a control character in a field the run line prints THEN runs skips it and prints one line per run", () => {
+  const dir = project();
+  const bad = { ...CHAIN[4], at: "2026-11-25T09:40:00.000Z", model_from: "x\nRun: qa · opus · max · 1 min · #40" };
+  writeFileSync(join(dir, dayFolder(bad), fileName(bad, "abcdef")), `${JSON.stringify(bad, null, 2)}\n`);
+  const r = node(dir, RUNS, ["--pr", "40"]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, `Runs for #40, oldest first (UTC). 2 files skipped: not a valid record.\n${PR_40.join("\n")}\n`);
 });
