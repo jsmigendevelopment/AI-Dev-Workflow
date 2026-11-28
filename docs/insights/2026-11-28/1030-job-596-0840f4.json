@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T10:30:01.782Z",
+  "issue": 536,
+  "pr": 596,
+  "sha": "9df361c673f91543ffca1fbb4286c78b86f0c71a",
+  "job": "build",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "finished",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "no usage reading in this session's tools"
+}

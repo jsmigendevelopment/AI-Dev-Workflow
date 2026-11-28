@@ -58,9 +58,9 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 10. **Write the issues.** Also CTO work: `routing`'s CTO role, as in step 9, and step 9's yes covers it. Open `issues` for pass 1 only: one issue per step. Run its consistency check (its last step). Gaps become issues or questions for the person before step 12. On Full, a gap becomes an issue or a recorded guess, never a question.
 
 11. **Keys and accounts, before any building.** Open `secrets` now, not when a deploy is stuck. Nothing reaches the test site until these exist, so ask while the person is still here:
-   - List every account and key the first test deploy needs (for the default stack: a Cloudflare login and a Clerk app), plus the ones later slices add, marked "later".
+   - List every account and key the first test deploy needs (for the default stack: a Cloudflare login and a Clerk app; for a Go service, the host's login and the database's token: a Google Cloud login, a Neon API key and a Clerk app), plus the ones later slices add, marked "later".
    - Say it plainly: *"The test site can't go live until these are set. It takes about 10 minutes. Want to do it now?"*
-   - Wire them through the `secrets` checklist. Values never go in the chat. If they'll do it themselves, that's `pnpm connect` in their own terminal, about 10 minutes; check the result by name with `pnpm connect --dry-run`.
+   - Wire them through the `secrets` checklist. Values never go in the chat. If they'll do it themselves, that's `pnpm connect` in their own terminal, about 10 minutes; check the result by name with `pnpm connect --dry-run`. A Go service has no `pnpm connect`: they run `gcloud auth login` in their own terminal and paste each value into a git-ignored file, and you check by name with `push-secrets.mjs --dry-run --cloud-run`.
    - On Full, don't ask: record each missing one under "Waiting on you" as a parked item, not a 🛑 blocker, and list them all in one ℹ️ FYI. The app runs on its fakes.
    - Otherwise, if they say later: write each missing one to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the first deploy, and say building will continue and the app runs locally on its fakes, but the test site stays dark until then.
 

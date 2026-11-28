@@ -45,7 +45,7 @@ const comments = (row) => (row.comments || []).filter(byTrusted);
 const headed = (c, re) => re.test(String(c.body || "").trimStart());
 
 /** The repo owner's login in the issue's link (gh's url, or REST's html_url or API url), lowercased. */
-const repoOwner = (row) => String(row.html_url ?? row.url ?? "").match(/^https:\/\/(?:api\.)?github\.com\/(?:repos\/)?([^/]+)\//i)?.[1].toLowerCase();
+const repoOwner = (row) => String(row.html_url ?? row.url ?? "").match(/^https:\/\/(?:api\.github\.com\/repos|github\.com)\/([^/]+)\//i)?.[1].toLowerCase();
 
 /**
  * Whether the issue's own text is a handoff: labelled `handoff`, or a `Handoff ·` body by one of the repo's people.
