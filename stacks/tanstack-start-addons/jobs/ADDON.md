@@ -86,7 +86,13 @@ With no keys this needs nothing: queues and crons run in local dev too.
    ```jsonc
    "src/lib/jobs.ts": ["exports"],
    ```
-7. `pnpm exec eslint --fix . && pnpm format`: the pack's lint sorts imports, including the ones this add-on added.
+7. Sort the imports this add-on added and format its files, and only its files. Make the Worker's types first: `worker-configuration.d.ts` is git-ignored, so a fresh copy has none until a lint or typecheck runs, and without it the typed rules' fixes misread the code (they drop type assertions that are needed, and typecheck fails). Step 2's `JOBS` queue is in the types it makes.
+   ```sh
+   pnpm cf-typegen &&
+   pnpm exec eslint --fix src/modules/jobs src/lib/jobs.ts src/server.ts src/server/job-queue.ts src/server/jobs.ts src/server/composition.ts &&
+   pnpm exec prettier --write src/modules/jobs src/lib/jobs.ts src/server.ts src/server/job-queue.ts src/server/jobs.ts src/server/composition.ts wrangler.jsonc knip.jsonc
+   ```
+   The `&&` stops the step if the types can't be made. Never `eslint --fix .` here: a whole-project fix can rewrite files this add-on never touched.
 8. `pnpm check`.
 
 To enqueue from a feature: give its service a `queue: JobQueue` dependency (`jobQueue()` in composition, `memoryJobQueue()` in tests), call `queue.send({ id: 'send-receipt/<order id>', type: 'send-receipt', payload: { orderId } })`, and register the handler in `jobsApi()`.
