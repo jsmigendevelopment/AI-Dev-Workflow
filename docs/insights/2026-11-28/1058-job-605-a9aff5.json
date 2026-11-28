@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T10:58:39.062Z",
+  "issue": 453,
+  "pr": 605,
+  "sha": "b45e5bad252dcadf95ad4bdfc05509f2025cc0ee",
+  "job": "build",
+  "tool": "claude-code",
+  "model": "Claude Sonnet 5.5",
+  "effort": "high",
+  "outcome": "finished",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "not shown by this tool"
+}
