@@ -17,7 +17,7 @@ const ASSIGNS = [
   /\b(Fable|Opus|Sonnet)\b/,
   /\bon (the|your|a) strongest (model|tier)\b/i,
   /\bstrongest (model|tier),? (at )?(low|medium|high|extra-high) effort\b/i,
-  /\bStrongest · /,
+  /\b(Strongest|Everyday|Fast) · /,
 ];
 const assignsTier = (text) => ASSIGNS.filter((re) => re.test(text)).map(String);
 const ASK = /Below Full, ask before the strongest tier when `roles\.mjs cto` prints it \(see `routing`\)/;
@@ -28,7 +28,12 @@ test("AC-402-1: WHEN a sentence asks before the strongest tier THEN the ban lets
     "May the planner use your strongest model without asking each time?", "`ask_before_strongest = false`"]) assert.deepEqual(assignsTier(ok), [], ok);
   for (const bad of ["Write the issues on the everyday model.", "`issues` does that next on a cheaper model.", "Everyday model, medium effort.",
     "Run it on the strongest model at high effort.", "This is CTO work: the strongest model, high effort.", "Plan on the fast tier.",
-    "Runs on Opus 5.5.", "**Strongest · high**."]) assert.notDeepEqual(assignsTier(bad), [], bad);
+    "Runs on Opus 5.5.", "**Strongest · high**.", "Write the issues. Everyday · medium.", "Build it. Fast · medium."]) assert.notDeepEqual(assignsTier(bad), [], bad);
+});
+
+// #453 (round 2 review of #452, nice 1): every shape of the Jobs table's "Tier · effort" cell is refused, not only Strongest.
+test("AC-453-2: WHEN a sentence has 'Strongest · ', 'Everyday · ' or 'Fast · ' THEN the ban refuses it", () => {
+  for (const tier of ["Strongest", "Everyday", "Fast"]) assert.notDeepEqual(assignsTier(`Write the issues. ${tier} · medium.`), [], tier);
 });
 
 test("AC-402-1: WHEN issues, pyramid and idea are read THEN none puts writing the issues on the everyday or a cheaper model", () => {
