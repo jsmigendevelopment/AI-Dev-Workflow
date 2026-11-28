@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T06:00:24.292Z",
+  "issue": null,
+  "pr": 543,
+  "sha": "c32b952e9d32ea45f33324b77efc7dcb8cf0dfe0",
+  "job": null,
+  "tool": null,
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 3,
+  "categories": [
+    "tests",
+    "docs"
+  ],
+  "model_from": "session system prompt (the owner's notes say high effort)"
+}
