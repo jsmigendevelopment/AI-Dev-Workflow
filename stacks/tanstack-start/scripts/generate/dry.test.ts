@@ -271,16 +271,29 @@ describe('--dry before or after the words (AC-710-4)', () => {
   })
 })
 
+const LINE_FOR = (flag: string) => `Unknown flag ${flag}. Did you mean --dry?\n`
+
 describe('a mistyped --dry is refused, never ignored (AC-710-6)', () => {
   const LINE = (flag: string) => `Unknown flag ${flag}. Did you mean --dry?\n`
 
+  type Row = [flag: string, where: string, build: (a: string[]) => string[]]
+  const lead = (f: string): Row => [f, 'before the words', (a) => [f, ...a]]
+  const trail = (f: string): Row => [f, 'after the words', (a) => [...a, f]]
+  // Capitals and near-misses: `--DRY` is a typo of `--dry` too, and none may write.
+  const FLAGS = [
+    '--dry-run',
+    '--dry=yes',
+    '--DRY-RUN',
+    '--Dry',
+    '--DRY',
+    '--dryrun',
+    '--dry_run',
+    '--dry-runs',
+  ]
+  const ROWS: Row[] = FLAGS.flatMap((f) => [lead(f), trail(f)])
+
   describe.each(GENERATORS)('$name', ({ script, args, withModule }) => {
-    it.each([
-      ['--dry-run', 'before the words', (a: string[]) => ['--dry-run', ...a]],
-      ['--dry-run', 'after the words', (a: string[]) => [...a, '--dry-run']],
-      ['--dry=yes', 'before the words', (a: string[]) => ['--dry=yes', ...a]],
-      ['--dry=yes', 'after the words', (a: string[]) => [...a, '--dry=yes']],
-    ])('%s %s: one line, nothing written, no tool run', (flag, _where, build) => {
+    it.each(ROWS)('%s %s: one line, nothing written, no tool run', (flag, _where, build) => {
       const dir = scratch(withModule)
       const before = snapshot(dir)
       const run = generate(dir, script, build(args))
@@ -302,5 +315,46 @@ describe('a mistyped --dry is refused, never ignored (AC-710-6)', () => {
     const ok = generate(scratch(false), 'new-module.ts', [MOD, '--dry', '--no-route'])
     expect(ok.status).toBe(0)
     expect(section(ok.stdout, 'Would create').length).toBeGreaterThan(0)
+  })
+})
+
+describe('pnpm routes:generate --dry plans, never rewrites (AC-710-6)', () => {
+  /** A scratch app with one route the tree doesn't list yet, so a real run would rewrite it. */
+  const withNewRoute = () => {
+    const dir = scratch(false)
+    writeFileSync(
+      join(dir, 'src/routes/dry-extra.tsx'),
+      "import { createFileRoute } from '@tanstack/react-router'\n\nexport const Route = createFileRoute('/dry-extra')({\n  component: () => null,\n})\n",
+    )
+    return dir
+  }
+
+  it('plans the route tree edit and writes nothing', () => {
+    const dir = withNewRoute()
+    const before = snapshot(dir)
+    const run = generate(dir, 'routes.ts', ['--dry'])
+    expect(run.stderr).toBe('')
+    expect(run.status).toBe(0)
+    expect(run.stdout).toMatch(/^Dry run: nothing was written\./)
+    expect(section(run.stdout, 'Would edit')).toEqual(['src/routeTree.gen.ts'])
+    expect(snapshot(dir)).toEqual(before)
+    expect(run.pnpmCalls).toBe('')
+  })
+
+  it('without --dry it still regenerates the tree', () => {
+    const dir = withNewRoute()
+    const before = readFileSync(join(dir, 'src/routeTree.gen.ts'), 'utf8')
+    const run = generate(dir, 'routes.ts', [])
+    expect(run.status).toBe(0)
+    expect(readFileSync(join(dir, 'src/routeTree.gen.ts'), 'utf8')).not.toBe(before)
+  })
+
+  it('refuses a mistyped --dry like the other generators', () => {
+    const dir = withNewRoute()
+    const before = snapshot(dir)
+    const run = generate(dir, 'routes.ts', ['--DRY'])
+    expect(run.status).toBe(1)
+    expect(run.stderr).toBe(LINE_FOR('--DRY'))
+    expect(snapshot(dir)).toEqual(before)
   })
 })

@@ -63,7 +63,7 @@ The rules: a module never imports another module, shared code never imports a mo
 
 Names are kebab-case; a module name is plural (`todo-items`). A new page needs its screenshots: `pnpm test:visual --update --docker`.
 
-Add `--dry` to any generator, before or after its words (`pnpm new:module tasks --dry`), to see the plan first: it prints the files it would create, the files it would edit and the tools it would run (ESLint, Prettier, drizzle-kit), and writes nothing. It refuses for the same reasons the real run does. The spelling is `--dry`: `--dry-run` and `--dry=<value>` are refused, so a mistyped dry run never writes.
+Add `--dry` to any generator, before or after its words (`pnpm new:module tasks --dry`), to see the plan first: it prints the files it would create, the files it would edit and the tools it would run (ESLint, Prettier, drizzle-kit), and writes nothing. It refuses for the same reasons the real run does. The spelling is `--dry`: `--dry-run`, `--dryrun`, `--dry_run`, `--dry=<value>` and any capitals (`--DRY`) are refused, so a mistyped dry run never writes. `pnpm routes:generate --dry` lists the route tree it would rewrite.
 
 ## Commands
 

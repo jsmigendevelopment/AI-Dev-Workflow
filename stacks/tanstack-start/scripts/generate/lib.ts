@@ -40,8 +40,10 @@ export function singular(plural: string): string {
 }
 
 // `--dry-run` is the kit CLI's own spelling (`onrails update --dry-run`), so a person may type it
-// here. Refuse it, and any `--dry=<value>`, before anything else: ignored, it would really write.
-const MISTYPED_DRY = process.argv.slice(2).find((a) => /^--dry(-run)?(=|$)/.test(a) && a !== '--dry')
+// here. Refuse it, its near-misses (`--dryrun`, `--dry_run`, `--dry-runs`), any `--dry=<value>` and
+// any other capitals (`--DRY`, `--Dry`) before anything else: ignored, they would really write.
+// Only the exact, lower-case `--dry` plans.
+const MISTYPED_DRY = process.argv.slice(2).find((a) => /^--dry([-_]?runs?)?(=|$)/i.test(a) && a !== '--dry')
 if (MISTYPED_DRY) fail(`Unknown flag ${MISTYPED_DRY}. Did you mean --dry?`)
 
 /** `--dry`: every step below plans instead of acting; `report()` prints the plan. */
