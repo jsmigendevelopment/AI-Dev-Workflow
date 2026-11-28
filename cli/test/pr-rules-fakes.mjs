@@ -20,7 +20,7 @@ export function checkout(attributes = "") {
   const dir = tmp("onrails-rules-");
   git(dir, "init", "-q");
   mkdirSync(join(dir, SCRIPTS), { recursive: true });
-  for (const name of ["pr-rules.mjs", "pr-size.mjs", "agent-files.mjs", "command-for.mjs"]) copyFileSync(source(name), join(dir, SCRIPTS, name));
+  for (const name of ["pr-rules.mjs", "pr-size.mjs", "agent-files.mjs", "command-for.mjs", "insights-land.mjs", "insights-record.mjs"]) copyFileSync(source(name), join(dir, SCRIPTS, name));
   writeFileSync(join(dir, ".gitattributes"), attributes);
   git(dir, "add", "-A");
   git(dir, "commit", "-q", "-m", "main");
@@ -40,11 +40,11 @@ fi
 exec "$REAL_GIT" "$@"
 `;
 
-const listed = (files) => files.map(([filename, additions, deletions, previous_filename]) => ({ filename, additions, deletions, ...(previous_filename ? { status: "renamed", previous_filename } : {}) }));
+const listed = (files) => files.map(([filename, additions, deletions, previous_filename, status]) => ({ filename, additions, deletions, ...(previous_filename ? { status: "renamed", previous_filename } : status ? { status } : {}) }));
 const total = (files, i) => files.reduce((sum, f) => sum + f[i], 0);
 
 /** Runs main's pr-rules.mjs on pull request 9: from `branch`, with `body`, `labels` and the files changed ([name,
- * additions, deletions, old name of a rename]). `changed`, `additions` and `deletions` are GitHub's totals, from the
+ * additions, deletions, old name of a rename, status]). `changed`, `additions` and `deletions` are GitHub's totals, from the
  * list by default. `again` changes the answers from the second read on ({ pull, files }). `env` adds variables, and
  * `api` adds fake gh answers. `logGit` puts the fake git first on PATH; `gitCalls()` reads its log. `ignorecase` puts it there too, and makes its
  * `init` set core.ignorecase=true. */
