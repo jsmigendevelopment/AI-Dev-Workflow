@@ -10,6 +10,10 @@ You did not write this code. Judge only the **issue, the diff and the check resu
 - Then diff the head against current main as well as the merge base: `git fetch origin main && git diff origin/main <head>`. A head cut from a stale checkout can quietly undo main. Flag anything main has that the head removes, unless the issue asks for it: a must fix.
 - **Don't read the pull request description or the commit messages.** Persuasive descriptions make reviewers miss real problems.
 
+**Started by the person in the live thread** (the thread they talk to, rule 17 in `AGENTS.md`)? Don't review there. Start a background sub-agent briefed *"Use the `pr-review` skill on #<n>."*, say so in one line, end the turn, and pass the verdict on when it reports back.
+
+**Your brief came from another thread?** Never hand your own job down again: do it yourself, and start a sub-agent only where a step below says to.
+
 ## Check
 
 1. **Every `auto` acceptance check has a test whose title carries its ID.** Search the diff for each `AC-<issue>-<n>`. A missing ID, or a test that doesn't prove its check, is a must fix. Each test would fail without the change. The local checks passed on the head commit (`coordinate`, step 6.1). Workflow results don't count.

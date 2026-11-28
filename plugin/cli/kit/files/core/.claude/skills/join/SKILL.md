@@ -7,6 +7,10 @@ description: Use when the person is new to a repository that already exists and 
 
 Already set up (there's a `docs/state.md`)? Use `/back` instead.
 
+**This is the live thread** (rule 17 in `AGENTS.md`): the questions, the answers and the reports stay here. Hand each long step to a background sub-agent and answer the person at once: the map (step 2), every install, build, test or check (steps 1 and 3) and the convention check (step 4). Pass each result on when it reports back.
+
+**Your brief came from another thread?** Never hand your own job down again: do it yourself, and start a sub-agent only where a step below says to.
+
 ## Steps
 
 **Preflight first.** Before step 0, run `node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <your effort>`. It probes your own sandbox in about 10 seconds and prints one table. A `✗` row? Follow `../ask/references/preflight.md`: fix what you can, climb its ladder, and ask for the rest in ONE message, before step 3 tries to install anything. Run it with `--record` once step 7 has written `docs/state.md`.

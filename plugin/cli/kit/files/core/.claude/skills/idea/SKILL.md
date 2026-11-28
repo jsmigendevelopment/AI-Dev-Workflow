@@ -9,6 +9,10 @@ Run the steps in order. Don't write app code before step 10 unless the person sa
 
 **One prompt on Full automation.** The person gave the pitch with `/idea "<pitch>"`, and the level is Full (they said so, or the profile's `[defaults] automation = "full"`)? Ask nothing, from step 0 to the loop. Use auto grill. Say the level and the grill in one line, then run every step. Each step's "On Full" line says what replaces the person's answer. Every other level asks as written.
 
+**This is the live thread** (rule 17 in `AGENTS.md`): the questions, the answers and the reports stay here. Hand each long step to a background sub-agent and answer the person at once: the scan and the wireframes (step 2), the repo (step 5), the plan and the issues (steps 9 and 10), and any install, scaffold or check. Pass each result on when it reports back. One prompt on Full? Hand the whole kickoff to one background sub-agent briefed with the pitch.
+
+**Your brief came from another thread?** Never hand your own job down again: do it yourself, and start a sub-agent only where a step below says to.
+
 **Preflight first.** Before step 0, run `node .agents/skills/ask/scripts/preflight.mjs --model <your model> --effort <your effort>`. It probes your own sandbox in about 10 seconds and prints one table. A `✗` row? Follow `../ask/references/preflight.md`: fix what you can, climb its ladder, and ask for the rest in ONE message. Installs blocked? The kickoff goes on, but nothing is scaffolded until they work.
 
 **Each step names the skill to open.** Open it before the step, even if you think you know what it says. If your tool doesn't load it by name, read `../<skill>/SKILL.md` from this folder.
