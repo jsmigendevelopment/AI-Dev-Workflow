@@ -4,10 +4,10 @@
 // and a fix could drop a needed type assertion from a staged file. The hook now makes the types first.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "./child.mjs";
 import { fake, nodeOnly, read, safeEnv, tmp, unixOnly } from "./helpers.mjs";
 
 const PACK = fileURLToPath(new URL("../../stacks/tanstack-start/", import.meta.url));
