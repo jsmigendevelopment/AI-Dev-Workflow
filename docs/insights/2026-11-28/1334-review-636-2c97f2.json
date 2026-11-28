@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T13:34:38.115Z",
+  "issue": null,
+  "pr": 636,
+  "sha": "3df92e9fa5be53914ea8d8ea59c7b673d8d5cc1e",
+  "job": "carry-review",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 2,
+  "categories": [
+    "bugs"
+  ],
+  "model_from": "the session system prompt names the model; effort is not shown"
+}
