@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T02:08:53.270Z",
+  "issue": null,
+  "pr": 463,
+  "sha": "0eb424788e3b30d8cceed47f5ae29da42de8d36c",
+  "job": "carry-review",
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 3,
+  "categories": [
+    "wording"
+  ]
+}
