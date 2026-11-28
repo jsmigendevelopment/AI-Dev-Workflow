@@ -1,0 +1,53 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T00:10:08.995Z",
+  "issue": null,
+  "pr": 438,
+  "sha": "75f85621f609b6024ee3e735153a6fe80dee1590",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cd cli && npm run bundle",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cd cli && npm test",
+      "result": "pass",
+      "seconds": 56
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 54
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0
+    }
+  ],
+  "state": "success",
+  "failed_step": null,
+  "flaky_rerun": false,
+  "fence": "Fence: none (reviewer ran the checks in a temp clone with a safe PATH and fake claude, codex and gh, not through fence.mjs)"
+}
