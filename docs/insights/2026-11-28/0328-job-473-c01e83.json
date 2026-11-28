@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T03:28:19.739Z",
+  "issue": null,
+  "pr": 473,
+  "sha": "9616ee74f077462959697312bc253c0cb51be08e",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "unknown",
+  "outcome": "pass",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "not shown in this session"
+}
