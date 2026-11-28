@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T07:41:39.581Z",
+  "issue": 415,
+  "pr": 549,
+  "sha": "bd656c51629b7c96ceed3a0cabe6f72df3570b1f",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "pass",
+  "started": "2026-11-28T07:37:00Z"
+}
