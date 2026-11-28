@@ -32,7 +32,7 @@ Reply with this, and nothing else. Under 40 lines.
 Consistency check · pass <N> · <date> · <k> issues read
 Clean: <yes | no>
 
-1. [<check number>] <what's wrong, with issue numbers and the doc line> → <new issue | fix #<n> | ask the person>
+1. [<check number>] <what's wrong, with issue numbers and the doc line> → <new issue | fix #<n> | ask the person (on Full: decide it)>
 2. ...
 ```
 

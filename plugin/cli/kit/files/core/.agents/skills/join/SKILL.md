@@ -46,7 +46,7 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
      |---|---|---|---|
      | State | Redux for everything | local, then the URL, then Zustand | keep theirs for now; new modules use ours |
 
-   - The person picks per row: **keep theirs, adopt ours, or merge.** Three rows a round, each with your recommendation.
+   - The person picks per row: **keep theirs, adopt ours, or merge.** Three rows a round, each with your recommendation. On Full, take your recommendation for every row and record it as "AI pick, not reviewed".
    - Write each answer to `docs/decisions.md` and to "Conventions this repo keeps" in `docs/architecture.md`.
    - For an area the repo doesn't cover yet (forms, data grids, charts, Markdown, code highlighting, long lists, keyboard shortcuts), the kit's TanStack default (the `stack` skill's table) is the pick to confirm, not a question. A library the repo already uses for that area is a clash row like any other.
    - **Never silently switch a repo to the kit's conventions.** "Adopt ours" means an issue for the move, not a quiet rewrite.
@@ -79,10 +79,10 @@ Already set up (there's a `docs/state.md`)? Use `/back` instead.
    - Keep it short. Long generated instruction files cost more and don't help.
    - Show the person the diff before you commit.
 
-9. **Keys and accounts.** Before any building, open `secrets`: check which keys the test deploy needs and which are missing (by name only), and offer to wire the missing ones now, or, if `package.json` has a `connect` script, let the person run `pnpm connect` in their own terminal (`pnpm connect --dry-run` shows what's set, by name). A Go service (a `go.mod`, on Cloud Run) has no `pnpm connect`: the person signs in with `gcloud auth login` in their own terminal and pastes each value into a git-ignored file, and `push-secrets.mjs --dry-run --cloud-run` shows what's missing, by name. Missing ones go to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the deploy.
-   - **Other accounts?** Ask once whether the person uses more than one Claude or Codex account, and which projects or jobs belong to each. On a yes, give one "Setup step for you" per account to sign it in from their terminal, then write `[accounts]` in the profile. `routing`'s `references/accounts.md` has the questions, the verified commands and the rule: a fixed split, never by usage.
+9. **Keys and accounts.** Before any building, open `secrets`: check which keys the test deploy needs and which are missing (by name only), and offer to wire the missing ones now, or, if `package.json` has a `connect` script, let the person run `pnpm connect` in their own terminal (`pnpm connect --dry-run` shows what's set, by name). A Go service (a `go.mod`, on Cloud Run) has no `pnpm connect`: the person signs in with `gcloud auth login` in their own terminal and pastes each value into a git-ignored file, and `push-secrets.mjs --dry-run --cloud-run` shows what's missing, by name. Missing ones go to "Waiting on you" in `docs/state.md` as a 🛑 blocker for the deploy. On Full, don't offer: run "Keys on Full" in `secrets` for each missing key, and park what only the person can do (a sign-in, a paste).
+   - **Other accounts?** Ask once whether the person uses more than one Claude or Codex account, and which projects or jobs belong to each. On a yes, give one "Setup step for you" per account to sign it in from their terminal, then write `[accounts]` in the profile. `routing`'s `references/accounts.md` has the questions, the verified commands and the rule: a fixed split, never by usage. On Full, don't ask: use `[accounts]` from the profile, or none, and say which in the FYI.
 
-10. **Hand off.** In under 10 lines: what you learned, what surprised you, and the three things you'd fix or build first. Then ask what they want to work on, and open `issues` for it. New screens? Run `wireframes` for them, both stages, and get the approval first.
+10. **Hand off.** In under 10 lines: what you learned, what surprised you, and the three things you'd fix or build first. Then ask what they want to work on, and open `issues` for it. New screens? Run `wireframes` for them, both stages, and get the approval first. On Full, don't ask: build the three things you named, in order, through `issues`, and record the pick as "AI pick, not reviewed". `wireframes`' approval row is an AI pick too.
 
 ## Done when
 

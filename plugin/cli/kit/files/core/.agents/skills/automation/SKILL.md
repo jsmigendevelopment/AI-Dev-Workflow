@@ -1,6 +1,6 @@
 ---
 name: automation
-description: Use when the person wants to change how much the agents do on their own ("/automation", "switch to recommended", "go full auto", "hands-on mode", "stop merging without me", "let the agents merge", "turn off the overnight loop") - shows the four levels in one short table, asks which one, sets the custom switches for the loop, merges per lane, pull requests, overnight runs and the ping level, and writes the choice to docs/stack.md.
+description: Use when the person wants to change how much the agents do on their own ("/automation", "switch to recommended", "go full auto", "hands-on mode", "stop merging without me", "let the agents merge", "turn off the overnight loop") - shows the four levels in one short table, takes the pick, sets the custom switches for the loop, merges per lane, pull requests, overnight runs and the ping level, and writes the choice to docs/stack.md.
 ---
 
 # Automation: how much the agents do on their own
@@ -40,7 +40,7 @@ Ping levels: **decisions** pings blockers at once and batches decisions. **block
 
 ## Full automation: one prompt
 
-When the person picks Full, say exactly: *"Type your idea once. Agents decide everything else and keep going. You take on the risk of what they do. You can steer any time."*
+When Full is picked, say exactly: *"Type your idea once. Agents decide everything else and keep going. You take on the risk of what they do. You can steer any time."*
 
 On Full, `/idea "<pitch>"` runs the whole kickoff with no person step:
 
@@ -58,11 +58,11 @@ Recommended and Hands-on keep every wait: the review and the wireframe approval.
 ## Steps
 
 1. **Read the current level** from "Automation level" in `docs/stack.md`. No section yet? The default is `[defaults] automation` in the profile, else Recommended.
-2. **Show the four-level table,** then ask which one, with your pick first. Full picked? Say the line under "Full automation: one prompt". Recommend:
+2. **Show the four-level table,** then ask which one, with your pick first. On Full, ask nothing: set the level the person named, or keep the current one and put the table in the FYI. Full picked? Say the line under "Full automation: one prompt". Recommend:
    - **Recommended** for most apps;
    - **Hands-on** if the person wants to learn the code or review everything;
    - **Full** only for a side project with no real users.
-3. **Custom?** Ask the switches three at a time, each with the Recommended value as the suggestion.
+3. **Custom?** Ask the switches three at a time, each with the Recommended value as the suggestion. On Full, take the Recommended value for every switch the person didn't name, and list each in the FYI as "AI pick, not reviewed".
 4. **Write it** to the "Automation level" section of `docs/stack.md` (the section is in `templates/stack.md` of the `idea` skill). Fill in every switch, even for a named level. Add a line to `docs/decisions.md`. A background sub-agent opens the pull request (rule 17); don't wait for it.
 5. **Tell the loop.** The coordinator reads `docs/stack.md` on every sweep, so nothing else is needed. Say what changes from now on, in two lines.
 
@@ -76,7 +76,7 @@ Recommended and Hands-on keep every wait: the review and the wireframe approval.
 
 | File | Load when |
 |---|---|
-| `references/full.md` | The level is Full, and a skill says to ask, wait, confirm, offer or wait for a yes; or a pull request changes agent rules or check code. |
+| `references/full.md` | On Full, when a skill says to ask, wait, confirm, offer or wait for a yes; or a pull request changes agent rules or check code. |
 
 ## Who reads it
 

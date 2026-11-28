@@ -46,7 +46,7 @@ Done when the checks pass and the pull request is open, or step 1 or 3 refused a
 
 ## No library yet
 
-Offer once, the first time a capture would run:
+Below Full, offer once, the first time a capture would run. On Full, don't offer: `research` step 9 skips the capture.
 
 > *"Want a private research library? Every deep research from every project would land there as a pull request you merge, so nothing is lost when a project ends. I'd make a private GitHub repo from the onRails template. (Recommended: yes.)"*
 

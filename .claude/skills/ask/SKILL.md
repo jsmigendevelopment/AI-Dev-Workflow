@@ -71,7 +71,7 @@ Stopping a run throws away the work it already paid for. Restarting pays for it 
 
   If you don't answer: it finishes, and nothing acts on its result until you say.
   ```
-- **A run in another thread or tool** (another session, a Codex cloud task, a chat in the browser): never stop it blind. Reach that thread first, by every route: session messaging (list the sessions, then message the one that owns it), a comment on the issue or pull request it watches, and the connected browser extension (open its tab and read its status). Relay the message, or check what the run is doing. Ask the person only when every route fails, and list them under `Tried:`.
+- **A run in another thread or tool** (another session, a Codex cloud task, a chat in the browser): never stop it blind. Reach that thread first, by every route: session messaging (list the sessions, then message the one that owns it), a comment on the issue or pull request it watches, and the connected browser extension (open its tab and read its status). Relay the message, or check what the run is doing. Below Full, ask the person only when every route fails, and list them under `Tried:`. On Full, don't ask: let the run finish and put the `Tried:` list in the FYI.
 - **Before a restart,** look for output you can reuse: the transcript, its files, its branch, a partial result. Say what the restart costs and what it reuses. Restarting a strongest-tier run is the person's call.
 
 **Done when** no strongest-tier run was stopped or restarted without the person's words, and your reply says what keeps running.

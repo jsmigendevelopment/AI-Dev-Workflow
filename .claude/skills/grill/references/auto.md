@@ -12,7 +12,7 @@ The self-grill makes every early decision. Before it starts, recommend a stronge
 
 ## 2. Ask the seed questions, and nothing else
 
-These four only the person can answer. Ask them in one round, open, with no suggestion (taste, scope and money get the open question first):
+These four only the person can answer. Below Full, ask them in one round, open, with no suggestion (taste, scope and money get the open question first). On Full, ask nothing: the paragraph after the list says what to do.
 
 1. What is it, in your words? (The pitch from `/idea` step 1 counts. Don't ask it twice.)
 2. Who is it for?

@@ -13,7 +13,7 @@ How to set up a vendor's own agent tools (its CLI, skills, MCP server, wizard or
 | [`supabase.md`](supabase.md) | the `supabase` CLI and Supabase's agent plugin | `database-supabase` add-on |
 | [`sentry.md`](sentry.md) | Sentry's agent handoff and agent guide | `sentry` add-on |
 | [`resend.md`](resend.md) | Resend's AI onboarding, docs and MCP servers | `email-resend` add-on |
-| [`posthog.md`](posthog.md) | the PostHog wizard | only if the person picks PostHog over the `analytics` add-on |
+| [`posthog.md`](posthog.md) | the PostHog wizard | only if the person chooses PostHog over the `analytics` add-on |
 
 ## Rules for every recipe
 
