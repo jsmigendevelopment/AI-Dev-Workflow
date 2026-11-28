@@ -1,13 +1,13 @@
 ---
 name: issues
-description: Use to turn a plan, the current pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - one issue per step, each with a try line, WHEN/THEN acceptance checks that carry IDs, tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, a complexity score, a size under 1,000 changed lines, priority and the skills to load, then a read-only consistency check. Runs on the everyday model from the CTO's plan.
+description: Use to turn a plan, the current pyramid pass, feedback or a bug into issues an agent can build alone ("write the issues", "turn this into tickets", "I tried the app, here's my feedback", "file a bug") - one issue per step, each with a try line, WHEN/THEN acceptance checks that carry IDs, tagged auto or agent, an out-of-scope fence, dependencies, modules touched, risk flags and lane, a complexity score, a size under 1,000 changed lines, priority and the skills to load, then a read-only consistency check. Written by `routing`'s CTO role, from its own plan.
 ---
 
 # Issues: the contract between the plan and every agent after it
 
 A builder knows only what the issue says, plus `AGENTS.md` and `docs/design.md`. Whatever the issue leaves unsaid, the builder will guess.
 
-Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) on the everyday model at medium effort. The design decisions are already made, so don't redesign here. If the plan has a gap, it's a ⏳ decision: write the issues you can, and use the `ask` skill for the gap. A gap in the MVP core is a 🛑 blocker.
+Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) as `routing`'s CTO role: `node .agents/skills/routing/scripts/roles.mjs cto` prints its model and effort, and the profile wins. Below Full, ask first unless the profile sets `ask_before_strongest = false` (see `routing`). A yes covers every CTO job in the session, so the yes given for `pyramid` covers this too. The design decisions are already made, so don't redesign here. If the plan has a gap, it's a ⏳ decision: write the issues you can, and use the `ask` skill for the gap. A gap in the MVP core is a 🛑 blocker.
 
 **On Full automation,** the CTO decides every gap instead: a plan gap, an MVP-core gap, a `[NEEDS CLARIFICATION]` marker and a consistency-check gap. Record each as "AI pick, not reviewed" in `docs/decisions.md`, write the issue, and list them in one ℹ️ FYI.
 

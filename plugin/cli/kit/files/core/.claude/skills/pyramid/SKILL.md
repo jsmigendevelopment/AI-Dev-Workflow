@@ -5,7 +5,7 @@ description: Use when planning how to build an app or a big feature, or checking
 
 # Pyramid: see it working early, then make it great
 
-This is CTO work. Run it on the strongest model at high effort. Below Full, ask first, once per session, unless the profile says not to or the person already said yes (see `routing`). A session that can't switch models says so once and plans on the model it has. On Full automation: use the current model, record it in `docs/decisions.md`, and don't ask. It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next on a cheaper model.
+This is CTO work. Run it as `routing`'s CTO role: `node .agents/skills/routing/scripts/roles.mjs cto` prints its model and effort, and the profile wins. Below Full, ask first, once per session, unless the profile says not to or the person already said yes (see `routing`). A yes covers every CTO job in the session. A session that can't switch models says so once and plans on the model it has. On Full automation: use the current model, record it in `docs/decisions.md`, and don't ask. It plans and designs. It doesn't redraw screens; `wireframes` did, and the person approved them. It doesn't write issues; `issues` does that next, also as the CTO role.
 
 ## Why
 
