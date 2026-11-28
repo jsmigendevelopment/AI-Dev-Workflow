@@ -1,0 +1,53 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T08:32:25.441Z",
+  "issue": null,
+  "pr": 553,
+  "sha": "848640e59dc4fe98ad0ad116203bc078c18deca2",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "fence": "Fence: pass, the merge of main into the branch changes nothing else in the issue's fence.",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "npm run bundle && npm test (cli)",
+      "result": "pass",
+      "seconds": 90
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 99
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 2
+    },
+    {
+      "name": "pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "pr-rules.mjs",
+      "result": "pass",
+      "seconds": 2
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}
