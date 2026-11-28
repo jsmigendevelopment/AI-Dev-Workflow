@@ -3,13 +3,18 @@
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync } from "node:fs";
 import { basename, isAbsolute, join, relative, sep } from "node:path";
 
-// Rule 9: .env and its siblings (.env.local, .env-local, .envrc, .envrc.private) are never opened. .env.example is the
-// one that may be, for its variable names.
-const ENV_FILE = /(^|\/)\.env(rc)?([.-][^/]*)?$/;
+// Rule 9: .env and its siblings are never opened: .env.local, .env-local, .env_local, .envrc, .envrc.private, prod.env,
+// any case (.ENV, .Envrc, for a case-blind file system), and anything inside a folder named so (.env.d/, .envrc.d/).
+// .env.example is the one that may be, for its variable names.
+const ENV_NAME = /^\.env(rc)?([._-].*)?$|^.+\.env(rc)?$/i;
 export const ENV_EXAMPLE = ".env.example";
 const MAX_SCAN = 1024 * 1024;
 
-const isEnvFile = (path) => ENV_FILE.test(path.replaceAll(sep, "/")) && basename(path) !== ENV_EXAMPLE;
+// A relative path is an env file when any of its parts is named so, except the file .env.example itself.
+const isEnvFile = (path) => {
+  const parts = path.replaceAll(sep, "/").split("/");
+  return parts.some((part, i) => ENV_NAME.test(part) && !(i === parts.length - 1 && part === ENV_EXAMPLE));
+};
 
 const inside = (root, path) => {
   const rel = relative(root, path);
@@ -27,7 +32,10 @@ export function reader(root, { anywhere = false } = {}) {
   const locate = (path) => {
     if (isEnvFile(path)) return null;
     const real = realpathSync(join(top, path));
-    return (anywhere || inside(top, real)) && !isEnvFile(real) ? real : null;
+    // Only the part under root counts: a project that lives in a folder such as ~/prod.env/ still reads. A target
+    // outside root (the person's own profile) is judged by its own name.
+    const within = inside(top, real);
+    return (anywhere || within) && !isEnvFile(within ? relative(top, real) : basename(real)) ? real : null;
   };
   const text = (path) => {
     try {
