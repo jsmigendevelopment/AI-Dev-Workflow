@@ -1,4 +1,4 @@
-// One deploy of each kind at a time, as the old workflows' concurrency groups did: two test deploys
+// One deploy of each kind at a time, as the removed workflows' concurrency groups did: two test deploys
 // at once would race their migrations and rollbacks. The lock is a file in git's common folder, so
 // every worktree of this clone sees it. It holds the PID and the start time; a lock whose process
 // has ended is taken over. Other clones and machines don't see it.

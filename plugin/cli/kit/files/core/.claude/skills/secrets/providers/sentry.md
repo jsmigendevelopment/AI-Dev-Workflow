@@ -69,7 +69,7 @@ Sentry publishes a guide for agents. Its route, in order: the `sentry` CLI (`sen
 3. Put the DSN where the add-on reads it: a Worker secret for the server, and `VITE_SENTRY_DSN` in `.env.local` for the browser build. On `ci = "actions"` only, also a GitHub variable:
    ```bash
    pnpm exec wrangler secret put SENTRY_DSN --env test
-   gh variable set SENTRY_DSN --env test
+   gh variable set SENTRY_DSN --env test   # ci = "actions" only
    ```
    (and again with `--env production`). `[V]` for the add-on's steps.
 4. Make an **Organization Token** for source maps: `https://sentry.io/orgredirect/organizations/:orgslug/settings/auth-tokens/` (**Settings → Developer Settings → Organization Tokens**). It's shown once. `[V]` Paste it into `pnpm connect`: it goes to `.env.sentry.local`, and on `ci = "actions"` only also to the GitHub secrets:

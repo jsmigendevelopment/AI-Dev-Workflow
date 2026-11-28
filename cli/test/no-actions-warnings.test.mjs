@@ -61,7 +61,7 @@ test("#133: preflight warns under its table about workflow files, before the rea
   const sys = fakeSys({ answers: { ...HEALTHY, [PERMS]: { ok: true, out: ON } } });
   const report = await probe(dir, sys);
   assert.equal(report.read, false);
-  assert.deepEqual(report.warnings, ['1 workflow file(s) in .github/workflows/, on ci = "local". Fix: `npx onrails ci local` removes them in a pull request and turns Actions off.']);
+  assert.deepEqual(report.warnings, ['1 workflow file(s) in .github/workflows/ on ci = "local". Fix: `npx onrails ci local` removes them in a pull request and turns Actions off.']);
   assert.equal(sys.calls.filter((c) => c.includes("actions/permissions")).length, 0, "GitHub is asked only after the read");
   assert.equal(report.ok, true, "a warning doesn't fail preflight");
   const text = render(report);
@@ -73,7 +73,7 @@ test("#133: after the read, preflight also warns when Actions is on, asking GitH
   const dir = readProject({ "package.json": "{}" });
   const sys = fakeSys({ answers: { ...HEALTHY, [PERMS]: { ok: true, out: ON } } });
   const report = await probe(dir, sys);
-  assert.deepEqual(report.warnings, ['GitHub Actions is on for acme/app, on ci = "local". Fix: `npx onrails ci local` turns it off.']);
+  assert.deepEqual(report.warnings, ['GitHub Actions is on for acme/app on ci = "local". Fix: `npx onrails ci local` turns it off.']);
   assert.equal(sys.runs.find((r) => r.line === PERMS).cwd, dir);
   const off = fakeSys({ answers: { ...HEALTHY, [PERMS]: { ok: true, out: OFF } } });
   assert.deepEqual((await probe(dir, off)).warnings, []);

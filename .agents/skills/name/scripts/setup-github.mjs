@@ -20,10 +20,10 @@
 // Main requires at most the `onrails/check` commit status, which the local merge gate posts, never a
 // GitHub Actions check (required-checks.mjs says why). It first posts one probe status: if GitHub
 // refuses it here, main requires no status, and the output says why. Run this again on a repo that
-// used the old workflows: it swaps their checks for `onrails/check` in the rule it made, or drops
+// used the removed workflows: it swaps their checks for `onrails/check` in the rule it made, or drops
 // them all when statuses can't be posted, so no rule waits on a check nothing can post.
-// Environments, the production reviewer and SECRETS_MODE exist only for GitHub Actions: it makes
-// them only when docs/stack.md says ci = "actions". On ci = "local" (every repo, unless the person
+// Environments, the production reviewer and SECRETS_MODE exist only for ci = "actions", so it makes
+// them only when docs/stack.md says so. On ci = "local" (every repo, unless the person
 // turned Actions on) the session deploys read nothing from GitHub, so it skips them and says why.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -142,7 +142,7 @@ const ACTIONS = ciFromStack() === "actions";
 const ANY = { min: "free", label: "any plan" };
 const TEAM = { min: "team", label: "public repo, or Team if private" };
 const ENTERPRISE = { min: "enterprise", label: "public repo, or Enterprise if private" };
-// Steps that only GitHub Actions reads: skipped on ci = "local".
+// Steps only ci = "actions" needs: skipped on ci = "local".
 const forActions = (needs) => ({ ...needs, actions: true });
 // Secret Protection is a paid add-on for Team and Enterprise. The plan alone can't say if it's on.
 const SECRET_PROTECTION = { min: "team", label: "public repo, or the Secret Protection add-on if private" };
@@ -165,7 +165,7 @@ async function step(name, needs, fn, plan = "") {
 
 console.log(`${DRY ? "Dry run for" : "Setting up"} ${repo} (${visibility}), as ${me.login}, on the ${PLAN} plan (from ${chosen.from})\n`);
 
-// 1. Labels the workflow uses.
+// 1. Labels the onRails workflow uses.
 const labels = [
   ["priority:p0", "b60205"], ["priority:p1", "d93f0b"], ["priority:p2", "fbca04"], ["priority:p3", "c5def5"],
   ["pass:1", "1d76db"], ["pass:2", "5319e7"], ["pass:3", "8b5cf6"],

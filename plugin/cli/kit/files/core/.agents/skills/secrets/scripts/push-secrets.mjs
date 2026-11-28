@@ -14,7 +14,7 @@
 // .env.production.local go.
 // GitHub Free has no environments on a private repo. There setup-github sets the repository
 // variable SECRETS_MODE to "repository", and this pushes repository secrets and variables named
-// TEST_<name> and PRODUCTION_<name> instead: the names the pack's workflows read in that mode.
+// TEST_<name> and PRODUCTION_<name> instead: the names a workflow reads on ci = "actions".
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
