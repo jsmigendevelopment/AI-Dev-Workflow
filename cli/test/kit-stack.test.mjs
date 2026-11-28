@@ -66,3 +66,13 @@ test("AC-360-3: WHEN pr-review is read THEN, where docs/stack.md says so, as in 
   assert.match(skill, /\*\*`docs\/stack\.md` says the one code review writes the weakening line\*\* \(the kit's own repo, decision 28\)/);
   assert.match(skill, /`Weakening review: pass @ <full head sha>`/);
 });
+
+test("AC-474-1: WHEN the Weakening review bullet in docs/stack.md is read THEN the one code review writes the line on every pull request, not only on a protected-file one", () => {
+  const bullet = (stack() ?? "").split("\n").find((line) => line.startsWith("- **Weakening review:**")) ?? "";
+  assert.match(bullet, /the one code review writes the `Weakening review:` line in its verdict comment/);
+  assert.match(bullet, /on every pull request/);
+  assert.doesNotMatch(bullet, /On a pull request that changes a file the guard protects/);
+  assert.match(bullet, /`Weakening review: pass @ <full head sha>`/);
+  assert.match(bullet, /`Weakening review: fail @ <sha>`/);
+  assert.match(bullet, /The guard reads only that line on Full/);
+});
