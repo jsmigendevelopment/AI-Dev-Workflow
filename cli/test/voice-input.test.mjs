@@ -83,6 +83,10 @@ test("AC-457-1: WHEN [me] input is in a form the script can't edit THEN it says 
   const shapes = {
     "dotted me.input": 'me.input = "typing"\n[defaults]\nautomation = "full"\n',
     "a [[me]] table": '[[me]]\nname = "Ada"\n',
+    "AC-587-1: a quoted [ \"me\" ] table": '[ "me" ]\nname = "Ada"\n',
+    "AC-587-1: a single-quoted [ 'me' ] table": "[ 'me' ]\nname = \"Ada\"\n",
+    "AC-587-1: a quoted table with a comment": '["me"]  # mine\nname = "Ada"\n',
+    "AC-587-1: a quoted header after a [me] with input": '[me]\ninput = "typing"\n\n[ "me" ]\nname = "Ada"\n',
     "an inline me table": 'me = { input = "typing" }\n',
     "a quoted key": '[me]\n"input" = "typing"\n',
     "a multi-line string": '[me]\ninput = """typing"""\n',
@@ -97,6 +101,16 @@ test("AC-457-1: WHEN [me] input is in a form the script can't edit THEN it says 
     assert.match(r.err, /by hand/, name);
     assert.doesNotMatch(r.err, /at .*\.mjs:\d+/, `${name}: no stack trace`);
     assert.equal(read(home, ".onrails/profile.toml"), toml, `${name}: file untouched`);
+  }
+});
+
+test("AC-587-1: WHEN a quoted header names another table (\"mex\", \"me.x\") THEN it is not [me], and the input is still saved", () => {
+  for (const header of ['["mex"]', '["me.x"]', "[ 'mex' ]"]) {
+    const home = tmp();
+    put(home, ".onrails/profile.toml", `${header}\nname = "Ada"\n`);
+    const r = voice(["input", "voice"], { home });
+    assert.equal(r.code, 0, header);
+    assert.equal(read(home, ".onrails/profile.toml"), `${header}\nname = "Ada"\n\n[me]\ninput = "voice"\n`, header);
   }
 });
 

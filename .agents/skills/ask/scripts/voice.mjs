@@ -15,6 +15,8 @@ const HEADER = /^\s*\[([^\]]+)\]\s*(#.*)?$/;
 const INPUT_LINE = /^(\s*input\s*=\s*)(?:"([^"\n]*)"|'([^'\n]*)')(\s*(?:#.*)?\s*)$/;
 // Forms of [me] input that a one-line edit would turn into invalid TOML: `[[me]]`, a root `me.input` or `me = {...}`, a quoted `"input"` key.
 const ARRAY_ME = /^\s*\[\[\s*["']?me["']?\s*[.\]]/;
+// A quoted single-table header, `[ "me" ]` or `[ 'me' ]`: the same table as `[me]`, so a second `[me]` would declare it twice.
+const QUOTED_ME = /^\s*\[\s*(?:"me"|'me')\s*\]\s*(?:#.*)?$/;
 const ROOT_ME = /^\s*["']?me["']?\s*[.=]/;
 const OTHER_INPUT = /^\s*["']?input["']?\s*[=.]/;
 const GLOSSARY_LINE = /^\s*"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"\s*(?:#.*)?$/;
@@ -56,6 +58,8 @@ function inputOf(toml) {
  */
 function withInput(toml, value) {
   const lines = toml.split("\n");
+  // Anywhere in the file, even after a `[me]` that would take the edit: both headers name one table.
+  if (lines.some((line) => QUOTED_ME.test(line))) return null;
   let section = "", meAt = -1;
   for (let i = 0; i < lines.length; i++) {
     const header = HEADER.exec(lines[i]);
