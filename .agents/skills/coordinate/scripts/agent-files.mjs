@@ -50,6 +50,9 @@ export const CHECK_FILES = new RegExp([
   // A Go app's lint config, the task runners a `check` script can call, and the generator config `check` compares output
   // against: sqlc, and orval, which the Go pack's dossier picks for the TypeScript client (#532).
   String.raw`|\.golangci\.(?:ya?ml|toml|json)|\.go-arch-lint\.ya?ml|(?:GNU)?makefile|\.?justfile|taskfile(?:\.dist)?\.ya?ml|sqlc\.(?:ya?ml|json)|orval\.config\.[^/]+)$`,
+  // A Makefile can `include` any `*.mk` file, and `go.work` picks the modules a Go workspace builds and checks (#570).
+  // go.work.sum stays out like go.sum (hashes only; decision 570-1), and go.mod stays out (decision 532-1).
+  String.raw`|(?:^|/)(?:[^/]*\.mk|go\.work)$`,
   // Each Go tool is pinned in its own modfile under tools/ (the dossier's pick): a version swap there swaps the checker.
   String.raw`|(?:^|/)tools/[^/]+\.mod$`,
   String.raw`|(?:^|/)\.semgrep(?:/|$)`,
