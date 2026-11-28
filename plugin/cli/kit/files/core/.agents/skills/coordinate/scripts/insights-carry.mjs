@@ -1,4 +1,5 @@
-// The merge step's records (#333), run through insights.mjs from the coordinator's checkout of main:
+// The merge step's records (#333), run through insights.mjs from the coordinator's checkout of main (carry reads that
+// checkout from where this script sits, not from the folder it is started in, #490):
 //   carry --pr <n> --from <reviewed sha> --to <merge sha>   when the loop merged main into a reviewed branch
 //       (`coordinate` step 7, decision 333-2): exit 0 only when <to> has exactly two parents, the first is <from>,
 //       the second is on refs/remotes/origin/main (fetched first, never read by its short name, which a tag or a
@@ -17,7 +18,8 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { CAP, canonical, recordProblem } from "./insights-land.mjs";
 import { VERSION, dayFolder, fileName, validate } from "./insights-record.mjs";
 
@@ -195,11 +197,16 @@ function notPassed(records) {
   return bad.map((r) => (r.kind === "review" ? `review round ${r.round}: ${r.verdict}` : `${r.job} job: ${r.outcome}`)).join(", ");
 }
 
-/** `carry`, from the checkout at root. */
-export function carry(root, args) {
+/**
+ * `carry`, in the checkout this script sits in (#490): main's, where the loop runs it, never the folder it was started
+ * in or the one CLAUDE_PROJECT_DIR or GIT_DIR names. A pull request clone's own .gitattributes would otherwise decide
+ * what merges cleanly. agent-files.mjs gate finds its checkout the same way (#478).
+ */
+export function carry(args) {
   const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
   const [pr, from, to] = ["--pr", "--from", "--to"].map(flag);
   if (args.length !== 6 || !/^\d+$/.test(pr ?? "") || !SHA.test(from ?? "") || !SHA.test(to ?? "")) throw new Error(USAGE);
+  const root = checkoutOf(dirname(fileURLToPath(import.meta.url)));
   fetchMain(root);
   const why = notCleanMerge(root, from, to);
   if (why) refuse(why);

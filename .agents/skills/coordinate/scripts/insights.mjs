@@ -277,7 +277,7 @@ else if (cmd === "has-records") hasRecords(rest);
 else if (cmd === "harvest" || cmd === "land" || cmd === "carry") {
   try {
     if (cmd === "harvest") harvest(rest);
-    else if (cmd === "carry") carry(gitRoot(2), rest);
+    else if (cmd === "carry") carry(rest);
     else land(gitRoot(), rest);
   } catch (e) {
     fail(2, String(e.stderr || e.message).trim());
