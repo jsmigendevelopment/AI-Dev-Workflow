@@ -25,11 +25,25 @@ const RESULTS = ["pass", "fail", "skipped"];
 // The checkout this script sits in (<root>/.agents/skills/coordinate/scripts/), found without git: the coordinator
 // may run it from any folder, and never runs git in the head's clone (step 6.1.3).
 const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
-// C0 controls, DEL and C1 controls. The summary and the merge check print records later, and an escape or a
-// carriage return would garble that output.
-const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
-const CONTROLS = new RegExp(CONTROL.source, "g");
+// Controls (C0, DEL, C1), format characters (a right-to-left override, a byte order mark, zero width joiners) and
+// line and paragraph separators. The summary and the merge check print records later, and an escape, a carriage
+// return or a bidi override would garble or reorder that output.
+const CONTROL = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const CONTROLS = new RegExp(CONTROL.source, "gu");
 const reason = (error) => String(error.stderr || error.message).split("\n").find((l) => l.trim())?.trim() ?? "refused";
+/**
+ * Text cut by whole code points, so an emoji is never split. A record's text fields count UTF-16 units (validate), so
+ * it also stops before a character that would take the text past TEXT_CAP units.
+ */
+function cap(text) {
+  let kept = "";
+  for (const char of text ?? "") {
+    if (kept.length + char.length > TEXT_CAP) break;
+    kept += char;
+  }
+  return kept;
+}
+
 /** A command name a record can keep: text of at most TEXT_CAP characters, with no control character. */
 const plainName = (text) => typeof text === "string" && text !== "" && text.length <= TEXT_CAP && !CONTROL.test(text);
 
@@ -61,7 +75,7 @@ function checkRecord(file, sha, state) {
   if (Number.isNaN(at.getTime())) return "ONRAILS_NOW isn't a time";
   // The fence line can carry a long reason; the record keeps its first line without control characters, capped like
   // any text field.
-  const fence = gate.fence?.split("\n")[0].replace(CONTROLS, "").slice(0, TEXT_CAP);
+  const fence = cap(gate.fence?.split("\n")[0].replace(CONTROLS, ""));
   const record = {
     v: VERSION, kind: "check", at: at.toISOString(), issue: null, pr: gate.pr, sha, job: null, tool: null,
     model: "unknown", effort: "unknown", state, ...(fence ? { fence } : {}),
