@@ -51,6 +51,21 @@ test("AC-529-3: WHEN a tests line has 65,000 spaces after 'tests' THEN the check
   }
 });
 
+test("AC-529-3: WHEN an exception reason has 65,000 spaces or tabs between a joiner and the split THEN the check finishes in under 50 ms", () => {
+  const children = [issue(12, "300 lines"), issue(13, "300 lines")];
+  const run = (reason) => checkSizes([{ ...issue(10, `exception: ${reason}`, "Parent"), labels: ["status:ready"] }, ...children]);
+  run(`too big and x${" ".repeat(1_000)}y split into parts`); // warm up
+  for (const gap of [" ", "\t"]) {
+    for (const joiner of ["and", "but"]) {
+      const reason = `too big ${joiner} x${gap.repeat(65_000)}y split into parts`;
+      const start = performance.now();
+      run(reason);
+      const ms = performance.now() - start;
+      assert.ok(ms < 50, `${ms.toFixed(1)} ms for "${joiner}", 65,000 ${gap === " " ? "spaces" : "tabs"}, then the split`);
+    }
+  }
+});
+
 test("AC-529-4: WHEN decision 433-1 is read THEN its 'Why' no longer says no other shape moved", () => {
   const decision = readFileSync(new URL("../../docs/decisions/433-1.md", import.meta.url), "utf8");
   const why = decision.match(/^- \*\*Why:\*\*(.*)$/m)?.[1] ?? "";

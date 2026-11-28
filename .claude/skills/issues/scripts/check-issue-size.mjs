@@ -65,7 +65,8 @@ const CLAUSE = /[,;:.()\/–—]|\s-\s/giu;
 // a word or two and "to" ("not so easy to split", "too risky and costly to split", "hard to review but harder to split"),
 // or one manner adverb ("cannot be safely and cleanly split"). "too big and the work was split", "and therefore split" end it.
 const JOINER = /(?<!\p{L})(?:so|and|then|but)(?!\p{L})/giu;
-const SPLIT_VERB = /\s*(?:split(?:s|ting)?|broken|cut)(?:\s+up)?\s+(?:into|in|across|between|as)$/i;
+// No leading `\s*`: with one, the replace below is quadratic on a long run of whitespace before the split (#529).
+const SPLIT_VERB = /(?:split(?:s|ting)?|broken|cut)(?:\s+up)?\s+(?:into|in|across|between|as)$/i;
 const CARRIES_ON = /^(?:(?:\p{L}+\s+){1,2}to|(?:cleanly|safely|easily|neatly|sensibly|sanely|reasonably|practically))$/iu;
 // "splitting into parts would break the build": the split is what a consequence is about, not what was done.
 const CONSEQUENCE = /^\s*(?:\p{L}+\s+){0,2}(?:would|will|could|might)(?!\p{L})/iu;
@@ -142,7 +143,7 @@ const clauseBefore = (reason, index) => {
   const clause = head.slice([...head.matchAll(CLAUSE)].reduce((end, m) => m.index + m[0].length, 0));
   for (const joiner of [...clause.matchAll(JOINER)].reverse()) {
     const after = clause.slice(joiner.index + joiner[0].length);
-    if (!CARRIES_ON.test(after.trim().replace(SPLIT_VERB, ""))) return after;
+    if (!CARRIES_ON.test(after.trim().replace(SPLIT_VERB, "").trim())) return after;
   }
   return clause;
 };
