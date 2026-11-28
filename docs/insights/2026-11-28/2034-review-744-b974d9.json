@@ -1,0 +1,22 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T20:34:27.421Z",
+  "issue": null,
+  "pr": 744,
+  "sha": "515f63e10f30c765808241241a30906b7f0b1f90",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "model_from": "system prompt names the model; effort not shown",
+  "round": 3,
+  "verdict": "changes",
+  "must": 1,
+  "nice": 6,
+  "categories": [
+    "hang",
+    "names",
+    "urls"
+  ]
+}
