@@ -4,7 +4,7 @@ A handoff is work one session passes to another: a builder brief, a prompt for a
 
 ## The sender
 
-1. **Write it down** as an issue, or a comment on the current one. Label the issue `handoff`. Use this shape:
+1. **Write it down** as an issue, or a comment on the current one. Label the issue `handoff`: run `gh label create handoff --force` first, since a repo set up before the label has none and an issue with a missing label fails. Use this shape:
 
    ```text
    Handoff · <from session> → <to session or account> · check by <time, UTC>
@@ -50,7 +50,7 @@ A handoff is work one session passes to another: a builder brief, a prompt for a
 `/back` and the coordinator's sweep list these. `../../coordinate/scripts/orphans.mjs` finds the missing receipts and the stale claims in the open issues' comments, after a `git fetch origin --prune`. It counts only comments by the repo's owner, members and collaborators:
 
 - every open `needs-human` item;
-- every handoff record (a `Handoff ·` comment, labelled `handoff` or not, an issue labelled `handoff`, or a `Claimed by` comment) with no `Got it ·` receipt once past its "check by" time (2 hours after the record when it names none), or past its "check by" time with no result. Write "check by" in UTC; a time it can't read gets the 2 hours;
+- every handoff record (a `Handoff ·` comment, labelled `handoff` or not, an issue labelled `handoff` or whose body starts with `Handoff ·`, or a `Claimed by` comment) with no `Got it ·` receipt once past its "check by" time (2 hours after the record when it names none), or past its "check by" time with no result. Write "check by" in UTC; a time it can't read gets the 2 hours;
 - every claimed issue with no new commit for 2 hours and no open pull request (a stale claim). A claim whose branch it can't find is `unknown`, never stale.
 
 Each one is a ⏳ decision, unless it's already on the "Waiting on you" list.

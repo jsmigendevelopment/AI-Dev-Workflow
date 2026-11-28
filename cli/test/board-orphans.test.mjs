@@ -151,3 +151,58 @@ test("AC-112-5: WHEN someone outside the repo posts a receipt, a claim or a hand
   const fake = issue(15, [], [outsider("2026-11-27T06:00:00Z", "Handoff · x → y · check by 2026-11-27 07:00 UTC")]);
   assert.deepEqual(kinds(orphansOf(dir, [unanswered, hidden, fake])), [[7, "stale-claim"], [10, "no-receipt"]]);
 });
+
+// #397, from round 2 of the review on #395.
+const HANDOFF_BODY = "Handoff · main thread → docs thread · check by 2026-11-27 10:00 UTC\n\nOwner's words: \"Tidy the README.\"";
+const bodyHandoff = (n, login, more = {}) => issue(n, [], [], { author: { login }, createdAt: "2026-11-27T09:00:00Z", body: HANDOFF_BODY, ...more });
+
+test("AC-397-2: WHEN an open issue's body starts with `Handoff ·` and has no label THEN the sweep lists it once past its check-by time", () => {
+  const dir = project();
+  // #8's claim is by "me", a MEMBER, so "me" is one of the repo's people; "stranger" never commented as one.
+  const issues = [bodyHandoff(16, "me"), claimed(8, "feat/8-work"), bodyHandoff(17, "stranger")];
+  assert.deepEqual(kinds(orphansOf(dir, issues, { now: "2026-11-27T09:30:00Z" })), [], "before its check-by time");
+  assert.deepEqual(kinds(orphansOf(dir, issues)), [[16, "no-receipt"]], "once, and not the stranger's");
+  const answered = bodyHandoff(16, "me", { comments: [gotIt("2026-11-27T09:30:00Z")] });
+  assert.deepEqual(kinds(orphansOf(dir, [answered, claimed(8, "feat/8-work")])), [], "a receipt answers it");
+});
+
+// Round 2 of the review on #437, nice 2: in a personal repo the owner's login is in the issue's url.
+test("AC-397-2: WHEN an unlabelled `Handoff ·` issue's author owns the repo in its url THEN it is listed with no trusted comment in the list", () => {
+  const dir = project();
+  const rest = { url: "https://api.github.com/repos/acme/app/issues/27", html_url: "https://github.com/acme/app/issues/27", user: { login: "acme" }, author: undefined };
+  const issues = [bodyHandoff(25, "acme"), bodyHandoff(26, "ACME"), bodyHandoff(27, "x", rest), bodyHandoff(28, "acme-fan")];
+  assert.deepEqual(kinds(orphansOf(dir, issues)), [[25, "no-receipt"], [26, "no-receipt"], [27, "no-receipt"]], "not acme-fan's");
+});
+
+test("AC-397-3: WHEN comments come from REST with `created_at` THEN a real receipt counts", () => {
+  const dir = project();
+  const rest = (created_at, body) => ({ user: { login: "me" }, author_association: "MEMBER", created_at, body });
+  const handoff = rest("2026-11-27T09:00:00Z", HANDOFF_10);
+  assert.deepEqual(orphansOf(dir, [issue(18, [], [handoff, rest("2026-11-27T09:30:00Z", "Got it · docs thread · My reading: tidy it.")])]), [], "the receipt is after the record");
+  const found = orphansOf(dir, [issue(18, [], [handoff])]);
+  assert.deepEqual(kinds(found), [[18, "no-receipt"]]);
+  assert.equal(found[0].since, Date.parse("2026-11-27T10:00:00Z"));
+  // A labelled issue from REST with no check-by: due 2 hours after its created_at, not its updatedAt.
+  const labelled = issue(19, ["handoff"], [], { created_at: "2026-11-27T09:00:00Z", body: "Handoff · a → b\n\nOwner's words: \"x\"" });
+  assert.deepEqual(kinds(orphansOf(dir, [labelled])), [[19, "no-receipt"]]);
+});
+
+test("#397 item 4: WHEN a claim names a branch git accepts THEN a non-ASCII name is read, and a name this can't check isn't called invalid", () => {
+  const dir = project();
+  const git = (args, date) => execFileSync("git", ["-C", dir, ...args], { env: safeEnv({ GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date }) });
+  git(["checkout", "-q", "-b", "feat/23-café", "main"]);
+  git(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "#23"], "2026-11-27T09:00:00Z");
+  git(["checkout", "-q", "main"]);
+  assert.deepEqual(kinds(orphansOf(dir, [claimed(23, "feat/23-café")])), [[23, "stale-claim"]]);
+  const [odd] = orphansOf(dir, [claimed(24, "feat/24-a+b")]);
+  assert.equal(odd.kind, "unknown-branch");
+  assert.doesNotMatch(odd.note, /isn't valid/);
+});
+
+test("#397 item 5: WHEN a fork's pull request is on a `feat/<n>-` branch THEN issue n's stale claim still shows", () => {
+  const dir = project();
+  const fork = (headRefName) => ({ number: 42, title: "From a fork", url: "https://github.com/acme/app/pull/42", headRefName, isCrossRepository: true, labels: [], isDraft: false, updatedAt: NOW });
+  const stale = issue(7, ["status:in-progress"], [claimOn("feat/7-work", "2026-11-27T08:00:00Z"), gotIt("2026-11-27T08:05:00Z")]);
+  for (const head of ["feat/7-work", "feat/7-other"]) assert.deepEqual(kinds(orphansOf(dir, [stale], { prs: [fork(head)] })), [[7, "stale-claim"]], head);
+  assert.deepEqual(orphansOf(dir, [stale], { prs: [{ ...fork("feat/7-work"), isCrossRepository: false }] }), [], "this repo's own pull request");
+});

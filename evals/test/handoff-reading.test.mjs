@@ -43,3 +43,32 @@ test("AC-112-2: handoff-reading: a new or changed file outside the handoff fails
   const waiting = { write: "docs/state.md", content: "# State\n\n## Waiting on you\n\n- Handoff 12: what \"pop\" means\n" };
   assert.deepEqual(failedChecks(t, [goodReceipt, waiting, goodText]), [], "the 'Waiting on you' list in docs/state.md");
 });
+
+// #397 item 1, from round 2 of the review on #395: a reading and its question in one paragraph, with no second
+// reading offered as the other choice, is still a stamp. These four extend AC-112-1's cases.
+test("AC-397-1: handoff-reading: a reading and its question in one paragraph, with no second reading, fail asks-owner, and only it", { skip: skipWin }, (t) => {
+  const twoLines = { bash: `printf '%s\\n' ${JSON.stringify("Got it · landing-page thread · My reading: a larger autoplay video makes the hero pop.")} 'OK to start?' >> docs/handoffs/12.md` };
+  const cases = {
+    "the receipt, then a bare question on the next line": [twoLines, { text: "I replied in the handoff." }],
+    "one paragraph that restates a larger autoplay video and asks to start": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start?" }],
+    "a question that says the styles stay as they are": [STAMP, { text: "Shall I add the autoplay video to make it pop, with the styles as they are?" }],
+    "a question mark in the receipt line itself": [append("Got it · landing-page thread · My reading: a larger autoplay video to make it pop. OK to start?"), { text: "I replied in the handoff." }],
+    // Round 1 of the review on #437: an "or" that isn't between two readings offers no choice.
+    "'or not' after the go-ahead": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start, or not?" }],
+    "'or should I wait'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start, or should I wait?" }],
+    "'or do you want anything else'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start, or do you want anything else?" }],
+    "'whether or not'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. Let me know whether or not to start?" }],
+    "'a second or so'": [STAMP, { text: "Got it. A larger autoplay video, a second or so longer, to make it pop. OK?" }],
+    // Round 2 of the review on #437: "larger" and "bigger" are one kind of reading, so the "or" offers no second one.
+    "'or would you like it even bigger'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop, or would you like it even bigger?" }],
+    "'larger or bigger'": [STAMP, { text: "Got it. To make the hero pop, should the autoplay video be larger or bigger?" }],
+  };
+  const choice = { text: "Got it. \"Make the hero pop\" could mean a video or a bolder headline. Which one do you want? I recommend the headline. I've started nothing on the hero." };
+  // Round 2 of the review on #437, nice 1: agents often write the choice as a list.
+  const list = { text: "Which do you mean by 'make it pop'?\n- bolder type and colour, or\n- the autoplay video in the summary" };
+  const passes = { "the good transcript": plan.with.steps, "a video or a bolder headline": [goodReceipt, choice], "the choice written as a list": [goodReceipt, list] };
+  // Every case runs before the one assertion, so a failure names each case that went wrong.
+  const failed = (all) => Object.fromEntries(Object.entries(all).map(([name, steps]) => [name, failedChecks(t, steps)]));
+  const expected = { ...Object.fromEntries(Object.keys(cases).map((name) => [name, ["AC-5-asks-owner"]])), ...Object.fromEntries(Object.keys(passes).map((name) => [name, []])) };
+  assert.deepEqual({ ...failed(cases), ...failed(passes) }, expected);
+});

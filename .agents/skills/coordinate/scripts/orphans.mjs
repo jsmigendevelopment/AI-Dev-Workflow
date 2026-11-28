@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // The orphan sweep (../../ask/references/handoffs.md) from the lists the sweep already fetched. It makes no API calls.
 //   node orphans.mjs --github <issues.json> [--github <prs.json>] [--json]
-// The issue list needs `comments,body,createdAt` (board.md, "Render"). Only comments by the repo's OWNER, a MEMBER
-// or a COLLABORATOR count. It finds:
-//   - no-receipt: a handoff record (a `Handoff ·` comment, an issue labelled `handoff`, or a `Claimed by` comment)
-//     with no `Got it ·` receipt after it, once past its "check by" time (UTC, Z, GMT or an offset such as +01:00),
-//     or 2 hours after it when it names none, or one this can't read;
-//   - stale-claim: a `status:in-progress` issue with no open pull request whose claimed branch has had no commit
-//     and no claim for 2 hours. It reads the branch from local git, so run `git fetch origin --prune` first;
-//   - unknown-branch: a claim 2 hours old whose branch has no local or `origin/` ref, or isn't a valid branch name.
+// The issue list needs `comments,body,createdAt,author` (board.md, "Render"), in gh's camelCase or REST's snake_case.
+// Only comments by the repo's OWNER, a MEMBER or a COLLABORATOR count. It finds:
+//   - no-receipt: a handoff record (a `Handoff ·` comment, an issue labelled `handoff`, an issue whose body starts
+//     with `Handoff ·` by one of the repo's people or its owner, or a `Claimed by` comment) with no `Got it ·`
+//     receipt after it, once past its "check by" time (UTC, Z, GMT or an offset such as +01:00), or 2 hours after
+//     it when it names none, or one this can't read;
+//   - stale-claim: a `status:in-progress` issue with no open pull request from this repo whose claimed branch has
+//     had no commit and no claim for 2 hours. It reads the branch from local git, so run `git fetch origin --prune`;
+//   - unknown-branch: a claim 2 hours old whose branch has no local or `origin/` ref, or a name this can't check.
 //     Fetch and run again; never retake a claim on it.
 // ONRAILS_NOW sets the clock, for tests.
 import { execFileSync } from "node:child_process";
@@ -27,20 +28,39 @@ const TRUSTED = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
 const labelsOf = (row) => (row.labels || []).map((l) => (typeof l === "string" ? l : l.name));
 const time = (ts) => Date.parse(ts) || 0;
+/** When a comment or an issue was made: gh's createdAt, or REST's created_at. */
+const madeAt = (x) => time(x.createdAt ?? x.created_at);
+/** Who wrote a comment or an issue: gh's author, or REST's user. */
+const login = (x) => x.author?.login ?? x.user?.login;
 /** "2026-11-27 09:00 UTC" for a time in ms. */
 export const utc = (ms) => `${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 /** The issue a `feat/<n>-...` or `fix/<n>-...` branch is for, as the board reads it. */
 export const issueFromBranch = (ref) => Number(String(ref || "").match(/^[\w-]+\/(\d+)[-_]/)?.[1]) || undefined;
 
-/** The issue's comments by trusted authors (gh's authorAssociation, or the REST author_association). */
-const comments = (row) => (row.comments || []).filter((c) => TRUSTED.has(String(c.authorAssociation ?? c.author_association ?? "").toUpperCase()));
+/** Whether a comment or an issue is by a trusted author (gh's authorAssociation, or the REST author_association). */
+const byTrusted = (x) => TRUSTED.has(String(x.authorAssociation ?? x.author_association ?? "").toUpperCase());
+/** The issue's comments by trusted authors. */
+const comments = (row) => (row.comments || []).filter(byTrusted);
 /** One rule for every headline: the comment's first text, after any leading space. */
 const headed = (c, re) => re.test(String(c.body || "").trimStart());
 
-/** The handoff records on one issue: its body when it is labelled `handoff`, and each record comment. */
-function records(row) {
-  const out = labelsOf(row).includes("handoff") ? [{ at: time(row.createdAt || row.updatedAt), text: String(row.body || "") }] : [];
-  for (const c of comments(row)) if (headed(c, HANDOFF) || headed(c, CLAIM)) out.push({ at: time(c.createdAt), text: c.body });
+/** The repo owner's login in the issue's link (gh's url, or REST's html_url or API url), lowercased. */
+const repoOwner = (row) => String(row.html_url ?? row.url ?? "").match(/^https:\/\/(?:api\.)?github\.com\/(?:repos\/)?([^/]+)\//i)?.[1].toLowerCase();
+
+/**
+ * Whether the issue's own text is a handoff: labelled `handoff`, or a `Handoff ·` body by one of the repo's people.
+ * gh gives the issue no association, so its author counts when they wrote a trusted comment, or own the repo.
+ */
+function bodyIsRecord(row, people) {
+  if (labelsOf(row).includes("handoff")) return true;
+  const who = login(row)?.toLowerCase();
+  return (byTrusted(row) || (who !== undefined && (people.has(who) || who === repoOwner(row)))) && headed(row, HANDOFF);
+}
+
+/** The handoff records on one issue: its body when it is one, and each record comment. */
+function records(row, people) {
+  const out = bodyIsRecord(row, people) ? [{ at: madeAt(row) || time(row.updatedAt ?? row.updated_at), text: String(row.body || "") }] : [];
+  for (const c of comments(row)) if (headed(c, HANDOFF) || headed(c, CLAIM)) out.push({ at: madeAt(c), text: c.body });
   return out;
 }
 
@@ -64,9 +84,9 @@ function checkBy(text) {
   return real ? at.getTime() - offset * 60e3 : null;
 }
 
-/** A branch name from comment text that git may read: no leading dash, plain characters, and git's own check. */
+/** A branch name from comment text that git may read: no leading dash, letters, digits and `_./-`, and git's own check. */
 function validBranch(name, cwd) {
-  if (!name || name.startsWith("-") || !/^[\w./-]+$/.test(name)) return false;
+  if (!name || name.startsWith("-") || !/^[\p{L}\p{N}_./-]+$/u.test(name)) return false;
   try {
     execFileSync("git", ["check-ref-format", "--branch", name], { cwd, stdio: "ignore" });
     return true;
@@ -88,9 +108,9 @@ function lastCommit(branch, cwd) {
   return null;
 }
 
-function noReceipt(row, now) {
-  const receipts = comments(row).filter((c) => headed(c, RECEIPT)).map((c) => time(c.createdAt));
-  const due = records(row).filter((r) => !receipts.some((t) => t > r.at)).map((r) => checkBy(r.text) ?? r.at + HOURS_2).filter((d) => now > d);
+function noReceipt(row, people, now) {
+  const receipts = comments(row).filter((c) => headed(c, RECEIPT)).map(madeAt);
+  const due = records(row, people).filter((r) => !receipts.some((t) => t > r.at)).map((r) => checkBy(r.text) ?? r.at + HOURS_2).filter((d) => now > d);
   if (!due.length) return null;
   const since = Math.min(...due);
   return { issue: row.number, kind: "no-receipt", since, note: `no \`Got it ·\` receipt · past its check by, ${utc(since)}` };
@@ -101,12 +121,12 @@ function claimOrphan(row, review, now, cwd) {
   if (!claim || !labelsOf(row).includes("status:in-progress") || review.issues.has(row.number)) return null;
   const branch = claim.body.match(BRANCH)?.[1];
   if (review.branches.has(branch)) return null;
-  const claimedAt = time(claim.createdAt);
+  const claimedAt = madeAt(claim);
   const valid = validBranch(branch, cwd);
   const commit = valid ? lastCommit(branch, cwd) : null;
   if (commit === null) {
     if (now - claimedAt <= HOURS_2) return null; // a fresh claim may not be pushed yet
-    const note = valid ? `claim · branch ${branch} not found here · fetch, then run again` : "claim · its branch name isn't valid · fix the claim";
+    const note = valid ? `claim · branch ${branch} not found here · fetch, then run again` : "claim · its branch name isn't one this can check · fix the claim";
     return { issue: row.number, kind: "unknown-branch", since: claimedAt, note };
   }
   const last = Math.max(claimedAt, commit);
@@ -115,9 +135,13 @@ function claimOrphan(row, review, now, cwd) {
 
 /** Every orphan in the open issues and pull requests: { issue, kind, since, note }, by issue number. */
 export function findOrphans({ issues = [], prs = [], now = Date.now(), cwd = process.cwd() }) {
-  const review = { branches: new Set(prs.map((p) => p.headRefName)), issues: new Set(prs.map((p) => issueFromBranch(p.headRefName)).filter(Boolean)) };
+  // A fork's branch can carry any name, so only this repo's pull requests put a claim in review.
+  const own = prs.filter((p) => !p.isCrossRepository);
+  const review = { branches: new Set(own.map((p) => p.headRefName)), issues: new Set(own.map((p) => issueFromBranch(p.headRefName)).filter(Boolean)) };
+  // GitHub gives one association per person per repo, so a login on a trusted comment is one of the repo's people.
+  const people = new Set(issues.flatMap(comments).map((c) => login(c)?.toLowerCase()).filter(Boolean));
   const out = [];
-  for (const row of issues) out.push(...[noReceipt(row, now), claimOrphan(row, review, now, cwd)].filter(Boolean));
+  for (const row of issues) out.push(...[noReceipt(row, people, now), claimOrphan(row, review, now, cwd)].filter(Boolean));
   return out.sort((a, b) => a.issue - b.issue);
 }
 
