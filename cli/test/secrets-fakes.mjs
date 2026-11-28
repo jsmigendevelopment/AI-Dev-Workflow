@@ -27,7 +27,8 @@ const modes = argv.filter((a) => a.startsWith("--flags-file=")).map((a) => { con
 fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ cmd, argv, stdin, files, modes }) + "\\n");
 if (process.env.FAKE_FAIL && [cmd, ...argv].join(" ").startsWith(process.env.FAKE_FAIL)) {
   const given = argv.includes("--body") ? argv[argv.indexOf("--body") + 1] : files.join("") || stdin;
-  process.stderr.write(process.env.FAKE_ECHO ? "invalid value: " + given + "\\n" : "✘ [ERROR] Authentication error [code: 10000]\\n");
+  // FAKE_ECHO_TEXT: the error says exactly this (a tool's own form of a value, such as Python's repr, #583).
+  process.stderr.write(process.env.FAKE_ECHO_TEXT ? process.env.FAKE_ECHO_TEXT + "\\n" : process.env.FAKE_ECHO ? "invalid value: " + given + "\\n" : "✘ [ERROR] Authentication error [code: 10000]\\n");
   process.exit(1);
 }
 const say = (text) => { process.stdout.write(text); process.exit(0); };

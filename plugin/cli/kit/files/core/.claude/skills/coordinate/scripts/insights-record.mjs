@@ -175,9 +175,22 @@ function windowProblems(record) {
   return errors;
 }
 
+/** A zone the way toISOString writes it (Z), or as an offset. Without one, Date.parse reads a time in the reader's own zone. */
+const ZONE = /(?:Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * A started or ended that reads as a time must say its zone (#572). Not the strict `at` form: the writer's callers pass
+ * `date -u +%Y-%m-%dT%H:%M:%SZ`, with no milliseconds. Text that is no time stays valid; the report reads it as unknown.
+ */
+function zoneProblems(record) {
+  return ["started", "ended"]
+    .filter((name) => typeof record[name] === "string" && !Number.isNaN(Date.parse(record[name])) && !ZONE.test(record[name]))
+    .map((name) => `${name}: a time must say its zone, as toISOString writes it (2026-11-27T14:20:00.000Z or 2026-11-27T14:20:00Z)`);
+}
+
 /** The run-cost rules of a job record (#380). Records from before #380 have none of these fields, so they pass. */
 function jobProblems(record, board) {
-  const errors = windowProblems(record);
+  const errors = [...windowProblems(record), ...zoneProblems(record)];
   if (record.send_back !== undefined && !SENT_BACK.includes(record.outcome)) {
     errors.push(`send_back: only on a run that sent work back (outcome ${SENT_BACK.join(", ")})`);
   }
