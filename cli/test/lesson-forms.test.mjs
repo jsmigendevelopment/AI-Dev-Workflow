@@ -140,6 +140,20 @@ test("lesson check: a count of times out of a total passes, and issue 41 times o
   }
 });
 
+test("AC-410-4: WHEN issue 41 times out of is not followed by a number THEN it is refused, and a count of a total still passes", () => {
+  for (const lesson of ["The builder hit the same issue 3 times out of 10 runs.", "The builder hit the same issue 3 times out of five.",
+    "The builder hit the same issue 3 times out of the last five runs."]) {
+    const r = check(good({ lesson }));
+    assert.equal(r.status, 0, `${lesson}\n${r.stderr}`);
+  }
+  for (const lesson of ["The build on issue 41 times out of memory.", "The build on issue 41 times out of the blue.",
+    "The build on issue 41 times out of.", "The check on pull request 41 times out of order."]) {
+    const r = check(good({ lesson }));
+    assert.equal(r.status, 1, lesson);
+    assert.match(r.stderr, /^ {2}lesson: contains a project term \(issue number\)$/m, lesson);
+  }
+});
+
 test("lesson check: a pipe is read up to 1 MB and one byte, and no further (#392 item 6)", { skip: process.platform === "win32" ? "no /dev/stdin on Windows" : false }, () => {
   const total = 2 * 1024 * 1024;
   // The CLI and wc share the pipe, so wc counts the bytes the CLI left unread.

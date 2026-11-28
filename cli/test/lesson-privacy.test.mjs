@@ -5,7 +5,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { checkLesson } from "../src/lesson-check.mjs";
-import { PLANTED, check, fixture, good, manifest } from "./lesson-fixture.mjs";
+import { loadKit } from "../src/kit.mjs";
+import { PLANTED, check, fixture, good, manifest, small } from "./lesson-fixture.mjs";
 
 // One row per planted detail. `deny` marks a row the allowlist from #321 alone would pass, so only the deny set
 // refuses it.
@@ -123,6 +124,46 @@ test("AC-322-7: WHEN a record is refused for a project term THEN the output name
   const name = check(good({ lesson: "The builder waited on Faith Bridge for the review." }));
   assert.match(name.stderr, /^ {2}lesson: contains a project term \(profile\)$/m);
   assert.doesNotMatch(name.stdout + name.stderr, /faith|bridge/i);
+});
+
+// The bundled stack pack's own files, as a fresh app made with `init` and `add tanstack-start` holds them (#410).
+const PACK = "tanstack-start";
+const PACK_ENV = loadKit().readPack(PACK, ".env.example").toString("utf8");
+const PACK_REDIRECTS = "src/lib/clerk-redirects.test.ts";
+
+test("AC-410-1: WHEN the project's .env.example holds the pack's SECURITY_CONTACT THEN a lesson saying security contact is accepted", () => {
+  assert.match(PACK_ENV, /^SECURITY_CONTACT=/m, "the bundled pack ships it");
+  const lesson = "The builder wrote the security contact before the merge.";
+  assert.equal(checkLesson(good({ lesson }), { manifest }).ok, true, "the allowlist alone passes it");
+  const r = check(good({ lesson }), small("cedar", { ".env.example": PACK_ENV }));
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test("AC-410-2: WHEN the project's .env.example also holds a name of its own THEN that name is still refused, spaced and hyphenated", () => {
+  const dir = small("cedar", { ".env.example": `${PACK_ENV}\n${PLANTED.envName}=\n` });
+  for (const lesson of ["The builder lost the market signal token on the branch.", "The builder lost the market-signal-token on the branch."]) {
+    assert.equal(checkLesson(good({ lesson }), { manifest }).ok, true, "the allowlist alone passes it");
+    const r = check(good({ lesson }), dir);
+    assert.equal(r.status, 1, lesson);
+    assert.match(r.stderr, /^ {2}lesson: contains a project term \(env name\)$/m);
+  }
+  assert.equal(check(good({ lesson: "The builder wrote the security contact before the merge." }), dir).status, 0);
+});
+
+test("AC-410-3: WHEN an edited pack file holds the pack's accounts.dev THEN accounts dev is not refused for it, and the project's own host still is", () => {
+  const pack = loadKit().readPack(PACK, PACK_REDIRECTS).toString("utf8");
+  assert.match(pack, /https:\/\/accounts\.dev\//, "the bundled pack file holds the host");
+  const own = 'const own = "https://api.bramble-trail.io/v1";\n';
+  const dir = small("cedar", { [PACK_REDIRECTS]: `${pack}\n${own}` });
+  const clean = good({ lesson: "The builder broke the accounts dev check before the merge." });
+  assert.equal(checkLesson(clean, { manifest }).ok, true, "the allowlist alone passes it");
+  const r = check(clean, dir);
+  assert.equal(r.status, 0, r.stderr);
+  for (const lesson of ["The builder broke the bramble trail check before the merge.", "The builder broke the bramble-trail check before the merge."]) {
+    const refused = check(good({ lesson }), dir);
+    assert.equal(refused.status, 1, lesson);
+    assert.match(refused.stderr, /^ {2}lesson: contains a project term \(domain\)$/m);
+  }
 });
 
 function escape(text) {

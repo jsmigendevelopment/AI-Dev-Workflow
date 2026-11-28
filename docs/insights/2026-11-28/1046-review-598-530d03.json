@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T10:46:12.294Z",
+  "issue": null,
+  "pr": 598,
+  "sha": "344c56f7f06a7e736396e47de49fc44a4315e150",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 2,
+  "categories": [
+    "bugs",
+    "code-rules"
+  ],
+  "model_from": "my own session's model name"
+}

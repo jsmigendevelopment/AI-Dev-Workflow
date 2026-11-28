@@ -19,10 +19,14 @@ const kinds = (text) => READINGS.flatMap((re, i) => (re.test(text) ? [i] : []));
  * Whether one sentence offers a choice: an "or" where each side names a kind of reading the other side doesn't
  * ("bolder type, or the video"). "OK to start, or not?" names none on one side, and "a larger video, or bigger?"
  * names only the first side's kind again. Sentences end at `.`, `?` or `!` and a space, or at a blank line, so a
- * choice written as a list stays one sentence.
+ * choice written as a list stays one sentence. A sentence that starts with "or" joins the one before it, so a choice
+ * asked as two questions ("...bolder type? Or the video?") still counts.
+ *
+ * The limit: this is a keyword check. A stamp that names a second kind after the "or" by chance ("should the video go
+ * above or below the headline?") passes. The scenario's `manual` lines cover that; don't take this for proof.
  */
 function offersChoice(text) {
-  return text.split(/(?<=[.?!])\s+|\n\s*\n/).some((sentence) =>
+  return text.split(/(?<=[.?!])\s+(?!or\b)|\n\s*\n/i).some((sentence) =>
     [...sentence.matchAll(/\bor\b/gi)].some((m) => {
       const before = kinds(sentence.slice(0, m.index));
       const after = kinds(sentence.slice(m.index + m[0].length));

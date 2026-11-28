@@ -5,7 +5,7 @@
 import { execFileSync } from "node:child_process";
 import { statSync } from "node:fs";
 import { loadKit } from "./kit.mjs";
-import { denySet, projectTerm } from "./lesson-deny.mjs";
+import { denySet, packTerms, projectTerm } from "./lesson-deny.mjs";
 import { readCapped } from "./lesson-read.mjs";
 import { COMMON_WORDS, GLOSSARY } from "./lesson-words.mjs";
 
@@ -123,11 +123,16 @@ function stringFields(record) {
 }
 
 // An issue or pull request named by its number (`issue 41`, `issue: 41`, `PR 41`, `pull 41`, `pull request 41`), but
-// not a count (`the issue 3 times`, `3 times out of five`; `issue 41 times out` is still an issue). Checked against a
-// project only: a kit lesson never needs the project's own numbers (#385). `#41` is refused by the sentence rules
-// already. Why the list stops at these words: decision 385-1.
-const ISSUE_NUMBER =
-  /(?<![\p{L}\p{N}])(?:issue|pr|pull\s+request|pull)s?[\s:]+(?:(?:number|no)[\s:]+)?\d+(?![\p{L}\p{N}])(?!\s+times?(?![\p{L}\p{N}])(?!\s+out(?![\p{L}\p{N}])(?!\s+of(?![\p{L}\p{N}]))))/iu;
+// not a count (`the issue 3 times`, `3 times out of five`; `issue 41 times out` and `issue 41 times out of memory` are
+// still an issue). A count has a number after `out of`: a digit, a number word or `the last`. Checked against a
+// project only: a kit lesson never needs the project's own numbers (#385, #410). `#41` is refused by the sentence
+// rules already. Why the list stops at these words: decision 385-1.
+const END = "(?![\\p{L}\\p{N}])";
+const NUMBER_WORDS = "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred";
+const TOTAL = `(?:\\d|(?:${NUMBER_WORDS})${END}|the\\s+last${END})`;
+const ISSUE_NUMBER = new RegExp(
+  `(?<![\\p{L}\\p{N}])(?:issue|pr|pull\\s+request|pull)s?[\\s:]+(?:(?:number|no)[\\s:]+)?\\d+${END}` +
+  `(?!\\s+times?${END}(?:(?!\\s+out${END})|\\s+out${END}\\s+of${END}\\s+${TOTAL}))`, "iu");
 
 // A project term in a free-text field (#322), named by its field and source kind, never by the term. A field that
 // passed its closed list is skipped: its value is the kit's own (`claude-code`, a component such as `board`), so it
@@ -200,11 +205,14 @@ export function lessonCheck(file, dir, { kitDir, home } = {}) {
   if (text === null) return refuse([{ field: "record", rule: "too-large" }]);
   let record;
   try { record = JSON.parse(text); } catch { return refuse([{ field: "record", rule: "not-json" }]); }
-  const manifest = readManifest(kitDir);
+  // The CLI's own bundled kit, so a project can't widen the component list.
+  const kit = loadKit(kitDir);
+  const manifest = { core: kit.core, templates: kit.templates };
   // Only glossary words and skill names leave the deny set (decision 322-1): an app named after a kit file such as
   // board or vision is still the app's name.
   const kitWords = new Set([...GLOSSARY, ...skillNames(manifest)]);
-  const deny = denySet(dir ?? currentRepo(), { home, kitWords, kitFiles: manifest.core ?? {} });
+  // The names and hosts the bundled stack packs ship in their own files are the kit's, so they leave it too (#410).
+  const deny = denySet(dir ?? currentRepo(), { home, kitWords, kitFiles: manifest.core ?? {}, packs: packTerms(kit) });
   const { ok, errors } = checkLesson(record, { manifest, deny });
   if (!ok) return refuse(errors);
   console.log("Lesson accepted.");
@@ -229,10 +237,4 @@ function refuse(errors) {
 
 function isDir(path) {
   try { return statSync(path).isDirectory(); } catch { return false; }
-}
-
-// The CLI's own bundled kit, so a project can't widen the component list.
-function readManifest(kitDir) {
-  const kit = loadKit(kitDir);
-  return { core: kit.core, templates: kit.templates };
 }
