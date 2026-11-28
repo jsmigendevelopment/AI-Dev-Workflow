@@ -12,7 +12,7 @@ Make every request a stranger can send cheap to refuse, strictly checked, and un
 1. **Map what each request path costs first.** List every route a stranger can reach (pages, unknown URLs, POST routes, webhooks, preview URLs) and what it reads, writes or sends. Defend the expensive ones first.
 2. **Know your plan's failure mode.** A free tier usually stops serving at its limit; a paid tier usually keeps serving and keeps billing. Set budget alerts, sample logs, and cap CPU or usage where the host allows it. Write down which risk you chose.
 3. **Unknown URLs get a static 404,** never a server render. Block scanner paths (`.php`, `/wp-`, `/.env`, `/.git`) at the edge or CDN, where a block costs nothing.
-4. **Close every schema at a trust boundary.** Requests, webhook payloads, config and agent output reject unknown fields, including in nested objects (`z.strictObject`, `additionalProperties: false`). Build response objects field by field so a new database column never leaks.
+4. **Close every schema at a trust boundary.** Requests, webhook payloads, config and agent output reject unknown fields, including in nested objects (`z.strictObject` in TypeScript, `json.Decoder.DisallowUnknownFields` in Go, `additionalProperties: false` in a schema document). Build response objects field by field so a new database column never leaks.
 5. **Every boundary has written limits.** Check body size before reading it, rate-limit before parsing, put a timeout on every handler and outbound call, and cap list sizes and open streams. Keep the numbers in the shared contracts so the client knows them too.
 6. **Auth failures all look the same.** Missing, wrong, expired and mismatched credentials get one 401 body. Someone else's resource is `not_found`, never `forbidden`. Scope every query by owner, and compare secrets in constant time.
 7. **One error envelope for every route.** Return a stable code and a safe message. Never send stack traces, SQL, file paths or internal names.
@@ -31,6 +31,17 @@ Make every request a stranger can send cheap to refuse, strictly checked, and un
 - Setting AI "Training" to Block also blocks major search crawlers. Use Allow or Disallow and keep `robots.txt` as the policy. Leave Bot Fight Mode off on a byte-budgeted site; it injects a script into every page. (checked 2026-11)
 - `*.workers.dev` and preview URLs sit outside your zone's rules and share production bindings. Give previews their own Worker and data, add `X-Robots-Tag: noindex` there, and gate side effects on the hostname.
 - Send security headers from both `_headers` and the Worker: HSTS (no `preload` on a subdomain), `nosniff`, a strict `Referrer-Policy`, a tight `Permissions-Policy`, and a CSP with `object-src 'none'; base-uri 'none'; frame-ancestors 'none'`. Use a per-response nonce for pages rendered on the server, and hashes for prerendered pages.
+
+## On a Go API
+
+A Go service that doesn't run on Workers runs on Google Cloud Run (decision 340-1). The rules above hold; here is each one's Go form.
+
+- Cap the body before decoding it: wrap `r.Body` with `http.MaxBytesReader(w, r.Body, n)` in a middleware, and answer the `*http.MaxBytesError` it returns with the `too_large` code. `Server.MaxHeaderBytes` limits the headers only, never the body. (checked 2026-11-28; pkg.go.dev/net/http, MaxBytesReader and Server)
+- Set the `http.Server` timeouts: `ReadHeaderTimeout`, `ReadTimeout` (it covers the body), `WriteTimeout` and `IdleTimeout`. Wrap a slow handler in `http.TimeoutHandler`, which answers 503, and give every outbound call a context with a deadline. (checked 2026-11-28; pkg.go.dev/net/http, Server and TimeoutHandler)
+- Keep those timeouts well under Cloud Run's own request timeout, 300 seconds by default and up to 3,600. Request-based billing charges for the time a request is active, so a hung request costs money. (checked 2026-11-27; research/go-api-platform.md, claims c56 and c51)
+- Rate-limit in the first middleware, before the body is read, keyed as rule 12 says. Cloud Run can run more than one instance of a service, so a limit kept in memory counts per instance (inferred). Set a maximum number of instances: Google documents it as a way to control cost. (checked 2026-11-28; Cloud Run docs, autoscaling and max instances)
+- Know the failure mode (rule 2): on a Paid billing account, Cloud Run bills usage above its Free Tier (2 million requests, 180,000 vCPU-seconds and 360,000 GiB-seconds a month) instead of stopping. Set a budget alert. (checked 2026-11-27; research/go-api-platform.md, claims c50 and c116)
+- Send security headers from the service. No `_headers` file or Worker sits in front of Cloud Run, so one middleware sets `nosniff`, a strict `Referrer-Policy` and HSTS (no `preload` on a subdomain), the same list as the Workers section; pages keep their CSP in the web app. (checked 2026-11-28; the list under "On Cloudflare Workers" and decision 340-1)
 
 ## Accounts and deploy tokens
 
