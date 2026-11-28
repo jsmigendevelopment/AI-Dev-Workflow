@@ -3,6 +3,10 @@
 
 // The rows that need a command say this when the repo's layout can't be read (#182).
 export const CLOSED = "the repo's checkouts can't all be read, so no PATH folder is used yet: checked after the repo is read";
+// Said by the rows that run from outside the repo, when no temp folder outside it could be made.
+export const NO_AWAY = "no empty temp folder outside the repo that only this user can write could be made, so it's checked after the repo is read";
+// A PATH folder left off because a .git at or above it can't be read may hold the tool, so "isn't installed" could mislead (#195).
+export const UNREAD = (cmd) => `${cmd} isn't on the PATH folders kept, and one left off couldn't be read: checked after the repo is read`;
 export const TOOLS = { claude: "Claude Code", "claude-cloud": "Claude Code (cloud session)", codex: "Codex", other: "an unknown tool" };
 const MARK = { ok: "✓", fix: "✗", blocked: "✗", limited: "–", skip: "–", info: "–" };
 
@@ -47,6 +51,12 @@ const YARN_CACHE_WINDOWS = " In PowerShell: `$env:YARN_GLOBAL_FOLDER='.yarn-glob
   + " $env:YARN_CACHE_FOLDER='.yarn-cache'; yarn install`. In cmd.exe: `set \"YARN_GLOBAL_FOLDER=.yarn-global\" &&"
   + ' set "YARN_ENABLE_GLOBAL_CACHE=false" && set "YARN_CACHE_FOLDER=.yarn-cache" && yarn install`.';
 
+// Rung 1 for a blocked Go module proxy (#538): a module cache inside the project, and a mirror in GOPROXY. GOTOOLCHAIN=local
+// keeps go from fetching a toolchain through the same proxy. A bare VAR=value prefix works only in a POSIX shell.
+const GO_CACHE = "`GOMODCACHE=\"$PWD/.gomodcache\" GOTOOLCHAIN=local go mod download` (a project-local module cache; keep `.gomodcache/` out of git)";
+const GO_CACHE_WINDOWS = " In PowerShell: `$env:GOMODCACHE=\"$PWD\\.gomodcache\"; $env:GOTOOLCHAIN='local'; go mod download`.";
+const GO_MIRROR = "If the sandbox allows another host, a mirror: `GOPROXY=https://<mirror>,direct` in the same command, or `go env -w GOPROXY=https://<mirror>,direct`.";
+
 /** The four rungs for a blocked check: 1 workarounds, 2 one command outside the sandbox, 3 environment tools, 4 the person. */
 export function ladder(id, tool, { host = "the registry", pm = "npm", want = "", platform } = {}) {
   const install = `${pm} install`;
@@ -64,6 +74,12 @@ export function ladder(id, tool, { host = "the registry", pm = "npm", want = "",
       "the dev server and its tests", { codex: CODEX_TRUST, any: "Let the agent's sandbox listen on 127.0.0.1, or run the browser checks in your own terminal." }],
     versions: ["A version manager already on this machine: `nvm use`, `fnm use` or `volta`, if one is installed.", "nvm install",
       { any: `Install a Node that fits ${want || ">=22"} (https://nodejs.org), then start the agent again in this folder.` }],
+    go: ["A Go already on this machine: `which -a go`, or a version manager such as `asdf`, `mise` or `gvm`, if one is installed.", "install Go",
+      { any: `Install ${want ? `Go ${want} or newer` : "a Go that fits go.mod"} (https://go.dev/dl/), then start the agent again in this folder.` }],
+    goproxy: [`${GO_CACHE}.${platform === "win32" ? GO_CACHE_WINDOWS : ""} ${GO_MIRROR}`, "go mod download", {
+      codex: CODEX_TRUST, claude: `Allow network access to ${host} for this project, or run \`go mod download\` in your own terminal in this folder.`,
+      "claude-cloud": `Allow ${host} in the cloud environment's network settings.`,
+      other: `Give the agent's sandbox network access to ${host}, or run \`go mod download\` in your own terminal in this folder.` }],
   }[id];
   if (!by) return [];
   const [workaround, command, person] = by;
@@ -99,7 +115,7 @@ export function render(report) {
   const blocked = open.filter((r) => r.status === "blocked");
   if (!open.length) return [...out, "", "Environment: ok."].join("\n");
   out.push("", `${open.length} to fix. Work down each ladder in order, then run preflight again. Ask only for what's left, in ONE message.`);
-  if (blocked.some((r) => ["repo", "registry", "versions"].includes(r.id))) out.push("Installs are blocked: don't scaffold or build until they work. Work that needs no install goes on.");
+  if (blocked.some((r) => ["repo", "registry", "versions", "go", "goproxy"].includes(r.id))) out.push("Installs are blocked: don't scaffold or build until they work. Work that needs no install goes on.");
   for (const r of open) out.push("", r.label, ...r.ladder.map((l) => `  ${l.rung}. ${l.text}`));
   if (blocked.length) {
     out.push("", "Still blocked after rungs 1 to 3? Send ONE message. Write all of it, with its Tried line filled in, on the issue",

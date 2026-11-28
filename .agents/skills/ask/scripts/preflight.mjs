@@ -22,17 +22,18 @@ import { fileURLToPath } from "node:url";
 import { ciWarnings } from "./preflight-ci.mjs";
 import { pathOutside, repoLayout, tempBases, tempFolders } from "./preflight-layout.mjs";
 import { aclPaths, loadWinAcls } from "./preflight-owner.mjs";
-import { CLOSED, cause, ladder, readRecord, recordLine, render, selfFix, shown, TOOLS, unreadNote, warningLines, withRecord } from "./preflight-output.mjs";
+import { CLOSED, cause, ladder, NO_AWAY, readRecord, recordLine, render, selfFix, shown, TOOLS, UNREAD, unreadNote, warningLines, withRecord } from "./preflight-output.mjs";
 import { isRead, markRead, markRefusal, realSys } from "./preflight-sys.mjs";
-import { checkVersions, LOCKS, readManager, small } from "./preflight-versions.mjs";
+import { checkGo, checkGoProxy, checkVersions, LOCKS, readGoMod, readManager, small } from "./preflight-versions.mjs";
 
 export { readRecord, render, withRecord } from "./preflight-output.mjs";
 export { satisfies } from "./preflight-versions.mjs";
 
-/** The checks, in the order the table prints them. */
+/** The checks, in the order the table prints them. A repo with a go.mod also gets go and goproxy, before model (#538). */
 export const CHECKS = ["repo", "git", "registry", "github", "loopback", "browser", "versions", "model"];
 const LABELS = { repo: "Write the repo", git: "Write .git", registry: "Package registry", github: "GitHub", loopback: "Loopback",
-  browser: "A browser", versions: "Node and package manager", model: "Model and effort" };
+  browser: "A browser", versions: "Node and package manager", go: "Go toolchain", goproxy: "Go module proxy", model: "Model and effort" };
+const rows = (goMod) => (goMod ? CHECKS.flatMap((id) => (id === "model" ? ["go", "goproxy", id] : [id])) : CHECKS);
 // Launches the project's own Playwright Chromium and closes it. Run with node -e in the project.
 const LAUNCH = "const r=require('module').createRequire(process.cwd()+'/package.json');let p;try{p=r('playwright')}catch{p=r('@playwright/test')}"
   + "p.chromium.launch({headless:true}).then(b=>b.close()).then(()=>console.log('ok')).catch(e=>{console.error(String(e.message).split('\\n')[0]);process.exit(1)})";
@@ -64,9 +65,6 @@ function checkRepo(dir, tool) {
 // read; outside, an empty temp folder outside the repo; and git, the settings that keep the repo's hooks from running.
 // closed: the repo's layout can't be read, so no PATH folder is kept and no command runs before the read (#182).
 
-// A PATH folder left off because a .git at or above it can't be read may hold the tool, so "isn't installed" could mislead (#195).
-const UNREAD = (cmd) => `${cmd} isn't on the PATH folders kept, and one left off couldn't be read: checked after the repo is read`;
-
 async function checkGit(dir, tool, sys, safe) {
   if (safe.closed) return { status: "limited", detail: CLOSED };
   if (!safe.hooks) return { status: "limited", detail: "no empty hooks folder that only this user can write could be made, so it's checked after the repo is read" };
@@ -90,9 +88,6 @@ async function checkGit(dir, tool, sys, safe) {
 // Before the read, npm runs from the folder outside the repo, so no packageManager pin or .npmrc of the repo's is in
 // scope. The registry the repo's .npmrc names is passed by hand, only when it is a plain URL.
 const PLAIN_REGISTRY = /^registry[ \t]*=[ \t]*(https?:\/\/[\w.-]+(:\d{1,5})?(\/[\w./-]*)?)[ \t]*$/m;
-
-// Said by the rows that run from outside the repo, when no temp folder outside it could be made.
-const NO_AWAY = "no empty temp folder outside the repo that only this user can write could be made, so it's checked after the repo is read";
 
 async function checkRegistry(dir, tool, sys, pm, safe) {
   if (safe.closed) return { status: "limited", detail: CLOSED };
@@ -162,9 +157,11 @@ function checkModel(sys, given) {
 export const fingerprint = (parts) => createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 12);
 
 function sandboxPrint(dir, tool, sys, pkg, read) {
+  const goMod = readGoMod(dir);
   const npmrc = existsSync(join(dir, ".npmrc")) ? readFileSync(join(dir, ".npmrc"), "utf8") : "";
   const flags = ["HTTPS_PROXY", "https_proxy", "CODEX_SANDBOX", "CODEX_SANDBOX_NETWORK_DISABLED", "PLAYWRIGHT_BROWSERS_PATH"].map((k) => Boolean(sys.env[k]));
-  return fingerprint({ tool, node: sys.node, hostname: sys.hostname, platform: sys.platform, npmrc, engines: [pkg?.engines?.node, pkg?.packageManager], flags, read });
+  return fingerprint({ tool, node: sys.node, hostname: sys.hostname, platform: sys.platform, npmrc, engines: [pkg?.engines?.node, pkg?.packageManager], flags, read,
+    go: goMod ? goMod.want ?? "" : undefined });
 }
 
 /**
@@ -174,6 +171,7 @@ function sandboxPrint(dir, tool, sys, pkg, read) {
 export async function probe(dir, sys = realSys(), given = {}, { bases } = {}) {
   const tool = given.tool ?? detectTool(sys.env);
   const pkg = readJson(join(dir, "package.json"));
+  const goMod = readGoMod(dir);
   const manager = readManager(pkg);
   const pm = manager?.name ?? Object.entries(LOCKS).find(([file]) => existsSync(join(dir, file)))?.[1] ?? "npm";
   const read = isRead(dir);
@@ -192,6 +190,7 @@ export async function probe(dir, sys = realSys(), given = {}, { bases } = {}) {
   const safe = { read, away, path, hooks: read || Boolean(hooksPath), closed: !read && !layout, unread: unread.count > 0, git: read ? {} : { config: hooks, env: path } };
   try {
     const loop = await sys.loopback();
+    const go = goMod && await checkGo(dir, tool, sys, goMod, safe);
     const found = {
       repo: checkRepo(dir, tool),
       git: await checkGit(dir, tool, sys, safe),
@@ -200,9 +199,11 @@ export async function probe(dir, sys = realSys(), given = {}, { bases } = {}) {
       loopback: loop.ok ? { status: "ok", detail: loop.detail } : { status: "blocked", detail: `can't listen on 127.0.0.1: ${loop.detail}`, ladder: ladder("loopback", tool) },
       browser: await checkBrowser(dir, tool, sys, pkg, pm, safe),
       versions: await checkVersions(dir, tool, sys, pkg, manager, safe),
+      go,
+      goproxy: goMod && await checkGoProxy(dir, tool, sys, go, safe),
       model: checkModel(sys, given),
     };
-    const results = CHECKS.map((id) => ({ id, label: LABELS[id], ladder: [], ...found[id] }));
+    const results = rows(goMod).map((id) => ({ id, label: LABELS[id], ladder: [], ...found[id] }));
     const at = new Date(sys.now()).toISOString().replace(/:\d\d\.\d{3}Z$/, "Z");
     const ok = results.every((r) => r.status !== "fix" && r.status !== "blocked");
     // Workflow files on ci = "local", or Actions on (#133): a warning with its fix, never a failed row. Before the read, files only.
