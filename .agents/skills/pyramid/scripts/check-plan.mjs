@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Checks that the current pass in docs/pyramid.md is cut into thin steps (the pyramid skill).
-// It reads the steps table and fails a plan that is empty, is cut by layer, has a step nobody
+// It reads every steps table outside a comment and fails a plan that is empty, is cut by layer, has a step nobody
 // can try, has steps that are too big or 1,000 changed lines or more, or has too few steps for its slices.
 // Its one import is the issues skill's size reader, so a step's Lines cell and its issue's Size line agree (#376).
 // Usage:  node check-plan.mjs [docs/pyramid.md]      errors fail (exit 1)
@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { LIMIT, checkSizes, readSize } from "../../issues/scripts/check-issue-size.mjs";
 
 export const COLUMNS = ["#", "step", "slice", "try it", "size", "after"]; // and "lines", checked on its own
+const ASKED = [...COLUMNS.slice(0, 5), "lines", "after"]; // what a plan with no steps table is asked for, Lines after Size
 export const THIN = 4; // a step this size or under needs no reason
 export const HARD_CAP = 7; // above this the issues skill splits it anyway
 export const BIG_SHARE = 1 / 3; // at most this share of steps may be above THIN
@@ -50,27 +51,48 @@ const SIZE = /^\s*(\d+)\s*(?:[·•\-–—:,(]+\s*(.*?)\)?\s*)?$/;
 const cells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
 const isRow = (line) => line.trim().startsWith("|");
 const key = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+const closes = (fence, line) => new RegExp(`^ {0,3}${fence[0]}{${fence.length},}\\s*$`).test(line);
 
-/** Every Markdown table in the text, as { header: [lowercase names], rows: [{ line, cells }] }. */
+// The lines as a reader sees them: a fenced code block or an HTML comment is blanked out, line by line, so line
+// numbers still match. A comment spans lines, or runs to the end of the file, only when "<!--" starts a line (up to
+// 3 spaces in), as an HTML block does on the rendered page. Elsewhere, as in a cell, only one closed on its line hides (#405).
+function visibleLines(text) {
+  let fence = null, comment = false;
+  return text.split(/\r?\n/).map((line) => {
+    if (fence) { if (closes(fence, line)) fence = null; return ""; }
+    if (comment) { comment = !line.includes("-->"); return ""; }
+    const open = line.match(FENCE);
+    if (open) { fence = open[1]; return ""; }
+    if (/^ {0,3}<!--/.test(line)) { comment = !line.includes("-->", line.indexOf("<!--") + 4); return ""; }
+    return line.replace(/<!--.*?-->/g, "");
+  });
+}
+
+/** Every Markdown table outside a comment or a code fence, as { line, header: [lowercase names], rows: [{ line, cells }] }. */
 export function tables(text) {
-  const lines = text.split(/\r?\n/);
+  const lines = visibleLines(text);
   const out = [];
   for (let i = 0; i < lines.length - 1; i++) {
     if (!isRow(lines[i]) || !/^\|?\s*:?-{3,}/.test(lines[i + 1].trim())) continue;
-    const table = { header: cells(lines[i]).map((c) => c.toLowerCase().replaceAll("*", "")), rows: [] };
+    const table = { line: i + 1, header: cells(lines[i]).map((c) => c.toLowerCase().replaceAll("*", "")), rows: [] };
     for (i += 2; i < lines.length && isRow(lines[i]); i++) table.rows.push({ line: i + 1, cells: cells(lines[i]) });
     out.push(table);
   }
   return out;
 }
 
-const blank = (row) => row.cells.every((c) => !c || /^<!--.*-->$/.test(c));
+const blank = (row) => row.cells.every((c) => !c);
 const named = (table, row) => Object.fromEntries(table.header.map((name, n) => [name, row.cells[n] ?? ""]));
+const stepTables = (text) => tables(text).filter((t) => COLUMNS.every((c) => t.header.includes(c)));
 
-/** The steps of the current pass, or null when the file has no steps table. */
+/** The steps of the current pass from every steps table, in order, or null when the file has none. */
 export function readSteps(text) {
-  const table = tables(text).find((t) => COLUMNS.every((c) => t.header.includes(c)));
-  if (!table) return null;
+  const found = stepTables(text);
+  return found.length ? found.flatMap(stepsOf) : null;
+}
+
+function stepsOf(table) {
   return table.rows.filter((r) => !blank(r)).map((r) => {
     const c = named(table, r);
     const size = c.size.match(SIZE);
@@ -142,7 +164,7 @@ function longestChain(steps) {
 // The Lines cell is the issue's Size value (#375): "about 300 lines", or "exception: <reason>". The issues
 // skill's reader judges it, so a cell it can't read fails here as it would on the issue.
 function linesProblem(cell) {
-  const value = cell.replace(/<!--[\s\S]*?-->/g, "").trim();
+  const value = cell.trim(); // tables() has already blanked out each comment closed in the cell
   if (!value) return `has no line estimate. In the Lines column, write the changed lines its pull request will have, not counting generated files, lockfiles and test fixtures: "about 300 lines"`;
   const body = `Size: ${value}`;
   const [gap] = checkSizes([{ number: 0, title: "step", body }]);
@@ -180,20 +202,31 @@ function checkStep(step, seen, position, problem, warn) {
   }
 }
 
+// Each steps table is read on its own: a second one, or a column twice, must not hide a step from the checks (#405).
+function checkTable(table, many, problem) {
+  const which = `the steps table${many ? ` at line ${table.line}` : ""}`;
+  for (const name of ASKED) {
+    const label = name === "#" ? "#" : name[0].toUpperCase() + name.slice(1);
+    if (table.header.filter((h) => h === name).length > 1) problem("plan", `${which} has more than one ${label} column. Keep one: only the last is read`);
+  }
+  if (!table.header.includes("lines") && table.rows.some((r) => !blank(r))) problem("plan", `${which} has no Lines column. Add one after Size, and give each step the changed lines its pull request will have: "about 300 lines", under ${LIMIT.toLocaleString("en-US")}, or "exception: <reason>"`);
+}
+
 /** Checks a pyramid plan's steps. Returns { errors, warnings, stats }; each problem is "where: message". */
 export function checkPlan(text, { perSlice = PER_SLICE } = {}) {
   const errors = [], warnings = [];
   const problem = (where, msg) => errors.push(`${where}: ${msg}`);
   const warn = (where, msg) => warnings.push(`${where}: ${msg}`);
-  const steps = readSteps(text);
-  if (!steps) {
-    problem("plan", `no steps table. The current pass needs one with the columns: ${COLUMNS.join(" | ")}`);
+  const found = stepTables(text);
+  if (!found.length) {
+    problem("plan", `no steps table. The current pass needs one with the columns: ${ASKED.join(" | ")}`);
     return { errors, warnings, stats: null };
   }
+  for (const table of found) checkTable(table, found.length > 1, problem);
+  const steps = found.flatMap(stepsOf);
   const slices = readSlices(text);
   if (!slices.length) problem("plan", "no slices. List the slices in the Slices table, with a Slice and a Role column");
   if (!steps.length) problem("plan", "the current pass has no steps. Cut it into the smallest things a person can try");
-  if (steps.length && steps.every((s) => s.lines === null)) problem("plan", `the steps table has no Lines column. Add one after Size, and give each step the changed lines its pull request will have: "about 300 lines", under ${LIMIT.toLocaleString("en-US")}, or "exception: <reason>"`);
   const position = new Map(steps.map((s, n) => [s.id, n]));
   const seen = new Set();
   for (const step of steps) { checkStep(step, seen, position, problem, warn); seen.add(step.id); }
