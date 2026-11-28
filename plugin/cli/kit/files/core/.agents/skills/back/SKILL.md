@@ -9,6 +9,8 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
 **On Full automation, ask nothing here:** every step that asks or offers has its own "On Full" branch: follow it, say your pick in the report, and go on. The last step starts the loop again (`automation`'s `references/full.md`).
 
+**This is the live thread** (rule 17 in `AGENTS.md`): it reads, reports and hands work down. The retro (step 7) runs in a background sub-agent, and every fix, build or merge goes to the loop.
+
 ## Steps
 
 **Preflight first:** `node .agents/skills/ask/scripts/preflight.mjs --if-changed --record`. When `docs/state.md` says `Environment: ok` and the sandbox hasn't changed, it skips the slow probes and says so. Otherwise it prints one table: follow `../ask/references/preflight.md` for every `✗` row, and put what's left in the report's "Waiting on you", as ONE item.
@@ -46,7 +48,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
    - **Still running:** `node .agents/skills/ask/scripts/procs.mjs list`. Back from a pause in this session? `procs.mjs resume`. A stale one (its owner session is gone, or past its time or its pause) was started by onRails: stop it with `procs.mjs stop stale` and say so.
    - **Anyone else** who touched the repo.
 
-7. **Retro, after a long run.** The person was away for the night or longer, or the loop merged or parked 5 or more issues since the last retro? Run the retro below, unless the `/afk` section in `docs/state.md` already has one for this run. Then show its findings in the report.
+7. **Retro, after a long run.** The person was away for the night or longer, or the loop merged or parked 5 or more issues since the last retro? Run the retro below, unless the `/afk` section in `docs/state.md` already has one for this run. Start it in a background sub-agent, say in the report that its findings come when it reports back, and pass them on then.
 
 8. **Triage.** Below Full, offer three options with your pick first, and wait for their choice. On Full, it's a report line, not a question: *"Next: <your pick>. The loop goes on."* The options:
    - a pass at `gate`: try it, then re-plan the next pass (the right pick then);
@@ -58,7 +60,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
    On Full and the app now has real users? Suggest switching to Recommended (the `automation` skill) in the FYI.
 
-9. **Feedback becomes issues or ideas.** As the person tries things, sort each point. Something wrong or slow in what's built: open `issues` and write one issue for it, and the loop builds the fix in the current pass (labelled `gate` while a gate runs). Something missing is a new idea: add a row to `docs/features.md`, and the next re-plan places it. Don't fix things inline unless they're tiny. Take a line off "To try" once they've tried it.
+9. **Feedback becomes issues or ideas.** As the person tries things, sort each point. Something wrong or slow in what's built: open `issues` and write one issue for it, and the loop builds the fix in the current pass (labelled `gate` while a gate runs). Something missing is a new idea: add a row to `docs/features.md`, and the next re-plan places it. Never fix it inline: the loop builds the fix (rule 17). Take a line off "To try" once they've tried it.
 
 10. **Before the session ends,** not before step 11 (a loop that step starts keeps running), stop what you started (`procs.mjs stop mine`, then its list is empty), and update `docs/state.md`. Overwrite it, keep it under 30 lines, and leave it so a brand-new session could take over.
 

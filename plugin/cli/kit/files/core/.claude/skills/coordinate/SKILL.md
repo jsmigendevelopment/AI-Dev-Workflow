@@ -11,7 +11,7 @@ You don't write code. You dispatch, watch, merge and report. Keep the person inf
 
 Two roles, never one thread (#280):
 
-- **The live thread** is the one the person talks to. It answers, records decisions (each its own file, `docs/decisions/<issue>-<n>.md`, rule 4), files feedback as issues (`back`, step 9), relays the person's words to the loop, and reports. It never runs the loop, so it's always free to react.
+- **The live thread** is the one the person talks to. It answers, records decisions (each its own file, `docs/decisions/<issue>-<n>.md`, rule 4), files feedback as issues (`back`, step 9), relays the person's words to the loop, and reports. It only talks (rule 17 in `AGENTS.md`): every merge, build, check or wait goes down. It never runs the loop, so it's always free to react.
 - **The loop** is this skill's coordinator. The live thread starts it as a background sub-agent or a cloud session.
 
 Check which one you are first:
@@ -22,7 +22,9 @@ Check which one you are first:
    - Start the loop in the background: a background sub-agent (in Claude Code, `Agent` with `run_in_background`), or a cloud session where `[sessions] prefer = "cloud"` (`routing`, "Where a job runs"). Model and effort: `routing`'s "Loop coordinator" row. Its brief: *"You're the loop. Use the `coordinate` skill."*, then the `Automation level:` and `Standing decisions:` lines, quoted word for word (`../ask/references/handoffs.md`), and the owner's words that started it.
    - Say so in one line: *"The loop is running in the background. I'm free; tell me anything."* Then end your turn.
    - Your tool has neither a background sub-agent nor a session tool? Run the loop here, and say once that you can't react while it runs.
-3. **Relay, both ways, while the loop runs:**
+3. **Relay, both ways:**
+   - **Answer the person right away, whatever the loop is doing.** Never wait for a receipt or a report first.
+   - **A job the person names** ("merge #12", "run the checks", "rebuild it"): pass it to the loop if one runs, else start a background sub-agent for that job alone, with their words. Say in one line who has it, then end your turn.
    - **Down:** the person's words that touch the loop (pause, stop, a new decision, feedback on a pull request) go to it word for word, through the handoff rule: a message to the sub-agent or session, and the loop's `Got it ·` receipt back. A new decision is written to its own file, `docs/decisions/<issue>-<n>.md` (rule 4), first, then relayed.
    - **Pause or stop** (`ask`, "Pause and stop") covers the loop and every builder under it: relay it, then show what's still running (`procs.mjs list --mine`, `timer.mjs status`, and the loop's own list).
    - **Up:** the loop's reports come back to the live thread, which tells the person in short lines.

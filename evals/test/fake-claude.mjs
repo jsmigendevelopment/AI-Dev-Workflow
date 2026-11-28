@@ -2,7 +2,8 @@
 // A stand-in for `claude -p --output-format stream-json` in the harness tests. No network.
 // The test copies it as `claude` into a temp bin folder on PATH, next to a plan.json:
 //   { "<scenario>": { "with": <plan>, "without": <plan> }, "*": {...} }
-// A plan: { steps: [step], cost, tokens: { input, output, cacheRead, cacheWrite }, sleep, exit, noResult }
+// A plan: { steps: [step], followUps: [{ steps }], cost, tokens: { input, output, cacheRead, cacheWrite }, sleep, exit, noResult }.
+// With --input-format stream-json, each message is a turn: the prompt runs steps, each follow-up its own steps (#390).
 // A step: { text } | { write: path, content } | { bash: command } | { tool: name, input, ok }. Any step may add
 // `parent`: a tool_use id, so it shows as a sub-agent's step (parent_tool_use_id), as Claude Code streams them.
 // A tool step's result is an error ("denied") unless ok is true; nothing runs either way.
@@ -13,6 +14,7 @@
 import { execSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -25,47 +27,68 @@ const plans = JSON.parse(readFileSync(join(here, "plan.json"), "utf8"));
 const plan = plans[scenario]?.[arm] ?? plans["*"]?.[arm] ?? {};
 const model = flag("--model");
 
-let stdin = "";
-for await (const chunk of process.stdin) stdin += chunk;
-appendFileSync(join(here, "calls.jsonl"), JSON.stringify({ scenario, arm, argv, prompt: stdin }) + "\n");
-
+const log = (prompt) => appendFileSync(join(here, "calls.jsonl"), JSON.stringify({ scenario, arm, argv, prompt }) + "\n");
 const emit = (event) => process.stdout.write(JSON.stringify(event) + "\n");
 emit({ type: "system", subtype: "init", model, claude_code_version: "0.0.0-fake", cwd, tools: ["Bash", "Write"],
   skills: arm === "with" ? ["build", "grill", "idea"] : [] });
 
 let n = 0;
-let lastText = "";
-for (const step of plan.steps ?? []) {
-  const id = `toolu_${++n}`;
-  const message = (content) => emit({ type: "assistant", parent_tool_use_id: step.parent ?? null, message: { id: `msg_${n}`, role: "assistant", content, usage: { input_tokens: 10, output_tokens: 5 } } });
-  if (step.text !== undefined) {
-    lastText = step.text;
-    message([{ type: "text", text: step.text }]);
-  } else if (step.write) {
-    message([{ type: "tool_use", id, name: "Write", input: { file_path: join(cwd, step.write), content: step.content } }]);
-    mkdirSync(dirname(join(cwd, step.write)), { recursive: true });
-    writeFileSync(join(cwd, step.write), step.content);
-    emit({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: "ok" }] } });
-  } else if (step.bash) {
-    message([{ type: "tool_use", id, name: "Bash", input: { command: step.bash } }]);
-    let out;
-    try {
-      out = execSync(step.bash, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, CLAUDE_CODE_SESSION_ID: `fake-${arm}-${process.pid}` } });
-    } catch (error) {
-      out = String(error.stdout ?? "") + String(error.stderr ?? "");
+/** Runs one turn's steps and returns its last text. */
+function runSteps(steps) {
+  let lastText = "";
+  for (const step of steps) {
+    const id = `toolu_${++n}`;
+    const message = (content) => emit({ type: "assistant", parent_tool_use_id: step.parent ?? null, message: { id: `msg_${n}`, role: "assistant", content, usage: { input_tokens: 10, output_tokens: 5 } } });
+    if (step.text !== undefined) {
+      lastText = step.text;
+      message([{ type: "text", text: step.text }]);
+    } else if (step.write) {
+      message([{ type: "tool_use", id, name: "Write", input: { file_path: join(cwd, step.write), content: step.content } }]);
+      mkdirSync(dirname(join(cwd, step.write)), { recursive: true });
+      writeFileSync(join(cwd, step.write), step.content);
+      emit({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: "ok" }] } });
+    } else if (step.bash) {
+      message([{ type: "tool_use", id, name: "Bash", input: { command: step.bash } }]);
+      let out;
+      try {
+        out = execSync(step.bash, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, CLAUDE_CODE_SESSION_ID: `fake-${arm}-${process.pid}` } });
+      } catch (error) {
+        out = String(error.stdout ?? "") + String(error.stderr ?? "");
+      }
+      emit({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: [{ type: "text", text: out }] }] } });
+    } else if (step.tool) {
+      message([{ type: "tool_use", id, name: step.tool, input: step.input ?? {} }]);
+      emit({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: step.ok ? "ok" : "denied", is_error: !step.ok }] } });
     }
-    emit({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: [{ type: "text", text: out }] }] } });
-  } else if (step.tool) {
-    message([{ type: "tool_use", id, name: step.tool, input: step.input ?? {} }]);
-    emit({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: step.ok ? "ok" : "denied", is_error: !step.ok }] } });
   }
+  return lastText;
 }
 
-if (plan.sleep) await new Promise((r) => setTimeout(r, plan.sleep * 1000));
-if (!plan.noResult) {
+function emitResult(lastText) {
   const t = { input: 100, output: 50, cacheRead: 1000, cacheWrite: 200, ...plan.tokens };
   const cost = plan.cost ?? 0.01;
   emit({ type: "result", subtype: "success", is_error: false, num_turns: n + 1, duration_ms: 5, result: lastText, total_cost_usd: cost,
     modelUsage: { [model]: { inputTokens: t.input, outputTokens: t.output, cacheReadInputTokens: t.cacheRead, cacheCreationInputTokens: t.cacheWrite, costUSD: cost } } });
+}
+
+if (flag("--input-format") === "stream-json") {
+  // One turn per stream-json message (#390): the prompt runs plan.steps, the n-th follow-up plan.followUps[n-1].steps.
+  // With noResult the first turn never ends, so no follow-up comes.
+  let turn = 0;
+  for await (const line of createInterface({ input: process.stdin })) {
+    if (!line.trim()) continue;
+    log(JSON.parse(line).message?.content);
+    const last = runSteps((turn === 0 ? plan.steps : plan.followUps?.[turn - 1]?.steps) ?? []);
+    if (plan.noResult) break;
+    emitResult(last);
+    turn++;
+  }
+} else {
+  let stdin = "";
+  for await (const chunk of process.stdin) stdin += chunk;
+  log(stdin);
+  const last = runSteps(plan.steps ?? []);
+  if (plan.sleep) await new Promise((r) => setTimeout(r, plan.sleep * 1000));
+  if (!plan.noResult) emitResult(last);
 }
 process.exit(plan.exit ?? 0);
