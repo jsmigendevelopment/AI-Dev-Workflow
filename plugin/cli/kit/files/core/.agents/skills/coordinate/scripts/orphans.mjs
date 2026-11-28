@@ -4,9 +4,9 @@
 // The issue list needs `comments,body,createdAt,author` (board.md, "Render"), in gh's camelCase or REST's snake_case.
 // Only comments by the repo's OWNER, a MEMBER or a COLLABORATOR count. It finds:
 //   - no-receipt: a handoff record (a `Handoff ·` comment, an issue labelled `handoff`, an issue whose body starts
-//     with `Handoff ·` by one of the repo's people, or a `Claimed by` comment) with no `Got it ·` receipt after it,
-//     once past its "check by" time (UTC, Z, GMT or an offset such as +01:00), or 2 hours after it when it names
-//     none, or one this can't read;
+//     with `Handoff ·` by one of the repo's people or its owner, or a `Claimed by` comment) with no `Got it ·`
+//     receipt after it, once past its "check by" time (UTC, Z, GMT or an offset such as +01:00), or 2 hours after
+//     it when it names none, or one this can't read;
 //   - stale-claim: a `status:in-progress` issue with no open pull request from this repo whose claimed branch has
 //     had no commit and no claim for 2 hours. It reads the branch from local git, so run `git fetch origin --prune`;
 //   - unknown-branch: a claim 2 hours old whose branch has no local or `origin/` ref, or a name this can't check.
@@ -44,10 +44,17 @@ const comments = (row) => (row.comments || []).filter(byTrusted);
 /** One rule for every headline: the comment's first text, after any leading space. */
 const headed = (c, re) => re.test(String(c.body || "").trimStart());
 
-/** Whether the issue's own text is a handoff: labelled `handoff`, or a `Handoff ·` body by one of the repo's people. */
+/** The repo owner's login in the issue's link (gh's url, or REST's html_url or API url), lowercased. */
+const repoOwner = (row) => String(row.html_url ?? row.url ?? "").match(/^https:\/\/(?:api\.)?github\.com\/(?:repos\/)?([^/]+)\//i)?.[1].toLowerCase();
+
+/**
+ * Whether the issue's own text is a handoff: labelled `handoff`, or a `Handoff ·` body by one of the repo's people.
+ * gh gives the issue no association, so its author counts when they wrote a trusted comment, or own the repo.
+ */
 function bodyIsRecord(row, people) {
   if (labelsOf(row).includes("handoff")) return true;
-  return (byTrusted(row) || people.has(login(row))) && headed(row, HANDOFF);
+  const who = login(row)?.toLowerCase();
+  return (byTrusted(row) || (who !== undefined && (people.has(who) || who === repoOwner(row)))) && headed(row, HANDOFF);
 }
 
 /** The handoff records on one issue: its body when it is one, and each record comment. */
@@ -132,7 +139,7 @@ export function findOrphans({ issues = [], prs = [], now = Date.now(), cwd = pro
   const own = prs.filter((p) => !p.isCrossRepository);
   const review = { branches: new Set(own.map((p) => p.headRefName)), issues: new Set(own.map((p) => issueFromBranch(p.headRefName)).filter(Boolean)) };
   // GitHub gives one association per person per repo, so a login on a trusted comment is one of the repo's people.
-  const people = new Set(issues.flatMap(comments).map(login).filter(Boolean));
+  const people = new Set(issues.flatMap(comments).map((c) => login(c)?.toLowerCase()).filter(Boolean));
   const out = [];
   for (const row of issues) out.push(...[noReceipt(row, people, now), claimOrphan(row, review, now, cwd)].filter(Boolean));
   return out.sort((a, b) => a.issue - b.issue);
