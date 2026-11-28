@@ -6,6 +6,8 @@ import { randomBytes } from "node:crypto";
 
 export const VERSION = 1;
 export const TEXT_CAP = 200;
+/** At this many counted lines or more, a pull request fails the size check (pr-size.mjs's MAX_CHANGED_LINES, #427). */
+export const SIZE_LIMIT = 1000;
 const SHA = /^[0-9a-f]{40}$/;
 // A rule's path holds no space, colon or control character (#334): records name it as people read it.
 const RULE = /^(?:[^\s:\u0000-\u001f\u007f]+:\d+|hook:[\w-]+|missing)$/;
@@ -42,9 +44,10 @@ const SENT_BACK = ["fail", "failed", "stopped", "handed-off"];
 
 export const KINDS = {
   // usage_before and usage_after are the provider's reading as the tool shows it, or unknown; usage_from says where (#380).
+  // lines is a size-check record's counted lines of the head it checked (#427).
   job: {
     outcome: str(true, OUTCOMES), started: str(false), ended: str(false),
-    usage_before: str(false), usage_after: str(false), usage_from: str(false), send_back: str(false, SEND_BACKS),
+    usage_before: str(false), usage_after: str(false), usage_from: str(false), send_back: str(false, SEND_BACKS), lines: int(false),
   },
   // state, fence and a null failed_step come from the local gate's mark-check.mjs --record (#331, decision 331-1).
   check: {
@@ -156,6 +159,22 @@ function jobProblems(record, board) {
   return errors;
 }
 
+/**
+ * The size-check rules of a record with lines (#427): the count belongs to one head, of a size check that passed or
+ * failed, and a failed one is the size send-back, which pr-size.mjs gives only at the limit or over it.
+ */
+function sizeProblems(record) {
+  const errors = [];
+  if (record.job !== "size-check") errors.push("lines: only on a size-check job record");
+  else if (!["pass", "fail"].includes(record.outcome)) errors.push("lines: only with outcome pass or fail");
+  if (typeof record.sha !== "string") errors.push("sha: required with lines (the head that was counted)");
+  if (record.outcome === "fail" && record.job === "size-check") {
+    if (Number.isSafeInteger(record.lines) && record.lines < SIZE_LIMIT) errors.push(`lines: a failed size check counted ${SIZE_LIMIT} or more, not ${record.lines}`);
+    if (record.send_back !== "size") errors.push("send_back: a failed size check with lines is send_back=size");
+  }
+  return errors;
+}
+
 /** An ask's title is shown to people, and an answer always says how long it waited (#334). */
 function askProblems(record) {
   const errors = [];
@@ -198,6 +217,7 @@ export function validate(record) {
     if (e) errors.push(e);
   }
   if (record.kind === "job") errors.push(...jobProblems(record, board));
+  if (record.kind === "job" && record.lines !== undefined) errors.push(...sizeProblems(record));
   if (record.kind === "ask") errors.push(...askProblems(record));
   if (record.kind === "note" && !board && record.kind_of !== "went-right" && !(Array.isArray(record.links) && record.links.length)) {
     errors.push("links: required unless kind_of is went-right");
