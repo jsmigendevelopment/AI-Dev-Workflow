@@ -433,3 +433,99 @@ test("AC-164-6: WHEN the level is Full and a test is deleted THEN a writer's pas
   assert.equal(withFiles(files, { stack: FULL, comments: [PASS()] }).pass, true);
   assert.equal(withFiles(files, { stack: FULL, comments: [FAIL()] }).pass, false);
 });
+
+// #532: a Go app's lint, task runner and generator config are check code, and its _test.go files and testdata are tests.
+// The cases above stay as they are; these only add names.
+const GO_CHECK_FILES = [".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json", "Makefile", "GNUmakefile", "Taskfile.yml", "Taskfile.yaml",
+  "justfile", "sqlc.yaml", "sqlc.yml", "sqlc.json", "orval.config.ts", "orval.config.mjs", ".go-arch-lint.yml", ".go-arch-lint.yaml", "tools/golangci-lint.mod",
+  "tools/go-arch-lint.mod"];
+
+test("AC-532-1: WHEN a pull request changes .golangci.yml, Makefile or sqlc.yaml at any depth THEN each is reported as check code", () => {
+  for (const path of [".golangci.yml", "Makefile", "sqlc.yaml", "stacks/go-api/.golangci.yml", "services/api/Makefile", "internal/db/sqlc.yaml"]) {
+    const r = decide({ changed: [path], stack: RECOMMENDED });
+    assert.equal(r.pass, false, path);
+    assert.ok(r.why.includes(path), `${path}: ${r.why}`);
+  }
+});
+
+test("AC-532-1: the other Go lint, task runner, generator and tool-modfile names count at the root and at depth, in any case", () => {
+  for (const path of GO_CHECK_FILES) {
+    for (const where of [path, `services/api/${path}`, `a/b/${path.toUpperCase()}`]) {
+      const r = decide({ changed: [where], stack: RECOMMENDED });
+      assert.equal(r.pass, false, where);
+      assert.ok(r.why.includes(where), `${where}: ${r.why}`);
+    }
+  }
+});
+
+test("AC-532-1: WHEN a Go check config is renamed away THEN the old name is reported", () => {
+  const r = decide({ changed: changedPaths([{ filename: "lint.yml", previous_filename: ".golangci.yml", status: "renamed" }]), stack: RECOMMENDED });
+  assert.equal(r.pass, false);
+  assert.ok(r.why.includes(".golangci.yml"), r.why);
+});
+
+test("AC-532-1: WHEN only near misses change THEN a Go app's other files pass", () => {
+  for (const path of ["docs/makefile-notes.md", "docs/Makefile.md", "src/justfile.ts", "src/sqlc.yaml.ts", "internal/modules/notes/service.go", "go.mod", "go.sum",
+    "tools/notes.md", "tools/tools.go", "tools/golangci-lint.sum", "src/golangci.yml", "cmd/api/main.go", "api/openapi.yaml"]) {
+    assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, true, path);
+  }
+});
+
+test("AC-532-1: WHEN the level is Full and a Go check config changes THEN a writer's pass at the head passes and a writer's fail fails", () => {
+  for (const path of GO_CHECK_FILES) {
+    const go = (comments) => decide({ changed: [path], stack: FULL, comments, head: HEAD, trusted: WRITERS });
+    assert.equal(go([]).pass, false, `${path}: no review`);
+    assert.equal(go([PASS()]).pass, true, `${path}: a pass`);
+    assert.equal(go([FAIL()]).pass, false, `${path}: a fail`);
+  }
+});
+
+test("AC-532-2: WHEN internal/modules/notes/service_test.go is deleted, or renamed to a non-test name, THEN it is reported as a deleted test", () => {
+  const r = withFiles([gone("internal/modules/notes/service_test.go")]);
+  assert.equal(r.pass, false);
+  assert.match(r.why, /internal\/modules\/notes\/service_test\.go \(a deleted test\)/);
+  for (const to of ["internal/modules/notes/service.go", "internal/modules/notes/service_test_old.go", "internal/modules/notes/service.go.bak"]) {
+    const renamed = withFiles([{ filename: to, previous_filename: "internal/modules/notes/service_test.go", status: "renamed" }]);
+    assert.equal(renamed.pass, false, to);
+    assert.match(renamed.why, /service_test\.go \(a deleted test: renamed to /);
+  }
+});
+
+test("AC-532-2: WHEN a Go test is renamed to another test name THEN it passes; a removed testdata file is a deleted test", () => {
+  assert.equal(withFiles([{ filename: "internal/modules/notes/store_test.go", previous_filename: "internal/modules/notes/service_test.go", status: "renamed" }]).pass, true);
+  for (const path of ["internal/modules/notes/testdata/golden.json", "testdata/notes.sql", "pkg/a/TestData/x.txt"]) {
+    const r = withFiles([gone(path)]);
+    assert.equal(r.pass, false, path);
+    assert.match(r.why, /\(a deleted test\)/);
+  }
+});
+
+test("AC-532-2: the guard's test mode exits 1 and names the deleted Go test", () => {
+  const dir = tmp();
+  const files = join(dir, "files.json");
+  writeFileSync(files, JSON.stringify([gone("internal/modules/notes/service_test.go")]));
+  const r = spawnSync(process.execPath, [SCRIPT, "--files", files], { encoding: "utf8", env: safeEnv() });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /service_test\.go \(a deleted test\)/);
+});
+
+test("AC-532-3: WHEN a pull request only adds or edits a _test.go file or testdata THEN nothing is reported", () => {
+  const files = [{ filename: "internal/modules/notes/service_test.go", status: "added" }, { filename: "internal/modules/notes/handler_test.go", status: "modified" },
+    { filename: "internal/modules/notes/testdata/golden.json", status: "added" }, { filename: "internal/modules/notes/testdata/other.json", status: "modified" }];
+  assert.deepEqual(deletedTests(files), []);
+  assert.equal(withFiles(files).pass, true);
+});
+
+test("AC-532-2: WHEN a removed Go file is a near miss THEN decide passes", () => {
+  for (const path of ["internal/modules/notes/service.go", "internal/modules/notes/contest.go", "internal/testing/helpers.go", "docs/testdata-notes.md", "internal/test_helpers.go"]) {
+    assert.equal(withFiles([gone(path)]).pass, true, path);
+  }
+});
+
+test("AC-532-5: full.md names the Go check code and tests the script protects", () => {
+  const doc = read(".agents/skills/automation/references/full.md").split("## The weakening review")[1];
+  for (const name of ["`.golangci.yml`", "`.golangci.toml`", "`.go-arch-lint.yml`", "`Makefile`", "`GNUmakefile`", "`Taskfile.yml`", "`justfile`", "`sqlc.yaml`", "`sqlc.json`",
+    "`orval.config.*`", "`tools/*.mod`", "`_test.go`", "`testdata/`"]) {
+    assert.ok(doc.includes(name), name);
+  }
+});
