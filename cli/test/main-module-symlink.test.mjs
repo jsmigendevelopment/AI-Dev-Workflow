@@ -32,6 +32,7 @@ const SCRIPTS = [
   [`${COORDINATE}/pr-rules.mjs`, [], 2, /Usage: pr-rules\.mjs/],
   [`${COORDINATE}/timer.mjs`, [], 2, /Usage: timer\.mjs/],
   [".agents/skills/issues/scripts/check-issue-size.mjs", ["no-such-file.json"], 2, /check-issue-size: expected a JSON list/],
+  [".agents/skills/issues/scripts/check-gate-acs.mjs", [], 2, /check-gate-acs: expected a JSON list/],
   [".agents/skills/pyramid/scripts/check-plan.mjs", [], 2, /No plan at docs\/pyramid\.md/],
   [".agents/skills/routing/scripts/roles.mjs", ["--no-such-option"], 2, /Unknown option "--no-such-option"/],
 ];

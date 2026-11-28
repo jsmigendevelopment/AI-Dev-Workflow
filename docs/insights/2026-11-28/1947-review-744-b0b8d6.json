@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T19:47:27.558Z",
+  "issue": null,
+  "pr": 744,
+  "sha": "7721d7f636b43fe82afc043234b87a7365fc236f",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "changes",
+  "must": 1,
+  "nice": 6,
+  "categories": [
+    "secret-safety",
+    "names"
+  ]
+}

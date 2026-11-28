@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 import { homedir } from "node:os";
 import { toNative } from "./files.mjs";
 import { loadKit } from "./kit.mjs";
-import { looksSecret, valueLooksSecret } from "./config-secrets.mjs";
+import { MAX_VALUE_LENGTH, looksSecret, valueLooksSecret } from "./config-secrets.mjs";
 import { TEMPLATE, profilePath } from "./profile.mjs";
 
 // The names and values that look like a credential, and so print nothing, are in config-secrets.mjs.
@@ -125,6 +125,7 @@ export function configGet(name, dir = ".", { home = homedir(), kitDir, log = con
     const toml = read();
     const found = toml === null ? { found: false } : lookup(toml, section, key);
     if (!found.found || found.value === "") continue; // not here, or blank: ask the next layer
+    if (typeof found.value === "string" && found.value.length > MAX_VALUE_LENGTH) return error(`${name} holds a value over ${MAX_VALUE_LENGTH.toLocaleString("en-US")} characters, which can hide a secret and is slow to check, so config get prints nothing for it. Read the ${layer} profile file yourself.`), 1;
     if (typeof found.value === "string" && valueLooksSecret(found.value)) return error(`${name} holds a value that looks like a token, key or secret, so config get prints nothing for it. Read the ${layer} profile file yourself.`), 1;
     if (found.value === null) return error(`${name} is set in the ${layer} profile in a form config get doesn't read (it reads "text", true, false and whole numbers).`), 1;
     return log(`${found.value} (${layer})`), 0;

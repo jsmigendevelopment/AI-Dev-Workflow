@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T21:28:08.553Z",
+  "issue": 747,
+  "pr": 754,
+  "sha": "4d7783f12f08cf5ba18fd68bf30fb72409d3e645",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "round": 3,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 1,
+  "categories": [
+    "coverage"
+  ]
+}
