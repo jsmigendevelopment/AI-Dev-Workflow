@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **Which model did which job (#129).** `insights.mjs line job` now ends with a run line people read on GitHub: job, model, effort, time from `started=`, and the commit. `build` ends its pull request body with one and its commits with `Agent-Model:` and `Agent-Effort:` trailers; `pr-review`, `pr-security` and `qa` pass `started=`. A new optional `model_from` field says why a model or effort is `unknown`. `validate` refuses a control character in `job`, `model`, `effort` and `model_from`, so the run line stays one line. `npx onrails runs --pr <n>` (or `--issue <n>`, `--day <yyyy-mm-dd>`) prints the chain from the records, oldest first, and `--brief` gives `/back` one line per merged pull request (decision 129-1).
+
 ### Fixed
 
 - The pull request size check never passes what it can't count (#407). Any file that shows as binary but isn't a known binary type (an image, font, archive and the like), such as a UTF-16 `.md` or an extensionless script, is exit 2 with its name. In a pull request, an added or modified file with 0/0, no patch and content is exit 2, an empty new file isn't listed as binary, and a git error other than a missing path is exit 2. A `Size exception:` line inside a `<script>` or `<style>` block doesn't count (decisions 377-2 and 407-1).
@@ -12,7 +16,6 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Added
 
-- **Which model did which job (#129).** `insights.mjs line job` now ends with a run line people read on GitHub: job, model, effort, time from `started=`, and the commit. `build` ends its pull request body with one and its commits with `Agent-Model:` and `Agent-Effort:` trailers; `pr-review`, `pr-security` and `qa` pass `started=`. A new optional `model_from` field says why a model or effort is `unknown`. `validate` refuses a control character in `job`, `model`, `effort` and `model_from`, so the run line stays one line. `npx onrails runs --pr <n>` (or `--issue <n>`, `--day <yyyy-mm-dd>`) prints the chain from the records, oldest first, and `--brief` gives `/back` one line per merged pull request (decision 129-1).
 - **The kit's own repo has a `docs/stack.md` on Full, so the agent-file guard stops asking for a label (#360).** It records Full automation with every switch (decision 259-1) and one code review per pull request (decision 28). `pr-review` says that where `docs/stack.md` says so, the one code review writes the `Weakening review:` line in its verdict. `agent-files.mjs gate` then passes a skill change on a writer's pass at the head, and fails one without it (decision 360-1).
 - **Person-started skills follow the live-thread rule (#454).** Started by the person in the thread they talk to, `build`, `pr-review`, `qa`, `diagnose` and `research` hand the job to a background sub-agent (or, for `build`, the loop) and end the turn; `idea` and `join` keep the questions there and hand each long step down. A sub-agent briefed to run the skill does the work itself and never hands its job down again. The pause or stop proof shows the loop's own list when it reports back, never waited on (decision 454-1).
 - **The live thread only talks (#390).** Rule 17 in `AGENTS.md`: the thread the person talks to answers, records decisions, writes a note or files an issue, and hands every merge, build, check, long read and wait to a background sub-agent or sub-thread, so the person is never blocked. `coordinate`'s start, `back`, `afk`, `automation` and `ask` follow it. The opt-in eval `live-thread-only-talks` says "merge #3", then asks a second question; the runner can now send follow-up messages (`export const followUps`, stream-json input).
