@@ -35,34 +35,60 @@ function copied(root, dir = root) {
     d.isDirectory() ? copied(root, join(dir, d.name)) : [relative(root, join(dir, d.name)).replaceAll("\\", "/")]);
 }
 
-/** Reads one add-on's Apply steps and works out the files it touches and the lint step it runs. */
-export function addonLint(name) {
+// Any way to run ESLint or Prettier (or the pack's format and fix scripts) by hand. The lint step is the one
+// place an add-on runs them, on its own files: a whole-project run in another step rewrites files it never touched,
+// and one before the types exist misreads the code. Each pattern ends at the end of the line or the closing backtick.
+const STRAY = [
+  /\b(?:pnpm|npm|yarn|npx)\s+(?:(?:exec|run|dlx)\s+)?(?:eslint|prettier)(?![\w.-])[^\n`]*/,
+  /\bpnpm\s+(?:run\s+)?(?:format|fix|lint:fix)(?![\w:-])/,
+  /\bpnpm\s+(?:run\s+)?lint\b[^\n`]*--fix/,
+  /^[ \t]*(?:eslint|prettier)\s[^\n`]*/m,
+];
+
+/**
+ * Reads one add-on's Apply steps and works out the files it touches and the lint step it runs.
+ * `edit` (a test's) changes the Apply text in memory first; the ADDON.md on disk is never written.
+ */
+export function addonLint(name, { edit = (text) => text } = {}) {
   const dir = join(ADDONS, name);
   const files = join(dir, "files");
-  const { apply } = parseAddon(readFileSync(join(dir, "ADDON.md"), "utf8"));
+  const apply = edit(parseAddon(readFileSync(join(dir, "ADDON.md"), "utf8")).apply);
 
   // The files the Apply steps edit by hand. The rule this relies on: a step names each file it edits
   // or creates as a backticked path in its prose, outside any code block ("`vite.config.ts`: add ...").
-  // Such a path counts when it is a file in the pack, or a new file under src/. A path named only in a
-  // code block, a comment or plain prose is not seen. The package.json and lockfile that `pnpm add`
-  // writes are named only in code, and nothing lints them. So backtick a pack path only for a file
-  // the steps really edit: every one counts as touched, and the lint step must lint and format it.
+  // Such a path counts when it is a file in the pack, or a new file in a folder (`src/x.ts`, `scripts/x.ts`:
+  // any path with a `/`, so `src/` is no special case). A path named only in a code block, a comment or plain
+  // prose is not seen. A new file in the pack's root has no `/`, so a bare name such as `composition.ts` can't be
+  // told from a prose mention: ship it in the add-on's files/ folder, which is always seen. The package.json and
+  // lockfile that `pnpm add` writes are named only in code, and nothing lints them. So backtick a pack path only
+  // for a file the steps really edit: every one counts as touched, and the lint step must lint and format it.
   const isPackFile = (f) => existsSync(join(PACK, f)) && statSync(join(PACK, f)).isFile();
-  const isNewSrcFile = (f) => /^src\/[\w./-]+\.\w+$/.test(f) && !f.includes("..");
+  const isNewFile = (f) => /^\w[\w.-]*\/[\w./-]+\.\w+$/.test(f) && !f.includes("..");
   const edited = [...new Set([...apply.replace(/```[\s\S]*?```/g, "").matchAll(/`([^`\s]+)`/g)].map((m) => m[1]))]
-    .filter((f) => (isPackFile(f) || isNewSrcFile(f)) && !IGNORED.has(f));
+    .filter((f) => (isPackFile(f) || isNewFile(f)) && !IGNORED.has(f));
   const copiedFiles = existsSync(files) ? copied(files) : [];
   const touched = new Set([...copiedFiles, ...edited]);
   // A folder the add-on brings whole (new to the pack) may stand for all its files in the step.
   const ownFolder = (t) => !existsSync(join(PACK, t)) && existsSync(join(files, t)) && statSync(join(files, t)).isDirectory();
   const covers = (list, f) => list.some((t) => t === f || (ownFolder(t) && f.startsWith(`${t}/`)));
 
-  // The lint step is the one whose sh block starts with `pnpm cf-typegen`. Returns the block's lines.
-  function lintBlock() {
-    const blocks = [...apply.matchAll(/```sh\n([\s\S]*?)```/g)].map((m) => m[1].split("\n").map((l) => l.trim()).filter(Boolean));
-    const block = blocks.find((lines) => lines[0]?.startsWith("pnpm cf-typegen"));
+  // The lint step is the one whose sh block starts with `pnpm cf-typegen`. Returns the block's text and lines.
+  function findLintBlock() {
+    const blocks = [...apply.matchAll(/```sh\n([\s\S]*?)```/g)]
+      .map((m) => ({ text: m[0], lines: m[1].split("\n").map((l) => l.trim()).filter(Boolean) }));
+    const block = blocks.find((b) => b.lines[0]?.startsWith("pnpm cf-typegen"));
     assert.ok(block, `${name}: the lint step has an sh block that starts with \`pnpm cf-typegen\``);
     return block;
+  }
+  const lintBlock = () => findLintBlock().lines;
+
+  /** Asserts no step but the lint step runs ESLint, Prettier, `pnpm format` or `pnpm lint --fix`. */
+  function assertNoOtherLint() {
+    const rest = apply.replace(findLintBlock().text, "");
+    for (const re of STRAY) {
+      const found = rest.match(re)?.[0].trim();
+      assert.ok(!found, `${name}: Apply runs \`${found}\` outside the lint step, which is the only place it lints or formats, and only the add-on's own files`);
+    }
   }
 
   function lintStep() {
@@ -83,6 +109,7 @@ export function addonLint(name) {
 
   /** Asserts the lint step names only touched files, and fixes and formats every touched file the pack's lint covers. */
   function assertScoped(known) {
+    assertNoOtherLint();
     for (const f of known) assert.ok(edited.includes(f), `${name}: Apply edits ${f}`);
     const why = (f) => edited.includes(f) && !copiedFiles.includes(f) && !known.includes(f)
       ? ` (Apply backticks \`${f}\`, so it counts as edited. If no step edits it, don't backtick it)` : "";
@@ -97,5 +124,5 @@ export function addonLint(name) {
     assert.doesNotMatch(apply, /`pnpm exec eslint --fix \.[ `]/, `${name}: no whole-project \`eslint --fix .\` step is left`);
   }
 
-  return { apply, lintBlock, assertScoped };
+  return { apply, lintBlock, assertNoOtherLint, assertScoped };
 }
