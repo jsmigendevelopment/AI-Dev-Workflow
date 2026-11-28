@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unixOnly } from "./helpers.mjs";
-import { BASE, BOT, BUMP, BUMPED, HEAD, LOCK, LOCK_BUMPED, MANIFEST, MERGE_BASE, REPO, at, bump, changed, commit, npmLock, pullOf, read, refused } from "./dependabot-helpers.mjs";
+import { BASE, BOT, BUMP, BUMPED, HEAD, LOCK, LOCK_BUMPED, MANIFEST, MERGE_BASE, ONLY, REPO, at, bump, changed, commit, npmLock, pullOf, read, refused } from "./dependabot-helpers.mjs";
 
 test("AC-226-1: WHEN a Dependabot pull request only bumps versions in package.json and the lockfile THEN own-branch.mjs exits 0 for it", unixOnly, () => {
   const r = bump();
@@ -172,4 +172,44 @@ test("AC-226-3: WHEN dependencies is read THEN it says how a Dependabot bump rea
   const exit0 = read(".agents/skills/coordinate/SKILL.md").split("\n").find((l) => l.trim().startsWith("- Exit 0")) ?? "";
   assert.match(exit0, /`dependabot\[bot\]`/);
   assert.match(exit0, /`no-issue`/);
+});
+
+test("AC-595-1: WHEN a bump changes a file that isn't an existing manifest or lockfile and its path is 3000 characters long THEN the refusal is short, each name is clipped to 200 characters, and it still gives the file's status", unixOnly, () => {
+  const long = `src/${"x".repeat(2995)}`;
+  const cases = {
+    "an added file": { files: [{ filename: long, status: "added" }] },
+    "a removed file": { files: [{ filename: long, status: "removed" }] },
+    "a renamed file": { files: changed([`old/${"y".repeat(2990)}`, long]).map((f) => ({ ...f, status: "renamed" })) },
+    "a modified file that isn't a manifest": { files: changed("package.json", long) },
+  };
+  for (const [name, more] of Object.entries(cases)) {
+    const r = bump(more);
+    assert.equal(r.status, 1, `${name}: ${r.stderr.slice(0, 300)}`);
+    assert.equal(r.stdout, "", name);
+    assert.ok(r.stderr.length < 600, `${name}: the reason is ${r.stderr.length} characters`);
+    assert.ok(!r.stderr.includes("x".repeat(201)), `${name}: more than 200 characters of the name`);
+    assert.ok(r.stderr.includes(`${long.slice(0, 200)}... (`), `${name}: the name is clipped to 200 characters and marked`);
+    assert.match(r.stderr, /changes more than existing manifests and lockfiles: .* \((?:added|removed|renamed|modified)\)\./, name);
+    assert.match(r.stderr, ONLY, name);
+  }
+  const two = bump({ files: [{ filename: `a/${"p".repeat(3000)}`, status: "added" }, { filename: `b/${"q".repeat(3000)}`, status: "removed" }] });
+  assert.ok(two.stderr.length < 800, `two long names: ${two.stderr.length} characters`);
+  assert.ok(!two.stderr.includes("p".repeat(201)) && !two.stderr.includes("q".repeat(201)), "each of two names is clipped");
+  assert.match(two.stderr, /\(added\), b\/q+\.\.\. \(removed\)\./, "each name keeps its own status");
+  const exact = `docs/${"n".repeat(195)}`;
+  const over = bump({ files: [{ filename: `${exact}z`, status: "added" }] });
+  assert.match(over.stderr, new RegExp(`lockfiles: ${exact}\\.\\.\\. \\(added\\)\\. `), "201 characters is clipped to 200 and marked");
+});
+
+test("AC-595-2: WHEN the offending paths are 200 characters or shorter THEN the refusal reads exactly as before", unixOnly, () => {
+  const exact = `docs/${"n".repeat(195)}`;
+  const text = (list) => `Dependabot's #7 changes more than existing manifests and lockfiles: ${list}. The local gate only runs the loop's own branches.\n`;
+  const short = bump({ files: [{ filename: "src/app.ts", status: "added" }, { filename: "yarn.lock", status: "removed" }, { filename: ".github/workflows/ci.yml", status: "modified" }] });
+  assert.equal(short.status, 1);
+  assert.equal(short.stderr, text("src/app.ts (added), yarn.lock (removed), .github/workflows/ci.yml (modified)"));
+  const renamed = bump({ files: changed(["src/app.ts", "package.json"]) });
+  assert.equal(renamed.stderr, text("package.json (renamed)"));
+  const edge = bump({ files: [{ filename: exact, status: "added" }] });
+  assert.equal(exact.length, 200);
+  assert.equal(edge.stderr, text(`${exact} (added)`), "a name of exactly 200 characters is quoted whole");
 });
