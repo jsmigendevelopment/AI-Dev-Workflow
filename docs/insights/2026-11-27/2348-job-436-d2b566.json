@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-27T23:48:54.893Z",
+  "issue": 405,
+  "pr": 436,
+  "sha": "8a7061f141ff7ae1d208a7a0166896e99adfcb61",
+  "job": "build",
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "outcome": "finished",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "get_session: rate_limit_info shows status allowed and no percentage"
+}

@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-27T23:57:41.648Z",
+  "issue": null,
+  "pr": 436,
+  "sha": "038bac7d1e5133d6d8ead6a8b569edb5d5b216aa",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "unknown",
+  "outcome": "fail",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "not shown in this session",
+  "send_back": "review-must"
+}
