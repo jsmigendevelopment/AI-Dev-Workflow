@@ -2,12 +2,13 @@
 // cycles and the sideways imports. Every fixture is a made-up app in a temp folder.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { symlinkSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "./child.mjs";
 import { logger, put, read, safeEnv, tmp } from "./helpers.mjs";
-import { mapRepo } from "../src/map.mjs";
+import { mapRepo, render } from "../src/map.mjs";
+import { specifiers } from "../src/map-scan.mjs";
 
 const CLI = fileURLToPath(new URL("../bin/cli.mjs", import.meta.url));
 const OUT = "docs/map.generated.md";
@@ -193,4 +194,74 @@ test("map through the binary writes the file, prints one line, and a missing fol
   assert.match(read(dir, OUT), /\| a \| 1 \| 1 \|/);
   assert.equal(run(`${dir}/nope`).status, 1);
   assert.match(spawnSync(process.execPath, [CLI, "--help"], { encoding: "utf8", env: safeEnv() }).stdout, /onrails map \[dir\]/);
+});
+
+const noLinks = { skip: process.platform === "win32" && "links need rights on Windows" };
+
+test("a docs/map.generated.md that is a link is refused, and the file it points at is left alone", noLinks, () => {
+  const dir = app({ "src/modules/a/a.ts": "export {};\n", "docs/keep.md": "mine\n" });
+  const outside = tmp("onrails-map-victim-");
+  put(outside, "victim.txt", "do not touch\n");
+  const victim = join(outside, "victim.txt");
+  symlinkSync(victim, join(dir, OUT));
+  assert.throws(() => mapRepo(dir, { log: logger() }), /docs\/map\.generated\.md is a link/);
+  assert.equal(readFileSync(victim, "utf8"), "do not touch\n");
+  const r = spawnSync(process.execPath, [CLI, "map", dir], { encoding: "utf8", env: safeEnv() });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /is a link/);
+  assert.equal(readFileSync(victim, "utf8"), "do not touch\n");
+});
+
+test("a docs folder that is a link is refused, and nothing is written through it", noLinks, () => {
+  const dir = app({ "src/modules/a/a.ts": "export {};\n" });
+  const elsewhere = tmp("onrails-map-elsewhere-");
+  symlinkSync(elsewhere, join(dir, "docs"));
+  assert.throws(() => mapRepo(dir, { log: logger() }), /docs\/ is a link/);
+  assert.deepEqual(readdirSync(elsewhere), []);
+});
+
+test("an existing map file is replaced in place, not appended to", () => {
+  const dir = app({ "src/modules/a/a.ts": "export {};\n" });
+  mapped(dir);
+  put(dir, OUT, "old and much longer than the new map ".repeat(2000));
+  assert.match(mapped(dir), /\| a \| 1 \| 1 \|/);
+  assert.equal(read(dir, OUT).includes("old and much"), false);
+});
+
+test("a src folder that is a link is refused, so nothing outside the app is read", noLinks, () => {
+  const root = tmp("onrails-map-root-");
+  put(root, "real/modules/secret/s.ts", "export {};\n");
+  put(root, "app/package.json", "{}\n");
+  symlinkSync(join(root, "real"), join(root, "app/src"));
+  const dir = join(root, "app");
+  assert.throws(() => mapRepo(dir, { log: logger() }), /src\/ is a link/);
+  assert.equal(existsSync(join(dir, "docs")), false);
+});
+
+test("a src/modules folder that is a link is not a module folder, so what it points at is not read", noLinks, () => {
+  const root = tmp("onrails-map-root-");
+  put(root, "real/secret/s.ts", "export {};\n");
+  put(root, "app/src/own/o.ts", "export {};\n");
+  symlinkSync(join(root, "real"), join(root, "app/src/modules"));
+  assert.deepEqual(items(mapped(join(root, "app")), "Modules"), ["| own | 1 | 1 |"]);
+});
+
+test("a file of unterminated comments and quotes is read in a time that grows with its size", () => {
+  const big = (line) => line.repeat(Math.ceil(600_000 / line.length)) + '\nimport b from "../b/x";\n';
+  for (const line of ["/*\n", "'\\'\\'\\'\\'\\'\\'", "`\\`\\`\\`\\`\\`", "\"/*\"'/*'\n"]) {
+    const started = Date.now();
+    specifiers(big(line));
+    assert.ok(Date.now() - started < 2000, `${JSON.stringify(line)} took ${Date.now() - started} ms`);
+  }
+  assert.deepEqual(specifiers('/* never closed\nimport a from "../a/x";\n'), []);
+  assert.deepEqual(specifiers("import a from \"../a/x\"; /* ok */ import b from '../b/x'; // import c from '../c/x'\n"), ["../a/x", "../b/x"]);
+});
+
+test("a map of 400 modules that all import each other (about 160,000 lines) is written without overflowing the stack", () => {
+  const names = Array.from({ length: 400 }, (_, i) => `m${String(i).padStart(3, "0")}`);
+  const modules = new Map(names.map((n) => [n, { files: 1, lines: 1 }]));
+  const edges = names.flatMap((a) => names.filter((b) => b !== a).map((b) => [a, b]));
+  const { text, count } = render({ featureLayout: true, modules, edges });
+  assert.equal(count, 400);
+  assert.equal(text.split("\n").filter((l) => l.startsWith("- m")).length, 2 * edges.length + 1);
 });
