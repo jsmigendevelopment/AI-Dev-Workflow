@@ -10,9 +10,33 @@ export const optIn = true;
 
 export const limits = { maxTurns: 24, timeoutSec: 300 };
 
-// A run of the script: a command that starts with `node`, then the script's path. Reading or searching the file
-// isn't a size check, even when its arguments say node (`grep -n node .../pr-size.mjs`, #418).
+// A run of the script: a simple command that starts with `node`, then the script's path. Reading or searching the
+// file isn't a size check, even when its arguments say node (`grep -n node .../pr-size.mjs`, #418).
 const SIZE = /^\s*node\s+\S*pr-size\.mjs\b/;
+
+/** The simple commands of a shell command: a backslash-newline joins a line, and a newline, `;` or `&&` outside
+ * quotes ends one. So `cd <dir> && node ...` and a command over several lines are read command by command (#512). */
+function simpleCommands(command) {
+  const text = command.replace(/\\\r?\n/g, " ");
+  const found = [];
+  let current = "";
+  let quote = "";
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const ends = c === "\n" || c === ";" || (c === "&" && text[i + 1] === "&");
+    if (quote) quote = c === quote ? "" : quote;
+    else if (c === "'" || c === '"') quote = c;
+    else if (ends) {
+      found.push(current);
+      current = "";
+      if (c === "&") i++;
+      continue;
+    }
+    current += c;
+  }
+  return [...found, current];
+}
+const runsSize = (command) => simpleCommands(command).some((c) => SIZE.test(c));
 const SPLIT = /\bsplit/i;
 // A link to #1 in a new issue file: "#1", "issue 1", or its file name.
 const LINKS_ONE = /#0*1\b|issue\s*0*1\b|001-chore-report/i;
@@ -42,7 +66,7 @@ export const checks = [
   {
     id: "AC-378-1-size-checked",
     description: "It ran pr-size.mjs with node: the size check comes before the review",
-    check: (t) => result(t.bash.some((c) => SIZE.test(c)), "no `node ... pr-size.mjs` command"),
+    check: (t) => result(t.bash.some(runsSize), "no `node ... pr-size.mjs` command"),
   },
   {
     id: "AC-378-1-no-review",
