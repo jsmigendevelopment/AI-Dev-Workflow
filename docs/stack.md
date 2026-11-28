@@ -34,7 +34,7 @@ Decision 28: in the kit's own repo, a pull request gets one code review. There i
 
 - **Code reviews per pull request:** one, a fresh `pr-review` that reads only the diff and the issue
 - **Checks:** the reviewer runs them locally on the exact head commit and posts the `Checks:` comment
-- **Weakening review:** written by the one code review. On a pull request that changes a file the guard protects (`.agents/`, `.claude/`, `AGENTS.md` and the rest of the list in `.agents/skills/automation/references/full.md`), the one code review writes the `Weakening review:` line in its verdict comment: `Weakening review: pass @ <full head sha>` when nothing weakens a check or rule, else `Weakening review: fail @ <sha>` with the lines. The guard reads only that line on Full, so `gate` passes on the review's pass and fails without it.
+- **Weakening review:** written by the one code review, on every pull request. The guard watches more than the protected-file list (deleted tests, `package.json` check keys, `docs/stack.md` itself), so the one code review writes the `Weakening review:` line in its verdict comment every time, whatever the pull request changes: `Weakening review: pass @ <full head sha>` when nothing weakens a check or rule, else `Weakening review: fail @ <sha>` with the lines. The guard reads only that line on Full, so `gate` passes on the review's pass and fails without it.
 
 ## Checks and deploys
 
