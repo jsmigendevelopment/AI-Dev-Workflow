@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T16:35:33.412Z",
+  "issue": 476,
+  "pr": 693,
+  "sha": "e49ed57fbd80383261af259f7904dd96ab4c3be0",
+  "job": null,
+  "tool": "claude-code",
+  "model": "Claude Sonnet 5.5",
+  "effort": "high",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 1,
+  "categories": [
+    "tests",
+    "toml"
+  ]
+}
