@@ -1,0 +1,47 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T04:18:51.831Z",
+  "issue": null,
+  "pr": 495,
+  "sha": "8bef9ced4bf4ecf0d68d4d4c5678751ea700a3ee",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "cd cli && npm run bundle && npm test",
+      "result": "pass",
+      "seconds": 109
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 77
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "fresh app: pnpm install && pnpm check",
+      "result": "pass",
+      "seconds": 63
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}
