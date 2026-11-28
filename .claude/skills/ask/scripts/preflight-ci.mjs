@@ -37,7 +37,7 @@ export function ciMode(dir) {
   }
 }
 
-/** The files directly in dir/.github/workflows/, where GitHub looks, as repo paths, sorted. A symlinked folder counts as none. */
+/** The files directly in dir/.github/workflows/ that ci = "local" removes, where GitHub looks, as repo paths, sorted. A symlinked folder counts as none. */
 export function workflowFiles(dir) {
   const folder = join(dir, ".github", "workflows");
   let entries;
@@ -76,12 +76,12 @@ export async function ciWarnings(dir, sys, read) {
   if (ciMode(dir) === "actions") return [];
   const out = [];
   const files = workflowFiles(dir);
-  if (files.length) out.push(`${files.length} workflow file(s) in .github/workflows/, on ci = "local". Fix: \`${CI_FIX}\` removes them in a pull request and turns Actions off.`);
+  if (files.length) out.push(`${files.length} workflow file(s) in .github/workflows/ on ci = "local". Fix: \`${CI_FIX}\` removes them in a pull request and turns Actions off.`);
   if (!read || !sys) return out;
   const remote = await sys.run("git", ["remote", "get-url", "origin"], { cwd: dir });
   const repo = remote?.ok ? githubRepo(remote.out.split("\n")[0]) : null;
   if (!repo) return out;
   const perms = await sys.run("gh", ["api", `repos/${repo}/actions/permissions`], { cwd: dir });
-  if (perms?.ok && actionsOn(perms.out) === true) out.push(`GitHub Actions is on for ${repo}, on ci = "local". Fix: \`${CI_FIX}\` turns it off.`);
+  if (perms?.ok && actionsOn(perms.out) === true) out.push(`GitHub Actions is on for ${repo} on ci = "local". Fix: \`${CI_FIX}\` turns it off.`);
   return out;
 }

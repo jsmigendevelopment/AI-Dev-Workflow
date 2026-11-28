@@ -1,5 +1,5 @@
-// Where CI runs, from the `ci = "..."` line in docs/stack.md. "actions" only when it says so:
-// every repo is `ci = "local"` unless the person turned GitHub Actions on themselves. On local,
+// Where the checks run, from the `ci = "..."` line in docs/stack.md. "actions" only when it says so:
+// every repo is `ci = "local"` unless the person turned on `ci = "actions"` themselves. On local,
 // setup-cloudflare and connect write nothing to GitHub (decision in docs/decisions.md, #139).
 // setup-cloudflare and connect call readCi with the app's folder. The kit's push-secrets.mjs and
 // setup-github.mjs keep their own copy of the rule and the lookup; the CLI's ci-local-secrets and
@@ -12,7 +12,7 @@ export type Ci = 'local' | 'actions'
 /** A `ci = "actions"` line, a trailing `# comment` allowed. */
 const CI_ACTIONS = /^ci[ \t]*=[ \t]*"actions"[ \t]*(?:#.*)?\r?$/m
 
-/** The CI a docs/stack.md text names: "actions" only for a `ci = "actions"` line. */
+/** The mode a docs/stack.md text names: "actions" only for a `ci = "actions"` line. */
 export const ciFrom = (stack: string): Ci => (CI_ACTIONS.test(stack) ? 'actions' : 'local')
 
 /** The folder holding `.git`, from `start` up; null before `git init`. */

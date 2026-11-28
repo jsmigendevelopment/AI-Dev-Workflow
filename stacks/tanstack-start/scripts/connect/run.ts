@@ -23,7 +23,7 @@ export interface Io {
 }
 
 const USAGE = `Usage: pnpm connect [provider] [--force] [--dry-run]
-  (no provider)  every provider this app needs, from .env.example and the workflows
+  (no provider)  every provider this app needs, from .env.example (and the workflows on ci = "actions")
   <provider>     just that one, for example: pnpm connect clerk
   --force        ask again for values that are already set
   --dry-run      show what's set and what it would ask, by name only; changes nothing
@@ -38,7 +38,7 @@ function findRoot(start: string): string {
   }
 }
 
-/** Every name the app reads: .env.example lines, and secrets.X / vars.X in the workflows. */
+/** Every name the app reads: .env.example lines, and secrets.X / vars.X in the workflows on ci = "actions". */
 export function neededNames(folders: Folders): Set<string> {
   const names = new Set<string>()
   for (const dir of new Set([folders.app, folders.root])) {
@@ -55,7 +55,7 @@ export function neededNames(folders: Folders): Set<string> {
   }
   names.delete('GITHUB_TOKEN')
   names.delete(SECRETS_MODE_VARIABLE) // setup-github's switch, not a value to ask for
-  // A workflow reads TEST_X or PRODUCTION_X in repository mode: those are X under another name.
+  // On ci = "actions" a workflow reads TEST_X or PRODUCTION_X in repository mode: those are X under another name.
   for (const name of names) {
     const base = name.replace(/^(?:TEST|PRODUCTION)_/, '')
     if (base !== name && names.has(base)) names.delete(name)

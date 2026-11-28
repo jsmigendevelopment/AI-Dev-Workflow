@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The agent-file guard. `coordinate` runs it from the session before every merge (`gate`), and a repo that
-// still has .github/workflows/agent-files.yml runs it there too (`--pr`). A pull request that changes the
+// hasn't removed .github/workflows/agent-files.yml yet runs it there too (`--pr`). A pull request that changes the
 // agents' rules, check code or the automation level needs, on Recommended and Hands-on, the
 // `human-approved` label. On Full automation the label doesn't count (agents share the owner's login,
 // so it proves nothing, #103): only the weakening review does, a comment from someone with write access
@@ -8,15 +8,15 @@
 //   Weakening review: pass @ <full head sha>
 // On every level, a writer's fail at the head refuses first, whatever the labels say. A fail that is
 // there when the guard decides beats every pass; one deleted, or edited to drop the fail line, doesn't.
-// The workflow and `gate` both run this file from the default branch and read the level from docs/stack.md
-// there, so a pull request can't change either. The pull request's files, labels and comments are read
+// `gate` runs this file from the default branch, as does a workflow not yet removed, and reads the level from
+// docs/stack.md there, so a pull request can't change either. The pull request's files, labels and comments are read
 // through the API as data; none of its code runs.
 //   node agent-files.mjs gate <n> --repo owner/name --head <sha>   before a merge, from your checkout of main: the
 //                                          guard on the live files, comments and labels at that head, with
 //                                          docs/stack.md from the default branch. Needs no workflow. It fails if
 //                                          the pull request moved.
-//   node agent-files.mjs --pr <n>          the workflow's check (env REPO, GH_TOKEN, HEAD_SHA: the event's head)
-//   node agent-files.mjs verify-run <n> [--repo owner/name] [--head <sha>]   optional, where the workflow still runs: the head's agent-files
+//   node agent-files.mjs --pr <n>          the check of a workflow not yet removed (env REPO, GH_TOKEN, HEAD_SHA: the event's head)
+//   node agent-files.mjs verify-run <n> [--repo owner/name] [--head <sha>]   optional, where a workflow isn't removed yet: the head's agent-files
 //                                          runs are real and green, and the guard still passes on the live comments
 //                                          and labels. --head pins the sha; it fails if the pull request moved.
 // Tests: --files <json> --packages <json> --stack <file> --comments <json> --labels a,b --head <sha> --trusted a,b
@@ -178,13 +178,14 @@ export function verifyMerge(runs, live) {
 }
 
 /**
- * Before a merge: every `agent-files` check run on the head comes from the guard's own workflow (a second
- * job with that name is refused), and the latest run of the guard on a pull_request_target event passed.
+ * Before a merge, where a repo hasn't removed the guard's workflow: every `agent-files` check run on the head
+ * comes from its own `agent-files.yml` (a second job with that name is refused), and the latest run of the guard
+ * on a pull_request_target event passed.
  * Runs: [{ id, status, conclusion, path, event }].
  */
 export function verifyRuns(runs) {
   const others = runs.filter((r) => r.path !== GUARD_WORKFLOW);
-  if (others.length) return { pass: false, why: `Another workflow reports a check named agent-files: ${[...new Set(others.map((r) => r.path))].join(", ")}. Refused.` };
+  if (others.length) return { pass: false, why: `A check named agent-files comes from another file than the guard's: ${[...new Set(others.map((r) => r.path))].join(", ")}. Refused.` };
   const guard = runs.filter((r) => r.event === "pull_request_target").sort((a, b) => a.id - b.id);
   const latest = guard.at(-1);
   if (!latest) return { pass: false, why: "No agent-files run from the guard's workflow on a pull_request_target event at the head." };
@@ -343,7 +344,7 @@ function fromApi(repo, pr, expected, stackText) {
   return { changed, modules, packages, deleted, stack, comments, head, labels, trusted, unchecked, expected: expected || null, total: pull.changed_files };
 }
 
-/** The head's agent-files check runs, each with the workflow file and event that made it. */
+/** The head's agent-files check runs, each with the .yml file and event that made it. */
 function runsFromApi(repo, pr, pinned) {
   const head = pinned || JSON.parse(gh(`repos/${repo}/pulls/${pr}`)).head.sha;
   const checks = JSON.parse(gh("--paginate", "--slurp", `repos/${repo}/commits/${head}/check-runs?check_name=agent-files`)).flatMap((p) => p.check_runs);
@@ -383,7 +384,7 @@ export function prArgs(args, env = {}) {
 function gate(argv) {
   const { pr, repo, head } = prArgs(argv.slice(1));
   if (!pr || !repo || !head) return { pass: false, why: "Usage: agent-files.mjs gate <n> --repo <owner>/<name> --head <sha>" };
-  // Like the workflow, the level comes from the default branch, so a pull request can't change it.
+  // As in a workflow not yet removed, the level comes from the default branch, so a pull request can't change it.
   const r = decide({ ...fromApi(repo, pr, head, defaultStack(repo)), expected: head });
   return { ...r, why: `${head}: ${r.why}` };
 }

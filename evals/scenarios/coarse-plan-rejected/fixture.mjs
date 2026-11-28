@@ -26,7 +26,7 @@ const PLAN = `# Tracer-bullet pyramid
 
 | # | Step | Slice | Try it | Size | After |
 |---|---|---|---|---|---|
-| 1 | The skeleton | slice 0 | Open the test URL: the starter page loads | 5 · sets up the app, CI and the test deploy | |
+| 1 | The skeleton | slice 0 | Open the test URL: the starter page loads | 5 · sets up the app, the local checks and the test deploy | |
 | 2 | Database schema and migrations | Shared list | The migration runs on the test database | 5 | 1 |
 | 3 | Build the API | Shared list | curl every endpoint and get a 200 | 7 | 2 |
 | 4 | Build the UI | Shared list | Open the app and click through every screen | 7 | 3 |

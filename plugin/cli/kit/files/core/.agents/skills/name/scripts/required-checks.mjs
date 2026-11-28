@@ -10,10 +10,10 @@ export const LOCAL_CHECK = "onrails/check";
 /** The context of setup-github's probe status. Nothing requires it. */
 export const PROBE_CHECK = "onrails/setup-probe";
 
-/** The checks the kit's old workflows reported. A rule that still requires one waits forever. */
+/** The checks the kit's removed workflows reported. A rule that still requires one waits forever. */
 export const ACTIONS_CHECKS = ["checks", "secrets", "agent-files", "ci", "pr-rules", "issue-link", "size", "preview", "visual", "semgrep", "supply-chain", "research", "web-e2e"];
 
-/** The required status checks for a new ruleset, when the probe status posted. */
+/** The local gate's required status check for a new ruleset, when the probe status posted. */
 export const requiredChecks = () => [{ context: LOCAL_CHECK }];
 
 /**
