@@ -65,8 +65,11 @@ export function setup() {
 /**
  * Runs insights.mjs in dir against a fake gh answering `api`, with `env` added. Returns the result and the gh calls.
  * `logGitEnv` puts a git in front of the real one that keeps each call's args and GIT_ variables, as `gitEnv`.
+ * A bare `land` gets `--now` (#748): `land` holds a few young records for a batch, and these tests are about what it
+ * does when it lands. `raw` runs the args exactly as given.
  */
-export function run(dir, args, api = {}, { env = {}, logGitEnv = false } = {}) {
+export function run(dir, args, api = {}, { env = {}, logGitEnv = false, raw = false } = {}) {
+  if (!raw && args[0] === "land" && !args.includes("--verify")) args = [...args, "--now"];
   const ghDir = tmp("onrails-gh-");
   const log = join(ghDir, "agents.log");
   for (const name of ["claude", "codex"]) fake(join(ghDir, "bin"), name, `#!/bin/sh\necho "${name} $*" >> '${log}'\n`);

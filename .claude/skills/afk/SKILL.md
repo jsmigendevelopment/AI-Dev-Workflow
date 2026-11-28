@@ -79,6 +79,7 @@ description: Use when the person is stepping away and wants the build loop to ke
 - **Hard stop:** the time the person set. On Full automation there's none unless they set one. On the other levels, the default is 10 hours. At the hard stop, even with work left:
   - stop the sweep timer and the supervisor (`coordinate`, "Start", step 1: `timer.mjs cancelled` and `timer.mjs supervisor-cancelled`), and stop merging. Start no new builders. Pull requests still in review, and builders that finish and push, wait for `/back`;
   - run the retro once (the "Retro" section in `back`), and write `Retro done <time>` in the `/afk` section, so a later wake doesn't run it again;
+  - land the records that `coordinate` is holding for a batch (#748): `node .agents/skills/coordinate/scripts/insights.mjs land --now --repo <owner>/<repo>` from your checkout of main. It opens or extends the one records pull request whatever the count, so no record is left only in this checkout. Exit 2: note it in the final state;
   - stop everything this session started: `node .agents/skills/ask/scripts/procs.mjs stop mine`. Its list must say nothing is running;
   - write the final state with its findings to `docs/state.md`, and stop. Below Full, kit drafts wait there for the person. On Full, the retro filed them (`back`, Retro step 5).
 

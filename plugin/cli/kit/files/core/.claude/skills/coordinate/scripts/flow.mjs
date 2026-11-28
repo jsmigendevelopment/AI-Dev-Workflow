@@ -24,6 +24,9 @@ export const median = (numbers) => {
   return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
 };
 
+// The records-only pull request `insights.mjs land` opens (#748): "Insights records (no issue)".
+const RECORDS_TITLE = /^Insights records\b/;
+
 // The issue a pull request closes, from its branch: feat/12-notes-list, fix/7-typo.
 const issueOf = (pr) => Number(String(pr.headRefName ?? "").match(/^(?:feat|fix|chore)\/(\d+)-/)?.[1]) || null;
 
@@ -41,6 +44,7 @@ export function flow(items, { days = 7, now = new Date() } = {}) {
   const sizes = merged.filter((pr) => Number.isFinite(pr.additions)).map((pr) => pr.additions + (pr.deletions ?? 0));
   return {
     days, merged: merged.length, perDay: round(merged.length / days),
+    recordsOnly: merged.filter((pr) => RECORDS_TITLE.test(String(pr.title ?? ""))).length,
     prToMerge: { median: round(median(cycle.map((c) => c.hours))), p85: round(percentile(cycle.map((c) => c.hours), 0.85)) },
     issueToMerge: { median: round(median(lead)), counted: lead.length },
     betweenMerges: { median: round(median(gaps.map((g) => g.hours))), longest: longest && { ...longest, hours: round(longest.hours) } },
@@ -57,6 +61,7 @@ const when = (iso) => iso.slice(0, 16).replace("T", " ");
 export function report(f) {
   if (!f.merged) return `flow · last ${f.days} days · nothing merged\n`;
   const lines = [`flow · last ${f.days} days · ${f.merged} merged (${f.perDay} a day)`];
+  if (f.recordsOnly) lines.push(`records-only pull requests: ${f.recordsOnly} of ${f.merged} merges`);
   lines.push(`pull request to merge: median ${h(f.prToMerge.median)}, 85% within ${h(f.prToMerge.p85)}`);
   if (f.issueToMerge.counted) lines.push(`issue to merge: median ${h(f.issueToMerge.median)} (${f.issueToMerge.counted} counted)`);
   const g = f.betweenMerges;
