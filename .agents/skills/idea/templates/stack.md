@@ -91,9 +91,9 @@ ci = "local"
 
 ## Environments
 
-The rules: `guide/environments.md` in the kit. Local, test, preview and production. Every variable is in `.env.example` and `lib/env.ts`.
+The rules: `guide/environments.md` in the kit. Local, test, preview and production. Every variable is in `.env.example` and `lib/env.ts` (a Go service: its `Config` struct).
 
 - Test URL: 
 - Preview per pull request: yes / no
 - Production URL (`SITE_URL`): 
-- Production: deployed only after the person's yes, from the session (the web pack: `pnpm deploy:production --confirm "deploy production"`). Production keys live on the production host (`wrangler secret put --env production`), never in the repo.
+- Production: deployed only after the person's yes, from the session (the web pack: `pnpm deploy:production --confirm "deploy production"`). Production keys live on the production host (`wrangler secret put --env production`; a Go service: Secret Manager, through `push-secrets.mjs --cloud-run --env production`), never in the repo.
