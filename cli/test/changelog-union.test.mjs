@@ -11,7 +11,8 @@ import { safeEnv, tmp } from "./helpers.mjs";
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const read = (path) => readFileSync(join(REPO, path), "utf8");
 const UNION = /^CHANGELOG\.md merge=union$/m;
-const ADDED = "## [Unreleased]\n\n### Added\n\n";
+const UNRELEASED = "## [Unreleased]\n\n";
+const ADDED = `${UNRELEASED}### Added\n\n`;
 
 test("AC-362-1: two branches that each add a line under the same Unreleased heading merge with no conflict and keep both", () => {
   const scratch = tmp("changelog-union-");
@@ -27,8 +28,15 @@ test("AC-362-1: two branches that each add a line under the same Unreleased head
   const SAFE_GIT = ["-c", "core.attributesFile=/dev/null", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"];
   const git = (...args) => spawnSync("git", [...SAFE_GIT, ...args], { cwd: dir, encoding: "utf8", env });
   git("init", "-q", `--template=${noTemplates}`, "-b", "main");
-  for (const file of [".gitattributes", "CHANGELOG.md"]) copyFileSync(join(REPO, file), join(dir, file));
-  assert.ok(read("CHANGELOG.md").includes(ADDED), "CHANGELOG.md has an Added heading under Unreleased");
+  copyFileSync(join(REPO, ".gitattributes"), join(dir, ".gitattributes"));
+  // Right after a release, versions.mjs leaves Unreleased empty, so the copy gets an Added heading when it has none
+  // (decision 475-1). The merge below still runs on the real file's text and the real .gitattributes.
+  const real = read("CHANGELOG.md");
+  assert.ok(real.includes(UNRELEASED), "CHANGELOG.md has an Unreleased heading");
+  const start = real.includes(ADDED) ? real : real.replace(UNRELEASED, ADDED);
+  // Guards the copy's setup: the branches below edit at ADDED, so an ADDED that stops starting with UNRELEASED fails here.
+  assert.ok(start.includes(ADDED), "the copy has an Added heading under Unreleased");
+  writeFileSync(join(dir, "CHANGELOG.md"), start);
   git("add", ".");
   git("commit", "-q", "-m", "main");
   const lines = { "fix/901": "- First change from one branch (#901).", "fix/902": "- Second change from another branch (#902)." };
@@ -42,7 +50,7 @@ test("AC-362-1: two branches that each add a line under the same Unreleased head
   assert.equal(merge.status, 0, `fix/901 merges into fix/902 with no conflict: ${merge.stdout}${merge.stderr}`);
   const merged = readFileSync(join(dir, "CHANGELOG.md"), "utf8");
   assert.doesNotMatch(merged, /^(<<<<<<<|=======|>>>>>>>)/m, "no conflict markers");
-  const added = merged.split(ADDED)[1].split("\n### ")[0];
+  const added = merged.split(ADDED)[1].split(/\n#{2,3} /)[0];
   for (const line of Object.values(lines)) {
     assert.equal(added.split("\n").filter((l) => l === line).length, 1, `${line} is under Unreleased > Added once`);
   }

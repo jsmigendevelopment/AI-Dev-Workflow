@@ -1,6 +1,6 @@
 {
   "name": "or",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "onRails (beta): type /idea or /join in any folder. Installs the kit's rules, skills and guardrails into the project, then hands off to the project's own copy.",
   "author": {
     "name": "onRails",

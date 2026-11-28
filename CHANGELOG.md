@@ -4,6 +4,12 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Fixed
+
+- The pull request size check never passes what it can't count (#407). Any file that shows as binary but isn't a known binary type (an image, font, archive and the like), such as a UTF-16 `.md` or an extensionless script, is exit 2 with its name. In a pull request, an added or modified file with 0/0, no patch and content is exit 2, an empty new file isn't listed as binary, and a git error other than a missing path is exit 2. A `Size exception:` line inside a `<script>` or `<style>` block doesn't count (decisions 377-2 and 407-1).
+
+## [0.7.2] - 2026-11-28
+
 ### Added
 
 - **The kit's own repo has a `docs/stack.md` on Full, so the agent-file guard stops asking for a label (#360).** It records Full automation with every switch (decision 259-1) and one code review per pull request (decision 28). `pr-review` says that where `docs/stack.md` says so, the one code review writes the `Weakening review:` line in its verdict. `agent-files.mjs gate` then passes a skill change on a writer's pass at the head, and fails one without it (decision 360-1).
@@ -69,7 +75,6 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Fixed
 
-- The pull request size check never passes what it can't count (#407). Any file that shows as binary but isn't a known binary type (an image, font, archive and the like), such as a UTF-16 `.md` or an extensionless script, is exit 2 with its name. In a pull request, an added or modified file with 0/0, no patch and content is exit 2, an empty new file isn't listed as binary, and a git error other than a missing path is exit 2. A `Size exception:` line inside a `<script>` or `<style>` block doesn't count (decisions 377-2 and 407-1).
 - Insights records are stricter (#411). `validate` takes `at` only in the exact form `toISOString` writes, `int` fields only as safe integers and `num` fields only up to `Number.MAX_SAFE_INTEGER`, and a check's `commands` items only with `name`, `result` and `seconds` and a name of at most 200 characters. `land` reads a records pull request's `Size exception:` line with `pr-size.mjs`'s own reader, so a line in an HTML comment or code block gets a visible one put first. Every record on main still passes (decision 411-1).
 - On `ci = "local"`, `pnpm connect sentry` asks for `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` "for every deploy (test and production)", not "for local and test": `.env.sentry.local` feeds both deploys. On `ci = "actions"` the prompts are unchanged (#444, decision 444-1).
 - No code comment or message tells an agent to use or wait on a workflow (#387, part of #98). The no-Actions scan now also reads the comments and strings of the `.mjs`, `.ts`, `.tsx`, `.js`, `.cjs`, `.yml`, `.yaml`, `.toml`, `.jsonc` and `.tpl` files under `.agents/`, `evals/`, `guide/` and `stacks/`, never their code, and skips named test data. About 25 files got small rewords, such as "CI sends the password" in the TanStack pack's site gate. The scan also judges a merge-ban sentence only up to the CI word, opts a section in only from a lead's first clause, and closes a code block only with a fence at least as long. `sentry.md` marks its `gh variable set` line `ci = "actions"` only (decisions 387-1 and 387-2; the Sentry prompt is #444).
@@ -370,7 +375,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - The first kit: `AGENTS.md`, skills for the product grill, the tech grill, research, the tracer-bullet pyramid, issues, model routing, the build loop, reviews and browser tests, plus templates and a guide.
 - Skills live in `.agents/skills` for Codex and are copied to `.claude/skills` for Claude Code. CI checks the copies match.
 
-[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.3...v0.6.0
