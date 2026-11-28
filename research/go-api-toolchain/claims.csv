@@ -1,8 +1,8 @@
 id,claim,label,sources,date
 c1,"golangci-lint's latest release is v2.15.0 (2026-10-16) under GPL-3.0; the Go module proxy's latest is the same.",read-in-source,s41,2026-11-28
 c2,"golangci-lint's install page says go install, the tools pattern and tool directives are not guaranteed to work and are not recommended: a tool's dependencies can change another tool's or the project's, and the binary is slower to get; it recommends binary installation.",read-in-source,s3,2026-11-28
-c3,"The golangci-lint linters page lists no linter that caps the lines in a file; funlen caps a function and lll caps a line. (superseded by c69)",read-in-source,s1;s2,2026-11-28
-c4,"One web search for a golangci-lint linter that caps file length found none and named only lll and funlen. Not found in 2 searches (the linters page and this one). (superseded by c69)",summary-only,s52,2026-11-28
+c3,"The golangci-lint linters page lists no linter that caps the lines in a file; funlen caps a function and lll caps a line.",read-in-source,s1;s2,2026-11-28
+c4,"One web search for a golangci-lint linter that caps file length found none and named only lll and funlen. Not found in 2 searches (the linters page and this one).",summary-only,s52,2026-11-28
 c5,"funlen's defaults are 60 lines and 40 statements per function.",read-in-source,s2,2026-11-28
 c6,"In depguard's golangci-lint settings, an allow or deny entry is a variable, a string prefix, or an exact match when it ends with $; list-mode lax allows an import unless it is denied or unless the allow entry is longer (more specific) than the deny entry; a rule's files setting takes globs.",read-in-source,s2,2026-11-28
 c7,"A depguard rule whose deny pkg used a glob (modules/*/repository) did not flag a handler that imported its module's repository (exit 0); the same import was flagged once the rule named the prefix of that module's repository.",measured,s42,2026-11-28
@@ -74,3 +74,5 @@ c72,"In depguard's lax list-mode an import is allowed if it is not denied, or if
 c73,"Hey API's next dist-tag (0.0.0-next-20260930190945) ran on TypeScript 7.0.2: exit 0 and 4 files written; 0.99.0, the latest, crashes. This refines c53.",measured,s44,2026-11-28
 c74,"GitHub search on 2026-11-28 listed these open openapi-typescript issues: 2841 'openapi-typescript doesn't work with Typescript 7', 2872 'Support TypeScript 6 and 7 without a runtime compiler dependency' and 2818 'feat: Typescript 6 support'. The fresh fact-check could not reach GitHub and did not confirm them. This refines c54.",read-in-source,s44,2026-11-28
 c75,"golangci-lint's install page documents a dedicated modfile for running it as a tool (go get -tool -modfile=golangci-lint.mod, then go tool -modfile=golangci-lint.mod golangci-lint run) to keep its dependencies apart from the project's.",read-in-source,s3,2026-11-28
+c76,"c3 is superseded by c69: golangci-lint 2.15.0's revive linter has a file-length-limit rule, so the linters page's list was not the whole answer. c3's row is unchanged because claims.csv is append-only.",measured,s42;s2;s56,2026-11-28
+c77,"c4 is superseded by c69: the web search that found no file-length linter missed revive's file-length-limit rule, which ran and flagged a 355-line file at max 300. c4's row is unchanged because claims.csv is append-only.",measured,s42;s2;s56,2026-11-28
