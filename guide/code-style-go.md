@@ -21,7 +21,7 @@ None of these in a pull request:
 s.log.InfoContext(ctx, "note_created", "note_id", note.ID)
 ```
 
-**Kept by:** depguard bans the `log` package. A call to `fmt.Print*` has no rule in the pack's picks yet, so `pr-review` checks it by hand.
+**Kept by:** the compiler and `go mod tidy -diff` (see the table). depguard can ban the `log` package once the pack's lint config adds that rule; nothing checks `fmt.Print*` or `log.Print*` yet, so `pr-review` checks them by hand.
 
 **Why:** the same as the TypeScript page. Junk costs every reader a moment of "is this used?", and a `fmt.Println` skips the redaction and the standard fields.
 
@@ -113,7 +113,7 @@ import (
 
 **Kept by:** the compiler refuses a relative import and an import across an `internal/` folder. `gofmt` formats the file and sorts each import block. go-arch-lint holds the layers (controller, service, repository) and each module's one door. The rest (`util` names, `init()`, re-export packages and the three-block grouping) has no rule in the pack's picks yet, so `pr-review` checks it by hand.
 
-**Why:** one naming and import style makes files easy to find and diffs easy to read. An `init()` runs on import, in an order nobody wrote down, and a re-export package hides where code lives.
+**Why:** one naming and import style makes files easy to find and diffs easy to read. An `init()` runs on import, so a reader can't see what it does or choose to skip it, and a re-export package hides where code lives.
 
 ### 15. Money, time and access go through their one package
 
@@ -138,12 +138,12 @@ The Go pack turns what it can into lint (decision 342-1), so the reviewer only j
 
 | Rule | A tool can check |
 |---|---|
-| 3 | the compiler (unused imports and variables), `go mod tidy -diff` (unused modules), depguard (the `log` package) |
+| 3 | the compiler (unused imports and variables), `go mod tidy -diff` (unused modules), depguard can ban `log` (not a pick yet) |
 | 4 | `nolintlint` (a bare `//nolint`, no reason), `scripts/check-file-size.mjs` (no `#<issue>`) |
 | 5 | revive's `file-length-limit` (500, run by golangci-lint), `scripts/check-file-size.mjs` (the 300 warning), `funlen` (60 lines) |
 | 11 | nothing in the pack's picks yet |
 | 12 | nothing in the pack's picks yet |
 | 14 | the compiler and `internal/` folders (the module wall), `gofmt` (format, import order), go-arch-lint (layers and each module's door) |
-| 15 | depguard (`net/http` and huma out of services, `log` banned) |
+| 15 | depguard (`net/http` and huma out of services); depguard can ban `log` (not a pick yet) |
 
 Rules 3, 4, 11, 12, 14 and 15 keep a part that needs judgement. `pr-review` checks it by hand until the pack's lint config (#349, #350) adds a rule. Never loosen a lint rule to pass: that is a test weakened, and it gets the weakening review.

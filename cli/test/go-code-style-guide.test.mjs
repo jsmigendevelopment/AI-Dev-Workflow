@@ -79,6 +79,30 @@ test("AC-533-1 support: the lint table has a row for each Go section and names t
   }
 });
 
+// depguard bans the `log` package only once the Go pack's lint config adds that rule (decision 342-1 picks
+// only net/http, huma and the SDKs for services). The guide must not say the ban exists, and must say who checks.
+test("AC-533-1 support: the guide does not claim a depguard ban on `log` that the pack's picks lack, and says review checks it by hand", () => {
+  const go = read(GO_GUIDE);
+  assert.ok(!/depguard bans the `log`/i.test(go), "rule 3 says depguard bans `log`");
+  assert.ok(!/`log` banned/.test(go), "the table says `log` is banned");
+  assert.ok(!/depguard \(the `log` package\)/.test(go), "the table lists depguard as checking `log`");
+  assert.match(sections(go).get(3).body, /depguard can ban the `log` package once the pack's lint config adds that rule/);
+  assert.match(sections(go).get(3).body, /nothing checks `fmt\.Print\*` or `log\.Print\*` yet, so `pr-review` checks them by hand/);
+  assert.match(go, /\| 3 \|[^\n]*depguard can ban `log` \(not a pick yet\)/);
+  assert.match(go, /\| 15 \|[^\n]*depguard can ban `log` \(not a pick yet\)/);
+});
+
+test("AC-533-3 support: the pointer line in code-style.md says which rules have a Go version, not that they name a TypeScript tool", () => {
+  const pointer = read("guide/code-style.md").split("\n").find((l) => l.includes("code-style-go.md"));
+  assert.ok(pointer, "code-style.md has a pointer line");
+  assert.ok(!/name a TypeScript tool/.test(pointer), "the pointer claims 3, 4, 5, 11, 12, 14 and 15 name a TypeScript tool");
+  assert.match(pointer, /Rules 3, 4, 5, 11, 12, 14 and 15 have a Go version/);
+});
+
+test("AC-533-1 support: rule 14 gives its own reason for `init()` and does not say Go leaves init order unwritten", () => {
+  assert.ok(!/nobody wrote down/.test(read(GO_GUIDE)));
+});
+
 test("AC-533-2: WHEN the test reads the Go guide THEN it names no .tsx, ESLint, knip, Zod, Drizzle or lib/*.ts path, and it is under 300 lines", () => {
   const go = read(GO_GUIDE);
   assert.ok(!/\.tsx/.test(go), "names .tsx");
