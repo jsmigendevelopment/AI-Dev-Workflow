@@ -27,6 +27,8 @@ export const ENVELOPE = {
   tool: { type: "str", req: false, nullable: true },
   model: str(false),
   effort: str(false),
+  // Where model and effort were read, or why one is unknown (#129).
+  model_from: str(false),
   source: str(false, ["board"]),
 };
 
@@ -193,6 +195,41 @@ export function fileName(record, id = randomBytes(3).toString("hex")) {
 /** The folder a record goes in, relative to the repo root: docs/insights/<UTC yyyy-mm-dd>. */
 export function dayFolder(record) {
   return `docs/insights/${new Date(record.at).toISOString().slice(0, 10)}`;
+}
+
+/** A run's start or end as a UTC time, to the minute or finer. Anything else gives no duration (#129). */
+const STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?Z$/;
+const stamp = (text) => (typeof text === "string" && STAMP.test(text) ? Date.parse(text) : Number.NaN);
+
+/** Whole minutes from a job record's started to its ended, else to its at. Null when either isn't a UTC time, or it runs backwards. */
+export function minutes(record) {
+  const ms = stamp(record.ended ?? record.at) - stamp(record.started);
+  return Number.isFinite(ms) && ms >= 0 ? Math.round(ms / 60000) : null;
+}
+
+/** Minutes as people read them: "6 min", "1 h 25 min", or unknown for null. */
+export function timeText(mins) {
+  if (mins === null) return "unknown";
+  if (mins < 1) return "under 1 min";
+  return mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, "0")} min`;
+}
+
+function target(record) {
+  const at = record.sha ? ` @ ${record.sha.slice(0, 7)}` : "";
+  if (record.pr != null) return `#${record.pr}${at}`;
+  return record.issue != null ? `issue #${record.issue}${at}` : record.sha ? record.sha.slice(0, 7) : "no target";
+}
+
+/**
+ * A job record as one line people read (#129): job · model · effort · time [· outcome] · target, then why, when the
+ * model or effort is unknown and the record says. `mins` defaults to minutes(record); a start record has no time yet.
+ */
+export function runLine(record, { mins = minutes(record), outcome = false } = {}) {
+  const parts = [record.job ?? "unknown", record.model, record.effort, record.outcome === "started" ? "-" : timeText(mins)];
+  if (outcome) parts.push(record.outcome ?? "unknown");
+  parts.push(target(record));
+  if ((record.model === "unknown" || record.effort === "unknown") && record.model_from) parts.push(`unknown: ${record.model_from}`);
+  return parts.join(" · ");
 }
 
 export const LINE_START = "<!-- onrails-insights ";

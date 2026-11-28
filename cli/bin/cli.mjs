@@ -10,6 +10,7 @@ import { doctorFix } from "../src/fix.mjs";
 import { initGlobal } from "../src/global.mjs";
 import { offerHomeMove } from "../src/home.mjs";
 import { init } from "../src/init.mjs";
+import { main as runs } from "../src/insights-runs.mjs";
 import { main as weekly } from "../src/insights-week.mjs";
 import { lesson } from "../src/lesson-check.mjs";
 import { libraryInit } from "../src/library-init.mjs";
@@ -80,6 +81,9 @@ Usage:
   npx onrails insights --week [<yyyy-Www>] [dir]
                                           print a week's report from the insights records (last full
                                           week by default): runs, send-backs, sizes, escalations, usage
+  npx onrails runs --pr <n> [--brief] | --issue <n> | --day <yyyy-mm-dd> [dir]
+                                          print which model did which job, oldest first: model, effort
+                                          and time for each run. --brief prints one line for /back
   npx onrails --version | --help
 
 Your own files are never overwritten: the kit's copy goes next to yours as <file>.onrails-new.
@@ -99,6 +103,8 @@ async function main(argv) {
     if (!argv.includes("--week")) return console.error("Usage: npx onrails insights --week [<yyyy-Www>] [dir]"), 2;
     return weekly(argv.slice(1));
   }
+  // runs reads its own flags (#129). It only reads the records.
+  if (argv[0] === "runs" && !argv.includes("--help") && !argv.includes("-h")) return runs(argv.slice(1));
   // ps reads its own flags (--stop takes a value), and asks on the terminal before it stops a PID it didn't record.
   if (argv[0] === "ps" && !argv.includes("--help") && !argv.includes("-h")) {
     const ask = terminalAsk();

@@ -26,6 +26,7 @@ cli/README.md linguist-generated
 .agents/skills/build/references/testing.md linguist-generated
 .agents/skills/coordinate/scripts/command-for.mjs linguist-generated
 .agents/skills/coordinate/scripts/insights-record.mjs linguist-generated
+.agents/skills/coordinate/scripts/insights-runs.mjs linguist-generated
 .agents/skills/coordinate/scripts/insights-week.mjs linguist-generated
 .agents/skills/name/scripts/command-for.mjs linguist-generated
 .agents/skills/research/scripts/check-research.mjs linguist-generated
@@ -34,6 +35,7 @@ cli/README.md linguist-generated
 cli/src/check-research.mjs linguist-generated
 cli/src/command-for.mjs linguist-generated
 cli/src/insights-record.mjs linguist-generated
+cli/src/insights-runs.mjs linguist-generated
 cli/src/insights-week.mjs linguist-generated
 cli/src/preflight-ci.mjs linguist-generated
 cli/src/preflight-layout.mjs linguist-generated

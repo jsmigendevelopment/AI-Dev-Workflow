@@ -4,6 +4,8 @@
 //                                                  in the git root and prints its path. Commit it with the work.
 //   node insights.mjs line <kind> key=value ...    prints <!-- onrails-insights {json} --> for a session that commits
 //                                                  nothing (a reviewer): put it at the end of the verdict comment.
+//                                                  A job's line is followed by its run line (#129): job, model,
+//                                                  effort, time from started= and the commit, for people to read.
 // model and effort are what the caller passes from its own session, else "unknown". ONRAILS_NOW sets the clock (tests).
 // Exit 2: an unknown kind, a missing field or a bad value, with the field named; nothing is written.
 // Exit 1: the write failed for another reason. It never invents a value.
@@ -32,7 +34,7 @@ import { join } from "node:path";
 import { pages } from "./agent-files.mjs";
 import { carry, heldRecords, save } from "./insights-carry.mjs";
 import { canonical, land, ownLogin, recordProblem } from "./insights-land.mjs";
-import { KINDS, VERSION, coerce, dayFolder, fileName, parseLine, toLine, validate } from "./insights-record.mjs";
+import { KINDS, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
 
 const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
 const LINE = /<!-- onrails-insights (.*?) -->/g;
@@ -74,7 +76,8 @@ function build(kind, pairs) {
 function writeOrLine(cmd, kind, pairs) {
   if (!kind) fail(2, `kind: missing. ${USAGE}`);
   const record = build(kind, pairs);
-  if (cmd === "line") return process.stdout.write(`${toLine(record)}\n`);
+  // A job's line ends with the run line people read on GitHub (#129); the comment above it is what harvest reads.
+  if (cmd === "line") return process.stdout.write(`${toLine(record)}\n${kind === "job" ? `Run: ${runLine(record)}\n` : ""}`);
   const root = gitRoot();
   try {
     return process.stdout.write(`${save(root, record)}\n`);

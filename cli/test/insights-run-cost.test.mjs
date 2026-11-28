@@ -18,7 +18,7 @@ const REASONS = ["size", "review-must", "checks", "infra", "process"];
 const COST = ["model", "effort", "usage_before", "usage_after", "usage_from", "outcome"];
 const FAKE = {
   n: "40", issue: "12", pr: "40", sha: "c".repeat(40), model: "opus", effort: "low", tool: "codex",
-  "usage-before": "41%", "usage-after": "44%", "usage-from": "status-line",
+  "usage-before": "41%", "usage-after": "44%", "usage-from": "status-line", started: "2026-11-27T14:20:00Z",
 };
 
 function repo() {
