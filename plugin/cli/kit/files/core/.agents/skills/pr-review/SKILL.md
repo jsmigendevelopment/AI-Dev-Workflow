@@ -39,7 +39,7 @@ You did not write this code. Judge only the **issue, the diff and the check resu
    - [ ] **Names and imports:** clear names, kebab-case files, the path alias, no deep `../../..`.
    - [ ] **New packages** are real, spelled right, and checked as the `dependencies` skill says.
    - [ ] **Docs:** any doc the change makes wrong was updated in this diff.
-   - [ ] **Size of the change:** under 1,000 changed lines, not counting lockfiles, generated files and test fixtures. Over that, it has the `size-exception` label and a `Size exception: <reason>` line, or it gets split.
+   - [ ] **Size of the change:** under 1,000 changed lines, not counting lockfiles, generated files and test fixtures; check with `node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main`. Over that, it has the `size-exception` label and a `Size exception: <reason>` line, or it gets split.
 6. **App conventions** (`guide/app-conventions.md` in the kit). One line each:
    - [ ] **Issue link:** the branch is `feat/<n>-...` or `fix/<n>-...`, and the body says `Closes #<n>`, unless it's labelled `no-issue`. Reading the body for this one line is fine.
    - [ ] **Rule of three:** no third copy of a UI piece that should now be shared, and no shared component extracted before then.
