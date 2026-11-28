@@ -1,0 +1,1 @@
+Pick the framework for this app. Use 10 stack start. Write the choice in docs/stack.md. There's no GitHub in this folder. The shell here runs one plain command at a time (git, node, npm, ls, cat, mkdir or grep; no echo, no && or ;).
