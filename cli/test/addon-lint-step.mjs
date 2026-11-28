@@ -19,8 +19,11 @@ const FORMATS = /\.(ts|tsx|js|mjs|cjs|json|jsonc|css|md|ya?ml|html)$/;
 
 // The only commands the lint step may hold, in this order, one per line. A path with a `$` (a route
 // such as `files.$id.ts`) is single-quoted, or the shell would expand it.
-const PATHS = String.raw`((?:(?:[\w./-]+|'[\w./$-]+') ?)+)`;
-const ALLOWED = [
+// Paths are split by exactly one space, so a line that doesn't match fails fast instead of backtracking.
+const P = String.raw`(?:[\w./-]+|'[\w./$-]+')`;
+const PATHS = `(${P}(?: ${P})*)`;
+/** The lint step's allowed commands, exported so a test can time a line that must not match. */
+export const ALLOWED = [
   { name: "pnpm cf-typegen", re: /^pnpm cf-typegen$/ },
   { name: "pnpm exec eslint --fix <files>", re: new RegExp(`^pnpm exec eslint --fix ${PATHS}$`) },
   { name: "pnpm exec prettier --write <files>", re: new RegExp(`^pnpm exec prettier --write ${PATHS}$`) },

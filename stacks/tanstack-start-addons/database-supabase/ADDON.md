@@ -47,7 +47,7 @@ Apply this **before** the `jobs`, `stripe` or `r2-uploads` add-ons, or port thei
      },
    ],
    ```
-   Do the same in `env.test` and `env.production` (bindings are not inherited), each with its own Hyperdrive id and no `localConnectionString`; delete their `d1_databases` blocks too. `node scripts/setup-cloudflare.mjs` then has no D1 database to create: it reads only `d1_databases`.
+   Do the same in `env.test` and `env.production` (bindings are not inherited), each with its own Hyperdrive id and no `localConnectionString`; delete their `d1_databases` blocks too. setup-cloudflare then has no D1 database to create: it reads only `d1_databases`.
 4. `src/server/composition.ts`: `createDb(env.DB)` becomes `createDb(env.HYPERDRIVE)` (in every factory).
 5. `package.json` scripts: migrations now go through drizzle-kit.
    ```json

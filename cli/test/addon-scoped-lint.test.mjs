@@ -4,7 +4,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { ADDONS, addonLint } from "./addon-lint-step.mjs";
+import { spawnSync } from "./child.mjs";
+import { safeEnv } from "./helpers.mjs";
 import { parseAddon } from "../src/addon-doc.mjs";
 
 // Each add-on and the pack files its steps edit today: a floor, so a parser that finds nothing can't pass.
@@ -38,4 +41,18 @@ test("AC-425-1: WHEN an add-on's Apply steps run ESLint THEN its lint step is on
     .map((d) => d.name);
   assert.ok(linting.length >= covered.size, "every add-on in the list runs ESLint");
   for (const name of linting) assert.ok(covered.has(name), `${name} runs ESLint, so its lint step is checked here`);
+});
+
+test("AC-425-1: WHEN a lint step line names a `$` path unquoted THEN it is refused at once, never left to hang the run", () => {
+  // r2-uploads' real line with the quotes taken off: the shell would expand `$id`. A regex that backtracked
+  // on a line like this ran past 20 s, so the match runs in a child with a time limit.
+  const line = "pnpm exec eslint --fix src/modules/files src/routes/api/files.$id.ts src/routes/files.tsx " +
+    "src/server/request-actor.ts src/server/composition.ts src/components/site-header.tsx eslint.config.js";
+  const url = pathToFileURL(join(import.meta.dirname, "addon-lint-step.mjs")).href;
+  const code = `import { ALLOWED } from ${JSON.stringify(url)};\n` +
+    `process.stdout.write(String(ALLOWED[1].re.test(${JSON.stringify(line)})));`;
+  const res = spawnSync(process.execPath, ["--input-type=module", "-e", code], { env: safeEnv(), encoding: "utf8", timeout: 5000 });
+  assert.equal(res.error?.code, undefined, "the match finishes within 5 s");
+  assert.equal(res.stdout, "false", "the unquoted `$` path is refused");
+  assert.ok(addonLint("r2-uploads").lintBlock()[1].includes("'src/routes/api/files.$id.ts'"), "the real step quotes it");
 });
