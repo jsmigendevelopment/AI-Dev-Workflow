@@ -22,18 +22,23 @@ Exit 2 names the bad field and writes nothing. Exit 1 is any other failed write.
 
 ## The envelope (every kind)
 
-`v` (1), `kind`, `at` (UTC ISO; `ONRAILS_NOW` sets it in tests), `issue`, `pr`, `sha` (40 hex or null), `job`, `tool`, `model`, `effort`, and optional `model_from`. Pass `model=` and `effort=` from your own session, the way preflight's `--model`/`--effort` take them. Left out, they are `unknown`. Never write the one the routing table asked for. Either one `unknown`? Add `model_from=<why>`: where you looked (#129).
+`v` (1), `kind`, `at` (exactly what `new Date(...).toISOString()` writes, such as `2026-11-28T01:58:18.236Z`: milliseconds and a `Z`, no offset, nothing else; `ONRAILS_NOW` sets it in tests), `issue`, `pr`, `sha` (40 hex or null), `job`, `tool`, `model`, `effort`, and optional `model_from`. Pass `model=` and `effort=` from your own session, the way preflight's `--model`/`--effort` take them. Left out, they are `unknown`. Never write the one the routing table asked for. Either one `unknown`? Add `model_from=<why>`: where you looked (#129).
 
 Optional `source=board`: a record from `board.mjs` (#346) needs only the envelope.
 
 Text is capped at 200 characters. A list is comma-separated or a JSON list, and holds text items (check's `commands` holds objects).
+
+Numbers (#411):
+
+- An `int` field (`issue`, `pr`, `lines`, review's `round`, `must` and `nice`, fix-round's `fixed`, gate's `issues_done`) is a whole number from 0 to `Number.MAX_SAFE_INTEGER` (9007199254740991).
+- A `num` field (`waited_minutes`, touch's `minutes`, gate's `hours_to_ready`, and a command's `seconds`) is a number from 0 to `Number.MAX_SAFE_INTEGER`. Fractions are fine (`95.5`).
 
 ## The kinds
 
 | Kind | Fields (required in bold) |
 |---|---|
 | `job` | **outcome** (`started`, `pr-opened`, `finished`, `handed-off`, `stopped`, `failed`, `swept`, `paused`, `ended`, `pass`, `fail`), started, ended, usage_before, usage_after, usage_from (required with either usage field), usage_window_before, usage_window_after, usage_resets_before, usage_resets_after (each only with its own reading; see "What a run cost"), send_back (`size`, `review-must`, `checks`, `infra`, `process`; only with outcome `fail`, `failed`, `stopped` or `handed-off`), lines (a whole number: only on `job=size-check` with outcome `pass` or `fail`, and then `sha` is required). See "What a run cost" and "A pull request's size" |
-| `check` | **commands** (JSON list of `{name, result: pass\|fail\|skipped, seconds}`), failed_step (null on a pass), flaky_rerun, state (`success`, `failure`), fence. The local gate's `mark-check.mjs --record <file>` writes it (#331). A reviewer that runs the checks itself ends its verdict comment with a `line check` instead (#417); harvest keeps it only under the rule above (#441). That record's `fence` holds only the fence's name (`bubblewrap`, `sandbox-exec`, `none`); the gate's own record keeps the whole first `Fence:` line |
+| `check` | **commands** (JSON list of `{name, result: pass\|fail\|skipped, seconds}`; each item has exactly those three keys and no other; `name` is 1 to 200 characters with no control, format, line-separator or paragraph-separator character, so no newline, tab, zero-width space or U+2028; #411, #465), failed_step (null on a pass), flaky_rerun, state (`success`, `failure`), fence. The local gate's `mark-check.mjs --record <file>` writes it (#331). A reviewer that runs the checks itself ends its verdict comment with a `line check` instead (#417); harvest keeps it only under the rule above (#441). That record's `fence` holds only the fence's name (`bubblewrap`, `sandbox-exec`, `none`); the gate's own record keeps the whole first `Fence:` line |
 | `review` | **round**, **verdict** (`pass`, `changes`), **must**, **nice**, categories |
 | `fix-round` | **round**, **fixed** |
 | `ask` | **rule** (`<path>:<line>`, `hook:<event>` or `missing`), **level** (`blocker`, `decision`, `fyi`), waited_minutes, full_should_prevent, rule_ok, title (no control characters), answered (the first ask's file name; needs waited_minutes). See "Stops, waits and asks" |

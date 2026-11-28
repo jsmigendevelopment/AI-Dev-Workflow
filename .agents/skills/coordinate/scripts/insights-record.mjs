@@ -148,7 +148,7 @@ function checkCommands(commands) {
     if (Object.keys(c).some((k) => !COMMAND_KEYS.includes(k))) return `commands: an item has a key other than ${COMMAND_KEYS.join(", ")}`;
     if (c.name === "") return "commands: a name is empty";
     if (c.name.length > TEXT_CAP) return `commands: a name is longer than ${TEXT_CAP} characters`;
-    if (NAME_CONTROL.test(c.name)) return "commands: a name holds a control, format or line-separator character";
+    if (NAME_CONTROL.test(c.name)) return "commands: a name holds a control, format, line-separator or paragraph-separator character";
   }
   return null;
 }

@@ -24,7 +24,7 @@ test("AC-465-1: WHEN a commands item's name is an empty string THEN validate ref
   assert.deepEqual(validate(withName("n".repeat(TEXT_CAP))), [], `${TEXT_CAP} characters still pass`);
 });
 
-test("AC-465-2: WHEN a commands item's name holds a control, format or line-separator character THEN validate refuses it, and land --verify names the file", unixOnly, () => {
+test("AC-465-2: WHEN a commands item's name holds a control, format, line-separator or paragraph-separator character THEN validate refuses it, and land --verify names the file", unixOnly, () => {
   const names = {
     newline: "pnpm check\nsecond", "carriage return": "pnpm check\rok", tab: "pnpm\tcheck", escape: "pnpm check\u001b[2J",
     NUL: "pnpm\u0000check", DEL: "pnpm check\u007f", "C1 (NEL)": "pnpm check\u0085", "C1 (CSI)": "pnpm\u009b31m",
