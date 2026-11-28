@@ -13,6 +13,7 @@
 //       <to>, through the writer. A rerun writes nothing new. Exit 1 says why, and the merge commit goes to a fresh
 //       pr-review. Exit 2: a usage or git error, or a sha that isn't a commit in this checkout.
 // heldRecords() is what has-records and carry count: a file only when `land` would land it as it is.
+// checkoutOf(), fetchMain() and mergedFrom() are carry's proof of a clean merge; agent-files.mjs gate follows it too (#478).
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -162,6 +163,32 @@ function notCleanMerge(root, from, to) {
   return merged.tree === tree ? null : `${to}'s tree isn't the clean merge of main: it holds a change of its own`;
 }
 
+/** The checkout that holds dir, by isolated git, so no GIT_ variable, config or hook can point it elsewhere. Throws when none. */
+export function checkoutOf(dir) {
+  return git(dir, ["rev-parse", "--show-toplevel"]);
+}
+
+/** Fetches main into refs/remotes/origin/main for the checkout at root, as carry's proof reads it. Throws when it can't. */
+export function fetchMain(root) {
+  checkoutRoot = root;
+  git(root, ["fetch", "-q", "origin", `+refs/heads/main:${MAIN}`], forFetch());
+}
+
+/**
+ * What `to` is a clean merge of origin/main into, proved as carry proves it (#478): { from }, its first parent, or
+ * { why } it isn't one. Run fetchMain first. Throws when `to` isn't a commit in this checkout.
+ */
+export function mergedFrom(root, to) {
+  checkoutRoot = root;
+  if (ask(root, ["cat-file", "-e", "--end-of-options", `${to}^{commit}`]).status !== 0) {
+    throw new Error(`${to} isn't a commit in this checkout: fetch the pull request's branch first`);
+  }
+  const from = git(root, ["rev-list", "--parents", "-n", "1", "--end-of-options", to]).split(" ")[1];
+  if (!from) return { why: `${to} has no parent, so it isn't a merge of main` };
+  const why = notCleanMerge(root, from, to);
+  return why ? { why } : { from };
+}
+
 /** The reviews that didn't pass and the review jobs that failed, among `records`, as text, or "" when none. */
 function notPassed(records) {
   const bad = records.filter((r) => (r.kind === "review" && r.verdict !== "pass") || (r.kind === "job" && REVIEW_JOBS.includes(r.job) && r.outcome !== "pass"));
@@ -173,8 +200,7 @@ export function carry(root, args) {
   const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
   const [pr, from, to] = ["--pr", "--from", "--to"].map(flag);
   if (args.length !== 6 || !/^\d+$/.test(pr ?? "") || !SHA.test(from ?? "") || !SHA.test(to ?? "")) throw new Error(USAGE);
-  checkoutRoot = root;
-  git(root, ["fetch", "-q", "origin", `+refs/heads/main:${MAIN}`], forFetch());
+  fetchMain(root);
   const why = notCleanMerge(root, from, to);
   if (why) refuse(why);
   const held = heldRecords(root).filter((r) => r.pr === Number(pr));

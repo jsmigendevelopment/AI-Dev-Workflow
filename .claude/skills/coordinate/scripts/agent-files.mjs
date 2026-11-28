@@ -6,6 +6,8 @@
 // so it proves nothing, #103): only the weakening review does, a comment from someone with write access
 // that is the line
 //   Weakening review: pass @ <full head sha>
+// `gate` also takes that line at an earlier commit when the head is only clean merges of origin/main on top of it, each
+// proved as `insights.mjs carry` proves one, in the checkout this file is in (#478).
 // On every level, a writer's fail at the head refuses first, whatever the labels say. A fail that is
 // there when the guard decides beats every pass; one deleted, or edited to drop the fail line, doesn't.
 // `gate` runs this file from the default branch, as does a workflow not yet removed, and reads the level from
@@ -25,7 +27,7 @@
 // Exit 0 passes, 1 fails. No dependencies.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { commandFor } from "./command-for.mjs";
 
@@ -166,7 +168,8 @@ export function decide({ changed = [], labels = [], stack = "", comments = [], h
   if (!full && labels.includes("human-approved")) return { pass: true, why: "the human-approved label" };
   const need = full ? `a "Weakening review: pass @ ${head || "<head sha>"}" comment from someone with write access (Full automation: the label doesn't count)`
     : "the human-approved label";
-  return { pass: false, why: `These files change the agents' rules or checks, or delete tests, and need ${need}:\n${rules.join("\n")}` };
+  // `need` marks the one refusal a carried pass can lift (#478): Full, and no verdict at this commit.
+  return { pass: false, need: full, why: `These files change the agents' rules or checks, or delete tests, and need ${need}:\n${rules.join("\n")}` };
 }
 
 /** Before a merge: the runs are real and green, and the live decision still passes (a fail posted later blocks it). */
@@ -381,18 +384,57 @@ export function prArgs(args, env = {}) {
 }
 
 /** The guard from the session (#131): the live decision at the pinned head, with no workflow run. */
-function gate(argv) {
+async function gate(argv) {
   const { pr, repo, head } = prArgs(argv.slice(1));
   if (!pr || !repo || !head) return { pass: false, why: "Usage: agent-files.mjs gate <n> --repo <owner>/<name> --head <sha>" };
   // As in a workflow not yet removed, the level comes from the default branch, so a pull request can't change it.
-  const r = decide({ ...fromApi(repo, pr, head, defaultStack(repo)), expected: head });
-  return { ...r, why: `${head}: ${r.why}` };
+  const live = fromApi(repo, pr, head, defaultStack(repo));
+  const r = decide({ ...live, expected: head });
+  const final = r.need ? await carried(repo, live, r) : r;
+  return { ...final, why: `${head}: ${final.why}` };
 }
 
-export function main(argv, env = process.env) {
+// How many clean merges of main a pass may be carried across (#478): each one is a merge and an access check.
+const MAX_CARRY = 20;
+
+/**
+ * On Full with no verdict at the head (#478): the verdict at an earlier commit decides when the head is a chain of clean
+ * merges of origin/main on top of it, at most MAX_CARRY, each step proved as `insights.mjs carry` proves one. A writer's
+ * fail at any commit of the chain refuses. Anything else keeps `need`, the refusal at the head, and says why.
+ */
+async function carried(repo, live, need) {
+  const refuse = (why) => ({ ...need, why: `${need.why}\nNo earlier pass carries: ${why}.` });
+  try {
+    // Loaded only here, so the guard starts without the insights scripts and no import cycle runs through them.
+    const { checkoutOf, fetchMain, mergedFrom } = await import("./insights-carry.mjs");
+    // The checkout this file is in, which `gate` runs from (main's), never the folder it was started in: the redone merge
+    // must read main's merge attributes, not a pull request clone's.
+    const root = checkoutOf(dirname(fileURLToPath(import.meta.url)));
+    fetchMain(root);
+    let sha = live.head;
+    for (let merges = 1; merges <= MAX_CARRY; merges++) {
+      const step = mergedFrom(root, sha);
+      if (step.why) return refuse(step.why);
+      sha = step.from;
+      const voters = [...new Set(live.comments.filter((c) => verdictOf(c.body, sha)).map((c) => c.user?.login).filter(Boolean))];
+      const { writers: trusted, unchecked } = access(repo, voters);
+      const r = decide({ ...live, head: sha, expected: null, trusted, unchecked });
+      if (r.need) continue;
+      if (!r.pass) return { pass: false, why: `${r.why}\nThe head is only clean merges of main on top of ${sha}, so that verdict stands.` };
+      return { pass: true, why: `the weakening review passed at ${sha}, carried across ${merges} clean merge(s) of origin/main` };
+    }
+    return refuse(`no writer's verdict within ${MAX_CARRY} clean merges of main back from the head, where the carry stops`);
+  } catch (error) {
+    if (error instanceof AccessUnknown) throw error;
+    return refuse(String(error.stderr || error.message).trim());
+  }
+}
+
+/** Runs the guard and prints why. Resolves to the exit code: 0 passes, 1 fails. */
+export async function main(argv, env = process.env) {
   let r;
   try {
-    r = run(argv, env);
+    r = await run(argv, env);
   } catch (error) {
     // An access check with no answer outside the voters' sort fails the guard.
     if (!(error instanceof AccessUnknown)) throw error;
@@ -402,10 +444,10 @@ export function main(argv, env = process.env) {
   return r.pass ? 0 : 1;
 }
 
-function run(argv, env) {
+async function run(argv, env) {
   let r;
   if (argv[0] === "gate") {
-    r = gate(argv);
+    r = await gate(argv);
   } else if (argv[0] === "verify-run") {
     if (argv.includes("--runs")) {
       r = verifyMerge(JSON.parse(readFileSync(argv[argv.indexOf("--runs") + 1], "utf8")), decide(fromFlags(argv)));
@@ -424,4 +466,7 @@ function run(argv, env) {
   return r;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // Not a top-level await: gate's lazy import loads insights-land.mjs, which imports this file, so it must be done loading.
+  main(process.argv.slice(2)).then((code) => (process.exitCode = code));
+}
