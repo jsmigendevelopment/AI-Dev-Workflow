@@ -10,8 +10,9 @@ export const optIn = true;
 
 export const limits = { maxTurns: 24, timeoutSec: 300 };
 
-// A run of the script: `node`, then its path. Reading or searching the file (cat, grep) isn't a size check.
-const SIZE = /\bnode\s+\S*pr-size\.mjs\b/;
+// A run of the script: a command that starts with `node`, then the script's path. Reading or searching the file
+// isn't a size check, even when its arguments say node (`grep -n node .../pr-size.mjs`, #418).
+const SIZE = /^\s*node\s+\S*pr-size\.mjs\b/;
 const SPLIT = /\bsplit/i;
 // A link to #1 in a new issue file: "#1", "issue 1", or its file name.
 const LINKS_ONE = /#0*1\b|issue\s*0*1\b|001-chore-report/i;
