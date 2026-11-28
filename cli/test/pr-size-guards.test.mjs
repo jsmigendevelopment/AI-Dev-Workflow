@@ -32,9 +32,8 @@ function local(files, { dir = checkout(), remove = [], env = safeEnv() } = {}) {
 }
 
 /** pr-size.mjs on pull request 9 of acme/app, with GitHub's file `entries`, `body`, `labels` and extra fake `api` answers.
- * `dir` is main's checkout, whose HEAD is the base. */
-function pull({ entries, body = "Closes #5", labels = [], api = {}, dir = checkout() }) {
-  const base = git(dir, "rev-parse", "HEAD").trim();
+ * `dir` is main's checkout. `base` is the pull request's base.sha: main's HEAD, unless a test gives an earlier commit. */
+function pull({ entries, body = "Closes #5", labels = [], api = {}, dir = checkout(), base = git(dir, "rev-parse", "HEAD").trim() }) {
   const pr = { number: 9, body, labels: labels.map((name) => ({ name })), changed_files: entries.length, base: { ref: "main", sha: base }, head: { sha: HEAD } };
   const fake = fakeGh(tmp("onrails-gh-"), { "repos/acme/app/pulls/9": pr, "repos/acme/app/pulls/9/files": entries, ...api });
   return spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), "9", "--repo", "acme/app"], { cwd: dir, encoding: "utf8", env: fake.env });
@@ -123,6 +122,12 @@ test("#407 round 1, nice 1: a script or style tag in inline code or a fenced blo
     assert.equal(r.status, 0, `${JSON.stringify(body)}: ${r.stderr}`);
     assert.match(r.stdout, /Size exception: a mechanical rename/);
   }
+  // A reason that itself holds inline code is printed whole, backticks and tags included (#485).
+  for (const reason of ["renames `<style>` tags", "renames `<style>` and `<script>` tags, then ``a `<style>` span``"]) {
+    const r = pull({ entries: big, labels: ["size-exception"], body: `Closes #5\n\nSize exception: ${reason}\n` });
+    assert.equal(r.status, 0, `${reason}: ${r.stderr}`);
+    assert.ok(r.stdout.split("\n").includes(`Size exception: ${reason}`), `${reason}: ${r.stdout}`);
+  }
 });
 
 test("#407 round 1, nice 2: a modified 0/0 entry whose blob is the base's own is a mode change, and passes", unixOnly, () => {
@@ -136,4 +141,16 @@ test("#407 round 1, nice 2: a modified 0/0 entry whose blob is the base's own is
   assert.equal(mode.status, 0, mode.stderr);
   const other = pull({ dir, entries: [{ ...entry("src/run.sh", "modified"), sha: "e".repeat(40) }], api: contents("src/run.sh", lines(1500)) });
   assert.equal(other.status, 2, "a different blob GitHub couldn't diff is never a pass");
+  // The base isn't main's HEAD (#485): a later commit changes the file, so only the base's own blob matches.
+  const earlier = git(dir, "rev-parse", "HEAD").trim();
+  writeFileSync(join(dir, "src", "run.sh"), lines(1501));
+  git(dir, "add", "-A");
+  git(dir, "commit", "-q", "-m", "a later script");
+  const later = git(dir, "rev-parse", "HEAD:src/run.sh").trim();
+  assert.notEqual(later, sha, "HEAD's copy of the file differs from the base's");
+  const api = contents("src/run.sh", lines(1500));
+  const atBase = pull({ dir, base: earlier, entries: [{ ...entry("src/run.sh", "modified"), sha }], api });
+  assert.equal(atBase.status, 0, `the base's blob is a mode change: ${atBase.stderr}`);
+  const atHead = pull({ dir, base: earlier, entries: [{ ...entry("src/run.sh", "modified"), sha: later }], api });
+  assert.equal(atHead.status, 2, "HEAD's blob isn't the base's, so it never passes");
 });

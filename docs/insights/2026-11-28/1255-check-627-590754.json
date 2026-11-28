@@ -1,0 +1,48 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T12:55:39.102Z",
+  "issue": null,
+  "pr": 627,
+  "sha": "0634a6dd548e87e959306c620b64d6ce74714415",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "fence": "none",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0.04
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0.04
+    },
+    {
+      "name": "cd cli && npm run bundle && npm test",
+      "result": "pass",
+      "seconds": 176.2
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 83.3
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0.06
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0.07
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}
