@@ -33,11 +33,13 @@ cli/README.md linguist-generated
 .agents/skills/research/scripts/check-research.mjs linguist-generated
 .agents/skills/research/scripts/command-for.mjs linguist-generated
 .agents/skills/research/scripts/research-library.mjs linguist-generated
+.agents/skills/update/scripts/latest.mjs linguist-generated
 cli/src/check-research.mjs linguist-generated
 cli/src/command-for.mjs linguist-generated
 cli/src/insights-record.mjs linguist-generated
 cli/src/insights-runs.mjs linguist-generated
 cli/src/insights-week.mjs linguist-generated
+cli/src/latest.mjs linguist-generated
 cli/src/preflight-ci.mjs linguist-generated
 cli/src/preflight-layout.mjs linguist-generated
 cli/src/preflight-output.mjs linguist-generated

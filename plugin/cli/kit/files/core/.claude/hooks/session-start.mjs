@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SessionStart hook for Claude Code (.claude/settings.json) and Codex (.codex/hooks.json):
-// give every new session the project's state up front. Local files and git only (no
-// network, no GitHub API calls). Prints plain text to stdout, which both tools add to
+// give every new session the project's state up front. Local files and git only, and no
+// GitHub API calls; the one exception is the daily check for a newer onRails (latest.mjs). Prints plain text to stdout, which both tools add to
 // the session's context. Ignores the hook's stdin. Never fails the session.
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -20,6 +20,14 @@ const out = ["## Project state (from the session-start hook)"];
 // .ai-dev-workflow.json is the record's name before the rename to onRails.
 const manifest = read(".onrails.json") ?? read(".ai-dev-workflow.json");
 if (manifest) { try { out.push(`- Kit: v${JSON.parse(manifest).kitVersion}`); } catch {} }
+
+// One line when a newer onRails is on npm (#448). The check reads its own daily cache, makes at most one request a
+// day, gives up after 2 seconds and prints nothing when it can't reach npm. [updates] check = "off" turns it off.
+const latest = join(root, ".agents/skills/update/scripts/latest.mjs");
+if (existsSync(latest)) {
+  const r = spawnSync(process.execPath, [latest, "line", "--root", root], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 2500 });
+  if (r.stdout?.trim()) out.push(`- ${r.stdout.trim()}`);
+}
 
 const branch = git(["branch", "--show-current"]);
 if (branch) {
