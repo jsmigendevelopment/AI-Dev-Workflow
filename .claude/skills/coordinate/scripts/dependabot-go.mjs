@@ -18,7 +18,8 @@
 //   does nothing, and a second hash for a version can only fail a build.
 // - Only the go.mod and go.sum of a module count: one under a `vendor/` or `testdata/` folder, or under a folder whose
 //   name starts with `_` or `.`, all of which Go ignores, is refused as any other file is (#581, #590).
-// - A refusal quotes at most 200 characters of a line, so a huge line can't fill a comment (#581).
+// - A refusal quotes at most 200 characters of a line, so a huge line can't fill a comment (#581). dependabot-bump.mjs
+//   clips the file names of its "more than manifests and lockfiles" refusal the same way (#595).
 // Each check returns why the change is more than a version bump, or null, like manifestChange and lockfileChange.
 
 const GO_NAME = /(?:^|\/)go\.(?:mod|sum)$/;
@@ -52,7 +53,7 @@ function modulePath(path) {
 }
 
 /** At most 200 characters of a line, so a reason stays short however long the line is. */
-const clip = (row) => (row.length > CAP ? `${row.slice(0, CAP)}...` : row);
+export const clip = (row) => (row.length > CAP ? `${row.slice(0, CAP)}...` : row);
 const quoted = (row) => JSON.stringify(clip(row.trim()));
 const text = (s) => (s.kind === "comment" ? s.comment : [s.kind, ...s.args].join(" ") + (s.comment ? ` ${s.comment}` : ""));
 
