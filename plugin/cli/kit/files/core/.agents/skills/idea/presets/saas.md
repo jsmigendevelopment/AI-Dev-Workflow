@@ -4,7 +4,7 @@
 
 ## Preloaded (confirm, don't ask)
 
-- **Add-ons:** Clerk auth, Stripe (subscriptions with Checkout and the customer portal), Resend email, Sentry, Cloudflare Web Analytics.
+- **Add-ons:** Clerk auth, Stripe (subscriptions with Checkout and the customer portal), Resend email, Sentry, Cloudflare Web Analytics (a TypeScript backend on Workers; with a Go backend the server-side ones move into the Go service, see `stacks/tanstack-start-addons/README.md`).
 - **Floor answers:**
   - sign-up with email or Google through Clerk;
   - password reset through Clerk;

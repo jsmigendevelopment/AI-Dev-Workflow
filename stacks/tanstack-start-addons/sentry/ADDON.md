@@ -9,6 +9,7 @@ Error monitoring with Sentry: uncaught errors and the controllers' "unhandled" l
 | **Env vars** | Worker: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`. Build: `VITE_SENTRY_DSN`. Deploy builds: `SENTRY_AUTH_TOKEN` (secret), `SENTRY_ORG`, `SENTRY_PROJECT` |
 | **Packages** | `@sentry/cloudflare@11.19.0`, `@sentry/react@11.19.0`; dev: `@sentry/vite-plugin@11.19.0` |
 | **Why these packages** | On Workers, `@sentry/cloudflare` (`withSentry`) is the SDK that runs. Sentry's TanStack Start guide adds `@sentry/tanstackstart-react` only for server-function tracing (off here), and it needs a `@ts-expect-error`: decision 257-1. Checked on npm 2026-11-27. |
+| **With a Go backend** | fits for the web app: the browser, and its Worker while the web app runs on Workers. The Go service reports through Sentry's Go SDK, set up in the Go service; no Go add-on exists yet: file one when an app needs it |
 | **Issue** | `Skills: build, web-security` · lane `normal` (`risky` if the person's risk dial treats a new data processor as risky) |
 | **Vendor setup** | Sentry's agent handoff and CLI sign-in, the kit's way (the handoff code is a credential): `.agents/skills/secrets/setup/sentry.md`. Keys: `.agents/skills/secrets/providers/sentry.md` |
 

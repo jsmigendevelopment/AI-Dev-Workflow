@@ -8,6 +8,7 @@ Cloudflare Web Analytics: page views, referrers and Core Web Vitals with no cook
 | **Alternatives** | Plausible or Umami (self-hosted, still cookie-free); PostHog when you need funnels, events and session replay |
 | **Env vars** | `VITE_CF_BEACON_TOKEN` (build time; public, it ends up in the HTML) |
 | **Packages** | none |
+| **With a Go backend** | fits: it is a browser script, so the backend makes no difference |
 | **Issue** | `Skills: build, web-performance` · lane `tiny` |
 | **Vendor setup** | none for this add-on. Picked PostHog instead? Follow `.agents/skills/secrets/setup/posthog.md` |
 
