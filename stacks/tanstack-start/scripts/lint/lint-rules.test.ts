@@ -1,6 +1,8 @@
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+
 import { ESLint } from 'eslint'
 import tseslint from 'typescript-eslint'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // The routing, store and SSR rules in eslint.config.js and eslint-rules.js, each proved on a
 // deliberate violation through the real config (a rule that never fires passes silently). The
@@ -133,4 +135,28 @@ describe('lint: services and repositories do not import their own kind', () => {
   ])('AC-707-3: allows it when %s', async (_, code, file) => {
     expect(await boundaryHits(code, file)).toEqual([])
   })
+})
+
+// An adapter may import its own port, in its own module only. A second module needs a real
+// `*.repository.ts` for the import to resolve, so the test writes one and removes it after.
+describe('lint: an adapter reaches its own port, never the same-named port of another module', () => {
+  const other = 'src/modules/lint-probe-other/server'
+
+  beforeAll(() => {
+    mkdirSync(other, { recursive: true })
+    writeFileSync(`${other}/notes.repository.ts`, 'export type OtherNotesRepository = never\n')
+  })
+  afterAll(() => rmSync('src/modules/lint-probe-other', { recursive: true, force: true }))
+
+  it.each(['notes.repository.drizzle.ts', 'notes.repository.memory.ts'])(
+    'AC-707-5: refuses %s importing a port of the same name in another module',
+    async (file) => {
+      const code =
+        "import type { OtherNotesRepository } from '@/modules/lint-probe-other/server/notes.repository'\n"
+      const hits = (await rulesHit(code, `src/modules/notes/server/${file}`)).filter((m) =>
+        m.startsWith('boundaries/dependencies'),
+      )
+      expect(hits).toHaveLength(1)
+    },
+  )
 })

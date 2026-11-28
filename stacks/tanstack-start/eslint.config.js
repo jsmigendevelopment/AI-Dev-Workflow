@@ -319,14 +319,17 @@ export default tseslint.config(
               disallow: { to: { file: { categories: ['repository-port', 'repository-adapter'] } } },
               message: 'A repository never imports another repository: a service composes repositories.',
             },
-            // The one exception: an adapter implements its own port.
+            // The one exception: an adapter implements its own port, in its own module.
             {
               from: { file: { categories: 'repository-adapter' } },
               allow: {
                 to: {
                   file: {
                     categories: 'repository-port',
-                    captured: { name: '{{ from.file.captured.name }}' },
+                    captured: {
+                      module: '{{ from.file.captured.module }}',
+                      name: '{{ from.file.captured.name }}',
+                    },
                   },
                 },
               },
