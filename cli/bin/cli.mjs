@@ -14,6 +14,7 @@ import { main as runs } from "../src/insights-runs.mjs";
 import { main as weekly } from "../src/insights-week.mjs";
 import { lesson } from "../src/lesson-check.mjs";
 import { libraryInit } from "../src/library-init.mjs";
+import { mapRepo } from "../src/map.mjs";
 import { main as preflight } from "../src/preflight.mjs";
 import { main as procs } from "../src/procs.mjs";
 import { profileCopy, profileInit, profileShow } from "../src/profile.mjs";
@@ -60,6 +61,9 @@ Usage:
                                           stop them: TERM, then KILL after 5 s. Asks first for a PID
                                           onRails didn't start, or another live session's
   npx onrails accounts [dir]              list the profile's accounts and their config folders
+  npx onrails map [dir]                   write docs/map.generated.md: each module under src/ with its
+                                          files and lines of code, who imports whom, import cycles and
+                                          sideways imports between feature modules (JS and TS only)
   npx onrails add <pack> [dir] [--force]  copy a stack pack into the project
   npx onrails add --list                  list the stack packs
   npx onrails add <pack> --list-addons    list a pack's optional add-ons
@@ -137,6 +141,7 @@ const READ_ONLY = new Set(["doctor", "accounts"]);
 async function run(command, args, flags, { ask, yes }) {
   switch (command) {
     case "accounts": return accountsList(args[0]);
+    case "map": return mapRepo(args[0]);
     case "init":
       if (flags.has("--global")) return initGlobal();
       if (flags.has("--start") && flags.has("--no-start")) return fail("Use --start or --no-start, not both.");
