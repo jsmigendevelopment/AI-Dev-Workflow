@@ -37,6 +37,20 @@ test("AC-227-2: WHEN pnpm connect sentry runs on ci = \"local\" THEN the three S
   }
 });
 
+// #444: on ci = "local" .env.sentry.local feeds both deploys, so its one group is named for them.
+test("AC-444-1: WHEN pnpm connect sentry runs on ci = \"local\" THEN its three deploy values are asked for every deploy (test and production)", () => {
+  const sentry = parseProvider("sentry", readFileSync(DIR + "sentry.md", "utf8"));
+  for (const name of ["SENTRY_AUTH_TOKEN", "SENTRY_ORG", "SENTRY_PROJECT"])
+    assert.deepEqual(groupsFor(sentry.vars[name], "none").map((g) => g.name), ["every deploy (test and production)"], name);
+});
+
+test("AC-444-2: WHEN pnpm connect sentry runs on ci = \"actions\" THEN its three deploy values keep today's groups", () => {
+  const sentry = parseProvider("sentry", readFileSync(DIR + "sentry.md", "utf8"));
+  for (const name of ["SENTRY_AUTH_TOKEN", "SENTRY_ORG", "SENTRY_PROJECT"])
+    for (const mode of ["environment", "repository"])
+      assert.deepEqual(groupsFor(sentry.vars[name], mode).map((g) => g.name), ["local and test", "production"], `${name} (${mode})`);
+});
+
 test("production refuses Cloudflare's documented Turnstile test keys", () => {
   const cloudflare = parseProvider("cloudflare", readFileSync(DIR + "cloudflare.md", "utf8"));
   for (const name of ["TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"]) {
