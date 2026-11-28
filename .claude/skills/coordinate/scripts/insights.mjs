@@ -36,10 +36,11 @@ import { join } from "node:path";
 import { pages } from "./agent-files.mjs";
 import { carry, heldRecords, save } from "./insights-carry.mjs";
 import { canonical, land, ownLogin, recordProblem } from "./insights-land.mjs";
-import { ASK_FILE, KINDS, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
+import { ASK_FILE, KINDS, LINE_START, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
 
 const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
-const LINE = /<!-- onrails-insights (.*?) -->/g;
+// [^\r\n], not ".": a dot stops at U+2028 and U+2029, so a valid line holding one was skipped without a word (#424).
+const LINE = /<!-- onrails-insights ([^\r\n]*?) -->/g;
 
 function fail(code, message) {
   process.stderr.write(`insights: ${message}\n`);
@@ -172,13 +173,16 @@ function harvest(args) {
   const root = gitRoot();
   const trusted = new Set([ownLogin().toLowerCase(), ...listedWriters(root)]);
   for (const c of pages(`repos/${repo}/issues/${pr}/comments`)) {
-    const lines = [...String(c.body ?? "").matchAll(LINE)];
+    const body = String(c.body ?? "");
+    const lines = [...body.matchAll(LINE)];
+    const opened = body.split(LINE_START).length - 1;
     const login = String(c.user?.login ?? "");
-    if (!lines.length) continue;
+    if (!opened) continue;
     if (!trusted.has(login.toLowerCase())) {
       warn(`skipped comment ${c.id} by ${login}: not gh's own login or under [insights] writers`);
       continue;
     }
+    if (opened > lines.length) warn(`skipped ${opened - lines.length} insights line(s) in comment ${c.id} by ${login}: opened but never closed with --> on the same line`);
     for (const [line, json] of lines) {
       const record = parseLine(line);
       const kept = record ? harvestOne(root, record, pr) : { why: lineProblem(json) };

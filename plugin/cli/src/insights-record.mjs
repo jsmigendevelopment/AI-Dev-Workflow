@@ -36,7 +36,7 @@ export const ENVELOPE = {
 };
 
 /** Why a run's work went back (#380): too big, a must-fix finding, a red check, the machine, or a process rule. */
-const SEND_BACKS =["size", "review-must", "checks", "infra", "process"];
+const SEND_BACKS = ["size", "review-must", "checks", "infra", "process"];
 /** The outcomes a send-back may come with: a run that passed or finished sent nothing back. */
 const SENT_BACK = ["fail", "failed", "stopped", "handed-off"];
 
@@ -146,7 +146,7 @@ const isoUtc = (at) => typeof at === "string" && !Number.isNaN(Date.parse(at)) &
 /** The run-cost rules of a job record (#380). Records from before #380 have none of these fields, so they pass. */
 function jobProblems(record, board) {
   const errors = [];
-  if (record.send_back !== undefined && record.outcome !== undefined && !SENT_BACK.includes(record.outcome)) {
+  if (record.send_back !== undefined && !SENT_BACK.includes(record.outcome)) {
     errors.push(`send_back: only on a run that sent work back (outcome ${SENT_BACK.join(", ")})`);
   }
   const reading = record.usage_before !== undefined || record.usage_after !== undefined;
@@ -253,6 +253,11 @@ export function runLine(record, { mins = minutes(record), outcome = false } = {}
 }
 
 export const LINE_START = "<!-- onrails-insights ";
+/**
+ * The comment form on one line. [^\r\n] and not ".": a dot stops at U+2028 and U+2029, which JSON.stringify leaves as
+ * they are, so a valid line holding one would be skipped without a word (#424).
+ */
+export const LINE_BODY = /<!-- onrails-insights (\{[^\r\n]*?\}) -->/g;
 
 /** The comment form of a record, for a session that commits nothing (a reviewer). */
 export function toLine(record) {
@@ -262,7 +267,7 @@ export function toLine(record) {
 
 /** The first valid record in a comment's text, or null. */
 export function parseLine(text) {
-  for (const m of String(text).matchAll(/<!-- onrails-insights (\{.*?\}) -->/g)) {
+  for (const m of String(text).matchAll(LINE_BODY)) {
     try {
       const record = JSON.parse(m[1]);
       if (validate(record).length === 0) return record;

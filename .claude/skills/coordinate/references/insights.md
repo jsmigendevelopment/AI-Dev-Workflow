@@ -63,7 +63,7 @@ A builder's finish record and each reviewer's job line carry the run's cost:
 
 - `model` and `effort`: what the session shows, else `unknown`.
 - `usage_before` and `usage_after`: the provider's usage reading as the tool shows it, at the start and at the end (for example the plan's `41%`). No reading you can see? `unknown`. Never estimate a number the tool didn't report.
-- `usage_from`: where you read it, or where you looked (for example `get_session: no usage percentage`).
+- `usage_from`: where you read it, or where you looked (for example `get_session: no usage percentage`; quote it on the command line when it has spaces).
 - `send_back`: why the work went back, on a run that sent it back:
 
 | Reason | Who writes it |
@@ -80,7 +80,7 @@ Records from before #380 have none of these fields and stay valid.
 
 ```
 insights.mjs write job job=build issue=12 sha=<40 hex> outcome=started model=opus effort=low
-insights.mjs line job job=review-code pr=40 sha=<40 hex> outcome=fail send_back=review-must usage_before=unknown usage_after=unknown usage_from=get_session
+insights.mjs line job job=review-code pr=40 sha=<40 hex> outcome=fail send_back=review-must usage_before=unknown usage_after=unknown usage_from="get_session: no usage percentage"
 insights.mjs write check pr=40 'commands=[{"name":"lint","result":"pass","seconds":4}]'
 insights.mjs line review pr=40 round=1 verdict=pass must=0 nice=2 categories=naming,tests
 insights.mjs write fix-round pr=40 round=2 fixed=3
