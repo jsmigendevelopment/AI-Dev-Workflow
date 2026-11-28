@@ -166,6 +166,14 @@ test("AC-397-2: WHEN an open issue's body starts with `Handoff ·` and has no la
   assert.deepEqual(kinds(orphansOf(dir, [answered, claimed(8, "feat/8-work")])), [], "a receipt answers it");
 });
 
+// Round 2 of the review on #437, nice 2: in a personal repo the owner's login is in the issue's url.
+test("AC-397-2: WHEN an unlabelled `Handoff ·` issue's author owns the repo in its url THEN it is listed with no trusted comment in the list", () => {
+  const dir = project();
+  const rest = { url: "https://api.github.com/repos/acme/app/issues/27", html_url: "https://github.com/acme/app/issues/27", user: { login: "acme" }, author: undefined };
+  const issues = [bodyHandoff(25, "acme"), bodyHandoff(26, "ACME"), bodyHandoff(27, "x", rest), bodyHandoff(28, "acme-fan")];
+  assert.deepEqual(kinds(orphansOf(dir, issues)), [[25, "no-receipt"], [26, "no-receipt"], [27, "no-receipt"]], "not acme-fan's");
+});
+
 test("AC-397-3: WHEN comments come from REST with `created_at` THEN a real receipt counts", () => {
   const dir = project();
   const rest = (created_at, body) => ({ user: { login: "me" }, author_association: "MEMBER", created_at, body });

@@ -59,9 +59,16 @@ test("AC-397-1: handoff-reading: a reading and its question in one paragraph, wi
     "'or do you want anything else'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start, or do you want anything else?" }],
     "'whether or not'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. Let me know whether or not to start?" }],
     "'a second or so'": [STAMP, { text: "Got it. A larger autoplay video, a second or so longer, to make it pop. OK?" }],
+    // Round 2 of the review on #437: "larger" and "bigger" are one kind of reading, so the "or" offers no second one.
+    "'or would you like it even bigger'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop, or would you like it even bigger?" }],
+    "'larger or bigger'": [STAMP, { text: "Got it. To make the hero pop, should the autoplay video be larger or bigger?" }],
   };
-  for (const [name, steps] of Object.entries(cases)) assert.deepEqual(failedChecks(t, steps), ["AC-5-asks-owner"], name);
-  assert.deepEqual(failedChecks(t, plan.with.steps), [], "the good transcript");
   const choice = { text: "Got it. \"Make the hero pop\" could mean a video or a bolder headline. Which one do you want? I recommend the headline. I've started nothing on the hero." };
-  assert.deepEqual(failedChecks(t, [goodReceipt, choice]), [], "a video or a bolder headline");
+  // Round 2 of the review on #437, nice 1: agents often write the choice as a list.
+  const list = { text: "Which do you mean by 'make it pop'?\n- bolder type and colour, or\n- the autoplay video in the summary" };
+  const passes = { "the good transcript": plan.with.steps, "a video or a bolder headline": [goodReceipt, choice], "the choice written as a list": [goodReceipt, list] };
+  // Every case runs before the one assertion, so a failure names each case that went wrong.
+  const failed = (all) => Object.fromEntries(Object.entries(all).map(([name, steps]) => [name, failedChecks(t, steps)]));
+  const expected = { ...Object.fromEntries(Object.keys(cases).map((name) => [name, ["AC-5-asks-owner"]])), ...Object.fromEntries(Object.keys(passes).map((name) => [name, []])) };
+  assert.deepEqual({ ...failed(cases), ...failed(passes) }, expected);
 });
