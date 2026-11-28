@@ -36,9 +36,9 @@
 // ADW_NOW and ADW_NOTIFY_PRINT, the names before the rename, still work.
 // Never blocks or fails the agent: every error is swallowed.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, isAbsolute, join } from "node:path";
+import { basename, isAbsolute, join, relative } from "node:path";
 
 // ~/.onrails, or ~/.ai-dev-workflow (its name before the rename to onRails) while only that one exists.
 const NEW_HOME = join(homedir(), ".onrails"), OLD_HOME = join(homedir(), ".ai-dev-workflow");
@@ -204,10 +204,15 @@ async function handle(item, cfg) {
 
 // ---------- the ask record (#334) ----------
 
-// "<path>:<line>" when that line is in a file inside the repo. Absolute paths and ".." never count.
+// "<path>:<line>" when that line is in a file inside the repo. Absolute paths and ".." never count,
+// and neither does a symlink that leaves the repo: the real path is checked, not the one named.
 function ruleOk(root, path, line) {
   if (line < 1 || isAbsolute(path) || path.split(/[\\/]/).includes("..")) return false;
-  try { return readFileSync(join(root, path), "utf8").replace(/\n$/, "").split("\n").length >= line; } catch { return false; }
+  try {
+    const real = realpathSync(join(root, path)), rel = relative(realpathSync(root), real);
+    if (!rel || isAbsolute(rel) || rel.split(/[\\/]/)[0] === "..") return false;
+    return readFileSync(real, "utf8").replace(/\n$/, "").split("\n").length >= line;
+  } catch { return false; }
 }
 
 const fullLevel = (root) => {
@@ -217,7 +222,8 @@ const fullLevel = (root) => {
 // The record's rule fields, and what the JSON says about them.
 function ruleFields(root, rule) {
   if (rule === undefined) return [{ rule: "missing" }, { rule: "missing" }];
-  if (rule.startsWith("hook:")) return [{ rule }, {}];
+  // A hook names its event; anything else after "hook:" is not one, so it is not a rule.
+  if (rule.startsWith("hook:")) return /^hook:[\w-]+$/.test(rule) ? [{ rule }, {}] : [{ rule: "missing" }, { rule: "missing", warning: "--rule hook: must name an event like hook:Stop" }];
   const m = /^([^\s:\u0000-\u001f\u007f]+):(\d+)$/.exec(rule);
   if (!m) return [{ rule: "missing", rule_ok: false }, { rule: "missing", warning: "--rule must be <path>:<line>" }];
   return [{ rule, rule_ok: ruleOk(root, m[1], Number(m[2])) }, {}];
@@ -235,7 +241,7 @@ function askRecord(root, item, { rule, alwaysStop = false, title: fullTitle = it
   if (title) fields.title = title;
   try {
     const r = spawnSync(process.execPath, [script, "write", "ask", ...Object.entries(fields).map(([k, v]) => `${k}=${v}`)], {
-      cwd: root, encoding: "utf8", timeout: 5000, env: { ...process.env, CLAUDE_PROJECT_DIR: root, ONRAILS_NOW: item.ts },
+      cwd: root, encoding: "utf8", timeout: 5000, killSignal: "SIGKILL", env: { ...process.env, CLAUDE_PROJECT_DIR: root, ONRAILS_NOW: item.ts },
     });
     if (r.status === 0) return { ...said, path: r.stdout.trim() };
     return { ...said, error: String(r.stderr || r.error?.message || "the writer failed").trim().split("\n")[0].slice(0, 200) };
@@ -250,7 +256,7 @@ function boardEvent(root, item) {
   if (!existsSync(script)) return;
   const fields = { title: item.title, level: item.level === "fyi" ? undefined : item.level, link: item.link || undefined, issue: item.issue, note: item.message?.split("\n")[0] || undefined };
   const args = [script, "event", item.level === "fyi" ? "fyi" : "needs-you", JSON.stringify(fields), "--project", item.project];
-  try { spawnSync(process.execPath, args, { cwd: root, stdio: "ignore", timeout: 5000 }); } catch {}
+  try { spawnSync(process.execPath, args, { cwd: root, stdio: "ignore", timeout: 5000, killSignal: "SIGKILL" }); } catch {}
 }
 
 // ---------- main ----------
