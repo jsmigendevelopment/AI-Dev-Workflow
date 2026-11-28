@@ -12,6 +12,20 @@ Optional pieces for an app made from `stacks/tanstack-start`. The tech grill (`s
 | [`r2-uploads`](r2-uploads/ADDON.md) | `files` module: metadata row first, streamed upload to R2, limits, owner-scoped | none | risky |
 | [`database-supabase`](database-supabase/ADDON.md) | D1 → Supabase Postgres through Hyperdrive, with the same repository port | `pg` | risky |
 
+## With a Go backend
+
+An app whose backend is Go (the tech grill's pick for a backend that isn't on Cloudflare Workers) keeps the TypeScript web app, and the Go service takes its own server-side pieces. An add-on that writes server code into the web pack's Worker is for a TypeScript backend on Workers. This is words only: `npx onrails add` still copies any add-on, and nothing here refuses it. Each `ADDON.md` says the same in its table.
+
+| Add-on | With a Go backend |
+|---|---|
+| [`analytics`](analytics/ADDON.md) | fits: it is a browser script, so the backend makes no difference |
+| [`sentry`](sentry/ADDON.md) | fits for the web app: the browser, and its Worker while the web app runs on Workers. The Go service reports through Sentry's Go SDK, set up in the Go service; no Go add-on exists yet: file one when an app needs it |
+| [`email-resend`](email-resend/ADDON.md) | TypeScript backend only: it adds a sender to the web pack's Worker. On a Go backend, sending email goes in the Go service; no Go add-on exists yet: file one when an app needs it |
+| [`jobs`](jobs/ADDON.md) | TypeScript backend only: it is a Cloudflare Queue that the web pack's Worker produces to and consumes. On a Go backend, background jobs and schedules go in the Go service; no Go add-on exists yet: file one when an app needs it |
+| [`stripe`](stripe/ADDON.md) | TypeScript backend only: it writes billing server code into the web pack's Worker. On a Go backend, billing goes in the Go service; no Go add-on exists yet: file one when an app needs it |
+| [`r2-uploads`](r2-uploads/ADDON.md) | TypeScript backend only: it writes file-upload server code into the web pack's Worker. On a Go backend, file storage goes in the Go service; no Go add-on exists yet: file one when an app needs it |
+| [`database-supabase`](database-supabase/ADDON.md) | TypeScript backend only: it swaps the web pack's D1 database for Postgres through Hyperdrive. On a Go backend, the database is the Go service's own (the kit's Go conventions use Postgres through pgx); no Go add-on exists yet: file one when an app needs it |
+
 ## How an add-on is laid out
 
 ```

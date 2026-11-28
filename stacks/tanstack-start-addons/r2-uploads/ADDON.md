@@ -8,6 +8,7 @@ File uploads to Cloudflare R2: a `files` module that writes a metadata row first
 | **Alternatives** | presigned R2 URLs (the browser PUTs straight to R2; needed past the Worker's request body limit, which is 100 MB on Free and Pro); Supabase Storage; UploadThing |
 | **Env vars** | none. Bindings: `FILES` (R2 bucket) |
 | **Packages** | none |
+| **With a Go backend** | TypeScript backend only: it writes file-upload server code into the web pack's Worker. On a Go backend, file storage goes in the Go service; no Go add-on exists yet: file one when an app needs it |
 | **Issue** | `Skills: build, web-security` · lane `risky` (user-supplied content, storage costs, another user's data) |
 
 ## What it adds

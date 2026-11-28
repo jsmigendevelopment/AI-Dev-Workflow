@@ -8,6 +8,7 @@ Swap D1 (SQLite) for Supabase Postgres, reached from the Worker through Cloudfla
 | **Alternatives** | stay on D1 (the default; simplest, free, SQLite); Neon or another managed Postgres behind the same Hyperdrive setup; Turso for SQLite past D1's limits |
 | **Env vars** | `DATABASE_URL` (secret; only in your shell when running `pnpm db:migrate`, never in the Worker). Bindings: `HYPERDRIVE` |
 | **Packages** | `pg@8.23.1`; dev: `@types/pg@8.23.1`, `@electric-sql/pglite@0.5.16` (in-process Postgres for the contract tests) |
+| **With a Go backend** | TypeScript backend only: it swaps the web pack's D1 database for Postgres through Hyperdrive. On a Go backend, the database is the Go service's own (the kit's Go conventions use Postgres through pgx); no Go add-on exists yet: file one when an app needs it |
 | **Issue** | `Skills: build, research` · lane `risky` (schema and data, a new data processor, production settings). Below Full, ask the person before you delete D1 migrations that have run anywhere but a laptop. On Full, keep them and put it in the FYI. |
 | **Vendor setup** | the `supabase` CLI (`supabase start` for local Postgres) and Supabase's agent tools, the kit's way: `.agents/skills/secrets/setup/supabase.md`. Keys and Hyperdrive: `.agents/skills/secrets/providers/supabase.md` |
 

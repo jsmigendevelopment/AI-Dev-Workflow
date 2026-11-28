@@ -4,7 +4,7 @@
 
 ## Preloaded (confirm, don't ask)
 
-- **Add-ons:** Sentry, Cloudflare Queues for slow work.
+- **Add-ons:** Sentry, Cloudflare Queues for slow work (a TypeScript backend on Workers; with a Go backend the server-side ones move into the Go service, see `stacks/tanstack-start-addons/README.md`).
 - **Floor answers:**
   - API keys per client, stored hashed;
   - rate limits per key;
