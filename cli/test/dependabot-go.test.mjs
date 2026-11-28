@@ -341,6 +341,43 @@ test("AC-581-4: WHEN a bump changes a go.mod or go.sum under vendor/ or testdata
   }
 });
 
+// Go skips a folder whose name starts with "_" or "." as it skips vendor/ and testdata/, so a go.mod there is not the module's (#590).
+const HIDDEN_DIRS = {
+  "a go.mod in an underscore folder": "_vendor/go.mod",
+  "a go.sum in a dot folder": ".hidden/go.sum",
+  "a go.mod in a nested underscore folder": "services/api/_gen/go.mod",
+  "a go.sum in a nested dot folder": "services/.cache/go.sum",
+  "a go.mod deep in a dot folder": "a/b/.c/d/go.mod",
+  "a go.sum below an underscore folder at the root": "_x/y/z/go.sum",
+  "a go.mod in the .github folder": ".github/go.mod",
+  "a go.mod in a folder named only _": "_/go.mod",
+};
+
+test("AC-590-1: WHEN a bump changes a go.mod or go.sum under a folder whose name starts with _ or ., at any depth THEN own-branch.mjs exits 1 and names the file", unixOnly, () => {
+  for (const [name, file] of Object.entries(HIDDEN_DIRS)) {
+    const [old, now] = file.endsWith("go.mod") ? [MOD_OLD, MOD_NEW] : [SUM_OLD, SUM_NEW];
+    for (const [label, files] of [["alone", changed(file)], ["beside the real ones", changed("go.mod", "go.sum", file)]]) {
+      // The file has an honest bump to read, so only the folder can make the gate refuse it.
+      const r = bump({ files, pull: { ref: GO_BRANCH }, before: { "go.mod": MOD_OLD, "go.sum": SUM_OLD, [file]: old }, after: { "go.mod": MOD_NEW, "go.sum": SUM_NEW, [file]: now } });
+      assert.equal(r.status, 1, `${name}, ${label}: ${r.stderr}`);
+      assert.equal(r.stdout, "", `${name}, ${label}`);
+      assert.match(r.stderr, ONLY, `${name}, ${label}`);
+      assert.match(r.stderr, naming(file), `${name}, ${label}: it names the file`);
+    }
+  }
+});
+
+test("AC-590-2: WHEN a bump changes only the honest go.mod and go.sum, or they sit in a folder such as svc/ or my_vendor/ THEN it passes as before, and vendor/ and testdata/ are still refused", unixOnly, () => {
+  for (const dir of ["", "svc/", "my_vendor/", "services/api_v2/", "a.b/", "svc.io/", "x_/", "services/api/"]) {
+    assert.equal(goBump({ dir }).status, 0, `${dir}go.mod and go.sum pass`);
+  }
+  for (const file of ["vendor/x/go.mod", "services/api/testdata/go.sum", "Vendor/x/go.mod", "TestData/x/go.sum"]) {
+    const [old, now] = file.endsWith("go.mod") ? [MOD_OLD, MOD_NEW] : [SUM_OLD, SUM_NEW];
+    const r = bump({ files: changed(file), pull: { ref: GO_BRANCH }, before: { [file]: old }, after: { [file]: now } });
+    assert.equal(r.status, 1, `${file} stays refused: ${r.stderr}`);
+  }
+});
+
 test("AC-581-5: WHEN a reader opens decision 531-1 THEN its sentence about the checksum database says Go compares the downloaded bytes with every go.sum line for that version and asks the database only when a line is missing", () => {
   const decision = read("docs/decisions/531-1.md");
   assert.match(decision, /Go compares the downloaded bytes with every `go\.sum` line for that version, and asks the checksum database only when a line is missing/);
