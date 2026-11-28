@@ -172,3 +172,45 @@ test("AC-740-4: WHEN a name is authorization, auth_code, session_id, signature, 
     assert.equal(named(name).out, "plain-value (project)", name);
   }
 });
+
+// Round 3 of the review of #744: a long value used to stall `config get` (two quadratic regexes). The tests above are unchanged.
+function timed(fn) {
+  const start = performance.now();
+  const result = fn();
+  return { result, ms: performance.now() - start };
+}
+
+test("AC-740-1: WHEN a value is over 2,000 characters THEN it is refused at once, in well under a second, and the line never holds the value", () => {
+  for (const v of ["a".repeat(100000), "a.".repeat(50000), "/".repeat(100000), ":/".repeat(50000), "http:/".repeat(20000), "@".repeat(100000), "key".repeat(33000), `${"a".repeat(100000)}://x`]) {
+    const { result, ms } = timed(() => value(v));
+    assertRefused(result, v.slice(0, 20), v);
+    assert.match(result.err, /2,000/, v.slice(0, 20));
+    assert.ok(ms < 1000, `${v.slice(0, 20)}: ${Math.round(ms)} ms`);
+  }
+  assertRefused(value("a".repeat(2001)), "2001", "a".repeat(2001));
+  assert.equal(value("a".repeat(2000)).out, `${"a".repeat(2000)} (project)`);
+  assert.equal(valueLooksSecret("a".repeat(100000)), true);
+});
+
+test("AC-740-1: WHEN a value is just under the limit (1,999 characters) THEN every check runs on it within a second, and plain ones still read", () => {
+  const plain = {
+    "no ://": "a".repeat(1999), "1900 then ://x": `${"a".repeat(1900)}://x`, dots: "a.".repeat(999), slashes: "/".repeat(1999), "colon slash": ":/".repeat(999),
+    "http:/": "http:/".repeat(333), words: `${"word ".repeat(398)}word`, key: "key".repeat(666), urls: `${"https://example.test/a ".repeat(85)}https://example.test/a`,
+  };
+  for (const [label, v] of Object.entries(plain)) {
+    const { result, ms } = timed(() => value(v));
+    assert.equal(result.out, `${v} (project)`, label);
+    assert.ok(ms < 1000, `${label}: ${Math.round(ms)} ms`);
+  }
+  const secret = [`${"a".repeat(1900)}://u:pw@h`, `${"a ".repeat(900)}password=x`, `${"a".repeat(1800)} https://u:pw@h`, `${"a".repeat(1900)}://${TOKEN}@h`];
+  for (const v of secret) {
+    const { result, ms } = timed(() => value(v));
+    assertRefused(result, v.slice(-20), v);
+    assert.ok(ms < 1000, `${v.slice(-20)}: ${Math.round(ms)} ms`);
+  }
+});
+
+test("AC-740-4: WHEN the name is PASSW0RD in upper case (or any upper-case form of passw0rd) THEN it prints nothing, and upper-case plain names still read", () => {
+  for (const n of ["PASSW0RD", "DB_PASSW0RD", "MY-PASSW0RD", "PASSW0RD2", "PASSW0RDS", "Passw0rd", "passW0rd", "S3KEY", "API_KEY", "TOKEN"]) assertRefused(named(n), n, "plain-value");
+  for (const n of ["PASSAGE", "SPIN", "MONKEY", "MODE", "S3_REGION", "AUTHOR"]) assert.equal(named(n).out, "plain-value (project)", n);
+});

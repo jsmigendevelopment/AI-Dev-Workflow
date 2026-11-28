@@ -42,15 +42,23 @@ const KEYWORD_TOKEN = /(?<![a-z0-9])(?:token|api[-_]?key|authorization:?)(?=\s+(
 const SCHEMELESS_LOGIN = /^[^\s:@/]+:[^\s@]+@[^\s@]+$/;
 // scheme://user:rest@, where `rest` runs to the first @. A password with a raw "/" lands in `rest`, and so does a port ahead of a
 // path that holds an @ (https://host:8443/a@b). Only the web-style schemes in PORT_SCHEMES may have that port; for any other
-// scheme (mysql, postgres, redis) digits and a "/" are a password.
-const URL_LOGIN = /([a-z0-9+.-]*):\/\/([^/\s:@]*):([^\s@]*)@/gi;
+// scheme (mysql, postgres, redis) digits and a "/" are a password. Found by a scan from each "://" (see hasUrlPassword), not a
+// regex: the regex was O(n squared) on a long value (#744, round 3).
 const PORT_SCHEMES = new Set(["http", "https", "ws", "wss", "ftp"]);
+const SCHEME_CHAR = /[a-z0-9+.-]/i;
+const LONGEST_PORT_SCHEME = 5; // "https"; a scheme longer than this can never be one of PORT_SCHEMES
+const HOST_END = /[/\s:@]/g;
+const REST_END = /[\s@]/g;
 // Bearer or Basic, then white space (a tab too) and anything: Authorization: Bearer abc, in any case, anywhere in a value.
 const AUTH_SCHEME = /(?<![a-z])(?:bearer|basic)\s+\S/i;
 // A secret-looking name, then = or : and a non-empty value: password=hunter2, api_key: abc, "token": "x".
 const NAME_VALUE = /(?<![\w.-])([\w.-]+)["']?\s*[=:]\s*["']?[^\s"']/g;
-// Anything with :// in it, so a URL inside a longer text is checked too.
-const URL_TOKEN = /\S*:\/\/\S*/g;
+// Anything with :// in it, so a URL inside a longer text is checked too: the white-space-separated pieces that hold one.
+const urlTokens = (text) => text.split(/\s+/).filter((piece) => piece.includes("://"));
+
+// Longest value config get looks at. A longer one is refused before any pattern runs, so a huge value in a profile cannot stall
+// the command (#744, round 3). No template value is near it.
+export const MAX_VALUE_LENGTH = 2000;
 
 // An unknown key format (SG., shpat_, hf_, pypi-, tskey-): one run of 20 or more characters with no space, mixing letters and
 // digits. A value with :// is left to the URL rules, which test each path piece and query value the same way.
@@ -58,10 +66,34 @@ function isLongToken(text) {
   return text.length >= 20 && !/\s/.test(text) && /[A-Za-z]/.test(text) && /\d/.test(text);
 }
 
+/** Index of the next match of a global `pattern` at or after `from`, or -1. */
+function indexFrom(pattern, text, from) {
+  pattern.lastIndex = from;
+  return pattern.exec(text)?.index ?? -1;
+}
+
+/** True when a scheme://user:rest@ login has a password: every one but a web scheme with a host and a 1 to 5 digit port before a "/". Visits each "://" once and reuses the end of `rest`, so the cost is linear in the text. */
 function hasUrlPassword(text) {
-  for (const [, scheme, host, rest] of text.matchAll(URL_LOGIN)) {
-    const port = host !== "" && /^\d{1,5}\//.test(rest) && PORT_SCHEMES.has(scheme.toLowerCase());
+  let from = 0; // a login that matched is used up, so the next one starts after its @
+  let restEnd = -2; // the cached end of the last `rest` scan: the first white space or @ at or after restFrom
+  let restFrom = 0;
+  for (let at = text.indexOf("://"); at !== -1; at = text.indexOf("://", at + 1)) {
+    if (at < from) continue;
+    const hostStart = at + 3;
+    const hostEnd = indexFrom(HOST_END, text, hostStart);
+    if (hostEnd === -1 || text[hostEnd] !== ":") continue;
+    const rest = hostEnd + 1;
+    if (restEnd !== -1 && (restEnd < rest || rest < restFrom)) {
+      restEnd = indexFrom(REST_END, text, rest);
+      restFrom = rest;
+    }
+    if (restEnd === -1 || text[restEnd] !== "@") continue;
+    let schemeStart = at;
+    while (schemeStart > from && at - schemeStart <= LONGEST_PORT_SCHEME && SCHEME_CHAR.test(text[schemeStart - 1])) schemeStart--;
+    const scheme = text.slice(schemeStart, at).toLowerCase();
+    const port = hostEnd > hostStart && /^\d{1,5}\//.test(text.slice(rest, Math.min(restEnd, rest + 6))) && PORT_SCHEMES.has(scheme);
     if (!port) return true;
+    from = restEnd + 1;
   }
   return false;
 }
@@ -117,16 +149,19 @@ export function looksSecret(name) {
   if (forms.some((alts) => alts.some((word) => SECRET_WORDS.has(word)))) return true;
   if (forms.some((alts) => alts.some((word) => SECRET_PARTS.some((part) => word.includes(part))))) return true;
   if (forms.some((alts) => alts.some((word) => GLUED_ENDINGS.some(([end, min]) => word.length > min && word.endsWith(end))))) return true; // userpass, dbpw, userpin
+  // An upper-case word with a digit in it (PASSW0RD) is cut at the digit by the split above, so its glued parts are also looked for in the word as written.
+  if (name.split(/[._-]+/).some((word) => !/[a-z]/.test(word) && /\d[A-Z]/.test(word) && SECRET_PARTS.some((part) => word.toLowerCase().includes(part)))) return true;
   return SECRET_PHRASES.some(([first, second]) => forms.some((alts, i) => alts.includes(first) && (forms[i + 1]?.includes(second) ?? false)));
 }
 
 /** True when a value starts the way an API token, key or private key does, or has the shape of a JWT, a Slack hook, a URL or user:pw@host with a password, a Bearer or Basic header, a name=value pair for a secret name, a long key-like token (also in a URL path or query) or a secret query key (#740). */
 export function valueLooksSecret(value) {
+  if (value.length > MAX_VALUE_LENGTH) return true;
   const text = value.trim();
   const start = text.toLowerCase();
   if (SECRET_VALUE_STARTS.some((prefix) => start.startsWith(prefix)) || SECRET_VALUE_SHAPES.some((shape) => shape.test(text))) return true;
   if (AUTH_SCHEME.test(text) || hasUrlPassword(text) || hasNameValue(text) || START_ANYWHERE.test(text) || hasKeywordToken(text)) return true;
-  if ((text.match(URL_TOKEN) ?? []).some(hasUrlSecret)) return true;
+  if (urlTokens(text).some(hasUrlSecret)) return true;
   if (!text.includes("://") && isLongToken(text)) return true;
   return !text.includes("://") && SCHEMELESS_LOGIN.test(text.replace(/^mailto:/i, ""));
 }
