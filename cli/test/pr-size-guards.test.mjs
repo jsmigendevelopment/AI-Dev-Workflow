@@ -31,9 +31,9 @@ function local(files, { dir = checkout(), remove = [], env = safeEnv() } = {}) {
   return spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), "--base", "main"], { cwd: dir, encoding: "utf8", env });
 }
 
-/** pr-size.mjs on pull request 9 of acme/app, with GitHub's file `entries`, `body`, `labels` and extra fake `api` answers. */
-function pull({ entries, body = "Closes #5", labels = [], api = {} }) {
-  const dir = checkout();
+/** pr-size.mjs on pull request 9 of acme/app, with GitHub's file `entries`, `body`, `labels` and extra fake `api` answers.
+ * `dir` is main's checkout, whose HEAD is the base. */
+function pull({ entries, body = "Closes #5", labels = [], api = {}, dir = checkout() }) {
   const base = git(dir, "rev-parse", "HEAD").trim();
   const pr = { number: 9, body, labels: labels.map((name) => ({ name })), changed_files: entries.length, base: { ref: "main", sha: base }, head: { sha: HEAD } };
   const fake = fakeGh(tmp("onrails-gh-"), { "repos/acme/app/pulls/9": pr, "repos/acme/app/pulls/9/files": entries, ...api });
@@ -111,4 +111,29 @@ test("#407 item 6: a Size exception line inside a script or style block doesn't 
   }
   const shown = pull({ entries: big, labels: ["size-exception"], body: "<style>p {}</style>\nSize exception: generated API types\n" });
   assert.equal(shown.status, 0, shown.stderr);
+});
+
+test("#407 round 1, nice 1: a script or style tag in inline code or a fenced block doesn't hide a visible Size exception line", unixOnly, () => {
+  const big = [{ filename: "src/a.ts", status: "added", additions: 1200, deletions: 0 }];
+  for (const body of [
+    "This changes the `<style>` handling.\n\nSize exception: a mechanical rename\n",
+    "Closes #5\n\n```html\n<script>\n```\n\nSize exception: a mechanical rename\n",
+  ]) {
+    const r = pull({ entries: big, labels: ["size-exception"], body });
+    assert.equal(r.status, 0, `${JSON.stringify(body)}: ${r.stderr}`);
+    assert.match(r.stdout, /Size exception: a mechanical rename/);
+  }
+});
+
+test("#407 round 1, nice 2: a modified 0/0 entry whose blob is the base's own is a mode change, and passes", unixOnly, () => {
+  const dir = checkout();
+  mkdirSync(join(dir, "src"));
+  writeFileSync(join(dir, "src", "run.sh"), lines(1500));
+  git(dir, "add", "-A");
+  git(dir, "commit", "-q", "-m", "a script");
+  const sha = git(dir, "rev-parse", "HEAD:src/run.sh").trim();
+  const mode = pull({ dir, entries: [{ ...entry("src/run.sh", "modified"), sha }], api: contents("src/run.sh", lines(1500)) });
+  assert.equal(mode.status, 0, mode.stderr);
+  const other = pull({ dir, entries: [{ ...entry("src/run.sh", "modified"), sha: "e".repeat(40) }], api: contents("src/run.sh", lines(1500)) });
+  assert.equal(other.status, 2, "a different blob GitHub couldn't diff is never a pass");
 });

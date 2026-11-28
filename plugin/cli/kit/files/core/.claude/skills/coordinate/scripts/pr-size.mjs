@@ -132,16 +132,17 @@ export function measure(files, isGenerated) {
   return { total: sum(counted), excluded: sum(files) - sum(counted), biggest, binaries };
 }
 
-/** The description as the reader sees it: no HTML comments, script or style blocks, fenced code blocks or indented
- * code blocks. */
+/** The description as the reader sees it: no HTML comments, fenced code blocks, indented code blocks, or script or
+ * style blocks. */
 function shown(body) {
   return String(body ?? "").replace(/\r\n?/g, "\n")
     .replace(/<!--[\s\S]*?(?:-->|$)/g, "")
-    // GitHub drops a script or style block, and what's in it, from what it shows. An unclosed one runs to the end.
-    .replace(/<(script|style)\b[\s\S]*?(?:<\/\1\s*>|(?![\s\S]))/gi, "")
     // A fence closes only on its own character, at least as many, then nothing but spaces (CommonMark 4.5).
     .replace(/^ {0,3}((`|~)\2{2,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1\2*[ \t]*$|(?![\s\S]))/gm, "")
-    .split("\n").filter((line) => !/^(?: {4}|\t)/.test(line)).join("\n");
+    .split("\n").filter((line) => !/^(?: {4}|\t)/.test(line)).join("\n")
+    // GitHub drops a script or style block, and what's in it, from what it shows. An unclosed one runs to the end.
+    // A tag in inline code is text, so a code span is matched first and kept as it is.
+    .replace(/(`+)[^\n]*?\1|<(script|style)\b[\s\S]*?(?:<\/\2\s*>|(?![\s\S]))/gi, (match, code) => (code ? match : ""));
 }
 
 /** The reason on the description's visible `Size exception:` line, or null when there's none. */
@@ -191,17 +192,28 @@ function headContent(repo, head, path) {
   return { empty: false, nul: Buffer.from(file.content, "base64").subarray(0, NUL_WINDOW).includes(0) };
 }
 
+/** True when GitHub's blob `sha` for a file at the head is the one `base` has at that path: only its mode changed. */
+function sameBlob(base, f) {
+  if (!/^[0-9a-f]{40,64}$/.test(f.sha ?? "")) return false;
+  try {
+    return git(["rev-parse", "--verify", "-q", `${base}:${f.filename}`], { cwd: checkoutRoot() }).trim() === f.sha;
+  } catch {
+    return false; // rev-parse -q says only yes or no: a path the base doesn't have is its no, and a no never passes.
+  }
+}
+
 /** GitHub lists a binary file as 0 added, 0 removed and no patch. Marks each such file that still exists `binary`. A
  * known binary type is marked as it is; any other file's content at `head` decides, so an empty one, a mode change or
- * a pure rename isn't marked. Throws on an added or modified file that isn't empty and holds no NUL: GitHub couldn't
- * diff it, so its lines can't be counted. */
-export function markBinaries(repo, head, files) {
+ * a pure rename isn't marked. Throws on an added file, or a modified one whose blob isn't `base`'s (a commit in this
+ * checkout), that isn't empty and holds no NUL: GitHub couldn't diff it, so its lines can't be counted. */
+export function markBinaries(repo, head, files, base = "HEAD") {
   return files.map((f) => {
     if (f.additions !== 0 || f.deletions !== 0 || f.patch || f.status === "removed") return f;
     if (KNOWN_BINARY.test(f.filename)) return { ...f, binary: true };
     const { empty, nul } = headContent(repo, head, f.filename);
     if (nul) return { ...f, binary: true };
-    if (!empty && (f.status === "added" || f.status === "modified")) throw new Error(`${f.filename} shows 0 lines added and 0 removed with no patch, but isn't empty, so its lines can't be counted.`);
+    const uncounted = f.status === "added" || (f.status === "modified" && !sameBlob(base, f));
+    if (!empty && uncounted) throw new Error(`${f.filename} shows 0 lines added and 0 removed with no patch, but isn't empty, so its lines can't be counted.`);
     return f;
   });
 }
@@ -236,7 +248,7 @@ function readPull(repo, pr) {
   if (!hasCommit(checkoutRoot(), base)) throw new Error(`The base ${base} isn't in this checkout: git fetch origin ${pull.base.ref}`);
   const head = pull.head?.sha ?? "";
   if (!/^[0-9a-f]{40}$/.test(head)) throw new Error(`#${pr} has no head commit sha.`);
-  return { files: markBinaries(repo, head, files), tree: base, labels: (pull.labels ?? []).map((l) => l.name), body: pull.body ?? "" };
+  return { files: markBinaries(repo, head, files, base), tree: base, labels: (pull.labels ?? []).map((l) => l.name), body: pull.body ?? "" };
 }
 
 // The branch's own .gitattributes could mark its text as binary (`binary`, `-diff`), which shows as `-` with no lines.
