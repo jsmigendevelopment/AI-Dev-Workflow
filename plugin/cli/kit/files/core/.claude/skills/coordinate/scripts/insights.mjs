@@ -30,6 +30,8 @@
 //       pass: the verdicts are the Checks: comment's and the review's. Exit 1 names each missing kind and the job
 //       that makes it. Exit 2: a usage error, or a checkout it can't read. It writes nothing and calls no API; its
 //       only git call finds the checkout. Not `land --verify`, which checks a records-only pull request.
+//   has-records --issue <n> --sha <sha>   local mode's form (#415): no pull request, so the records match on their
+//       issue and sha instead of pr. Same rule, same exits; its hints don't send you to harvest.
 //   carry --pr <n> --from <reviewed sha> --to <merge sha>   carries a review across a clean merge of main:
 //       insights-carry.mjs says how.
 // Format and kinds: references/insights.md. Plain Node 22, no dependencies.
@@ -42,7 +44,7 @@ import { carry, heldRecords, kindsAt, save } from "./insights-carry.mjs";
 import { canonical, land, ownAccount, recordProblem } from "./insights-land.mjs";
 import { ASK_FILE, KINDS, LINE_START, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
 
-const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
+const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | has-records --issue <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
 // [^\r\n], not ".": a dot stops at U+2028 and U+2029, so a valid line holding one was skipped without a word (#424).
 const LINE = /<!-- onrails-insights ([^\r\n]*?) -->/g;
 
@@ -249,26 +251,30 @@ function harvest(args) {
 
 /** The kinds the merge step needs for a head, and the job that makes each one again. */
 const NEEDED = {
-  job: "send this sha to a fresh pr-review: its verdict comment carries the job line. Then harvest",
+  job: "send this sha to a fresh pr-review: its verdict comment carries the job line",
   check: "run the local gate (coordinate step 6.1) on this sha again: mark-check.mjs --record writes it",
-  review: "send this sha to a fresh pr-review: its verdict comment carries the review line. Then harvest",
+  review: "send this sha to a fresh pr-review: its verdict comment carries the review line",
 };
 
 function hasRecords(args) {
-  const pr = flag(args, "--pr");
-  const sha = flag(args, "--sha");
-  if (args.length !== 4 || !/^\d+$/.test(pr ?? "") || !/^[0-9a-f]{40}$/.test(sha ?? "")) fail(2, "usage: insights.mjs has-records --pr <n> --sha <sha> (the full 40-character head sha)");
+  const [pr, issue, sha] = [flag(args, "--pr"), flag(args, "--issue"), flag(args, "--sha")];
+  const key = pr === undefined ? issue : pr;
+  const usage = "usage: insights.mjs has-records --pr <n> --sha <sha> | has-records --issue <n> --sha <sha> (the full 40-character sha; --issue is local mode's, which has no pull request)";
+  if (args.length !== 4 || (pr === undefined) === (issue === undefined) || !/^\d+$/.test(key ?? "") || !/^[0-9a-f]{40}$/.test(sha ?? "")) fail(2, usage);
   let held;
   try {
     held = heldRecords(gitRoot(2));
   } catch (e) {
     fail(2, `couldn't read docs/insights/ (${e.code || e.message}), so nothing was checked. Fix the checkout and run this again.`);
   }
-  const found = kindsAt(held.filter((r) => r.pr === Number(pr)), sha);
+  const target = pr === undefined ? `issue #${issue}` : `#${pr}`;
+  const found = kindsAt(held.filter((r) => (pr === undefined ? r.issue === Number(issue) : r.pr === Number(pr))), sha);
   const missing = Object.keys(NEEDED).filter((kind) => !found.has(kind));
-  if (!missing.length) return process.stdout.write(`#${pr} @ ${sha}: job, check and review records found\n`);
-  for (const kind of missing) warn(`#${pr} @ ${sha}: no ${kind} record. ${NEEDED[kind]}.`);
-  return fail(1, `don't merge #${pr} yet. Never write a missing record by hand: run the job that makes it, then this again.`);
+  if (!missing.length) return process.stdout.write(`${target} @ ${sha}: job, check and review records found\n`);
+  // Local mode has no pull request to harvest from: its records are already files in this checkout.
+  const then = pr === undefined ? "" : " Then harvest.";
+  for (const kind of missing) warn(`${target} @ ${sha}: no ${kind} record. ${NEEDED[kind]}.${then}`);
+  return fail(1, `don't merge ${target} yet. Never write a missing record by hand: run the job that makes it, then this again.`);
 }
 
 const [cmd, ...rest] = process.argv.slice(2);
