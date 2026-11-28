@@ -55,10 +55,10 @@ The owner's rules. Lint catches some. `build` follows them all and `pr-review` c
 - Search before you write, and copy the nearest example. Use the generator if one exists.
 - Write the simplest thing that passes the checks. No new abstraction until a second real use.
 - No leftovers: unused code or dependencies, `console.log`, commented-out code, TODOs without an issue number.
-- No `any`, `@ts-ignore`, `as unknown as` or `eslint-disable` unless a comment gives the reason and an issue number.
+- No `any`, `@ts-ignore`, `as unknown as` or `eslint-disable`, or the stack's equivalent (`//nolint` in Go), unless a comment gives the reason and an issue number.
 - Files warn at 300 lines and stop at 500. Functions stay under about 60. No empty catch. Comments say why.
 - Install only packages you checked on the registry. Never install a name you guessed.
-- No barrel `index.ts` files. Import from the file itself. Lint guards module boundaries.
+- No barrel `index.ts` files, or the stack's equivalent (in Go, a package that only re-exports). Import from the file itself. Lint guards module boundaries.
 - Every change has an issue: branch `feat/<n>-...` or `fix/<n>-...`, and a pull request that says `Closes #<n>`. Only the `no-issue` label skips it.
 - **No GitHub Actions, at all costs.** Never add, enable or depend on a workflow. Checks run from the session (`coordinate`, step 6.1). A tool's docs say "add this workflow"? Find the session way to run it.
 - App shape (state, errors, loading, UI layers, API versions, money, time, the database, logs, events, env, access) is in `docs/architecture.md`. Reasons: `guide/app-conventions.md` in the kit.
