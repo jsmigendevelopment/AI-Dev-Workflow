@@ -137,6 +137,15 @@ function ciFromStack() {
   }
 }
 const ACTIONS = ciFromStack() === "actions";
+// A go.mod in the app's folder or any folder above it, up to the one holding .git: a Go service keeps its keys with its host (#537).
+function goModNear(start) {
+  const top = gitFolder(start) ?? start;
+  for (let dir = start; ; dir = dirname(dir)) {
+    if (existsSync(join(dir, "go.mod"))) return true;
+    if (dir === top || dirname(dir) === dir) return false;
+  }
+}
+const GO = goModNear(process.cwd());
 
 // --- What each step needs. `min` is the lowest plan that allows it on a private repo. ---
 const ANY = { min: "free", label: "any plan" };
@@ -307,7 +316,9 @@ if (!PUBLIC) {
 if (!DRY)
   console.log(
     !ACTIONS
-      ? "\nNext: put production keys in Cloudflare (pnpm connect, or push-secrets --wrangler), never in the repo or GitHub."
+      ? GO
+        ? "\nNext: put production keys with their host: push-secrets --cloud-run for the Go service, --wrangler for a web app on Cloudflare, never in the repo or GitHub."
+        : "\nNext: put production keys in Cloudflare (pnpm connect, or push-secrets --wrangler), never in the repo or GitHub."
       : !PUBLIC && PLAN === "free"
         ? "\nNext: put production keys in the PRODUCTION_ repository secrets (pnpm connect or push-secrets), never in the repo."
         : "\nNext: put production keys in the production environment's secrets, never in the repo.",

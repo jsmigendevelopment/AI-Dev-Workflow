@@ -1,13 +1,18 @@
 #!/usr/bin/env node
-// Push environment variables to Cloudflare (--wrangler), and to GitHub environments only when
-// docs/stack.md says ci = "actions", without ever printing a value. Reads:
+// Push environment variables to Cloudflare (--wrangler), to Google Cloud Run (--cloud-run, a Go service's host),
+// and to GitHub environments only when docs/stack.md says ci = "actions", without ever printing a value. Reads:
 //   .env.example            names and metadata (scope, secret)
 //   .env.test.local         values for the "test" environment
 //   .env.production.local   values for the "production" environment
-// Usage: node push-secrets.mjs [--dry-run] [--wrangler] [--env test|production]
+// Usage: node push-secrets.mjs [--dry-run] [--wrangler] [--cloud-run [--service BASE] [--region R] [--project P]]
+//        [--env test|production]
 // On ci = "local" (every repo, unless the person turned Actions on) nothing reads GitHub's copies,
 // so nothing goes to GitHub: secrets go to the Cloudflare Workers with --wrangler, and plain
 // variables belong in wrangler.jsonc vars.
+// --cloud-run (decision 340-1): each secret goes to Secret Manager as <BASE>-<env>-<NAME> (gcloud secrets create,
+// else gcloud secrets versions add, the value on stdin), and each plain variable to the service <BASE>-<env>
+// (gcloud run services update, the value in a temp --flags-file, never an argument). BASE is "api" unless --service
+// says. Wiring a secret into the service (--update-secrets NAME=<id>:latest) is the deploy's job.
 // Its last line names, by name only, every value it stored nowhere ("Stored nowhere: ...") and
 // every value a destination failed for ("Not stored everywhere ..."), then "Keep ...". Only when
 // nothing failed does it say "Every value is stored somewhere." and exit 0; only then may
@@ -16,14 +21,17 @@
 // variable SECRETS_MODE to "repository", and this pushes repository secrets and variables named
 // TEST_<name> and PRODUCTION_<name> instead: the names a workflow reads on ci = "actions".
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { commandFor, repoRoot } from "./command-for.mjs";
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
 const WRANGLER = args.includes("--wrangler");
-const only = args.includes("--env") ? args[args.indexOf("--env") + 1] : null;
+const CLOUD_RUN = args.includes("--cloud-run");
+const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const only = flag("--env");
 
 // "actions" only for a `ci = "actions"` line (a trailing # comment allowed) in the nearest
 // docs/stack.md from this folder up to the repository root, or only in this folder before
@@ -59,6 +67,70 @@ function githubTarget(name, env, mode) {
   if (mode !== "repository") return { name, where: ["--env", env], label: `env ${env}` };
   const prefixed = `${env === "production" ? "PRODUCTION" : "TEST"}_${name}`;
   return { name: prefixed, where: [], label: `repository as ${prefixed}` };
+}
+
+/** True when a go.mod sits in this folder or any folder above it, up to the one holding .git (this folder before git init). */
+function goModNear(start) {
+  const top = repoRoot(start) ?? start;
+  for (let dir = start; ; dir = dirname(dir)) {
+    if (existsSync(join(dir, "go.mod"))) return true;
+    if (dir === top || dirname(dir) === dir) return false;
+  }
+}
+
+// --cloud-run names. They go to gcloud as plain words: a name that isn't one never starts a command.
+const base = flag("--service") ?? "api";
+const region = flag("--region");
+const project = flag("--project");
+for (const [name, value, rule] of [["--service", base, /^[a-z][a-z0-9-]{0,30}$/], ["--region", region, /^[a-z][a-z0-9-]*$/], ["--project", project, /^[a-z][a-z0-9:.-]*$/]]) {
+  if (value !== null && !rule.test(value)) {
+    console.error(`${name} ${JSON.stringify(value)} is not a plain name (lowercase letters, digits and hyphens).`);
+    process.exit(1);
+  }
+}
+// A Go service's repo keeps its keys with the Go host, so its messages name that flag; the web pack's still say --wrangler.
+const GO = goModNear(process.cwd());
+
+/** gcloud, with no prompt (a prompt would eat the value on stdin). Returns null, or { line, started }: the one line it failed with, and whether gcloud started at all. */
+function gcloud(cmdArgs, input) {
+  const how = commandFor("gcloud", [...cmdArgs, "--quiet", ...(region && cmdArgs[0] === "run" ? [`--region=${region}`] : []), ...(project ? [`--project=${project}`] : [])]);
+  if (how.why) return { line: how.why, started: false };
+  try {
+    execFileSync(how.file, how.args, { input, stdio: ["pipe", "ignore", "pipe"], env: how.env, windowsVerbatimArguments: how.verbatim });
+    return null;
+  } catch (e) {
+    const lines = String(e.stderr || "").split("\n").filter(Boolean);
+    return { line: lines.find((l) => /ERROR/.test(l)) ?? lines[0] ?? "gcloud failed", started: true };
+  }
+}
+
+/** The Cloud Run service and Secret Manager id for one value. */
+const cloudRunNames = (name, env) => ({ service: `${base}-${env}`, secretId: `${base}-${env}-${name}` });
+
+/**
+ * One value to Cloud Run: a secret to Secret Manager (create, else a new version; the value on stdin), a plain variable to
+ * the service's environment (the value in a temp --flags-file, deleted after, so no argument holds it). Returns null or
+ * the reason, which the caller hides values from.
+ */
+function toCloudRun(name, value, env, secret) {
+  const { service, secretId } = cloudRunNames(name, env);
+  if (secret) {
+    const made = gcloud(["secrets", "create", secretId, "--data-file=-"], value);
+    if (!made) return null;
+    if (!made.started) return made.line;
+    // The secret may exist already (create then fails): the value goes on as its next version.
+    const added = gcloud(["secrets", "versions", "add", secretId, "--data-file=-"], value);
+    return added && `create: ${made.line}; new version: ${added.line}`;
+  }
+  const dir = mkdtempSync(join(tmpdir(), "onrails-push-"));
+  try {
+    const file = join(dir, "flags.yaml");
+    writeFileSync(file, JSON.stringify({ "--update-env-vars": { [name]: value } }), { mode: 0o600 });
+    // Forward slashes: gcloud.cmd takes only plain words on Windows, and gcloud reads C:/... as well as the backslash form
+    return gcloud(["run", "services", "update", service, `--flags-file=${file.replaceAll("\\", "/")}`])?.line ?? null;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 function parseEnv(file) {
@@ -99,7 +171,11 @@ if (!Object.keys(meta).length) {
 
 const envs = ["test", "production"].filter((e) => !only || e === only);
 const GITHUB = ci() === "actions";
-if (!GITHUB) console.log("ci = \"local\" (docs/stack.md): nothing goes to GitHub. Secrets go to Cloudflare with --wrangler; plain variables belong in wrangler.jsonc vars.");
+if (!GITHUB) {
+  console.log(GO
+    ? "ci = \"local\" (docs/stack.md): nothing goes to GitHub. Secrets go to Secret Manager with --cloud-run (or to Cloudflare with --wrangler); plain variables go to the Cloud Run service with --cloud-run."
+    : "ci = \"local\" (docs/stack.md): nothing goes to GitHub. Secrets go to Cloudflare with --wrangler; plain variables belong in wrangler.jsonc vars.");
+}
 const mode = GITHUB ? secretsMode() : "environment";
 if (mode === "repository") console.log("SECRETS_MODE is \"repository\" (GitHub Free, private repo): GitHub values go to TEST_ and PRODUCTION_ repository names.");
 let failed = 0;
@@ -121,18 +197,34 @@ for (const env of envs) {
     found++;
     const gh = githubTarget(name, env, mode);
     const targets = m.secret
-      ? [...(GITHUB ? [["gh", ["secret", "set", gh.name, ...gh.where]]] : []), ...(WRANGLER ? [["npx", ["wrangler", "secret", "put", name, "--env", env]]] : [])]
-      : GITHUB ? [["gh", ["variable", "set", gh.name, ...gh.where], value]] : [];
+      ? [...(GITHUB ? [["gh", ["secret", "set", gh.name, ...gh.where]]] : []), ...(WRANGLER ? [["npx", ["wrangler", "secret", "put", name, "--env", env]]] : []), ...(CLOUD_RUN ? [["cloud-run"]] : [])]
+      : [...(GITHUB ? [["gh", ["variable", "set", gh.name, ...gh.where], value]] : []), ...(CLOUD_RUN ? [["cloud-run"]] : [])];
     if (!targets.length) {
-      const why = m.secret ? "a secret, and nothing takes one on ci = \"local\" without --wrangler" : "a plain variable: it goes in wrangler.jsonc vars";
+      const plain = GO ? "a plain variable: --cloud-run sets it on the Cloud Run service" : "a plain variable: it goes in wrangler.jsonc vars";
+      const why = m.secret ? `a secret, and nothing takes one on ci = "local" without ${GO ? "--cloud-run or --wrangler" : "--wrangler"}` : plain;
       console.log(`${env}: ${name} ${DRY ? "would be" : "is"} stored nowhere (${why})`);
     }
     let stored = false;
     let missed = false;
     // A plain variable's value is a target's third item: it goes on --body, never in the words commandFor checks.
     for (const [cmd, cmdArgs, body] of targets) {
-      const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})` : "Cloudflare secret";
+      const cr = cloudRunNames(name, env);
+      const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})`
+        : cmd === "cloud-run" ? (m.secret ? `Secret Manager secret (${cr.secretId})` : `Cloud Run variable (service ${cr.service})`)
+          : "Cloudflare secret";
       if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); stored = true; continue; }
+      if (cmd === "cloud-run") {
+        const reason = toCloudRun(name, value, env, m.secret);
+        if (!reason) {
+          console.log(`${env}: set ${name} as a ${where}`);
+          stored = true;
+        } else {
+          console.log(`${env}: FAILED ${name} as a ${where}: ${hide(reason)}`);
+          failed++;
+          missed = true;
+        }
+        continue;
+      }
       const how = commandFor(cmd, cmdArgs);
       if (how.why) {
         failed++;
