@@ -122,6 +122,10 @@ test("AC-427-1: WHEN the only job record at a head is the size check's THEN has-
   assert.match(r.stderr, /no job record/);
   assert.equal(hasRecords(checkout([SIZE, REVIEW_JOB, CHECK, REVIEW])).status, 0, "with the review job it passes");
   assert.equal(hasRecords(checkout([SENT_BACK, CHECK, REVIEW])).status, 1);
+  // Local mode's form matches on the issue, and the same rule holds.
+  const byIssue = (records) => run(checkout(records), ["has-records", "--issue", "12", "--sha", SHA]);
+  assert.equal(byIssue([SIZE, CHECK, REVIEW]).status, 1);
+  assert.equal(byIssue([SIZE, REVIEW_JOB, CHECK, REVIEW]).status, 0);
 });
 
 test("AC-427-1: WHEN the reviewed head has a size-check job and a review but no review job THEN carry refuses", unixOnly, () => {
