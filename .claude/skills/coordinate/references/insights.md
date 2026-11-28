@@ -32,7 +32,7 @@ Text is capped at 200 characters. A list is comma-separated or a JSON list, and 
 
 | Kind | Fields (required in bold) |
 |---|---|
-| `job` | **outcome** (`started`, `pr-opened`, `finished`, `handed-off`, `stopped`, `failed`, `swept`, `paused`, `ended`, `pass`, `fail`), started, ended, usage_before, usage_after, usage_from (required with either usage field), send_back (`size`, `review-must`, `checks`, `infra`, `process`; only with outcome `fail`, `failed`, `stopped` or `handed-off`), lines (a whole number: only on `job=size-check` with outcome `pass` or `fail`, and then `sha` is required). See "What a run cost" and "A pull request's size" |
+| `job` | **outcome** (`started`, `pr-opened`, `finished`, `handed-off`, `stopped`, `failed`, `swept`, `paused`, `ended`, `pass`, `fail`), started, ended, usage_before, usage_after, usage_from (required with either usage field), usage_window_before, usage_window_after, usage_resets_before, usage_resets_after (each only with its own reading; see "What a run cost"), send_back (`size`, `review-must`, `checks`, `infra`, `process`; only with outcome `fail`, `failed`, `stopped` or `handed-off`), lines (a whole number: only on `job=size-check` with outcome `pass` or `fail`, and then `sha` is required). See "What a run cost" and "A pull request's size" |
 | `check` | **commands** (JSON list of `{name, result: pass\|fail\|skipped, seconds}`), failed_step (null on a pass), flaky_rerun, state (`success`, `failure`), fence. The local gate's `mark-check.mjs --record <file>` writes it (#331). A reviewer that runs the checks itself ends its verdict comment with a `line check` instead (#417); harvest keeps it only under the rule above (#441). That record's `fence` holds only the fence's name (`bubblewrap`, `sandbox-exec`, `none`); the gate's own record keeps the whole first `Fence:` line |
 | `review` | **round**, **verdict** (`pass`, `changes`), **must**, **nice**, categories |
 | `fix-round` | **round**, **fixed** |
@@ -64,6 +64,9 @@ A builder's finish record and each reviewer's job line carry the run's cost:
 - `model` and `effort`: what the session shows, else `unknown`.
 - `usage_before` and `usage_after`: the provider's usage reading as the tool shows it, at the start and at the end (for example the plan's `41%`). No reading you can see? `unknown`. Never estimate a number the tool didn't report.
 - `usage_from`: where you read it, or where you looked (for example `get_session: no usage percentage`; quote it on the command line when it has spaces).
+- `usage_window_before` and `usage_window_after` (#431): the window each reading is for, as the tool names it, in lower case with underscores (`seven_day`, `five_hour`). Claude Code's `rate_limit_info` has it as `rateLimitType`.
+- `usage_resets_before` and `usage_resets_after` (#431): when that window resets, as a UTC time exactly as `toISOString` writes it (`2026-11-30T10:00:00.000Z`). Claude Code's `rate_limit_info` has it as `resetsAt`, a Unix time: `node -e 'console.log(new Date(<resetsAt in milliseconds>).toISOString())'` writes it.
+- Each of the four goes only with its own reading (`usage_before` or `usage_after`), which may be `unknown`: a tool can show the window and reset time with no percentage. Not shown? Leave the field out, or write `unknown`. Never estimate one. The weekly report gives a run's usage as `unknown` when a reset time falls inside the run (after its `started`, if it has one, and not after its end), or when its two readings name different windows. Records from before #431 have none of these fields and stay valid.
 - `send_back`: why the work went back, on a run that sent it back:
 
 | Reason | Who writes it |
