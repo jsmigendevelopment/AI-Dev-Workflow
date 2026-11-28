@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "kind": "fix-round",
+  "at": "2026-11-28T00:14:46.531Z",
+  "issue": 397,
+  "pr": 437,
+  "sha": "1579abdf45fe7cad9a40580825c64472c8e41b9d",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "round": 1,
+  "fixed": 3
+}

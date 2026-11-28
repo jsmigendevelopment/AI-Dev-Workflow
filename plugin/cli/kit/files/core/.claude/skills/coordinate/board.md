@@ -36,13 +36,13 @@ JSON works too: `event started '{"issue":12,"title":"Notes list"}'`. If the home
 After each sweep, save the two lists you already fetched to the cache, then render. The cache is the board's folder: the `board` path from `board.mjs path`, without its file name. Local mode reads these same files while GitHub is rate-limited (`references/local-mode.md`).
 
 ```bash
-gh issue list --state open --limit 200 --json number,title,labels,url,updatedAt,createdAt,body,comments > <cache>/<project>-issues.json
-gh pr list --state open --json number,title,url,headRefName,labels,isDraft,updatedAt > <cache>/<project>-prs.json
+gh issue list --state open --limit 200 --json number,title,labels,url,updatedAt,createdAt,author,body,comments > <cache>/<project>-issues.json
+gh pr list --state open --json number,title,url,headRefName,isCrossRepository,labels,isDraft,updatedAt > <cache>/<project>-prs.json
 git fetch origin --prune  # the orphan check reads each claimed branch's last commit from local git
 node .agents/skills/coordinate/scripts/board.mjs render --github <cache>/<project>-issues.json --github <cache>/<project>-prs.json
 ```
 
-These are the sweep's own batched reads, not extra ones. The issue read carries `comments`, so the orphan check (`coordinate` step 10, `scripts/orphans.mjs`) needs no read of its own. The board then shows:
+These are the sweep's own batched reads, not extra ones. The issue read carries `comments`, so the orphan check (`coordinate` step 10, `scripts/orphans.mjs`) needs no read of its own. It sees each issue's first 100 comments only, and gh doesn't page further: on an issue with more, the newest claim and receipts are missing, so read its comments with `gh api --paginate repos/<owner>/<repo>/issues/<n>/comments` and put them in that issue's `comments` in `<cache>/<project>-issues.json` before the run (the script reads REST's `user`, `author_association` and `created_at`), or check its claim and receipts by hand. `author` lets the script trust an unlabelled `Handoff ·` issue by one of the repo's people. `isCrossRepository` marks a fork's pull request, which never puts a claim in review. The board then shows:
 
 - 🛑 **Needs you now** and ⏳ **Waiting on your decision:** local asks, plus any issue labelled `needs-human` (with `blocker`, it's "now"), plus each orphan in those comments: a stale claim, a claim on a branch it can't find (`unknown`), or a handoff with no `Got it ·` receipt past its "check by" time;
 - 🔨 **Being built:** local `started`, plus issues labelled `status:in-progress` (cloud threads);

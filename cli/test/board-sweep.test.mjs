@@ -63,3 +63,27 @@ test("AC-112-5: WHEN setup-github runs on a new repo THEN it creates the handoff
   const made = gh(r.calls).filter((c) => c.argv[0] === "label" && c.argv[1] === "create").map((c) => c.argv[2]);
   for (const label of ["handoff", "blocker", "needs-human"]) assert.ok(made.includes(label), `${label} in ${made.join(", ")}`);
 });
+
+// #397, from round 2 of the review on #395.
+test("#397 item 2: WHEN a sender files a handoff issue THEN it makes the label first, and the sweeps name an issue labelled `handoff`", () => {
+  const sender = between(read("ask/references/handoffs.md"), "## The sender", "## The receiver");
+  const make = sender.indexOf("gh label create handoff --force");
+  assert.ok(make >= 0 && make < sender.indexOf("Handoff · <from session>"), "the label is made before the record");
+  for (const [name, text] of [["coordinate step 10", STEP_10], ["back step 3", BACK_3], ["handoffs.md", SWEEP]]) {
+    assert.match(text, /an issue labelled `handoff`/, name);
+  }
+});
+
+test("#397 items 5 and 6: WHEN the board reads the lists THEN the pull request read says which are from forks, and the issue read's 100-comment limit is written down", () => {
+  const render = between(read("coordinate/board.md"), "## Render", "## The Google Sheet");
+  assert.match(render.split("\n").find((l) => l.startsWith("gh pr list")), /--json [\w,]*\bisCrossRepository\b/);
+  assert.match(render, /first 100 comments/);
+  // Round 1 of the review on #437, nice 1: the paged comments go where the script reads them.
+  assert.match(render, /put them in that issue's `comments` in `<cache>\/<project>-issues\.json` before the run/);
+});
+
+// Round 1 of the review on #437, must 1: gh's issue rows carry no association, so the author's login is the only trust.
+test("AC-397-2: WHEN the board reads the issues THEN it asks for each issue's author, so an unlabelled `Handoff ·` issue can be trusted", () => {
+  const render = between(read("coordinate/board.md"), "## Render", "## The Google Sheet");
+  assert.match(render.split("\n").find((l) => l.startsWith("gh issue list")), /--json [\w,]*\bauthor\b/);
+});
