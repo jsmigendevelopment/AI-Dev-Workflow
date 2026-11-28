@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
+
 import type { EmailMessage } from '@/lib/email/email'
+
 import { resendEmailSender } from './email.resend'
 
 const message: EmailMessage = {
@@ -13,6 +15,13 @@ const message: EmailMessage = {
 
 const reply = (status: number, body: unknown = {}, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers })
+
+// The adapter always sends a plain-object headers record and a JSON string body.
+const headersOf = (init: RequestInit | undefined) => init?.headers as Record<string, string>
+const bodyOf = (init: RequestInit | undefined): unknown => {
+  if (typeof init?.body !== 'string') throw new Error('the adapter sends a JSON string body')
+  return JSON.parse(init.body)
+}
 
 function setup(...responses: Response[]) {
   const fetch = vi.fn<typeof globalThis.fetch>()
@@ -28,12 +37,13 @@ describe('resend adapter (no network: fetch is faked)', () => {
     expect(await sender.send(message)).toEqual({ id: 'em_1' })
     const [url, init] = fetch.mock.calls[0]!
     expect(url).toBe('https://api.resend.com/emails')
-    expect(init?.headers).toMatchObject({
+    const headers = headersOf(init)
+    expect(headers).toMatchObject({
       Authorization: 'Bearer re_test_123',
       'Idempotency-Key': 'welcome/user_ann',
-      'User-Agent': expect.any(String),
     })
-    expect(JSON.parse(String(init?.body))).toEqual({
+    expect(headers['User-Agent']).toMatch(/\S/)
+    expect(bodyOf(init)).toEqual({
       from: 'Acme <hello@example.com>',
       to: ['ann@example.com'],
       subject: 'Welcome',
@@ -52,9 +62,7 @@ describe('resend adapter (no network: fetch is faked)', () => {
     expect(await sender.send(message)).toEqual({ id: 'em_2' })
     expect(fetch).toHaveBeenCalledTimes(3)
     expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([5000, 1500])
-    const keys = fetch.mock.calls.map(
-      ([, init]) => (init?.headers as Record<string, string>)['Idempotency-Key'],
-    )
+    const keys = fetch.mock.calls.map(([, init]) => headersOf(init)['Idempotency-Key'])
     expect(new Set(keys)).toEqual(new Set(['welcome/user_ann']))
   })
 
@@ -66,9 +74,11 @@ describe('resend adapter (no network: fetch is faked)', () => {
 
   it('never retries a 4xx other than 429, and never puts the key in the error', async () => {
     const { sender, fetch } = setup(reply(422, { name: 'validation_error' }))
-    const error = await sender.send(message).catch((e: Error) => e)
-    expect(String(error)).toContain('422')
-    expect(String(error)).not.toContain('re_test_123')
+    const error = await sender.send(message).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(Error)
+    const text = (error as Error).message
+    expect(text).toContain('422')
+    expect(text).not.toContain('re_test_123')
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 })

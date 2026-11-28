@@ -48,7 +48,7 @@ export function resendEmailSender({
           body,
         })
         if (response.ok) {
-          const data = (await response.json()) as { id?: unknown }
+          const data = await response.json<{ id?: unknown }>()
           if (typeof data.id !== 'string') throw new Error('Resend returned no email id')
           return { id: data.id }
         }
