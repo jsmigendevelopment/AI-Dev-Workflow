@@ -36,7 +36,7 @@ Text is capped at 200 characters. A list is comma-separated or a JSON list, and 
 | `check` | **commands** (JSON list of `{name, result: pass\|fail\|skipped, seconds}`), failed_step (null on a pass), flaky_rerun, state (`success`, `failure`), fence. The local gate's `mark-check.mjs --record <file>` writes it (#331). A reviewer that runs the checks itself ends its `Checks:` comment with a `line check` instead (#417) |
 | `review` | **round**, **verdict** (`pass`, `changes`), **must**, **nice**, categories |
 | `fix-round` | **round**, **fixed** |
-| `ask` | **rule** (`<path>:<line>`, `hook:<event>` or `missing`), **level** (`blocker`, `decision`, `fyi`), waited_minutes, full_should_prevent, rule_ok, title |
+| `ask` | **rule** (`<path>:<line>`, `hook:<event>` or `missing`), **level** (`blocker`, `decision`, `fyi`), waited_minutes, full_should_prevent, rule_ok, title (no control characters), answered (the first ask's file name; needs waited_minutes). See "Stops, waits and asks" |
 | `touch` | **what** (`sign-in`, `merge`, `yes`, `paste`, `answer`, `other`), **minutes** |
 | `merge` | **conflicted** (files) |
 | `rollback` | **why**, **place** (`test`, `production`) |
@@ -44,6 +44,11 @@ Text is capped at 200 characters. A list is comma-separated or a JSON list, and 
 | `usage` | **limit**, **waited_minutes** |
 | `gate` | **pass**, **issues_done**, **hours_to_ready** |
 | `note` | **kind_of** (`went-right`, `went-wrong`, `look-again`), **belongs** (`project`, `kit`, `tool`), **text**, links (record file names; required unless `went-right`) |
+
+## Stops, waits and asks (#334)
+
+- **The ask.** `notify.mjs` writes the first record after it decides the ping, from both ways in. `--rule <path>:<line>` names what made the agent stop, and `rule_ok` says whether that line is in a file inside the repo. No `--rule`: `rule: "missing"`. A hook writes `hook:<event>` (`hook:Notification` for a permission prompt). `full_should_prevent` is true on Full unless `--always-stop` was passed. No writer in the repo, or a failed write: the ping is unchanged, and the JSON says why under `record`.
+- **The answer.** The agent that acts on the answer runs `insights.mjs write ask answered=<the first record's file name>`. The writer counts `waited_minutes` from the first record's `at` and copies its rule, level, issue, pr and title. It refuses a passed `waited_minutes`, a name it can't find, an answer to an answer, and a time before the ask.
 
 ## Which model did which job (#129)
 

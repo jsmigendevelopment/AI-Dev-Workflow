@@ -7,6 +7,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 ### Added
 
 - **Which model did which job (#129).** `insights.mjs line job` now ends with a run line people read on GitHub: job, model, effort, time from `started=`, and the commit. `build` ends its pull request body with one and its commits with `Agent-Model:` and `Agent-Effort:` trailers; `pr-review`, `pr-security` and `qa` pass `started=`. A new optional `model_from` field says why a model or effort is `unknown`. `validate` refuses a control character in `job`, `model`, `effort` and `model_from`, so the run line stays one line. `npx onrails runs --pr <n>` (or `--issue <n>`, `--day <yyyy-mm-dd>`) prints the chain from the records, oldest first, and `--brief` gives `/back` one line per merged pull request (decision 129-1).
+- **Every stop, wait or ask writes a record naming the rule that caused it (#334).** `notify.mjs` takes `--rule <path>:<line>` and `--always-stop`, and after it decides the ping it writes an `ask` insights record with the rule (`missing` without one, `hook:<event>` from a hook), `rule_ok`, the level, the issue, the title and `full_should_prevent`. Its JSON names the record's path. No writer in the repo, or a failed write, never changes the ping. `insights.mjs write ask answered=<file>` writes the answer record with the minutes waited. `ask` says to pass `--rule` and to write the answered record. `validate` refuses a control character in an ask's rule or title (decision 334-1).
 
 ### Fixed
 

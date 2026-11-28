@@ -9,6 +9,8 @@
 // model and effort are what the caller passes from its own session, else "unknown". ONRAILS_NOW sets the clock (tests).
 // Exit 2: an unknown kind, a missing field or a bad value, with the field named; nothing is written.
 // Exit 1: the write failed for another reason. It never invents a value.
+//   write ask answered=<the first ask's file name>   an answer record (#334): waited_minutes counts from the first
+//       record's at, and its rule, level, issue, pr and title are copied unless passed. notify.mjs writes the first.
 //
 // The coordinator carries records to main (#332), from its own checkout of main:
 //   harvest --pr <n> --repo <owner>/<name>   writes each valid insights line from the pull request's comments that
@@ -29,12 +31,12 @@
 // Format and kinds: references/insights.md. Plain Node 22, no dependencies.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pages } from "./agent-files.mjs";
 import { carry, heldRecords, save } from "./insights-carry.mjs";
 import { canonical, land, ownLogin, recordProblem } from "./insights-land.mjs";
-import { KINDS, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
+import { ASK_FILE, KINDS, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
 
 const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
 const LINE = /<!-- onrails-insights (.*?) -->/g;
@@ -61,16 +63,51 @@ function build(kind, pairs) {
   const at = new Date(process.env.ONRAILS_NOW || Date.now());
   if (Number.isNaN(at.getTime())) fail(2, "at: ONRAILS_NOW isn't a time");
   const record = { v: VERSION, kind, at: at.toISOString(), issue: null, pr: null, sha: null, job: null, tool: null, model: "unknown", effort: "unknown" };
+  const passed = new Set();
   for (const pair of pairs) {
     const eq = pair.indexOf("=");
     if (eq < 1) fail(2, `"${pair}" isn't key=value`);
     const name = pair.slice(0, eq);
     if (["v", "kind", "at"].includes(name)) fail(2, `${name}: set by the writer, not passed`);
     try { record[name] = coerce(kind, name, pair.slice(eq + 1)); } catch (e) { fail(2, e.message); }
+    passed.add(name);
   }
+  if (kind === "ask" && passed.has("answered")) answer(record, passed);
   const errors = validate(record);
   if (errors.length) fail(2, errors.join("; "));
   return record;
+}
+
+/** The valid ask record called `name` in a day folder of docs/insights/, or exit 2 naming it. */
+function askRecord(root, name) {
+  const top = join(root, "docs", "insights");
+  for (const day of existsSync(top) ? readdirSync(top) : []) {
+    const rel = `docs/insights/${day}/${name}`;
+    if (!existsSync(join(root, rel)) || !lstatSync(join(root, rel)).isFile()) continue;
+    const bytes = readFileSync(join(root, rel));
+    if (recordProblem(rel, bytes)) continue;
+    const record = JSON.parse(bytes.toString("utf8"));
+    if (record.kind === "ask") return record;
+  }
+  return fail(2, `answered: no valid ask record called ${name} in docs/insights/`);
+}
+
+/**
+ * An answer to an ask (#334): waited_minutes from the first record's at, and its rule, level, issue, pr and title
+ * unless passed, so the two records name the same stop. The writer counts the wait; nobody passes it.
+ */
+function answer(record, passed) {
+  if (passed.has("waited_minutes")) fail(2, "waited_minutes: set by the writer from answered, not passed");
+  // A name that isn't an ask file is never looked up: validate names it.
+  if (!ASK_FILE.test(record.answered)) return;
+  const first = askRecord(gitRoot(), record.answered);
+  if (first.answered !== undefined) fail(2, `answered: ${record.answered} is itself an answer; name the first ask`);
+  const ms = Date.parse(record.at) - Date.parse(first.at);
+  if (ms < 0) fail(2, `answered: ${record.answered} is at ${first.at}, after this answer`);
+  for (const name of ["issue", "pr", "rule", "level", "title", "full_should_prevent", "rule_ok"]) {
+    if (!passed.has(name) && first[name] !== undefined) record[name] = first[name];
+  }
+  record.waited_minutes = Math.round(ms / 60000);
 }
 
 function writeOrLine(cmd, kind, pairs) {
