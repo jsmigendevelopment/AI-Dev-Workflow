@@ -14,7 +14,7 @@ Shared code lives under `internal/platform/<name>/` (`apperror`, `money`, `clock
 - **Expected errors get a specific message** that says what happened and what to do next: "That email is already used. Sign in instead?"
 - **Unexpected errors get a short message and a request ID:** "Something broke on our side. Reference: 7f3a9c." No stack, SQL or internal name reaches the caller.
 - **One request ID, end to end.** The first middleware takes `X-Request-Id` from the caller or makes one. It goes in the context, the response header, the log line and the error body. The web app shows it as the reference ID.
-- **One error envelope,** the web app's shape: `{"ok": false, "error": {"code", "message", "requestId"}}`. `requestId` was added, and `fields` (messages per input, on `validation` only) was kept. huma answers with RFC 9457 problem details by default. The pack replaces that once, in huma's `NewError` hook, so the TypeScript client parses one shape.
+- **One error envelope,** the web app's shape: `{"ok": false, "error": {"code", "message", "requestId", "fields"?}}`. `requestId` was added, and `fields` (messages per input, on `validation` only) was kept. huma answers with RFC 9457 problem details by default. The pack replaces that once, in huma's `NewError` hook, so the TypeScript client parses one shape.
 - **Wrap, don't replace.** Add context with `fmt.Errorf("create note: %w", err)`. Test with `errors.Is` and `errors.As`, never on the message text. Never `_ = err`.
 - **Logged once, at the boundary:** the error middleware, or the job runner. A recover middleware turns a panic into `internal` and logs it once, with the stack in the log only.
 
@@ -141,7 +141,7 @@ CREATE INDEX notes_user_id_idx ON notes (user_id);
 - **Levels:** `debug` (off in production), `info` (a normal thing worth knowing, sampled if noisy), `warn` (the app coped: a retry, a fallback), `error` (a request or job failed and a person must look; never sampled).
 - **Standard fields,** the same as the web app's: `ts` (UTC), `level`, `event` (an `object_action` name like `note_created`), `request_id`, `user_id` (an internal ID only, never an email or a name), `route`, `duration_ms` and `error_code` (on warn and error).
 - **One logger package,** `internal/platform/logger`. Its `ReplaceAttr` renames `time` to `ts`, `msg` to `event` and lowercases the level. Nothing else calls `fmt.Print*`, `log.Print*` or the global `slog` functions. The context carries the logger with `request_id` already on it.
-- **Redaction by default.** A secret is a type that shows as `[redacted]` in `slog`, in `%s` and `%v`, and in JSON. Passwords, tokens, cookies, auth headers, emails and personal data are masked before the line is written.
+- **Redaction by default.** A secret is a type that shows as `[redacted]` in `slog`, in `%s`, `%v` and `%#v`, and in JSON. Passwords, tokens, cookies, auth headers, emails and personal data are masked before the line is written.
 - **No log lines in loops.** Log once, after the loop, with a count. Sample noisy info such as health checks. Never sample `warn` or `error`.
 - **An error is logged once, at the boundary** (rule 5). Code below it wraps the error and returns it.
 - **Where logs go:** standard output, which Cloud Run collects. Read them with `gcloud run services logs read`. Whether the viewer reads `level` as severity is for the Go pack to check. How long logs are kept goes in `docs/stack.md`.
@@ -149,9 +149,11 @@ CREATE INDEX notes_user_id_idx ON notes (user_id);
 ```go
 type Secret string
 
-// Hidden in slog, in %s and %v (String), and in JSON (MarshalJSON), even inside a logged struct.
+// Hidden in slog, in %s and %v (String), in %#v (GoString) and in JSON (MarshalJSON). Inside a logged
+// struct that holds only for exported fields: fmt and encoding/json can't call a method on an unexported one.
 func (Secret) LogValue() slog.Value         { return slog.StringValue("[redacted]") }
 func (Secret) String() string               { return "[redacted]" }
+func (Secret) GoString() string             { return "[redacted]" }
 func (Secret) MarshalJSON() ([]byte, error) { return []byte(`"[redacted]"`), nil }
 
 func New(w io.Writer, level slog.Level) *slog.Logger {
@@ -162,9 +164,9 @@ func New(w io.Writer, level slog.Level) *slog.Logger {
 			switch {
 			case topLevel && a.Key == slog.TimeKey && a.Value.Kind() == slog.KindTime:
 				return slog.Time("ts", a.Value.Time().UTC())
-			case topLevel && a.Key == slog.MessageKey:
+			case topLevel && a.Key == slog.MessageKey && a.Value.Kind() == slog.KindString: // a user "msg" string still matches: never use a built-in key
 				a.Key = "event"
-			case topLevel && a.Key == slog.LevelKey:
+			case topLevel && a.Key == slog.LevelKey && a.Value.Kind() == slog.KindAny: // slog's own level is a slog.Level (kind Any)
 				a.Value = slog.StringValue(strings.ToLower(a.Value.String()))
 			}
 			return a

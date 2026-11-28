@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T15:24:03.035Z",
+  "issue": null,
+  "pr": 672,
+  "sha": "b4cbdb5618a2c1614879d05059f3a0452b64b21c",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "outcome": "pass",
+  "model_from": "a sub-agent has no status line, and get_session shows the parent session",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "no usage percentage shown to this sub-agent",
+  "started": "2026-11-28T15:19:00Z"
+}
