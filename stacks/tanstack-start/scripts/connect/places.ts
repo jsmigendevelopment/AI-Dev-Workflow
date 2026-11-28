@@ -12,9 +12,12 @@ export type Place =
   | { kind: 'wrangler'; env: 'test' | 'production'; label: string }
   | { kind: 'github'; env: string | null; secret: boolean; label: string; prefix?: string }
 
-/** One value the person types, and every place it goes. Production is always its own group. */
+/**
+ * One value the person types, and every place it goes. Production is its own group, except on
+ * ci = "local" when one local file feeds every deploy.
+ */
 export interface Group {
-  name: 'local and test' | 'local' | 'test' | 'production'
+  name: 'local and test' | 'local' | 'test' | 'production' | 'every deploy (test and production)'
   places: Place[]
 }
 
@@ -76,7 +79,17 @@ function placesIn(spec: VarSpec, scopes: Scope[], mode: SecretsMode): Place[] {
   return places
 }
 
-function devName(spec: VarSpec): Group['name'] {
+/**
+ * On ci = "local", a value whose production place is only on GitHub reaches production through its
+ * local file instead: the deploys run here and load it (Sentry's .env.sentry.local, #444).
+ */
+const feedsEveryDeploy = (spec: VarSpec, mode: SecretsMode) =>
+  mode === 'none' &&
+  placesIn(spec, ['production'], 'none').length === 0 &&
+  placesIn(spec, ['production'], 'environment').length > 0
+
+function devName(spec: VarSpec, mode: SecretsMode): Group['name'] {
+  if (feedsEveryDeploy(spec, mode)) return 'every deploy (test and production)'
   const local = placesIn(spec, ['local'], 'environment').length > 0
   const test = placesIn(spec, ['test', 'preview'], 'environment').length > 0
   return local && test ? 'local and test' : local ? 'local' : 'test'
@@ -89,7 +102,7 @@ export function groupsFor(spec: VarSpec, mode: SecretsMode = 'environment'): Gro
         { name: 'local', places: placesIn(spec, ['local'], mode) },
         { name: 'test', places: placesIn(spec, ['test', 'preview'], mode) },
       ]
-    : [{ name: devName(spec), places: placesIn(spec, ['local', 'test', 'preview'], mode) }]
+    : [{ name: devName(spec, mode), places: placesIn(spec, ['local', 'test', 'preview'], mode) }]
   groups.push({ name: 'production', places: placesIn(spec, ['production'], mode) })
   return groups.filter((g) => g.places.length > 0)
 }
