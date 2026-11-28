@@ -1,8 +1,8 @@
 id,claim,label,sources,date
 c1,"golangci-lint's latest release is v2.15.0 (2026-10-16) under GPL-3.0; the Go module proxy's latest is the same.",read-in-source,s41,2026-11-28
 c2,"golangci-lint's install page says go install, the tools pattern and tool directives are not guaranteed to work and are not recommended: a tool's dependencies can change another tool's or the project's, and the binary is slower to get; it recommends binary installation.",read-in-source,s3,2026-11-28
-c3,"The golangci-lint linters page lists no linter that caps the lines in a file; funlen caps a function and lll caps a line.",read-in-source,s1;s2,2026-11-28
-c4,"One web search for a golangci-lint linter that caps file length found none and named only lll and funlen. Not found in 2 searches (the linters page and this one).",summary-only,s52,2026-11-28
+c3,"The golangci-lint linters page lists no linter that caps the lines in a file; funlen caps a function and lll caps a line. (superseded by c69)",read-in-source,s1;s2,2026-11-28
+c4,"One web search for a golangci-lint linter that caps file length found none and named only lll and funlen. Not found in 2 searches (the linters page and this one). (superseded by c69)",summary-only,s52,2026-11-28
 c5,"funlen's defaults are 60 lines and 40 statements per function.",read-in-source,s2,2026-11-28
 c6,"In depguard's golangci-lint settings, an allow or deny entry is a variable, a string prefix, or an exact match when it ends with $; list-mode lax allows an import unless it is denied or unless the allow entry is longer (more specific) than the deny entry; a rule's files setting takes globs.",read-in-source,s2,2026-11-28
 c7,"A depguard rule whose deny pkg used a glob (modules/*/repository) did not flag a handler that imported its module's repository (exit 0); the same import was flagged once the rule named the prefix of that module's repository.",measured,s42,2026-11-28
