@@ -2,18 +2,19 @@
 // dependabot[bot] from a branch in the repo. The opener alone proves nothing about the commits: anyone who can push
 // to the branch can add one. So a bump passes only when all of these hold, and fails closed otherwise:
 // - every changed file is a modified package.json or an npm-family text lockfile, or a Go app's go.mod or go.sum
-//   (#531), outside the agent and GitHub folders: none added, removed or renamed;
+//   (#531, not one under vendor/ or testdata/), outside the agent and GitHub folders: none added, removed or renamed;
 // - every commit is authored by dependabot[bot], committed by it or GitHub's web-flow, and verified;
 // - each package.json, read at the merge base and at the head, differs only in the versions of existing entries of
 //   its dependency fields, and each new version is a node-semver range npm reads as a registry spec;
 // - each lockfile points every new package source at the npm registry: npm's JSON lockfiles judged by their parsed
 //   values, pnpm's and yarn's by each new line, with any escape or unknown source form refused;
 // - each go.mod, read at the merge base and at the head, differs only in the versions of requirements the merge base
-//   had, and each new go.sum line is a module proxy hash line (dependabot-go.mjs).
+//   had, none of them named by a replace or exclude of the merge base, and each new go.sum line is a module proxy hash
+//   line for a version the merge base didn't have another hash for (dependabot-go.mjs).
 // It reads the API only. A read with no answer throws, which own-branch.mjs turns into exit 2.
 import { isDeepStrictEqual } from "node:util";
 import { RULE_FILES } from "./agent-files.mjs";
-import { GO_FILE, goChange } from "./dependabot-go.mjs";
+import { goChange, isGoFile } from "./dependabot-go.mjs";
 
 const ONLY = "The local gate only runs the loop's own branches.";
 export const DEPENDABOT = "dependabot[bot]";
@@ -173,7 +174,7 @@ export function dependabotBump(pull, read) {
   if (total > 3000) return refuse(`#${number} changes ${total} files, more than GitHub lists (3000).`);
   const files = read.files();
   if (!files.length) return refuse(`#${number} changes no files, so there's no bump to check.`);
-  const other = files.filter((f) => f.status !== "modified" || f.previous_filename || RULE_FILES.test(f.filename) || !(MANIFEST.test(f.filename) || LOCKFILE.test(f.filename) || GO_FILE.test(f.filename)));
+  const other = files.filter((f) => f.status !== "modified" || f.previous_filename || RULE_FILES.test(f.filename) || !(MANIFEST.test(f.filename) || LOCKFILE.test(f.filename) || isGoFile(f.filename)));
   if (other.length) return refuse(`Dependabot's #${number} changes more than existing manifests and lockfiles: ${other.map((f) => `${f.filename} (${f.status})`).join(", ")}.`);
   const commits = read.commits();
   if (commits.length !== count || commits.at(-1)?.sha !== sha) throw new Unsettled(`GitHub listed ${commits.length} commits ending at ${commits.at(-1)?.sha}, but #${number} has ${count} ending at ${sha}`);
@@ -181,7 +182,7 @@ export function dependabotBump(pull, read) {
   if (stranger) return refuse(`Not every commit on #${number} is Dependabot's: ${stranger}.`);
   const base = read.mergeBase();
   for (const { filename } of files) {
-    const judge = GO_FILE.test(filename) ? goChange(filename) : MANIFEST.test(filename) ? manifestChange : lockfileChange;
+    const judge = isGoFile(filename) ? goChange(filename) : MANIFEST.test(filename) ? manifestChange : lockfileChange;
     const change = judge(read.text(filename, base), read.text(filename, sha), filename);
     if (change) return refuse(`Dependabot's #${number}: ${filename} ${change}.`);
   }

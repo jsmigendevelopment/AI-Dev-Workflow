@@ -64,7 +64,8 @@ test("AC-531-1: WHEN a Dependabot pull request only bumps versions of existing r
   assert.doesNotMatch(r.calls, /issues\/|collaborators\//, "no claim and no access check for the bot");
   assert.match(r.calls, new RegExp(`contents/go\\.mod\\?ref=${MERGE_BASE}`), "go.mod is read at the merge base");
   assert.match(r.calls, new RegExp(`contents/go\\.sum\\?ref=${HEAD}`), "go.sum is read at the head");
-  const kept = "\nreplace github.com/acme/lib v1.0.0 => ../lib\n\nexclude github.com/acme/lib v1.2.5\n\nretract v0.1.0 // broken\n\nreplace (\n\tgolang.org/x/text v0.1.0 => ../text\n)\n";
+  // None of these paths is bumped below: a replace or exclude of a bumped path is refused (AC-581-1).
+  const kept = "\nreplace github.com/acme/unused v1.0.0 => ../unused\n\nexclude github.com/acme/unused v1.2.5\n\nretract v0.1.0 // broken\n\nreplace (\n\tgolang.org/x/sys v0.1.0 => ../sys\n)\n";
   const single = (a, b, c) => `module example.com/app\n\ngo 1.24.7\n\nrequire github.com/acme/lib ${a}\nrequire golang.org/x/text ${b} // indirect\nrequire github.com/other/single ${c}\n`;
   const cases = {
     "one require of three": { mod: swap(MOD_OLD, "lib v1.2.0", "lib v1.3.0"), sum: sums("github.com/acme/lib", "v1.3.0") + SUM_OLD.split("\n").slice(2).join("\n") },
@@ -242,4 +243,108 @@ test("AC-531-5: WHEN dependencies is read THEN each rule that names an npm comma
   for (const [where, words] of Object.entries(go)) for (const word of words) assert.ok(skill.includes(word), `${where}: ${word}`);
   const npm = ["`npm view <pkg>`", "`npm view <pkg>@<version> license`", "`pnpm check:merge`", '`license-checker-rseidelsohn --onlyAllow "..."`', "`pnpm licenses list --json`", "`pnpm add -E`", "`npm install -E`", "`npm ci`", "`pnpm install --frozen-lockfile`", "read `peerDependencies` and `engines`"];
   for (const word of npm) assert.ok(skill.includes(word), `npm: ${word}`);
+});
+
+test("AC-581-1: WHEN a Go bump changes the version of a module path on the left of a replace or exclude line at the merge base THEN own-branch.mjs exits 1 and names that path", unixOnly, () => {
+  // Both ends carry the line, so it is no new line: the bump alone could switch it on or off.
+  const had = (line) => ({ base: MOD_OLD + line, mod: MOD_NEW + line });
+  refusedGo({
+    "a replace of the version the bump moves to": [had("replace github.com/acme/lib v1.3.0 => github.com/other/lib v1.3.0\n"), /bumps github\.com\/acme\/lib\b.*line 11\b.*replace github\.com\/acme\/lib v1\.3\.0 => github\.com\/other\/lib/],
+    "a replace of the version the bump moves from": [had("replace github.com/acme/lib v1.2.0 => ../lib\n"), /bumps github\.com\/acme\/lib\b.*line 11\b.*replace github\.com\/acme\/lib v1\.2\.0/],
+    "a replace of every version": [had("replace github.com/acme/lib => ../lib\n"), /bumps github\.com\/acme\/lib\b.*replace github\.com\/acme\/lib => \.\.\/lib/],
+    "an exclude of the version the bump moves to": [had("exclude github.com/acme/lib v1.3.0\n"), /bumps github\.com\/acme\/lib\b.*line 11\b.*exclude github\.com\/acme\/lib v1\.3\.0/],
+    "an exclude block": [had("exclude (\n\tgithub.com/acme/lib v1.3.0\n)\n"), /bumps github\.com\/acme\/lib\b.*line 12\b.*exclude github\.com\/acme\/lib v1\.3\.0/],
+    "a replace block of an indirect path": [had("replace (\n\tgolang.org/x/text v0.21.0 => golang.org/x/text v0.20.0\n)\n"), /bumps golang\.org\/x\/text\b.*line 12\b/],
+    "a replace of the path in the single-line require": [had("replace github.com/other/single v0.4.2 => ../single\n"), /bumps github\.com\/other\/single\b.*line 11\b/],
+  });
+  const elsewhere = "replace github.com/acme/unused v1.0.0 => ../unused\nexclude github.com/acme/unused v1.2.5\n";
+  assert.equal(goBump(had(elsewhere)).status, 0, "a replace and an exclude of paths the bump leaves alone still pass");
+  const pinned = "replace github.com/acme/lib v1.2.0 => ../lib\n";
+  const other = swap(MOD_OLD, "single v0.4.1", "single v0.4.2");
+  assert.equal(goBump({ base: MOD_OLD + pinned, mod: other + pinned }).status, 0, "a bump of another module than the replaced one passes");
+  assert.equal(goBump({ base: MOD_OLD + pinned, mod: MOD_OLD + pinned, sum: SUM_OLD }).status, 0, "a replaced path whose version stays passes");
+});
+
+test("AC-581-2: WHEN the gate refuses a line THEN the reason quotes at most about 200 characters of it", unixOnly, () => {
+  const long = "x".repeat(5000);
+  const lib = (line) => swap(MOD_NEW, "\tgithub.com/acme/lib v1.3.0", line);
+  const cases = {
+    "a go.mod line it can't read": { mod: lib(`\tgithub.com/acme/lib v1.3.0 ${long} (`) },
+    "a go.mod line it can't read at the merge base": { base: lib(`\tgithub.com/acme/lib v1.3.0 ${long} (`) },
+    "an added replace line": { mod: `${MOD_NEW}replace github.com/acme/${long} => ../lib\n` },
+    "an added require of a very long path": { mod: `${MOD_NEW}require github.com/acme/${long} v1.0.0\n` },
+    "a require twice": { mod: `${MOD_NEW}require github.com/acme/${long} v1.0.0\nrequire github.com/acme/${long} v1.0.0\n` },
+    "a line of the merge base that is gone": { base: `${MOD_OLD}replace github.com/acme/other => ../${long}\n` },
+    "a replace of a bumped path": { base: `${MOD_OLD}replace github.com/acme/lib v1.3.0 => ../${long}\n`, mod: `${MOD_NEW}replace github.com/acme/lib v1.3.0 => ../${long}\n` },
+    "a go.sum line": { sum: `${SUM_NEW}github.com/acme/lib v1.3.1 ${h1("x")} ${long}\n` },
+    "a go.sum line with a long path": { sum: `${SUM_NEW}github.com/acme/${long} v1.3.1 ${h1("x")} extra\n` },
+  };
+  for (const [name, more] of Object.entries(cases)) {
+    const r = goBump(more);
+    assert.equal(r.status, 1, `${name}: ${r.stderr.slice(0, 300)}`);
+    assert.equal(r.stdout, "", name);
+    assert.ok(r.stderr.length < 1000, `${name}: the reason is ${r.stderr.length} characters`);
+    assert.ok(!r.stderr.includes("x".repeat(201)), `${name}: more than 200 characters of the line`);
+    assert.ok(r.stderr.includes("x".repeat(100)), `${name}: the reason still shows the start of the line`);
+    assert.match(r.stderr, ONLY, name);
+  }
+  const short = goBump({ mod: `${MOD_NEW}replace github.com/acme/lib => ../lib\n` });
+  assert.match(short.stderr, /replace github\.com\/acme\/lib => \.\.\/lib"/, "a short line is quoted whole");
+});
+
+test("AC-581-3: WHEN a new go.sum line has a <module> <version> or <module> <version>/go.mod that the merge base has with a different hash THEN own-branch.mjs exits 1 and names the line", unixOnly, () => {
+  const rows = SUM_OLD.trimEnd().split("\n");
+  const rewritten = (i) => `${rows.map((row, n) => (n === i ? `${row.split(" ").slice(0, 2).join(" ")} ${h1("rewritten")}` : row)).join("\n")}\n`;
+  refusedGo({
+    "a version's hash rewritten, the old lines kept beside the new": [{ sum: SUM_NEW + rewritten(0) }, /go\.sum line 7\b.*github\.com\/acme\/lib v1\.2\.0 h1:/],
+    "a go.mod hash rewritten": [{ sum: SUM_NEW + rewritten(1) }, /go\.sum line 8\b.*github\.com\/acme\/lib v1\.2\.0\/go\.mod h1:/],
+    "a hash rewritten in place for a module the bump leaves alone": [{ sum: rewritten(2) }, /go\.sum line 3\b.*github\.com\/other\/single v0\.4\.1 h1:/],
+    "a second hash beside the first": [{ sum: `${SUM_OLD}github.com/acme/lib v1.2.0 ${h1("second")}\n` }, /go\.sum line 7\b.*github\.com\/acme\/lib v1\.2\.0 h1:/],
+    "a second go.mod hash beside the first": [{ sum: `${SUM_OLD}github.com/acme/lib v1.2.0/go.mod ${h1("second")}\n` }, /go\.sum line 7\b.*github\.com\/acme\/lib v1\.2\.0\/go\.mod h1:/],
+  });
+  assert.equal(goBump({ sum: SUM_OLD + sums("github.com/acme/lib", "v1.3.0") }).status, 0, "a new version beside lines kept with their hashes passes");
+  assert.equal(goBump({ sum: `${SUM_NEW}github.com/acme/lib v1.2.0/go.mod ${h1("github.com/acme/libv1.2.0/go.mod")}\n` }).status, 0, "a line the merge base has, as it has it, passes");
+});
+
+test("AC-581-4: WHEN a bump changes a go.mod or go.sum under vendor/ or testdata/ THEN own-branch.mjs exits 1 and names the file", unixOnly, () => {
+  const only = (path) => ({ files: changed(path) });
+  const cases = {
+    "a vendored go.mod": only("vendor/github.com/acme/lib/go.mod"),
+    "a vendored go.sum": only("vendor/github.com/acme/lib/go.sum"),
+    "a vendored go.mod beside the real ones": { files: changed("go.mod", "go.sum", "vendor/github.com/acme/lib/go.mod") },
+    "a go.mod in testdata": only("testdata/app/go.mod"),
+    "a go.sum in a nested testdata": only("services/api/testdata/mod/go.sum"),
+    "a vendor folder inside a service": only("services/api/vendor/x/go.mod"),
+    "a vendor folder in capitals": only("Vendor/x/go.mod"),
+    "a testdata folder in capitals": only("TestData/x/go.sum"),
+  };
+  for (const [name, more] of Object.entries(cases)) {
+    // Every file has an honest bump to read, so only the folder can make the gate refuse it.
+    const file = more.files.at(-1).filename;
+    const [old, now] = file.endsWith("go.mod") ? [MOD_OLD, MOD_NEW] : [SUM_OLD, SUM_NEW];
+    const r = bump({ ...more, pull: { ref: GO_BRANCH }, before: { "go.mod": MOD_OLD, "go.sum": SUM_OLD, [file]: old }, after: { "go.mod": MOD_NEW, "go.sum": SUM_NEW, [file]: now } });
+    assert.equal(r.status, 1, `${name}: ${r.stderr}`);
+    assert.equal(r.stdout, "", name);
+    assert.match(r.stderr, ONLY, name);
+    assert.match(r.stderr, naming(file), `${name}: it names the file`);
+  }
+  for (const dir of ["services/vendors/api/", "vendored/", "mytestdata/", "services/api/"]) {
+    assert.equal(goBump({ dir }).status, 0, `${dir}go.mod and go.sum pass`);
+  }
+});
+
+test("AC-581-5: WHEN a reader opens decision 531-1 THEN its sentence about the checksum database says Go compares the downloaded bytes with every go.sum line for that version and asks the database only when a line is missing", () => {
+  const decision = read("docs/decisions/531-1.md");
+  assert.match(decision, /Go compares the downloaded bytes with every `go\.sum` line for that version, and asks the checksum database only when a line is missing/);
+  assert.doesNotMatch(decision, /checks each hash against the (?:module proxy's )?checksum database/);
+  assert.doesNotMatch(read(".agents/skills/coordinate/scripts/dependabot-go.mjs"), /checks each hash against the module proxy's checksum database/);
+});
+
+test("AC-581-6: WHEN dependabot-bump.test.mjs is counted THEN it is under 500 lines, because the Go cases live in their own file", () => {
+  const bumpTests = read("cli/test/dependabot-bump.test.mjs");
+  assert.ok(bumpTests.split("\n").length < 500, "dependabot-bump.test.mjs stays under 500 lines");
+  assert.doesNotMatch(bumpTests, /test\("AC-531-/, "no Go case is left in the npm file");
+  const goTests = read("cli/test/dependabot-go.test.mjs");
+  for (const id of ["AC-531-1", "AC-531-2", "AC-531-3", "AC-531-5"]) assert.ok(goTests.includes(`test("${id}:`), `${id} is in dependabot-go.test.mjs`);
+  assert.ok(goTests.split("\n").length < 500, "dependabot-go.test.mjs stays under 500 lines");
 });
