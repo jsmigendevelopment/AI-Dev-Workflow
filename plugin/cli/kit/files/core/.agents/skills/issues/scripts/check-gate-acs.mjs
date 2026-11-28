@@ -28,19 +28,20 @@ const BASE_REFUSALS = [
   String.raw`exits?\s+(?:with\s+)?(?:code\s+|status\s+)?(?:non-?zero|[1-9]\d*)`, String.raw`exit\s+(?:code\s+|status\s+)?(?:is\s+)?(?:non-?zero|[1-9]\d*)`,
 ];
 // More words that mark an AC as refusing. They go on the detecting list only, never the covering one, so a wider list
-// can only flag more issues (the gate rule). "errors" is the verb here, not the noun after "no" or "without".
+// can only flag more issues (the gate rule). "errors" is the verb here, not the noun after "no", "without" or a number ("reports 0 errors").
 const MORE_REFUSALS = [
-  String.raw`(?<!\b(?:no|any|without|zero|with|of|the|more|fewer|all|new|some|many|few|these|those|its|their|same|type|lint|syntax)\s)errors`,
+  String.raw`(?<!\b(?:no|any|without|zero|with|of|the|more|fewer|all|new|some|many|few|these|those|its|their|same|type|lint|syntax|\d+)\s)errors`,
   String.raw`exits?\s+with\s+an?\s+error`, String.raw`(?:returns?|responds?\s+with)\s+(?:an?\s+)?(?:http\s+)?(?:status\s+)?(?:code\s+)?(?:4\d\d|4xx)`,
   String.raw`(?:is|are)\s+not\s+(?:accepted|permitted)`, String.raw`(?:isn|aren)['’]t\s+(?:accepted|permitted|allowed|printed|shown|written)`,
   String.raw`abort(?:s|ed|ing)?`, String.raw`can(?:not|['’]t)\s+continue`, String.raw`(?:does\s+not|doesn['’]t)\s+print`, String.raw`(?:is|are|gets?)\s+redacted`,
 ];
 const REFUSES = wordsRe(BASE_REFUSALS); // what a covering AC's THEN must say
 const REFUSES_ANY = wordsRe([...BASE_REFUSALS, ...MORE_REFUSALS]); // what marks an AC as refusing
-// A negation in the few words before a refusal word ("not refused", "never blocks", "doesn't refuse", "no flag is refused").
-const NEGATED = /(?:(?<![\p{L}])(?:not|never|no|nor|without)|n['’]t)\s+(?:[\p{L}'’-]+\s+){0,3}$/iu;
+// A negation, then up to three words, then the refusal word ("not refused", "never blocks", "doesn't refuse", "no flag is
+// refused"). These two patterns find where such a lead-in starts; `leadInEnds` says where it ends.
+const NEGATION = /(?:(?<![\p{L}])(?:not|never|no|nor|without)|n['’]t)(?=\s)/giu;
 // "accepted rather than refused", "runs instead of failing": the word names what does not happen.
-const INSTEAD = /(?<![\p{L}])(?:rather\s+than|instead\s+of)\s+(?:[\p{L}'’-]+\s+){0,3}$/iu;
+const INSTEAD = /(?<![\p{L}])(?:rather\s+than|instead\s+of)(?=\s)/giu;
 // A quoted, backticked or fenced span is a mention of a word, not the AC's result. It is swapped for a mark.
 const SPANS = /```[\s\S]*?```|`[^`]*`|"[^"]*"|“[^”]*”/g;
 const MARK = "";
@@ -77,16 +78,58 @@ export function readAcs(body) {
   return acs.map((ac) => ({ ...ac, text: ac.text.replace(/^[\s*_`]+/, "").trim() }));
 }
 
+const BLANKS = /\s+/y;
+const WORD = new RegExp(String.raw`[\p{L}${MARK}'’-]+(?=\s)`, "yu"); // a quoted span counts as a word
+/**
+ * The positions where a lead-in ends: every match of `starts`, then blanks, then up to three words each followed by
+ * blanks. A refusal word at one of these positions is negated (or ruled out). One pass over the text, so a long THEN
+ * costs the same per character as a short one (looking back from every refusal word was quadratic).
+ */
+const leadInEnds = (text, starts) => {
+  const ends = new Set();
+  for (const start of text.matchAll(starts)) {
+    let at = start.index + start[0].length;
+    for (let words = 0; words <= 3; words++) {
+      BLANKS.lastIndex = at;
+      const blanks = BLANKS.exec(text);
+      if (!blanks) break;
+      at += blanks[0].length;
+      ends.add(at);
+      WORD.lastIndex = at;
+      const word = WORD.exec(text);
+      if (!word) break;
+      at += word[0].length;
+    }
+  }
+  return ends;
+};
+
+// A lone opening curly quote has no closer, so it stands for itself. It is swapped for a character no pattern reads, or
+// each one would scan to the end of the text looking for its closer.
+const LONE_OPENER = "\u0001";
+const maskLoneOpeners = (text) => {
+  const end = text.lastIndexOf("”") + 1;
+  return text.slice(0, end) + text.slice(end).replaceAll("“", LONE_OPENER);
+};
+
+/** True when the text just before `index` (blanks skipped) ends with a span mark. */
+const afterMark = (text, index) => {
+  let i = index;
+  while (i > 0 && /\s/.test(text[i - 1])) i--;
+  return text[i - 1] === MARK;
+};
+
 /**
  * True when `then` holds a refusal word that is not a mention: not in quotes, backticks or a fence, not negated in the
  * few words before it, not after "rather than" or "instead of", and not "is not printed" said of a quoted name.
  */
 const refuses = (then) => {
-  const said = then.replace(SPANS, MARK);
+  const said = maskLoneOpeners(then).replace(SPANS, MARK);
+  const negated = leadInEnds(said, NEGATION);
+  const instead = leadInEnds(said, INSTEAD);
   return [...said.matchAll(REFUSES)].some((m) => {
-    const before = said.slice(0, m.index);
-    const ofQuoted = /^(?:is|are)\s/i.test(m[0]) && before.trimEnd().endsWith(MARK);
-    return !NEGATED.test(before) && !INSTEAD.test(before) && !ofQuoted;
+    const ofQuoted = /^(?:is|are)\s/i.test(m[0]) && afterMark(said, m.index);
+    return !negated.has(m.index) && !instead.has(m.index) && !ofQuoted;
   });
 };
 
@@ -100,11 +143,15 @@ const INVISIBLE = /[­͏؜ᅟᅠ឴឵᠋-᠎​-‏‪-‮⁠-⁯ㅤ︀-️﻿�
 /** The text as a reader sees it: compatibility forms folded (NFKC, so full-width letters), invisible characters dropped, lookalikes made Latin. */
 export const normalise = (text) => text.normalize("NFKC").replace(INVISIBLE, "").replace(/[Ͱ-ϿЀ-ԯ]/g, (c) => LOOKALIKES[c] ?? c);
 
-/** True when the AC's own THEN refuses (a negated refusal still counts: it is a gate, so it needs the rest covered). */
+const thenRefuses = (text) => (WHEN_THEN.exec(text)?.[2] ?? text).search(REFUSES_ANY) !== -1;
+
+/**
+ * True when the AC's own THEN refuses (a negated refusal still counts: it is a gate, so it needs the rest covered).
+ * The text is read as written and as a reader sees it, and either one is enough: folding a character can glue a letter to
+ * the word ("blocked™" becomes "blockedTM") or take away the boundary ("un<ZWSP>blocked"), so it may only add hits.
+ */
 export function isRefusing(ac) {
-  const text = normalise(ac.text);
-  const then = WHEN_THEN.exec(text)?.[2] ?? text;
-  return then.search(REFUSES_ANY) !== -1;
+  return thenRefuses(ac.text) || thenRefuses(normalise(ac.text));
 }
 
 /** True when the AC's WHEN names every other input, its THEN refuses, and it isn't an `agent` check. */

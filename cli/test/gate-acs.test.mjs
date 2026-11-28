@@ -290,3 +290,56 @@ test("AC-747-1: WHEN a refusing AC hides its word with lookalike letters, zero-w
   }
   assert.equal(gateGap(withAcs("AC-1: WHEN the input is --dry THEN привет and the page loads")), null);
 });
+
+// Fix round 2 (review of PR #754): each case below failed on the second head.
+const refusingThen = (thens) => {
+  for (const then of thens) assert.equal(gateGap(withAcs(`AC-1: WHEN the input is --dry THEN ${then}`))?.id, "AC-1", JSON.stringify(then));
+};
+
+test("AC-747-1: WHEN a refusal word is followed by a symbol that expands (blocked™, fails㎏) THEN it is still a refusing AC", () => {
+  refusingThen(["it is blocked™", "it blocks™", "it is refused℠", "the build fails㎏"]);
+});
+
+test("AC-747-1: WHEN an invisible character sits inside a refusal word (un<ZWSP>blocked) THEN it is still a refusing AC", () => {
+  refusingThen(["it is un\u200Bblocked", "it is un\u00ADblocked", "it ref\u2060used"]);
+});
+
+test("AC-747-1: WHEN an invisible character sits at the edge of a refusal word (is<ZWSP>blocked) THEN it is still a refusing AC", () => {
+  refusingThen(["it is\u200Bblocked", "it blocks\u200Bthe call", "it\u00ADfails"]);
+});
+
+test("AC-747-1: WHEN a THEN reports a number of errors, as in `pnpm lint` reports 0 errors, THEN it is not a refusal", () => {
+  for (const then of ["`pnpm lint` reports 0 errors", "it prints 3 errors in total and the run goes on"]) {
+    assert.equal(gateGap(withAcs(`AC-1: WHEN the input is --dry THEN ${then}`)), null, then);
+  }
+  for (const then of ["it errors", "the run errors out", "it exits with an error"]) {
+    assert.equal(gateGap(withAcs(`AC-1: WHEN the input is --dry THEN ${then}`))?.id, "AC-1", then);
+  }
+});
+
+test("AC-747-2: WHEN a covering THEN is very long and made to be slow THEN the check still finishes in under a second", () => {
+  const size = 256 * 1024;
+  const shapes = {
+    "a quoted mention, said again and again": "`a` is not printed ",
+    "a lone curly quote, again and again": "“ ",
+    "a negated contraction before a refusal word": "n't blocks ",
+  };
+  for (const [how, unit] of Object.entries(shapes)) {
+    const body = withAcs(REFUSE_ONLY, `AC-2: WHEN the flag is unknown THEN ${unit.repeat(Math.ceil(size / unit.length))}`);
+    const started = performance.now();
+    gateGap(body);
+    const seconds = (performance.now() - started) / 1000;
+    assert.ok(seconds < 1, `${how}: ${seconds.toFixed(2)} s`);
+  }
+});
+
+test("AC-747-2: WHEN a negation, a quoted name or `rather than` is far from the refusal word in characters THEN it still counts, and a far one does not", () => {
+  const covers = (then) => gateGap(withAcs(REFUSE_ONLY, `AC-2: WHEN the flag is unknown THEN ${then}`)) === null;
+  for (const then of ["it never blocks the run", "it does not refuse", "it prints `x` and `y` is not printed", "it is accepted rather than refused",
+    `it is not ${"a".repeat(120)} refused`, `it is not${" ".repeat(300)}refused`, `it is accepted rather than ${"b".repeat(120)} refused`]) {
+    assert.equal(covers(then), false, then.slice(0, 60));
+  }
+  // A refusal word more than three words after a negation is a real refusal, however long the sentence before it.
+  assert.equal(covers(`never mind: ${"the flag is checked against the list of names and then ".repeat(4)}it refuses`), true);
+  assert.equal(covers("it is not a b c d refused"), true);
+});
