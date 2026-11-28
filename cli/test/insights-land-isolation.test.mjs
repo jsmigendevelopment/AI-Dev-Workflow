@@ -1,6 +1,8 @@
-// land's git calls drop the variables that move the repository (#422), as carry's fetch does (decision 333-2): a hook
-// exports GIT_DIR and GIT_INDEX_FILE, which would point land's reads, commit and staging at another repository or
-// index. The shared set-up is in insights-land-fakes.mjs.
+// land's git calls drop the variables that move the repository (#422): a hook exports GIT_DIR and GIT_INDEX_FILE, which
+// would point land's reads, commit and staging at another repository or index. They also drop GIT_CONFIG_PARAMETERS but
+// keep GIT_CONFIG_COUNT with its KEY_n and VALUE_n (#450), which carry's fetch (decision 333-2) keeps now too; carry's
+// fetch alone drops GIT_CONFIG_GLOBAL, GIT_CONFIG_SYSTEM and GIT_CONFIG_NOSYSTEM and passes -c flags. The shared set-up
+// is in insights-land-fakes.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -26,7 +28,7 @@ test("#422: an exported GIT_DIR and GIT_INDEX_FILE (as a hook gets) don't move l
   assert.equal(existsSync(otherIndex), false, "the exported index isn't written");
 });
 
-test("#422: every git call of land and land --verify drops GIT_DIR, GIT_INDEX_FILE and env-given config, keeps transport variables, and never prompts", unixOnly, () => {
+test("#422: every git call of land and land --verify drops GIT_DIR, GIT_INDEX_FILE and GIT_CONFIG_PARAMETERS, keeps env-given config and transport variables, and never prompts", unixOnly, () => {
   const { root, dir, seed } = setup();
   twoNew(dir);
   const env = {
@@ -40,16 +42,19 @@ test("#422: every git call of land and land --verify drops GIT_DIR, GIT_INDEX_FI
   const sha = branch(seed, ref, { [pathOf(REVIEW)]: json(REVIEW) });
   const verified = run(dir, ["land", "--verify", "90", "--repo", "acme/app"], { "repos/acme/app/pulls/90": pullOf(90, ref, sha) }, { env, logGitEnv: true });
   assert.equal(verified.status, 0, verified.stderr);
-  // insights.mjs finds the checkout before land runs: that one call isn't land's.
-  const calls = `${opened.gitEnv}${verified.gitEnv}`.split("\n\n").filter((c) => c && !c.startsWith("git rev-parse --show-toplevel"));
-  for (const name of ["fetch", "ls-tree", "commit-tree", "push", "add", "diff", "cat-file"]) {
-    assert.ok(calls.some((c) => c.startsWith(`git ${name} `)), `land runs git ${name}`);
+  // The call that finds the checkout is land's own too (#450).
+  const calls = `${opened.gitEnv}${verified.gitEnv}`.split("\n\n").filter(Boolean);
+  for (const name of ["rev-parse --show-toplevel", "fetch", "ls-tree", "commit-tree", "push", "add", "diff", "cat-file"]) {
+    assert.ok(calls.some((c) => c.startsWith(`git ${name}`)), `land runs git ${name}`);
   }
   for (const call of calls) {
     const head = call.split("\n")[0];
     assert.match(call, /^GIT_TERMINAL_PROMPT=0$/m, `${head}: never prompts`);
     assert.match(call, /^GIT_SSL_CAINFO=\/dev\/null-ca$/m, `${head}: a transport variable stays`);
-    assert.doesNotMatch(call, /^GIT_(DIR|WORK_TREE|CONFIG_COUNT|CONFIG_KEY_0|CONFIG_VALUE_0|CONFIG_PARAMETERS)=/m, head);
+    assert.doesNotMatch(call, /^GIT_(DIR|WORK_TREE|CONFIG_PARAMETERS)=/m, head);
+    assert.match(call, /^GIT_CONFIG_COUNT=1$/m, `${head}: env-given config stays`);
+    assert.match(call, /^GIT_CONFIG_KEY_0=fetch\.prune$/m, head);
+    assert.match(call, /^GIT_CONFIG_VALUE_0=true$/m, head);
     // commitOn's own temp index is the only index a call may name.
     const index = /^GIT_INDEX_FILE=(.*)$/m.exec(call)?.[1];
     if (index) assert.notEqual(index, env.GIT_INDEX_FILE, `${head}: not the exported index`);
