@@ -40,6 +40,10 @@ export const COPIES = [
   // The run log (#129) reads them the same way: a pull request's chain, an issue's or a day's.
   [join("scripts", "insights-runs.mjs"), join(SRC, "coordinate", "scripts", "insights-runs.mjs")],
   [join("scripts", "insights-runs.mjs"), join("cli", "src", "insights-runs.mjs")],
+  // The daily check for a newer onRails (#448): in the update skill for the session-start hook, /back and the loop, and
+  // in the CLI for doctor.
+  [join("scripts", "latest.mjs"), join(SRC, "update", "scripts", "latest.mjs")],
+  [join("scripts", "latest.mjs"), join("cli", "src", "latest.mjs")],
   // push-secrets' rule for starting gh and npx, also for setup-github's gh (#238), copied next to each script that needs it.
   // A skill script imports another skill's script only when both always ship together, as pyramid's check-plan.mjs
   // imports issues' check-issue-size.mjs (#376).

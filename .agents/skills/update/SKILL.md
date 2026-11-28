@@ -31,6 +31,13 @@ Always run the CLI from a new temp folder outside the project, and pass the proj
    - The project kit changed? Its files aren't committed. They reach main through a pull request, like any change (`AGENTS.md`, rule 12). A changed `AGENTS.md`, `.agents/` or `.claude/` gets the weakening review (`coordinate`, Rules).
    - Kept files (`.onrails-new`)? List them. `/join` merges the project's; the global ones are compared by hand.
 
+## Knowing a newer one is out
+
+`scripts/latest.mjs` (#448) asks npm for the latest onRails at most once a day, keeps the answer in `~/.onrails/latest.json`, and gives up after 2 seconds. The session-start hook and `/back` run it. It sends nothing about the project.
+
+- `node .agents/skills/update/scripts/latest.mjs line` prints one line when this repo or a plugin is behind, and nothing when it can't reach npm.
+- The switch is in the profile: `[updates] check = "daily" | "weekly" | "off"` (default `daily`).
+
 **No kit here** (no `ask` skill, as outside an onRails project)? A blocker goes at the top of your report instead, as a "Setup step for you": the one command to run, where to run it, and the error it gave. The project kit was skipped, so nothing needs a pull request.
 
 **Done when** the summary is shown and you've told the person the last step.

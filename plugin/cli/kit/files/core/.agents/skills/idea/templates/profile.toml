@@ -97,6 +97,11 @@ library = ""                    # owner/repo of your research library; must be p
 library_path = ""               # optional: a local clone of it, so captures skip the clone
 offered = false                 # true once an agent offered to make one, so it never asks again
 
+[updates]
+# Is a newer onRails on npm? The session start and /back say so in one line (the update skill's latest.mjs).
+# It asks npm at most once a day, keeps the answer in ~/.onrails/latest.json, and sends nothing about your project.
+check = "daily"                 # daily | weekly | off. Off fetches nothing
+
 [worklog]
 # Track your work hours from session starts and ends, /back and /afk.
 # Kept in ~/.onrails/worklog/, never in a repo.

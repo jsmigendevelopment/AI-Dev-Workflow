@@ -6,6 +6,7 @@ import { globalSkillChecks } from "./global.mjs";
 import { homeChecks } from "./home.mjs";
 import { agentInstallLines, installPlan, pnpmPlan } from "./installers.mjs";
 import { loadKit } from "./kit.mjs";
+import { cachedLatest, updateLine } from "./latest.mjs";
 import { pluginChecks } from "./plugin.mjs";
 import { readGoMod, satisfies } from "./preflight-versions.mjs";
 import { projectChecks } from "./project-checks.mjs";
@@ -58,7 +59,12 @@ export function runChecks(projectDir, { kitDir, sys = realSystem({ projectDir })
 
   checks.push(...homeChecks({ home: sys.home }));
   checks.push(...globalSkillChecks({ kitDir, home: sys.home }));
-  checks.push(...pluginChecks({ home: sys.home, env: sys.env, kitVersion: kitVersionFor(projectDir, kitDir) }));
+  const kitVersion = kitVersionFor(projectDir, kitDir);
+  checks.push(...pluginChecks({ home: sys.home, env: sys.env, kitVersion }));
+  // doctor stays offline (#448): it shows what the daily check last kept, and a session start or /back is what asks npm.
+  const newer = cachedLatest(sys.home);
+  const behind = newer && updateLine({ latest: newer, kit: kitVersion });
+  if (behind) add(INFO, behind, undefined, false);
   checks.push(...projectChecks(projectDir, { kitDir, sys }));
   checks.push(...accountChecks(projectDir, { home: sys.home }));
   return checks;
