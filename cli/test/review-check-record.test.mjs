@@ -39,14 +39,27 @@ const FAKES = {
   "<success|failure>": "success",
   "<failed>": "null",
   "<rerun>": "false",
-  "<fence>": "Fence: bubblewrap",
+  "<fence-name>": "bubblewrap",
 };
 
-function withFakes(command) {
+function withFakes(command, extra = {}) {
+  const values = { ...FAKES, ...extra };
   return command.replace(/<[^<>]+>/g, (name) => {
-    assert.ok(Object.hasOwn(FAKES, name), `a fake value for ${name}`);
-    return FAKES[name];
+    assert.ok(Object.hasOwn(values, name), `a fake value for ${name}`);
+    return values[name];
   });
+}
+
+/** What the skill says to do with a value inside single quotes: write each ' as '\''. */
+const quoted = (value) => value.replaceAll("'", "'\\''");
+
+/** Every `Fence:` line fence.mjs prints, with each ${...} filled with sample text. */
+function realFenceLines() {
+  const source = readFileSync(join(REPO, SCRIPTS, "fence.mjs"), "utf8");
+  const lines = [...source.matchAll(/console\.error\(`(Fence: [^`]+)`/g)].map((m) => m[1].replace(/\$\{[^}]+\}/g, "bubblewrap"));
+  assert.ok(lines.length >= 3, `fence.mjs prints its Fence: lines: ${lines}`);
+  assert.ok(lines.some((line) => line.includes("'")), "a real Fence: line holds an apostrophe");
+  return lines;
 }
 
 /** A temp git repo standing in for the coordinator's checkout of main, with the coordinate scripts and `records`. */
@@ -77,6 +90,7 @@ test("AC-417-1: WHEN pr-review/SKILL.md is read THEN the path where the reviewer
   assert.match(command, /\bcommands=/);
   assert.match(path, /`Checks:` comment/, "the line goes at the end of the Checks: comment");
   assert.match(path, /never type the JSON by hand/i);
+  assert.match(path, /Follow `coordinate` step 6\.1 from its first check, 6\.1\.1/, "it names the step it follows");
 });
 
 test("AC-417-1: WHEN the reviewer runs the checks itself THEN mark-check.mjs runs without --record, so the line is the one check record", () => {
@@ -112,14 +126,29 @@ test("AC-417-2: WHEN the printed command runs with fake values THEN it exits 0, 
   assert.match(after.stdout, /job, check and review records found/);
 });
 
-test("#417: a failed self-run gives a failure record that names the red command", unixOnly, () => {
-  const red = withFakes(printedCommand())
-    .replace("state=success", "state=failure")
-    .replace(/failed_step=null/, "failed_step=npm test");
-  const printed = runPrinted(checkout([]), red);
+test("AC-417-2: WHEN the fence slot is filled from each real fence.mjs line, apostrophe included, THEN the command still runs through /bin/sh and records the fence's name", unixOnly, () => {
+  for (const line of realFenceLines()) {
+    const name = /^Fence: (\S+)/.exec(line)[1];
+    // <fence> was the whole line, as 75f8562 asked; <fence-name> is the word after "Fence:". Whichever the skill
+    // names, the real line's text goes in, so free text with an apostrophe can't come back unseen.
+    const printed = runPrinted(checkout([]), withFakes(printedCommand(), { "<fence>": line, "<fence-name>": name }));
+    assert.equal(printed.status, 0, `${line}\n${printed.stderr}`);
+    const record = parseLine(printed.stdout);
+    assert.ok(record, `${line}\n${printed.stdout}`);
+    assert.equal(record.fence, name);
+  }
+});
+
+test("#417: a failed self-run whose red command holds an apostrophe keeps it whole through /bin/sh, written as the skill's '\\'' says", unixOnly, () => {
+  assert.match(selfRunPath(), /write each `'` as `'\\''`/);
+  const red = "npm test -- --grep 'can't'";
+  const commands = JSON.stringify([{ name: red, result: "fail", seconds: 9 }]);
+  const filled = withFakes(printedCommand(), { "<commands>": quoted(commands), "<failed>": quoted(red), "<success|failure>": "failure" });
+  const printed = runPrinted(checkout([]), filled);
   assert.equal(printed.status, 0, printed.stderr);
   const record = parseLine(printed.stdout);
   assert.ok(record, printed.stdout);
   assert.equal(record.state, "failure");
-  assert.equal(record.failed_step, "npm test");
+  assert.equal(record.commands[0].name, red);
+  assert.equal(record.failed_step, red);
 });

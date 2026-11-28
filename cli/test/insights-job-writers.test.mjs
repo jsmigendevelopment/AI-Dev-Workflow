@@ -17,7 +17,7 @@ const FAKE = {
   round: "1", must: "0", nice: "2", categories: "tests,bugs",
   "usage-before": "unknown", "usage-after": "unknown", "usage-from": "get_session",
   // pr-review's own check run (#417): its single-quoted values hold spaces and JSON.
-  commands: '[{"name":"npm test","result":"pass","seconds":61}]', failed: "null", rerun: "false", fence: "Fence: bubblewrap",
+  commands: '[{"name":"npm test","result":"pass","seconds":61}]', failed: "null", rerun: "false", "fence-name": "bubblewrap",
 };
 
 /** Every backticked insights.mjs command in a skill. */
