@@ -1,0 +1,22 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T11:44:30.342Z",
+  "issue": 432,
+  "pr": 611,
+  "sha": "104644a3eddcdfa4da15938f00957eaedf216405",
+  "job": "review-code",
+  "tool": null,
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 2,
+  "verdict": "changes",
+  "must": 1,
+  "nice": 3,
+  "categories": [
+    "parser-fails-open",
+    "config-read-error",
+    "test-gaps"
+  ],
+  "model_from": "effort level not shown in this session"
+}

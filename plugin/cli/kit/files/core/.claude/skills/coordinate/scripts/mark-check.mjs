@@ -12,7 +12,8 @@
 // --record <file> (#331): the gate's file, {pr, fence, commands: [{command, result, seconds}], failed, rerun}. Before
 // the post, it writes one `check` insights record into docs/insights/ of the checkout this script sits in, whatever
 // folder it runs from, on exit 0, 1 and 3 alike. A file it can't read, or a command name over 200 characters or
-// with a control character, is a usage error: exit 2, no record, no post. ONRAILS_NOW sets the record's clock (tests).
+// with a control, format, line-separator or paragraph-separator character, is a usage error: exit 2, no record, no
+// post. ONRAILS_NOW sets the record's clock (tests).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,7 +45,7 @@ function cap(text) {
   return kept;
 }
 
-/** A command name a record can keep: text of at most TEXT_CAP characters, with no control character. */
+/** A command name a record can keep: text of at most TEXT_CAP characters, with no control, format, line-separator or paragraph-separator character. */
 const plainName = (text) => typeof text === "string" && text !== "" && text.length <= TEXT_CAP && !CONTROL.test(text);
 
 /** What is wrong with the gate's file, or null. */
@@ -54,8 +55,8 @@ function gateProblem(gate) {
   if (!Array.isArray(gate.commands) || gate.commands.length === 0) return "commands: must list each command the gate ran";
   const bad = (c) => typeof c?.command !== "string" || !c.command || !RESULTS.includes(c.result) || !(typeof c.seconds === "number" && c.seconds >= 0);
   if (gate.commands.some(bad)) return "commands: each needs command, result (pass, fail or skipped) and seconds";
-  if (!gate.commands.every((c) => plainName(c.command))) return `commands: a command name must be at most ${TEXT_CAP} characters, with no control character`;
-  if (gate.failed !== null && !plainName(gate.failed)) return `failed: must be the red command (at most ${TEXT_CAP} characters, no control character), or null`;
+  if (!gate.commands.every((c) => plainName(c.command))) return `commands: a command name must be at most ${TEXT_CAP} characters, with no control, format, line-separator or paragraph-separator character`;
+  if (gate.failed !== null && !plainName(gate.failed)) return `failed: must be the red command (at most ${TEXT_CAP} characters, no control, format, line-separator or paragraph-separator character), or null`;
   if (typeof gate.rerun !== "boolean") return "rerun: must be true or false";
   if (gate.fence !== undefined && typeof gate.fence !== "string") return "fence: must be the Fence: line";
   return null;
