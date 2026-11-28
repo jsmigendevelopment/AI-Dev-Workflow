@@ -35,13 +35,12 @@
 //   carry --pr <n> --from <reviewed sha> --to <merge sha>   carries a review across a clean merge of main:
 //       insights-carry.mjs says how.
 // Format and kinds: references/insights.md. Plain Node 22, no dependencies.
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pages } from "./agent-files.mjs";
 import { carry, heldRecords, kindsAt, save } from "./insights-carry.mjs";
-import { canonical, land, ownAccount, recordProblem } from "./insights-land.mjs";
+import { canonical, checkoutAt, land, ownAccount, recordProblem } from "./insights-land.mjs";
 import { ASK_FILE, KINDS, LINE_START, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
 
 const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | has-records --issue <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
@@ -55,11 +54,15 @@ function fail(code, message) {
 const warn = (message) => process.stderr.write(`insights: ${message}\n`);
 const flag = (args, name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 
-/** The checkout's root. Not in one: exit `code` (2 for a command that only reads, as no record can be missing). */
+/**
+ * The checkout's root, from CLAUDE_PROJECT_DIR or the current folder, found without GIT_DIR or GIT_WORK_TREE (#450): a
+ * hook's exported GIT_DIR can't point a command at another clone. Not in one: exit `code` (2 for a command that only
+ * reads, as no record can be missing).
+ */
 function gitRoot(code = 1) {
   const start = process.env.CLAUDE_PROJECT_DIR || process.cwd();
   try {
-    return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: start, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return checkoutAt(start);
   } catch {
     return fail(code, `${start} isn't in a git repo, so there's no docs/insights/ here`);
   }

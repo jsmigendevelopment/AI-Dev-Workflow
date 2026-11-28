@@ -94,18 +94,22 @@ test("carry: under the old-git redo, main's own CHANGELOG union still applies wh
   assert.deepEqual(r.left, [], "no temp folder left");
 });
 
-test("carry: the fetch of main drops the variables that move the repository and env-given config, keeps transport ones, and never prompts", unixOnly, () => {
+test("carry: the fetch of main drops the variables that move the repository, GIT_CONFIG_PARAMETERS and the config files it names, keeps env-given config and transport variables, and never prompts", unixOnly, () => {
   const fx = reviewed();
   const to = mergeMain(fx);
   const env = {
     GIT_DIR: join(fx.dir, ".git"), GIT_INDEX_FILE: join(fx.dir, ".git", "index"), GIT_CONFIG_COUNT: "1",
-    GIT_CONFIG_KEY_0: "fetch.prune", GIT_CONFIG_VALUE_0: "true", GIT_SSL_CAINFO: "/dev/null-ca", GIT_TERMINAL_PROMPT: "1",
+    GIT_CONFIG_KEY_0: "fetch.prune", GIT_CONFIG_VALUE_0: "true", GIT_CONFIG_PARAMETERS: "'fetch.prune'='false'",
+    GIT_CONFIG_GLOBAL: "/dev/null-global", GIT_CONFIG_SYSTEM: "/dev/null-system", GIT_SSL_CAINFO: "/dev/null-ca", GIT_TERMINAL_PROMPT: "1",
   };
   const r = oldGitCarry(fx.dir, fx.from, to, { env, logFetchEnv: true, fallback: true });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.fetchEnv, /^GIT_TERMINAL_PROMPT=0$/m);
   assert.match(r.fetchEnv, /^GIT_SSL_CAINFO=\/dev\/null-ca$/m, "a transport variable stays");
-  assert.doesNotMatch(r.fetchEnv, /^GIT_(DIR|INDEX_FILE|CONFIG_COUNT|CONFIG_KEY_0|CONFIG_VALUE_0)=/m);
+  assert.doesNotMatch(r.fetchEnv, /^GIT_(DIR|INDEX_FILE|CONFIG_PARAMETERS|CONFIG_GLOBAL|CONFIG_SYSTEM)=/m);
+  assert.match(r.fetchEnv, /^GIT_CONFIG_COUNT=1$/m, "env-given config stays");
+  assert.match(r.fetchEnv, /^GIT_CONFIG_KEY_0=fetch\.prune$/m);
+  assert.match(r.fetchEnv, /^GIT_CONFIG_VALUE_0=true$/m);
 });
 
 test("carry: a global pull.twohead=ours doesn't turn the redo into an ours merge", unixOnly, () => {
