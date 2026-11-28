@@ -60,8 +60,9 @@ templates/research-library/scripts/check-research.mjs linguist-generated
 templates/research-library/scripts/command-for.mjs linguist-generated
 templates/research-library/scripts/research-library.mjs linguist-generated
 # Insights records, written only by insights.mjs and mark-check.mjs (#332). A records pull request's review is
-# `insights.mjs land --verify`, which also caps each file's size (decision 332-2).
-docs/insights/** linguist-generated
+# `insights.mjs land --verify`, which also caps each file's size (decision 332-2). Only a record's own path counts as
+# generated: any other file under docs/insights/ counts toward the size, and the merge gate fails it (#408).
+docs/insights/*/*.json linguist-generated
 # People edit these two by hand (versions.mjs bumps them), and no script writes them, so they count.
 plugin/.claude-plugin/plugin.json -linguist-generated
 plugin/.codex-plugin/plugin.json -linguist-generated

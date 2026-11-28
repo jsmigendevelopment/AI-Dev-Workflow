@@ -74,6 +74,14 @@ export function ownLogin() {
   return login;
 }
 
+/** gh's own login and numeric user ID, the ID a rename or a recycled login can't take over (#408). */
+export function ownAccount() {
+  const { login, id } = JSON.parse(gh("user"));
+  if (typeof login !== "string" || !login) throw new Error("gh api user named no login");
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error("gh api user named no user ID");
+  return { login, id };
+}
+
 /** The head is a branch of the base repo itself, by id, which survives a rename or a change of case. */
 const sameRepo = (pull) => Number.isInteger(pull.head?.repo?.id) && pull.head.repo.id === pull.base?.repo?.id;
 /** Why `pull` isn't a records pull request that `me` opened, or null. */
