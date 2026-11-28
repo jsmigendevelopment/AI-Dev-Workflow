@@ -1,0 +1,28 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T09:44:14.466Z",
+  "issue": null,
+  "pr": 577,
+  "sha": "cf88e968270ef62482d0ac5678cd7e6a864cdb3c",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "fence": "Fence: none (fresh clone run by hand, fake claude and codex on PATH)",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0.08
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-rules.mjs 577 --repo jsmigendevelopment/onRails --head cf88e968270ef62482d0ac5678cd7e6a864cdb3c",
+      "result": "pass",
+      "seconds": 1.46
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}
