@@ -7,7 +7,9 @@ pre-commit:
       glob: '*.{ts,tsx,js,cjs,mjs,json,jsonc,css,md,yml,yaml}'
       run: pnpm exec prettier --write --ignore-unknown {staged_files}
       stage_fixed: true
+    # The Worker's types first: worker-configuration.d.ts is git-ignored, and without it the typed rules misread
+    # the code (a fix can drop a type assertion that is needed). The same order as `pnpm lint`.
     - name: lint
       glob: '*.{ts,tsx,js,cjs,mjs}'
-      run: pnpm exec eslint --fix --no-warn-ignored {staged_files}
+      run: pnpm cf-typegen && pnpm exec eslint --fix --no-warn-ignored {staged_files}
       stage_fixed: true
