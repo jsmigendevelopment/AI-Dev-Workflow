@@ -76,6 +76,7 @@ Names are kebab-case; a module name is plural (`todo-items`). A new page needs i
 | `pnpm test:visual`      | screenshot tests (every page, theme, device); `--update` rewrites; `--docker` on Linux  |
 | `pnpm knip`             | unused files, exports and dependencies                                                  |
 | `pnpm dupes`            | duplicated code (jscpd; tests ignored; fails over 3% of lines)                          |
+| `pnpm hooks`            | install the pre-commit hook (lefthook): run it once after `git init`                    |
 | `pnpm check:migrations` | dropped or renamed columns and tables, NOT NULL without a default, float money columns  |
 | `pnpm test:deployed`    | smoke, a11y and API tests only; against `BASE_URL` when set (the deploy scripts)        |
 | `pnpm test:coming-soon` | the Coming soon checks; against `BASE_URL` when set (production while not launched)     |
@@ -252,6 +253,6 @@ The agent-file guard (`agent-files.mjs`) runs from the session too. Never add a 
 
 **Screenshots.** Baselines live in `e2e/visual.spec.ts-snapshots/`, one per page, theme and device. After an intended UI change: `pnpm test:visual --update --docker`, look at every changed PNG, commit them. Fonts render differently on macOS, Windows and other Linux images, so baselines made outside Playwright's image fail there. `--docker` mounts the git root and installs from there, so it also works from `apps/web` in the monorepo pack, where the lockfile is at the root. On a Linux host, the files the root container writes are handed back to the mounted folder's owner when it ends. Under rootless Docker or Podman they are already yours, so nothing is changed. No Docker? Skip them and say so in the pull request. `--docker` was written from a workflow the pack no longer has, and is not yet run by the kit's authors.
 
-**Dependabot** opens one grouped npm update a week, and the security updates `setup-github.mjs` turns on. Nothing merges on its own: each bump is a normal pull request through the same checks and review. `pnpm install` also installs a pre-commit hook (lefthook) that formats and lints the staged files.
+**Dependabot** opens one grouped npm update a week, and the security updates `setup-github.mjs` turns on. Nothing merges on its own: each bump is a normal pull request through the same checks and review. A pre-commit hook (lefthook) formats and lints the staged files. `pnpm install` installs it only when the folder is already a git repository: after `git init`, or in a git worktree, run `pnpm hooks` once. Without the hook, `pnpm check` and the merge gate still run every check.
 
 Playwright is the browser test runner. A person's own browser (for example Claude in Chrome) is for a look after Playwright passes, never instead of it.
