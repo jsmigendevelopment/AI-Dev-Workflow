@@ -288,7 +288,8 @@ test("#377 round 2, nice items 3 and 4: only data types count as fixtures, under
  * git (first on PATH) sets git's own GIT_TEST_ASSUME_DIFFERENT_OWNER for calls made inside the checkout, so git's real
  * ownership check runs without chown or root. The operator's global config is a fake home: `.gitconfig` holds `safe`
  * (the checkout's root by default, or the entries `safe(root)` returns), and `files(root, home)` replaces the home's
- * files ({ path under the home: text, or null for a folder }). `env(home)` adds variables, `undefined` removes one.
+ * files ({ path under the home: text, or null for a folder }). `env(home)` adds variables, `undefined` removes one (the
+ * shell's own GIT_CONFIG_COUNT and GIT_CONFIG_PARAMETERS are removed unless a test sets them).
  * pr-size.mjs must trust the root itself only when git, reading that config, would. The fake logs each call as
  * "<folder>\t<arguments>\t<GIT_CONFIG_GLOBAL>". */
 function otherOwner(files, { safe = (root) => [root], files: homeFiles, env: extra = () => ({}), owned = false } = {}) {
@@ -311,7 +312,7 @@ exec "$REAL_GIT" "$@"
 `);
   chmodSync(join(fakes, "bin", "git"), 0o755);
   const log = join(fakes, "git.log");
-  const env = safeEnv({ HOME: home, XDG_CONFIG_HOME: join(home, ".config"), OTHER_OWNER: owned ? "/nonexistent" : root, FAKE_GIT_LOG: log, REAL_GIT: join(git(fakes, "--exec-path").trim(), "git"), ...extra(home) }, { bins: [join(fakes, "bin")] });
+  const env = safeEnv({ HOME: home, XDG_CONFIG_HOME: join(home, ".config"), OTHER_OWNER: owned ? "/nonexistent" : root, FAKE_GIT_LOG: log, REAL_GIT: join(git(fakes, "--exec-path").trim(), "git"), GIT_CONFIG_COUNT: undefined, GIT_CONFIG_PARAMETERS: undefined, ...extra(home) }, { bins: [join(fakes, "bin")] });
   const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), "--base", "main"], { cwd: dir, encoding: "utf8", env });
   const calls = existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean).map((line) => line.split("\t")) : [];
   const control = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: dir, encoding: "utf8", env: { ...env, GIT_CONFIG_GLOBAL: "/dev/null" } });
@@ -408,6 +409,24 @@ test("#432: an empty safe.directory clears the list before it, as in git, and a 
   for (const [why, env] of Object.entries(forms)) {
     test(`#432: WHEN ${why} THEN git reads no user config and the root is refused`, unixOnly, () => refused(otherOwner(change, { ...listed, env: () => env }), why));
   }
+}
+
+// The operator's own environment can clear the list after the files list the root, and git then refuses the checkout.
+// The script drops every GIT_* variable, so it can't read that clear: it trusts nothing, as main does.
+{
+  const listed = { files: (root) => ({ ".gitconfig": `[safe]\n\tdirectory = ${root}\n` }) };
+  const clear = { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "safe.directory", GIT_CONFIG_VALUE_0: "" };
+  test("#432: WHEN GIT_CONFIG_COUNT clears safe.directory after the global file lists the root THEN it is refused, as git refuses it", unixOnly, () => {
+    const r = otherOwner(change, { ...listed, env: () => clear });
+    refused(r, "GIT_CONFIG_COUNT clears the list");
+    assert.equal(r.calls.some(([, args]) => isConfigRead(args)), false, "no list is read when the environment sets git config");
+    // A count of zero sets nothing, so the global file still counts.
+    counted(otherOwner(change, { ...listed, env: () => ({ GIT_CONFIG_COUNT: "0" }) }), "GIT_CONFIG_COUNT is 0");
+  });
+  test("#432: WHEN GIT_CONFIG_PARAMETERS clears safe.directory after the global file lists the root THEN it is refused, as git refuses it", unixOnly, () => {
+    refused(otherOwner(change, { ...listed, env: () => ({ GIT_CONFIG_PARAMETERS: "'safe.directory='" }) }), "GIT_CONFIG_PARAMETERS clears the list");
+    counted(otherOwner(change, { ...listed, env: () => ({ GIT_CONFIG_PARAMETERS: "" }) }), "GIT_CONFIG_PARAMETERS is empty");
+  });
 }
 
 test("#432: GIT_CONFIG_GLOBAL, when set, is the only user config read, and a file that lists the root there counts", unixOnly, () => {

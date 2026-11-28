@@ -92,8 +92,12 @@ function userConfigFiles() {
 /** The operator's own `safe.directory` list: git itself parses each user config file (`git config --file`, includes
  * followed) from a scratch folder, so no repo is opened and the call stays isolated (GIT_CONFIG_GLOBAL=/dev/null, no
  * trusted folder). An empty entry clears the ones before it, as in git. Exit 1 is a file with no entry (a missing file or a
- * folder too). Any other failure, such as a config line git rejects, lists nothing at all: it fails closed. */
+ * folder too). Any other failure, such as a config line git rejects, lists nothing at all: it fails closed. So does an
+ * operator environment that sets git config itself (GIT_CONFIG_COUNT, GIT_CONFIG_PARAMETERS): git applies it after the
+ * files and may clear the list, and the script, which drops every GIT_* variable, can't see what it says. */
 function operatorSafeDirectories() {
+  const { GIT_CONFIG_COUNT: count, GIT_CONFIG_PARAMETERS: parameters } = process.env;
+  if ((count && Number(count) !== 0) || parameters) return [];
   const scratch = mkdtempSync(join(tmpdir(), "onrails-config-"));
   try {
     let listed = [];
