@@ -1,0 +1,22 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T11:26:42.142Z",
+  "issue": 451,
+  "pr": 607,
+  "sha": "5c4835b05d06b0d19bdf765472e09759bbfb0c65",
+  "job": null,
+  "tool": null,
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "model_from": "effort level not shown in this session",
+  "round": 2,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 3,
+  "categories": [
+    "ci-quoted-value",
+    "ci-local-clause",
+    "kit-actions-red"
+  ]
+}

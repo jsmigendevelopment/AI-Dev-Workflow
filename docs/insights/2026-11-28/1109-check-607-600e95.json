@@ -1,0 +1,70 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T11:09:04.707Z",
+  "issue": 451,
+  "pr": 607,
+  "sha": "bba122a17532725f43390d5723f923c486705aaa",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "state": "success",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cd cli && npm run bundle",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "cd cli && npm test",
+      "result": "pass",
+      "seconds": 124
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 95
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "fresh app: init . --no-start",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "fresh app: add tanstack-start",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "fresh app: pnpm install",
+      "result": "pass",
+      "seconds": 9
+    },
+    {
+      "name": "fresh app: pnpm check",
+      "result": "pass",
+      "seconds": 52
+    }
+  ]
+}

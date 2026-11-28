@@ -101,7 +101,7 @@ describe('pnpm connect in repository mode', () => {
     expect(text).toContain('GitHub repository PRODUCTION_* (secret) ✗')
   })
 
-  it('asks for X once when the workflows read TEST_X or X, and never for SECRETS_MODE', () => {
+  it('asks for X once when the deploy files read TEST_X or X, and never for SECRETS_MODE', () => {
     const workflows = join(w.dir, '.github', 'workflows')
     mkdirSync(workflows, { recursive: true })
     writeFileSync(

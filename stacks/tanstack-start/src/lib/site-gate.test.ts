@@ -70,7 +70,7 @@ describe('the password gate', () => {
     }
   })
 
-  it('lets CI through with the x-site-password header, never Authorization', async () => {
+  it('lets the smoke test through with the x-site-password header, never Authorization', async () => {
     expect(GATE_HEADER).toBe('x-site-password')
     expect(await call('/', { headers: { [GATE_HEADER]: PASSWORD } })).toBeNull()
     expect(await call('/api/v1/notes', { headers: { [GATE_HEADER]: PASSWORD } })).toBeNull()
