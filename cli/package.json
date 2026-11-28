@@ -19,13 +19,13 @@
   ],
   "author": "Jay Smigen",
   "license": "MIT",
-  "homepage": "https://github.com/jsmigendevelopment/onRails#readme",
+  "homepage": "https://github.com/jsmigendevelopment/onrails#readme",
   "bugs": {
-    "url": "https://github.com/jsmigendevelopment/onRails/issues"
+    "url": "https://github.com/jsmigendevelopment/onrails/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jsmigendevelopment/onRails.git",
+    "url": "git+https://github.com/jsmigendevelopment/onrails.git",
     "directory": "cli"
   },
   "type": "module",
