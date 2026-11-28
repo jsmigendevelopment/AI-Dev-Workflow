@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs'
 
 import { Generator, getConfig } from '@tanstack/router-generator'
 
+import { DRY, planEdit, refuseUnknownFlags, report } from './lib.ts'
+
 const TREE = './src/routeTree.gen.ts'
 
 /** The block Start's Vite plugin appends (its Register types), kept as it is in the file. */
@@ -28,4 +30,15 @@ export async function generateRoutes(root = process.cwd()) {
   await new Generator({ config, root }).run()
 }
 
-if (process.argv[1]?.endsWith('routes.ts')) await generateRoutes()
+/** The generators' step: regenerate the route tree, or under `--dry` note that it would change. */
+export async function refreshRouteTree() {
+  if (DRY) planEdit(TREE.replace(/^\.\//, ''))
+  else await generateRoutes()
+}
+
+// `pnpm routes:generate --dry` lists the file it would rewrite and writes nothing.
+if (process.argv[1]?.endsWith('routes.ts')) {
+  refuseUnknownFlags(['--dry'])
+  await refreshRouteTree()
+  if (DRY) report([], [])
+}

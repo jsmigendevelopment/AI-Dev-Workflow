@@ -9,6 +9,7 @@ import {
   kebab,
   migrate,
   positional,
+  refuseUnknownFlags,
   render,
   report,
   requireModule,
@@ -19,6 +20,7 @@ import {
   writeAll,
 } from './lib.ts'
 
+refuseUnknownFlags(['--dry'])
 const [mod, name] = positional(process.argv.slice(2))
 if (!mod || !name) fail('Usage: pnpm new:table <module> <name>   e.g. pnpm new:table tasks task-labels')
 const dir = requireModule(kebab(mod, 'The module'))

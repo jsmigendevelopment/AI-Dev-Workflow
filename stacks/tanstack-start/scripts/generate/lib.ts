@@ -39,14 +39,75 @@ export function singular(plural: string): string {
   )
 }
 
+// A word that starts like a flag: any dash (ASCII `-`, or a Unicode one such as an autocorrected
+// em dash `—dry`, en dash, minus sign U+2212), after any spaces and zero-width characters. An
+// empty or zero-width-only word counts too: it is never a name. Only a lone `--` is let through.
+const DASHES = /^[\s\p{Z}\p{Cf}]*(?:$|[\p{Pd}\u2212\u02d7\u2043\u30fc])/u
+const LOOKS_LIKE_DRY = /^[\s\p{Z}\p{Cf}\p{Pd}\u2212\u02d7\u2043\u30fc]*dry/iu
+
+/** The word as one visible line: spaces, controls and zero-width characters become \uXXXX. */
+function show(word: string): string {
+  if (!/[\p{Z}\p{C}\s]/u.test(word) && word !== '') return word
+  const text = [...word].map((c) =>
+    /[\p{Z}\p{C}\s]/u.test(c) ? `\\u${c.codePointAt(0)?.toString(16).padStart(4, '0')}` : c,
+  )
+  return `"${text.join('')}"`
+}
+
+/**
+ * Stops at once, before anything is read or written, on an argument this generator doesn't take.
+ * An ignored flag would still run for real: `--dry-run` (the kit CLI's own spelling), `--DRY`,
+ * `--no-dry`, `—dry` (an autocorrected dash) or `--plan` must never turn a planned run into a
+ * real one. Refused anywhere in the arguments, before or after the words:
+ *   - any `--flag` not in `known`, and any other word that starts with a dash (`-dry`, `-n`,
+ *     `—dry`, a Unicode dash, a space before the dash), and an empty or zero-width-only word;
+ *   - a value flag (`--item <singular>`) with no word after it, or a dash word after it.
+ * `known` lists the flags with their value word. `--item=x` is a different, unknown flag. A lone
+ * `--` is the usual end-of-options mark: it is ignored, and the words after it are taken as they
+ * are. Call it first, so no later step runs.
+ */
+export function refuseUnknownFlags(known: string[]) {
+  const names = known.map((k) => k.split(' ')[0])
+  const args = process.argv.slice(2)
+  for (const [i, word] of args.entries()) {
+    if (word === '--' || names.includes(word)) {
+      const spec = known.find((k) => k.split(' ')[0] === word && k.includes(' '))
+      const next = args[i + 1]
+      if (spec && (next === undefined || DASHES.test(next)))
+        fail(`${word} needs a word after it, like ${spec}.`)
+      continue
+    }
+    if (!DASHES.test(word)) continue
+    const bad = word.startsWith('--') ? word : show(word)
+    fail(
+      LOOKS_LIKE_DRY.test(word)
+        ? `Unknown flag ${bad}. Did you mean --dry?`
+        : `Unknown flag ${bad}. Known flags: ${known.join(', ')}.`,
+    )
+  }
+}
+
+/** `--dry`: every step below plans instead of acting; `report()` prints the plan. */
+export const DRY = process.argv.includes('--dry')
+const plan = { create: [] as string[], edit: [] as string[], run: [] as string[] }
+
+/** Notes a file an existing step would edit (under `--dry`, nothing is written). */
+export function planEdit(path: string) {
+  if (!plan.edit.includes(path)) plan.edit.push(path)
+}
+
 /** `--flag value` from the command line. */
 export function option(args: string[], flag: string): string | undefined {
   const at = args.indexOf(flag)
   return at === -1 ? undefined : args[at + 1]
 }
 
+// Flags that take the next word as their value. Every other `--flag` stands alone, so
+// `--dry tasks` and `tasks --dry` both leave `tasks` as the word.
+const VALUE_FLAGS = new Set(['--item'])
+
 export function positional(args: string[]): string[] {
-  return args.filter((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--'))
+  return args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.has(args[i - 1] ?? ''))
 }
 
 export type Tokens = Record<string, string>
@@ -112,6 +173,10 @@ export function tableTokens(withIndex: boolean): Tokens {
 export function writeAll(files: [string, string][]): string[] {
   const taken = files.filter(([path]) => existsSync(path)).map(([path]) => path)
   if (taken.length) fail(`Already there, nothing written:\n  ${taken.join('\n  ')}`)
+  if (DRY) {
+    plan.create.push(...files.map(([path]) => path))
+    return files.map(([path]) => path)
+  }
   for (const [path, text] of files) {
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, text)
@@ -124,6 +189,10 @@ export function edit(path: string, change: (text: string) => string) {
   const before = readFileSync(path, 'utf8')
   const after = change(before)
   if (after === before) fail(`Could not update ${path}: its shape changed. Add the lines by hand.`)
+  if (DRY) {
+    planEdit(path)
+    return
+  }
   writeFileSync(path, after)
 }
 
@@ -132,6 +201,10 @@ const pnpm = (args: string[]) =>
 
 /** Formats the new files and applies lint's own fixes (import order), so `pnpm check` passes. */
 export function tidy(paths: string[]) {
+  if (DRY) {
+    plan.run.push(`eslint --fix and prettier --write on ${paths.length} file(s)`)
+    return
+  }
   const code = paths.filter((p) => /\.(ts|tsx)$/.test(p))
   if (code.length) pnpm(['exec', 'eslint', '--fix', ...code])
   pnpm(['exec', 'prettier', '--write', '--log-level=warn', ...paths])
@@ -139,6 +212,10 @@ export function tidy(paths: string[]) {
 
 /** Writes the SQL migration for changed tables (drizzle-kit), named after what was added. */
 export function migrate(name: string) {
+  if (DRY) {
+    plan.run.push(`drizzle-kit generate --name ${name} (adds a SQL file to migrations/)`)
+    return
+  }
   pnpm(['exec', 'drizzle-kit', 'generate', '--name', name])
 }
 
@@ -152,8 +229,18 @@ export function requireModule(mod: string): string {
   return dir
 }
 
-/** Prints what was made and what to do next. */
+/** Prints what was made and what to do next, or under `--dry` what would be. */
 export function report(paths: string[], next: string[]) {
+  if (DRY) return reportPlan()
   console.log(`\nCreated or changed:\n  ${paths.join('\n  ')}`)
   if (next.length) console.log(`\nNext:\n  ${next.join('\n  ')}`)
+}
+
+function reportPlan() {
+  const list = (heading: string, items: string[]) =>
+    items.length ? `\n${heading}:\n  ${items.join('\n  ')}\n` : ''
+  console.log(
+    `Dry run: nothing was written.\n${list('Would create', plan.create)}${list('Would edit', plan.edit)}${list('Would run', plan.run)}` +
+      '\nRun it again without --dry to make these.',
+  )
 }
