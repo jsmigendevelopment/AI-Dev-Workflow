@@ -1,0 +1,38 @@
+{
+  "schema": "research-provenance/1",
+  "dossier": "go-api-toolchain.md",
+  "stores": [
+    "desk"
+  ],
+  "roles": [
+    {
+      "role": "author",
+      "requested": {
+        "model": "claude-sonnet-5-5",
+        "effort": "high"
+      },
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "harness": "Claude Code (version not shown to the session), cloud session, subagent builder started by the coordinator",
+      "started": "2026-11-28",
+      "finished": "2026-11-28",
+      "brief": "briefs/author.md",
+      "notes": "The model ID is the one the system prompt reports. The effort is the one the preflight row reports ('effort high'); the session shows no named effort level of its own. The research skill asks for the strongest tier; the owner's standing instruction that worker agents run Sonnet 5.5 at high effort was followed instead. The author did all the reading and ran every experiment itself, with no helper."
+    },
+    {
+      "role": "fact-check",
+      "requested": {
+        "model": "claude-sonnet-5-5",
+        "effort": "high"
+      },
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "harness": "Claude Code (version not shown to the session), cloud session, the author's own session in a separate pass",
+      "started": "2026-11-28",
+      "finished": "2026-11-28",
+      "brief": "briefs/fact-check.md",
+      "disposition": "fact-check.csv",
+      "notes": "Not a fresh session. The fresh-session fact-check (AC-342-4) could not start: it reads the branch from the remote, and commits are blocked because the container's signing helper (/tmp/code-sign) was deleted at about 05:55 UTC, so nothing is pushed. The coordinator told the author to stage and stop. This row is the author's own pass: it re-opened the pages behind the riskiest claims and re-queried the registries. The dossier stays draft until the fresh pass runs and its rows are added to fact-check.csv."
+    }
+  ]
+}
