@@ -20,7 +20,7 @@
 // (the coordinator's main): job=size-check, the pull request (null for a local diff), the head sha, the counted lines,
 // outcome pass, or fail with send_back=size. The count on it is this script's own. A count that can't be recorded is exit 2.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,11 +56,18 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const UNSAFE_ENV = /TOKEN|SECRET|PASSWORD|API_KEY|^GIT_|^GH_|^GITHUB_/i;
 const SAFE_GIT = ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "core.attributesFile=/dev/null", "-c", "core.ignorecase=false"];
 
+// The one folder every isolated call names safe.directory (#432): without the global config, a safe.directory listed
+// there (a dev container's mounted folder, owned by another user) is ignored, and every call fails on ownership. Only
+// this folder is trusted, never `*`. `checkout` is the checkout git reports once it is asked.
+let trusted;
+let checkout;
+
 /** git with SAFE_GIT, no token, and no global or system config or attributes. Its output as text; throws when it fails.
  * `env` adds variables after the unsafe ones are dropped. */
 function git(args, { cwd, input, env: extra = {} } = {}) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !UNSAFE_ENV.test(name)));
-  const r = spawnSync("git", [...SAFE_GIT, ...args], {
+  const safe = trusted ? ["-c", `safe.directory=${trusted}`] : [];
+  const r = spawnSync("git", [...SAFE_GIT, ...safe, ...args], {
     cwd, input, encoding: "utf8", maxBuffer: 256 * 1024 * 1024,
     // GIT_CONFIG_NOSYSTEM doesn't cover $(prefix)/etc/gitattributes, which the user owns under Homebrew.
     env: { ...env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_ATTR_NOSYSTEM: "1", ...extra },
@@ -69,7 +76,24 @@ function git(args, { cwd, input, env: extra = {} } = {}) {
   return r.stdout;
 }
 
-const checkoutRoot = () => git(["rev-parse", "--show-toplevel"], { cwd: HERE }).trim();
+/** The folder above this script that holds a `.git` (a folder, or the file of a linked worktree), found without git,
+ * which can't open a checkout owned by another user until it is told to trust it. Undefined when there is none. */
+function folderWithDotGit() {
+  for (let dir = realpathSync(HERE); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, ".git"))) return dir;
+    if (dirname(dir) === dir) return undefined;
+  }
+}
+
+/** The checkout that holds this script, as git reports it. The first ask trusts only the folder found above. */
+function checkoutRoot() {
+  if (!checkout) {
+    trusted = folderWithDotGit();
+    checkout = git(["rev-parse", "--show-toplevel"], { cwd: HERE }).trim();
+    trusted = checkout;
+  }
+  return checkout;
+}
 
 /** The committed .gitattributes files, { path: text }, at `tree` (main's HEAD, or a base commit) in the checkout that
  * holds this script. */

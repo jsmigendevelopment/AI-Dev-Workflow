@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "./child.mjs";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fakeGh, safeEnv, tmp, unixOnly } from "./helpers.mjs";
@@ -282,4 +282,51 @@ test("#377 round 2, nice items 3 and 4: only data types count as fixtures, under
   const skipped = size({ files: [...data.map((name) => [name, 300, 0]), ["src/a.ts", 10, 0]] });
   assert.equal(skipped.status, 0, skipped.stderr);
   assert.match(skipped.stdout, /#9: 10 changed lines counted, 2100 not counted/);
+});
+
+/** pr-size.mjs --base main in a checkout git takes for another user's, as a dev container's mounted folder is. A fake
+ * git (first on PATH) sets git's own GIT_TEST_ASSUME_DIFFERENT_OWNER for calls made inside the checkout, so git's real
+ * ownership check runs without chown or root. The operator's global config marks the checkout safe, and pr-size.mjs
+ * must trust it itself, as it drops that config. The fake logs each call as "<folder>\t<arguments>". */
+function otherOwner(files) {
+  const dir = checkout();
+  commitBranch(dir, files);
+  const root = realpathSync(dir);
+  const fakes = tmp("onrails-owner-");
+  const home = join(fakes, "home");
+  mkdirSync(join(home, ".config"), { recursive: true });
+  writeFileSync(join(home, ".gitconfig"), `[safe]\n\tdirectory = ${root}\n`);
+  mkdirSync(join(fakes, "bin"));
+  writeFileSync(join(fakes, "bin", "git"), `#!/bin/sh
+printf '%s\\t%s\\n' "$PWD" "$*" >> "$FAKE_GIT_LOG"
+case "$PWD" in "$OTHER_OWNER"|"$OTHER_OWNER"/*) GIT_TEST_ASSUME_DIFFERENT_OWNER=1; export GIT_TEST_ASSUME_DIFFERENT_OWNER;; esac
+exec "$REAL_GIT" "$@"
+`);
+  chmodSync(join(fakes, "bin", "git"), 0o755);
+  const log = join(fakes, "git.log");
+  const env = safeEnv({ HOME: home, XDG_CONFIG_HOME: join(home, ".config"), OTHER_OWNER: root, FAKE_GIT_LOG: log, REAL_GIT: join(git(fakes, "--exec-path").trim(), "git") }, { bins: [join(fakes, "bin")] });
+  const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), "--base", "main"], { cwd: dir, encoding: "utf8", env });
+  const calls = existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean).map((line) => line.split("\t")) : [];
+  const control = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: dir, encoding: "utf8", env: { ...env, GIT_CONFIG_GLOBAL: "/dev/null" } });
+  return { ...r, root, calls, control };
+}
+
+test("AC-432-1: WHEN the checkout is owned by another user and the global config marks it safe THEN pr-size.mjs --base origin/main runs and counts", unixOnly, () => {
+  const r = otherOwner({ "src/a.ts": lines(30) });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /dubious ownership/);
+  assert.match(r.stdout, /HEAD against main: 30 changed lines counted, 0 not counted/);
+  // The control: git as pr-size.mjs ran it before (no global config, no trust) refuses this checkout, as the fake owner means it to.
+  assert.match(r.control.stderr, /dubious ownership/);
+});
+
+test("#432: only the checkout's own root is trusted, never a wildcard, and the global config stays dropped", unixOnly, () => {
+  const r = otherOwner({ "src/a.ts": lines(30) });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.calls[0][1], /rev-parse --show-toplevel$/, "the first call finds the root");
+  assert.ok(r.calls.length > 1);
+  for (const [, args] of r.calls) {
+    const named = [...args.matchAll(/safe\.directory=(\S*)/g)].map((m) => m[1]);
+    assert.deepEqual(named, [r.root], `git ${args}`);
+  }
 });
