@@ -24,3 +24,34 @@ test("AC-394-1: WHEN an agent reads pr-review, the code-style guide or the READM
     assert.match(text, /the `size-exception` label and a `Size exception: <reason>` line/, `${path} names the exception`);
   }
 });
+
+// #416: issues step 3 (the fallback for a plan with no steps table) splits where step 6 does,
+// and the size docs name the command that gives the real count.
+const step3 = (text) => text.match(/^3\. \*\*One issue per step:\*\*.*$/m)?.[0] ?? "";
+const sizeLine = (text) => text.match(/^.*\*\*Size of the change:\*\*.*$/m)?.[0] ?? "";
+const rule13 = (text) => text.match(/^### 13\. Small pull requests\n\n(.*)$/m)?.[1] ?? "";
+
+test("AC-416-1: WHEN issues step 3 is read THEN it names the 1,000 split line and no 400-line split rule", () => {
+  for (const path of [".agents/skills/issues/SKILL.md", ".claude/skills/issues/SKILL.md"]) {
+    const step = step3(read(path));
+    assert.ok(step, `${path} has no step 3`);
+    assert.match(step, /split at 1,000 or more/, `${path} step 3 names the 1,000 split line`);
+    assert.doesNotMatch(step, /split[^.?]*\b400\b/i, `${path} step 3 splits at 400`);
+  }
+});
+
+test("AC-416-2: WHEN pr-review's size line or rule 13 is read THEN it names the pr-size.mjs command", () => {
+  const command = "check with `node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main`";
+  const lines = [
+    [".agents/skills/pr-review/SKILL.md", sizeLine],
+    [".claude/skills/pr-review/SKILL.md", sizeLine],
+    ["guide/code-style.md", rule13],
+    [".agents/skills/build/references/code-style.md", rule13],
+    [".claude/skills/build/references/code-style.md", rule13],
+  ];
+  for (const [path, pick] of lines) {
+    const line = pick(read(path));
+    assert.ok(line, `${path} has no size line`);
+    assert.ok(line.includes(command), `${path} names the pr-size command`);
+  }
+});
