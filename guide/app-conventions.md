@@ -6,6 +6,8 @@ How the owner builds apps. These hold from day one, in every app the kit starts.
 
 The examples name the default web stack (TanStack Start, TanStack Query, TanStack Router, Drizzle, Cloudflare). Another stack keeps the rule and swaps the library. Where a pick says "(until research confirms)", it's the mainstream choice and a `research` dossier may change it.
 
+The app has a Go backend? The server-side sections (5, 8, 10 to 16 and 18) have a Go version in [app-conventions-go.md](app-conventions-go.md), numbered the same.
+
 Joining a repo that already does some of this its own way? The `join` skill lists each clash and the person picks. Never switch a repo to these conventions silently.
 
 ## 1. Rule of three for UI
