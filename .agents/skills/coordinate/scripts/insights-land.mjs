@@ -34,11 +34,13 @@ const OPTS = { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
 const LABELS = ["no-issue", "size-exception"];
 const SIZE_LINE = "Size exception: insights records only, each checked by land --verify";
 
-// What every git call here drops, as carry's fetch does (decision 333-2): the variables that move the repository, and
-// config given through the environment. A hook exports GIT_DIR and GIT_INDEX_FILE, which would point land's reads,
-// commit, push and staging at another repository or index (#422). HOME, the config files it names, tokens and
-// transport variables stay: the push's login lives there.
-const MOVES_REPO = /^GIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE|CEILING_DIRECTORIES|COMMON_DIR|CONFIG_PARAMETERS|CONFIG_COUNT|CONFIG_KEY_\d+|CONFIG_VALUE_\d+)$/;
+// What every git call here drops: the variables that move the repository, and GIT_CONFIG_PARAMETERS, which `git -c`
+// hands down. A hook exports GIT_DIR and GIT_INDEX_FILE, which would point land's reads, commit, push and staging at
+// another repository or index (#422). Land is not carry's fetch (decision 333-2, which also drops GIT_CONFIG_GLOBAL,
+// GIT_CONFIG_SYSTEM and GIT_CONFIG_NOSYSTEM and passes -c flags): land keeps every config file, and GIT_CONFIG_COUNT with
+// its KEY_n and VALUE_n, so a url insteadOf rewrite an environment sets git up with still reaches the fetch and the push
+// (#450, decision 422-1). HOME, tokens and transport variables stay too: the push's login lives there.
+const MOVES_REPO = /^GIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE|CEILING_DIRECTORIES|COMMON_DIR|CONFIG_PARAMETERS)$/;
 /** The env for land's git: no repository-moving variable, and a missing login fails at once instead of prompting. */
 const gitEnv = () => ({ ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !MOVES_REPO.test(name))), GIT_TERMINAL_PROMPT: "0" });
 
@@ -47,6 +49,12 @@ export const git = (root, args, { env = gitEnv(), bytes = false } = {}) => {
   const out = execFileSync("git", args, { ...OPTS, cwd: root, env, encoding: bytes ? "buffer" : "utf8" });
   return bytes ? out : out.trim();
 };
+/**
+ * The checkout that holds `dir`, found with land's own env (gitEnv), so a GIT_DIR or GIT_WORK_TREE that names another
+ * clone can't move land, or any command that finds its checkout here, off the folder it was started in (#450). The
+ * global config stays, so a safe.directory kept there still works. Throws when `dir` isn't in a checkout.
+ */
+export const checkoutAt = (dir) => git(dir, ["rev-parse", "--show-toplevel"]);
 const warn = (message) => process.stderr.write(`insights: ${message}\n`);
 
 /** A record's file text, exactly as the writer and harvest write it. */
@@ -93,7 +101,7 @@ function notRecordsPull(pull, me) {
 
 /** Fetches the pull request's branch and returns its head, which must be the sha GitHub gave. */
 function fetchHead(root, pull) {
-  git(root, ["fetch", "-q", "origin", `refs/heads/${pull.head.ref}`]);
+  git(root, ["fetch", "-q", "--no-tags", "origin", `refs/heads/${pull.head.ref}`]);
   const sha = git(root, ["rev-parse", "FETCH_HEAD"]);
   if (sha !== pull.head.sha) throw new Error(`#${pull.number}'s head moved: GitHub says ${pull.head.sha}, origin has ${sha}. Run it again.`);
   return sha;
@@ -139,13 +147,13 @@ function grow(root, pull, files) {
   const sha = fetchHead(root, pull);
   const has = new Set(git(root, ["ls-tree", "-r", "--name-only", sha, "--", "docs/insights"]).split("\n"));
   const missing = files.filter((f) => !has.has(f));
-  if (missing.length) git(root, ["push", "-q", "origin", `${commitOn(root, sha, missing)}:refs/heads/${pull.head.ref}`]);
+  if (missing.length) git(root, ["push", "-q", "--no-follow-tags", "origin", `${commitOn(root, sha, missing)}:refs/heads/${pull.head.ref}`]);
 }
 
 function openNew(root, repo, files) {
   const iso = new Date(process.env.ONRAILS_NOW || Date.now()).toISOString();
   const branch = `chore/insights-${iso.slice(0, 10)}-${iso.slice(11, 13)}${iso.slice(14, 16)}`;
-  git(root, ["push", "-q", "origin", `${commitOn(root, MAIN, files)}:refs/heads/${branch}`]);
+  git(root, ["push", "-q", "--no-follow-tags", "origin", `${commitOn(root, MAIN, files)}:refs/heads/${branch}`]);
   const body = [
     `Records only, from \`insights.mjs land\`: ${files.length} file(s) under docs/insights/. Its review is \`insights.mjs land --verify\` (decision 332-1).`,
     "",
@@ -223,7 +231,7 @@ export function land(root, args) {
   const origin = /github\.com[:/]+([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(git(root, ["remote", "get-url", "origin"]))?.[1];
   const repo = flag("--repo") ?? origin;
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo ?? "")) throw new Error("pass --repo <owner>/<name>: origin isn't a GitHub URL");
-  git(root, ["fetch", "-q", "origin", `+refs/heads/${BASE}:${MAIN}`]);
+  git(root, ["fetch", "-q", "--no-tags", "origin", `+refs/heads/${BASE}:${MAIN}`]);
   if (args.includes("--verify")) verify(root, repo, flag("--verify"));
   else open(root, repo);
 }

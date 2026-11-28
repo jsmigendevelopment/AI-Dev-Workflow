@@ -74,8 +74,10 @@ export function save(root, record) {
 const UNSAFE_ENV = /TOKEN|SECRET|PASSWORD|API_KEY|^GIT_|^GH_|^GITHUB_/i;
 const SAFE_GIT = ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "core.attributesFile=/dev/null"];
 const SIGNALS = { SIGHUP: 1, SIGINT: 2, SIGTERM: 15 };
-// What the fetch drops: the variables that move the repository, and config given through the environment.
-const MOVES_REPO = /^GIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE|CEILING_DIRECTORIES|COMMON_DIR|CONFIG.*)$/;
+// What the fetch drops: the variables that move the repository, the config files the environment names and
+// GIT_CONFIG_PARAMETERS (what `git -c` hands down). GIT_CONFIG_COUNT with its KEY_n and VALUE_n stay, so a url insteadOf
+// rewrite an environment sets git up with still reaches the fetch (#450).
+const MOVES_REPO = /^GIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE|CEILING_DIRECTORIES|COMMON_DIR|CONFIG_(PARAMETERS|GLOBAL|SYSTEM|NOSYSTEM))$/;
 
 // The checkout carry runs in. The isolated calls name it safe.directory: without the global config, a safe.directory
 // listed there (a dev container's mounted folder) would be ignored and every call would fail on ownership.
