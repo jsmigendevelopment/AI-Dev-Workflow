@@ -17,7 +17,9 @@
 //       isn't on disk yet. Only comments by gh's own account, or an account listed as "login:id" under [insights]
 //       writers in docs/profile.toml, count, by the numeric user ID (#408): a comment whose login matches but whose ID
 //       doesn't is skipped and named. A line that fails validate, names another pull request or can't be a record
-//       file is skipped and named.
+//       file is skipped and named. A `check` line counts only from a comment that reports the run (#441): its first
+//       line is `Checks: pass|fail @ <sha>`, or `Code review: approve|request changes @ <sha>` with one such line
+//       later (the reviewer's verdict comment), the sha is the record's and pass or fail fits its state.
 //       A record's id is a hash of it, so a rerun writes nothing; a different file on that name is named and kept.
 //   land [--verify <pr>] [--repo <owner>/<name>]   lands the records on main: insights-land.mjs says how.
 // harvest and land exit 2 on a usage, git or API error.
@@ -186,10 +188,38 @@ function keep(root, record) {
   return { path: join(root, rel) };
 }
 
-/** Why a parsed, valid record from #pr's comments can't be kept, or what keep() says. */
-function harvestOne(root, record, pr) {
+// The two comments that report a run (#441). The merge helper's starts with the verdict. The reviewer's one verdict
+// comment starts with `Code review: ...` and holds the verdict at the start of a later line (pr-review, "Verdict").
+const VERDICT = /^Checks: (pass|fail) @ ([0-9a-f]{40})\s*$/;
+const REVIEWED = /^Code review: (?:approve|request changes) @ ([0-9a-f]{40})\s*$/;
+
+/**
+ * Why a `check` record can't come from this comment, or null (#441). Builders, reviewers and the coordinator post as
+ * one login, so the comment itself must say it reports the run: its verdict names the record's sha, and pass or fail
+ * agrees with the record's state. A stray line elsewhere can't stand in for the run (#417).
+ */
+function checkProblem(body, record) {
+  const lines = body.split(/\r?\n/);
+  let verdict = VERDICT.exec(lines[0]);
+  if (!verdict) {
+    const reviewed = REVIEWED.exec(lines[0]);
+    if (!reviewed) return "its comment doesn't start with `Checks: pass|fail @ <sha>` or `Code review: approve|request changes @ <sha>`";
+    if (reviewed[1] !== record.sha) return `the comment reviews ${reviewed[1]}, not the record's ${record.sha}`;
+    const found = lines.map((l) => VERDICT.exec(l)).filter(Boolean);
+    if (found.length > 1) return "the comment has two or more Checks: lines, so which one covers this run is unclear";
+    if (!found.length) return "the comment has no `Checks: pass|fail @ <sha>` line at the start of a line";
+    [verdict] = found;
+  }
+  if (verdict[2] !== record.sha) return `its Checks: line names ${verdict[2]}, not the record's ${record.sha}`;
+  const state = verdict[1] === "pass" ? "success" : "failure";
+  return record.state === state ? null : `Checks: ${verdict[1]} doesn't match the record's state ${record.state}`;
+}
+
+/** Why a parsed, valid record from #pr's comment `body` can't be kept, or what keep() says. */
+function harvestOne(root, record, pr, body) {
   if (record.pr != null && record.pr !== Number(pr)) return { why: `pr: ${record.pr} isn't #${pr}` };
-  return keep(root, record);
+  const problem = record.kind === "check" ? checkProblem(body, record) : null;
+  return problem ? { why: `check line: ${problem}` } : keep(root, record);
 }
 
 function harvest(args) {
@@ -212,7 +242,7 @@ function harvest(args) {
     if (opened > lines.length) warn(`skipped ${opened - lines.length} insights line(s) in comment ${c.id} by ${login}: opened but never closed with --> on the same line`);
     for (const [line, json] of lines) {
       const record = parseLine(line);
-      const kept = record ? harvestOne(root, record, pr) : { why: lineProblem(json) };
+      const kept = record ? harvestOne(root, record, pr, body) : { why: lineProblem(json) };
       if (kept.why) warn(`skipped a line in comment ${c.id} by ${login}: ${kept.why}`);
       if (kept.path) process.stdout.write(`${kept.path}\n`);
     }
