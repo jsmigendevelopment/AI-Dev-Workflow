@@ -1,0 +1,52 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T11:26:42.174Z",
+  "issue": 451,
+  "pr": 607,
+  "sha": "5c4835b05d06b0d19bdf765472e09759bbfb0c65",
+  "job": null,
+  "tool": null,
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "model_from": "effort level not shown in this session",
+  "state": "success",
+  "fence": "none",
+  "commands": [
+    {
+      "name": "sync-skills --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "npm-readme --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cli npm run bundle",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cli npm test",
+      "result": "pass",
+      "seconds": 132
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 74
+    },
+    {
+      "name": "evals run --dry-run",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "pr-size",
+      "result": "pass",
+      "seconds": 0
+    }
+  ]
+}

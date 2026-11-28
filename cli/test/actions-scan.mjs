@@ -9,9 +9,10 @@ const HIT = /workflow|github actions|\bCI\b|\bgh run\b|required status checks?|A
 // Names that hold the word but aren't GitHub Actions: Lighthouse CI (`pnpm lhci`, run locally), npm's clean install, a
 // tool's `--ci` flag, the profile's `[workflow]` table, this kit ("a repo that uses this workflow", its old name),
 // Cloudflare's and Expo's own Workflows products, the Claude Code Workflow tool, the TanStack pack's Access service
-// token (named `<worker> CI`, built in code as `${worker} CI`, and its policy `CI service token`), the title of the GitHub page `dependencies` cites, and an existing repo's own CI config
-// in `join`'s two forms only, read as data for the commands it runs locally (the text AC-173-3 pins). Removed from the
-// whole line before it is split, so a form can name what follows its comma or bracket.
+// token (named `<worker> CI`, built in code as `${worker} CI`, and its policy `CI service token`), the title of the
+// GitHub page `dependencies` cites, and an existing repo's own CI config in `join`'s two forms only, read as data for
+// the commands it runs locally (the text AC-173-3 pins). Removed from the whole line before it is split, so a form can
+// name what follows its comma or bracket.
 const NOT_ACTIONS = /Lighthouse CI|\bnpm ci\b|--ci\b|\[workflow\]|\b(?:this|the onRails|the kit's) workflow\b|ai-dev-workflow|Cloudflare Workflows|Expo Workflows|\bor Workflows\b|Workflow tool|`<worker> CI`|^… CI$|\bCI service token\b|"About Dependabot on GitHub Actions runners"|\bwhat its CI config(?= runs, run locally\b)|\bany CI config(?= \(data: )/gi;
 // A negation word. "Instead" counts only as "instead of", which starts its own clause: a bare "instead" at the end
 // means "use this one".
@@ -95,8 +96,11 @@ export function badMentions(text) {
   const out = [];
   for (const { line, never, optIn } of withSections(text)) {
     if (never || optIn) continue;
+    // A merge ban carries past a colon into the sentence it opens: "Don't merge: CI hasn't finished." (#451).
+    let afterColon = false;
     for (const sentence of sentences(line.replace(URL_TEXT, "").replace(NOT_ACTIONS, ""))) {
-      const mergeBan = sentence.search(MERGE_BAN) >= 0;
+      const mergeBan = afterColon || sentence.search(MERGE_BAN) >= 0;
+      afterColon = mergeBan && sentence.endsWith(":");
       for (const c of clauses(sentence)) {
         const hit = HIT.exec(c);
         if (!hit) continue;
@@ -230,11 +234,51 @@ function scriptText(src) {
   return pieces;
 }
 
-/** The `#` comments and quoted strings of YAML or TOML, one piece each. A run of comment lines is one piece. */
-function hashText(src) {
+const indentOf = (line) => /^\s*/.exec(line)[0].length;
+// What a YAML line holds after its `- ` marks and its `key:`. The value is `[\s\S]*`, not `.*`: a stray `\r` or U+2028
+// in a line (the split is on `\n`) must still match, or `exec` returns null.
+const YAML_VALUE = /^\s*(?:-\s+)*(?:(?:"[^"]*"|'[^']*'|[^\s#'"[{][^#]*?):(?:\s+|$))?([\s\S]*)$/;
+const BLOCK_HEADER = /^[|>][+-]?\d?[+-]?$/;
+
+/**
+ * The plain or block value a YAML line holds: `{ text }` for a plain one, `{ block }` (`|` or `>`) for a block scalar,
+ * and null for none. A quoted or flow value is read by the quote scan instead.
+ */
+function yamlValue(line) {
+  const value = YAML_VALUE.exec(line)[1].replace(/(?:^|\s)#.*$/, "").trim();
+  if (BLOCK_HEADER.test(value)) return { block: value[0] };
+  return !value || /^["'[{&*!%@`]/.test(value) ? null : { text: value };
+}
+
+/**
+ * Reads the value on lines[n] and the lines under it (#451): a block scalar runs over every deeper line, a plain one
+ * over the deeper non-blank lines that continue it. A `|` block keeps its lines apart, since they are a script's; a `>`
+ * block and a plain value join a wrapped line. Returns the last line used.
+ */
+function readYamlValue(lines, n, pieces) {
+  const value = yamlValue(lines[n]);
+  if (!value) return n;
+  const lead = indentOf(lines[n]);
+  const deeper = (l) => indentOf(l) > lead && (value.block ? true : !/^\s*#/.test(l));
+  const body = [];
+  let end = n;
+  while (end + 1 < lines.length && (lines[end + 1].trim() ? deeper(lines[end + 1]) : value.block)) body.push(lines[++end].trim());
+  if (value.block === "|") pieces.push(body.join("\n"));
+  else pieces.push(unwrap(value.block ? body : [value.text, ...body]));
+  return end;
+}
+
+/**
+ * The `#` comments and quoted strings of YAML or TOML, one piece each, and for YAML its plain and block values. A run
+ * of comment lines is one piece.
+ */
+function hashText(src, yaml) {
   const pieces = [];
   let run = [];
-  for (const line of src.split("\n")) {
+  // A CRLF file reads like its LF twin.
+  const lines = src.split(/\r?\n/);
+  for (let n = 0; n < lines.length; n++) {
+    const line = lines[n];
     if (/^\s*#/.test(line)) {
       run.push(line.replace(/^\s*#/, ""));
       continue;
@@ -257,23 +301,27 @@ function hashText(src) {
         break;
       } else if ((c === '"' || c === "'") && (i === 0 || /[\s:[{,=]/.test(line[i - 1]))) quote = c;
     }
+    if (yaml) n = readYamlValue(lines, n, pieces);
   }
   if (run.length) pieces.push(unwrap(run));
   return pieces;
 }
 
 /**
- * The comments and string literals of a code file at path, never its code (#387). A string with no space in it is a
- * name, a key, a path or a flag, so it isn't read either: `ci`, `CI_ACTIONS` and `.github/workflows/` are code.
+ * The comments and string literals of a code file at path, never its code (#387), and the plain and block values of a
+ * YAML file (#451). A string with no space in it is a name, a key, a path or a flag, so it isn't read either: `ci`,
+ * `CI_ACTIONS` and `.github/workflows/` are code.
  */
-export function codeText(source, path) {
-  const pieces = /\.(?:ya?ml|toml)$/.test(path) ? hashText(source) : scriptText(source);
+function codeText(source, path) {
+  const pieces = /\.(?:ya?ml|toml)$/.test(path) ? hashText(source, /\.ya?ml$/.test(path)) : scriptText(source);
   return pieces.filter((p) => /\S\s+\S/.test(p));
 }
 
-// In code text, a lowercase `ci` is the docs/stack.md key or part of a file name (`ci-mode.ts`), never the service.
-// `ci = "actions"` and `ci = "local"` stay, since they say which mode a line runs on.
-const CI_KEY = /\bci\b(?! = "(?:actions|local)")/g;
+// In code text, a lowercase `ci` is the docs/stack.md key or part of a file name, never the service: a backticked `ci`,
+// a hyphenated name (`ci-mode.ts`, `preflight-ci.mjs`) or a quoted value of the key (`ci = "…"`, `ci = "actions-later"`).
+// Any other lowercase `ci` ("// wait for ci", "// wait for ci = done") is read. `ci = "actions"` and `ci = "local"`
+// stay, since they say which mode a line runs on (#451).
+const CI_KEY = /(?:(?<=[`-])ci\b|\bci(?=-)|\bci(?= = "))(?! = "(?:actions|local)")/g;
 // A message's plural mark, as in `file(s)`, opens no clause.
 const PLURAL = /\(s\)/g;
 
