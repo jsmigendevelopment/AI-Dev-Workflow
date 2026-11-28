@@ -119,3 +119,27 @@ test("AC-515-2: WHEN a child process crashes with no output THEN the AC-435-1 te
   const crashed = { stdout: "", stderr: "boom", status: 1, signal: null };
   assert.throws(() => childResult(crashed, "analytics, glob"), /analytics, glob: .*printed nothing/);
 });
+
+test("AC-515-3: WHEN a step creates `docs/seed.ts` or `migrations/meta/x.ts` THEN the lint step must lint it, as ESLint does not skip them", () => {
+  for (const name of NAMES) {
+    for (const path of ["docs/seed.ts", "migrations/meta/x.ts"]) {
+      const created = afterStep(`7. Create \`${path}\`: the seed.`);
+      assert.throws(() => addonLint(name, { edit: created }).assertScoped([]), new RegExp(`${path.replace(".", "\\.")} is linted`), `${name}: ${path} is seen as touched`);
+      const both = (apply) => created(apply).replace(/^(\s*pnpm exec (?:eslint --fix|prettier --write) .*?)( &&)?$/gm, `$1 ${path}$2`);
+      assert.doesNotThrow(() => addonLint(name, { edit: both }).assertScoped([]), `${name}: passes once both lines name ${path}`);
+    }
+  }
+});
+
+test("AC-515-3: WHEN a step names `docs/stack.md` or a `.json` file under migrations/meta THEN the lint step need not list it", () => {
+  for (const name of NAMES) {
+    for (const path of ["docs/stack.md", "migrations/meta/_journal.json"]) {
+      const edit = afterStep(`7. Create \`${path}\`: the file.`);
+      assert.doesNotThrow(() => addonLint(name, { edit }).assertScoped([]), `${name}: ${path} is skipped where the pack skips it`);
+    }
+    // Prettier skips docs/ and migrations/meta/ but ESLint does not: the ESLint line alone covers a .ts file there.
+    const seed = afterStep("7. Create `docs/seed.ts`: the seed.");
+    const eslintOnly = (apply) => seed(apply).replace(/^(\s*pnpm exec eslint --fix .*?)( &&)?$/m, "$1 docs/seed.ts$2");
+    assert.doesNotThrow(() => addonLint(name, { edit: eslintOnly }).assertScoped([]), `${name}: docs/seed.ts needs no Prettier line`);
+  }
+});
