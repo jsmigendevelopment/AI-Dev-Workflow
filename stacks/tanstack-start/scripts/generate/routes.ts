@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 
 import { Generator, getConfig } from '@tanstack/router-generator'
 
-import { DRY, planEdit, report } from './lib.ts'
+import { DRY, planEdit, refuseUnknownFlags, report } from './lib.ts'
 
 const TREE = './src/routeTree.gen.ts'
 
@@ -38,6 +38,7 @@ export async function refreshRouteTree() {
 
 // `pnpm routes:generate --dry` lists the file it would rewrite and writes nothing.
 if (process.argv[1]?.endsWith('routes.ts')) {
+  refuseUnknownFlags(['--dry'])
   await refreshRouteTree()
   if (DRY) report([], [])
 }

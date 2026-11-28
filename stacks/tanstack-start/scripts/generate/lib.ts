@@ -39,12 +39,23 @@ export function singular(plural: string): string {
   )
 }
 
-// `--dry-run` is the kit CLI's own spelling (`onrails update --dry-run`), so a person may type it
-// here. Refuse it, its near-misses (`--dryrun`, `--dry_run`, `--dry-runs`), any `--dry=<value>` and
-// any other capitals (`--DRY`, `--Dry`) before anything else: ignored, they would really write.
-// Only the exact, lower-case `--dry` plans.
-const MISTYPED_DRY = process.argv.slice(2).find((a) => /^--dry([-_]?runs?)?(=|$)/i.test(a) && a !== '--dry')
-if (MISTYPED_DRY) fail(`Unknown flag ${MISTYPED_DRY}. Did you mean --dry?`)
+/**
+ * Stops at once, before anything is read or written, on any `--flag` this generator doesn't take.
+ * An ignored flag would still run for real: `--dry-run` (the kit CLI's own spelling), `--DRY`,
+ * `--no-dry` or `--plan` must never turn a planned run into a real one. `known` lists the flags
+ * with their value word, like `--item <singular>`. `--item=x` is a different, unknown flag.
+ * A lone `--` is not a flag. Call it first, so no later step runs.
+ */
+export function refuseUnknownFlags(known: string[]) {
+  const names = known.map((k) => k.split(' ')[0])
+  const flag = process.argv.slice(2).find((a) => a.startsWith('--') && a !== '--' && !names.includes(a))
+  if (!flag) return
+  fail(
+    /^--dry/i.test(flag)
+      ? `Unknown flag ${flag}. Did you mean --dry?`
+      : `Unknown flag ${flag}. Known flags: ${known.join(', ')}.`,
+  )
+}
 
 /** `--dry`: every step below plans instead of acting; `report()` prints the plan. */
 export const DRY = process.argv.includes('--dry')

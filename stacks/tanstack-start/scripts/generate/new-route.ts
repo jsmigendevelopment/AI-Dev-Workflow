@@ -1,10 +1,11 @@
 // `pnpm new:route <path> <module>`: a page at /<path> that renders a view of <module>.
 // Example: `pnpm new:route settings/profile accounts` → src/routes/settings/profile.tsx and, when
 // it doesn't exist yet, src/modules/accounts/ui/views/profile-view.tsx.
-import { kebab, positional, report, requireModule, tidy, writeAll } from './lib.ts'
+import { kebab, positional, refuseUnknownFlags, report, requireModule, tidy, writeAll } from './lib.ts'
 import { addToE2eRoutes, pageFiles } from './page.ts'
 import { refreshRouteTree } from './routes.ts'
 
+refuseUnknownFlags(['--dry'])
 const [path, mod] = positional(process.argv.slice(2))
 if (!path || !mod) {
   console.error('Usage: pnpm new:route <path> <module>   e.g. pnpm new:route settings/profile accounts')

@@ -1,130 +1,24 @@
-// `--dry` on every `pnpm new:*` generator (#710): it prints the plan and writes nothing. Each
-// generator runs in a scratch copy of the app's files, with a fake `pnpm` on PATH that only logs
-// its arguments, so ESLint, Prettier and drizzle-kit can never run (or be missed) here.
-import { spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+// `--dry` on every `pnpm new:*` generator (#710): it prints the plan and writes nothing. The
+// scratch-app harness is in harness.ts.
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+import { describe, expect, it } from 'vitest'
+
 import {
-  chmodSync,
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
-import { tmpdir } from 'node:os'
-import { dirname, join, relative } from 'node:path'
-
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-
+  DID_YOU_MEAN,
+  generate,
+  GENERATORS,
+  MOD,
+  realChanges,
+  scratch,
+  section,
+  snapshot,
+  withScratchApps,
+} from './harness.ts'
 import { positional } from './lib.ts'
 
-const PACK = join(import.meta.dirname, '../..')
-const MOD = 'dry-widgets'
-let root = ''
-let counter = 0
-
-/** Every directory and file under a folder, files with a hash of their bytes. */
-function snapshot(dir: string): string[] {
-  const walk = (folder: string): string[] =>
-    readdirSync(folder).flatMap((name) => {
-      const path = join(folder, name)
-      const rel = relative(dir, path)
-      if (statSync(path).isDirectory()) return [`dir ${rel}`, ...walk(path)]
-      return [`file ${rel} ${createHash('sha256').update(readFileSync(path)).digest('hex')}`]
-    })
-  return walk(dir).sort()
-}
-
-type Run = { status: number | null; stdout: string; stderr: string; pnpmCalls: string }
-
-/** Runs one generator script of the pack with the scratch folder as the app's root. */
-function generate(cwd: string, script: string, args: string[]): Run {
-  const log = join(root, `pnpm-${counter++}.log`)
-  const r = spawnSync(process.execPath, [join(PACK, 'scripts/generate', script), ...args], {
-    cwd,
-    encoding: 'utf8',
-    env: { ...process.env, PATH: `${join(root, 'bin')}:${process.env.PATH ?? ''}`, PNPM_LOG: log },
-  })
-  const pnpmCalls = existsSync(log) ? readFileSync(log, 'utf8') : ''
-  return { status: r.status, stdout: r.stdout, stderr: r.stderr, pnpmCalls }
-}
-
-/** A new scratch app: the files the generators touch, and optionally a generated module. */
-function scratch(withModule: boolean): string {
-  const dir = join(root, `app-${counter++}`)
-  cpSync(withModule ? join(root, 'base-with-module') : join(root, 'base'), dir, { recursive: true })
-  return dir
-}
-
-beforeAll(() => {
-  root = mkdtempSync(join(tmpdir(), 'generate-dry-'))
-  mkdirSync(join(root, 'bin'))
-  const fake = join(root, 'bin/pnpm')
-  writeFileSync(fake, '#!/bin/sh\necho "$@" >> "$PNPM_LOG"\n')
-  chmodSync(fake, 0o755)
-  // Only the files the generators read and edit, so the app's own modules and routes (which a
-  // person renames or deletes) never matter. Made-up `dry-` names can't be taken by an app.
-  const base = join(root, 'base')
-  for (const file of [
-    'src/routes/__root.tsx',
-    'src/routes/index.tsx',
-    'src/routeTree.gen.ts',
-    'src/server/composition.ts',
-    'e2e/helpers.ts',
-    'drizzle.config.ts',
-  ]) {
-    mkdirSync(dirname(join(base, file)), { recursive: true })
-    cpSync(join(PACK, file), join(base, file))
-  }
-  cpSync(base, join(root, 'base-with-module'), { recursive: true })
-  const withModule = join(root, 'base-with-module')
-  const made = generate(withModule, 'new-module.ts', [MOD])
-  if (made.status !== 0) throw new Error(`Could not make the scratch module: ${made.stderr}`)
-  mkdirSync(join(withModule, 'src/modules/bare/hooks'), { recursive: true })
-  writeFileSync(join(withModule, 'src/modules/bare/hooks/use-bare.ts'), '')
-}, 60_000)
-
-afterAll(() => {
-  if (root.startsWith(tmpdir())) rmSync(root, { recursive: true, force: true })
-})
-
-const section = (out: string, heading: string) => {
-  const lines = out.split('\n')
-  const at = lines.indexOf(`${heading}:`)
-  if (at === -1) return []
-  const rest = lines.slice(at + 1)
-  const end = rest.findIndex((l) => !l.startsWith('  '))
-  return (end === -1 ? rest : rest.slice(0, end)).map((l) => l.trim()).sort()
-}
-
-const GENERATORS = [
-  { name: 'new:module', script: 'new-module.ts', args: [MOD], withModule: false },
-  {
-    name: 'new:module --no-route',
-    script: 'new-module.ts',
-    args: [MOD, '--no-route'],
-    withModule: false,
-  },
-  { name: 'new:route', script: 'new-route.ts', args: ['dry-reports/weekly', MOD], withModule: true },
-  { name: 'new:section', script: 'new-section.ts', args: [MOD, 'overdue'], withModule: true },
-  { name: 'new:component', script: 'new-component.ts', args: [MOD, 'dry-badge'], withModule: true },
-  { name: 'new:table', script: 'new-table.ts', args: [MOD, 'dry-labels'], withModule: true },
-]
-
-/** What a real run created and changed, from the tree before and after. */
-function realChanges(before: string[], after: string[]) {
-  const files = (s: string[]) =>
-    new Map(s.filter((l) => l.startsWith('file ')).map((l) => [l.split(' ')[1], l]))
-  const was = files(before)
-  const now = files(after)
-  const created = [...now.keys()].filter((p) => !was.has(p ?? ''))
-  const edited = [...now.keys()].filter((p) => was.has(p ?? '') && was.get(p ?? '') !== now.get(p ?? ''))
-  return { created: created.sort(), edited: edited.sort() }
-}
+withScratchApps()
 
 describe.each(GENERATORS)('$name --dry', ({ script, args, withModule }) => {
   it('AC-710-1 AC-710-2: writes nothing, runs no tool, and lists what it would create and edit', () => {
@@ -271,11 +165,7 @@ describe('--dry before or after the words (AC-710-4)', () => {
   })
 })
 
-const LINE_FOR = (flag: string) => `Unknown flag ${flag}. Did you mean --dry?\n`
-
 describe('a mistyped --dry is refused, never ignored (AC-710-6)', () => {
-  const LINE = (flag: string) => `Unknown flag ${flag}. Did you mean --dry?\n`
-
   type Row = [flag: string, where: string, build: (a: string[]) => string[]]
   const lead = (f: string): Row => [f, 'before the words', (a) => [f, ...a]]
   const trail = (f: string): Row => [f, 'after the words', (a) => [...a, f]]
@@ -298,7 +188,7 @@ describe('a mistyped --dry is refused, never ignored (AC-710-6)', () => {
       const before = snapshot(dir)
       const run = generate(dir, script, build(args))
       expect(run.status).toBe(1)
-      expect(run.stderr).toBe(LINE(flag))
+      expect(run.stderr).toBe(DID_YOU_MEAN(flag))
       expect(run.stdout).toBe('')
       expect(snapshot(dir)).toEqual(before)
       expect(run.pnpmCalls).toBe('')
@@ -308,9 +198,9 @@ describe('a mistyped --dry is refused, never ignored (AC-710-6)', () => {
   it('refuses before any other check, and only the --dry look-alikes', () => {
     // A bad name would fail too, but the flag is named first.
     const bad = generate(scratch(false), 'new-module.ts', ['Bad_Name', '--dry-run'])
-    expect(bad.stderr).toBe(LINE('--dry-run'))
+    expect(bad.stderr).toBe(DID_YOU_MEAN('--dry-run'))
     const value = generate(scratch(false), 'new-module.ts', [MOD, '--dry-run=1'])
-    expect(value.stderr).toBe(LINE('--dry-run=1'))
+    expect(value.stderr).toBe(DID_YOU_MEAN('--dry-run=1'))
     // Other flags keep their meaning: `--dry` plans, `--no-route` is still understood.
     const ok = generate(scratch(false), 'new-module.ts', [MOD, '--dry', '--no-route'])
     expect(ok.status).toBe(0)
@@ -354,7 +244,7 @@ describe('pnpm routes:generate --dry plans, never rewrites (AC-710-6)', () => {
     const before = snapshot(dir)
     const run = generate(dir, 'routes.ts', ['--DRY'])
     expect(run.status).toBe(1)
-    expect(run.stderr).toBe(LINE_FOR('--DRY'))
+    expect(run.stderr).toBe(DID_YOU_MEAN('--DRY'))
     expect(snapshot(dir)).toEqual(before)
   })
 })

@@ -8,6 +8,7 @@ import {
   kebab,
   pascal,
   positional,
+  refuseUnknownFlags,
   render,
   report,
   requireModule,
@@ -16,6 +17,7 @@ import {
   writeAll,
 } from './lib.ts'
 
+refuseUnknownFlags(['--dry'])
 const [mod, name] = positional(process.argv.slice(2))
 if (!mod || !name)
   fail('Usage: pnpm new:component <module> <name>   e.g. pnpm new:component tasks task-badge')

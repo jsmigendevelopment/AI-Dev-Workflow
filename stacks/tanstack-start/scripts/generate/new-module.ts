@@ -18,6 +18,7 @@ import {
   moduleTokens,
   option,
   positional,
+  refuseUnknownFlags,
   render,
   report,
   snake,
@@ -30,6 +31,7 @@ import { addToE2eRoutes, pageFiles } from './page.ts'
 import { refreshRouteTree } from './routes.ts'
 
 const COMPOSITION = 'src/server/composition.ts'
+refuseUnknownFlags(['--dry', '--item <singular>', '--no-route'])
 const args = process.argv.slice(2)
 const [name] = positional(args)
 const mod = kebab(name, 'The module name')
