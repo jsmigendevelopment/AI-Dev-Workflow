@@ -37,6 +37,10 @@ The mobile app (monorepo pack) reads `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`: the sa
 
 Production keys need a domain you own and can add DNS records to. They don't work on a host's shared domain such as `*.workers.dev`. `[V]` (Clerk names `*.vercel.app`; workers.dev is the same case.)
 
+**Go backend.** A Go service (decision 340-1) checks sign-in with Clerk's Go SDK, which must be given the Clerk secret key. `[V]` The publishable key stays with the TypeScript web app that calls the service. The block's `to` lists below (`.env.local`, `wrangler`) are the web pack's: a Go service has no Worker. Its `.env.example` is #353's and is not on main yet, so only what is picked is named here:
+- `CLERK_SECRET_KEY` (secret): in the git-ignored `.env.local` for local, and `.env.test.local` or `.env.production.local` for the host. Then `node .agents/skills/secrets/scripts/push-secrets.mjs --cloud-run` puts it in Secret Manager as `api-<env>-CLERK_SECRET_KEY` (value on stdin), and the deploy wires it into the service. Make it in section 1's "No CLI?" way: `clerk env pull` writes the web pack's names, not a Go service's.
+- The sites that may sign in (the SDK's `AuthorizedPartyMatches` takes them, decision 340-1): not secret, a plain variable the push script sets on the Cloud Run service. Its name, and whether the SDK's `azp` check or `golang-jwt` with `keyfunc` is used, are #353's to pick. The fallback needs no secret key: it reads Clerk's public keys from the Frontend API URL. `[U]` (the dossier infers it)
+
 **For `pnpm connect`.** The block below tells the script which names this file fills, where each one goes and which page to open. The steps stay in the sections below; the script prints them short. Format: the `secrets` skill.
 
 ```json connect
@@ -124,6 +128,7 @@ This is a production step: the person says yes first (always-stop list).
    ```bash
    node .agents/skills/secrets/scripts/push-secrets.mjs --dry-run --wrangler --env production
    ```
+   A Go service: the same command with `--cloud-run` in place of `--wrangler`.
 6. Turn on **Allowed subdomains**: https://dashboard.clerk.com/~/domains → **Allowed subdomains** tab → **Enable allowed subdomains**, add only the subdomains the app uses. `[V]`
 
 Mobile app in production: also enable the **Native API** on https://dashboard.clerk.com/~/native-applications with the production instance selected, or calls fail with `native_api_disabled`. `[V]`

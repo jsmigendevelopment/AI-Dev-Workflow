@@ -46,12 +46,13 @@ When a step adds a service, it adds its variables here in this format.
    | `sentry.md` | `SENTRY_*`, `VITE_SENTRY_DSN` |
    | `supabase.md` | `DATABASE_URL`, the Hyperdrive config |
    | `expo.md` | `EXPO_PUBLIC_*`, EAS, `E2E_*` |
+   | `cloud-run.md`, `neon.md` | a Go service's host and database (decision 340-1): `gcloud auth login`, the project and region; the Neon API key, and the connection string `DATABASE_URL`. A Go service has no `pnpm connect`: see "If they'll do it themselves" |
 
    For each provider:
    1. **Re-check the official docs first.** Dashboards change. Fetch each URL under "Official docs" at the top of the file. If a page says something different from the file (a renamed button, a moved page, a new permission), follow the official docs, tell the person what changed, and open an issue to update the file, quoting the doc URL and what changed. The file is the kit's, so the issue also says "fix upstream in the kit". If you can't reach the docs, say so and use the file as it is.
    2. **If "Last checked" is more than 90 days old,** tell the person: *"These steps were last checked on <date>. Screens may have moved."*
    3. **Steps marked `[U]` weren't verified.** Say so when you give them.
-   4. **Prefer the provider's CLI** where the file gives one (`wrangler`, `gh`, the Clerk CLI, the Stripe CLI, `sentry`, `supabase`, `eas`). Commands that sign in to the person's account run in **their** terminal. If the provider publishes agent skills, a plugin, an MCP server or a setup wizard, follow its recipe in [`setup/`](setup/README.md): what to ask, the vendor's steps reviewed, and the kit's rules on top. Install only on a yes.
+   4. **Prefer the provider's CLI** where the file gives one (`wrangler`, `gh`, the Clerk CLI, the Stripe CLI, `sentry`, `supabase`, `eas`, and for a Go service `gcloud` and the Neon CLI). Commands that sign in to the person's account run in **their** terminal. If the provider publishes agent skills, a plugin, an MCP server or a setup wizard, follow its recipe in [`setup/`](setup/README.md): what to ask, the vendor's steps reviewed, and the kit's rules on top. Install only on a yes.
    5. Give the file's walkthrough as one "Setup step for you" from the `ask` skill: its numbered steps, links and copy blocks, what they'll see when it worked, and how long it takes. Keep the "Why / if it goes wrong" part for when they're stuck.
 
 4. **If they'll do it themselves:** they run `pnpm connect` in **their own terminal**, not yours. Say: *"In a terminal in the app folder, run `pnpm connect`. It walks you through each service one at a time, opens the page, and asks for each key with hidden input. It takes about 10 minutes for Cloudflare and Clerk, longer with add-ons. Tell me when it's done."*
@@ -60,7 +61,7 @@ When a step adds a service, it adds its variables here in this format.
    - It checks each value's shape where the provider has a rule, and asks before each destination: `.env.local` (mode 600), `wrangler secret put`, and `gh secret set` or `gh variable set` only on `ci = "actions"` (on `ci = "local"` nothing goes to GitHub). Secret values go on stdin, never in a command's arguments, and no value is ever printed. A plain variable isn't a secret: it goes on `gh variable set --body`, except through a `gh.cmd`, where it goes on stdin too. Production needs its own yes.
    - Every value is read hidden; a public one is shown after Enter unless it looks like a secret key, which is refused. Typing from before a question is dropped, and a y/N question shows only y, n or yes, so a key pasted in the wrong place is never shown. A failing `wrangler` or `gh` prints only its exit code and the command to rerun by hand. It refuses to run without a terminal, so you never run it for them. Afterwards, check by name: `pnpm connect --dry-run` (✓ set, ✗ missing, ? couldn't check).
    - A step the script can't do (for example `wrangler login`, Clerk's CLI, a DNS record) stays in the printed steps for them to do.
-   - Pack without the script? Give each variable's link, the `.env.local` line, and `gh secret set NAME --env <env>` or `npx wrangler secret put NAME --env <env>`, which ask for the value without showing it.
+   - Pack without the script? Give each variable's link, the `.env.local` line, and `gh secret set NAME --env <env>` or `npx wrangler secret put NAME --env <env>`, which ask for the value without showing it. A Go service (a `go.mod`, on Cloud Run) has no `pnpm connect`: give the link and the line to put in the git-ignored `.env.test.local` or `.env.production.local`, then wire it yourself with step 5's `push-secrets.mjs --cloud-run`. Never hand over a bare `gcloud secrets create`: it reads the value as typed text, so the value shows on screen.
 
 5. **If you're wiring them:**
    1. Copy `.env.example` to `.env.local`, and to `.env.test.local` and `.env.production.local` if the app deploys. Check all three are git-ignored.
@@ -73,7 +74,7 @@ When a step adds a service, it adds its variables here in this format.
    4. Show the list and ask *"Push these?"* On a yes, run it again without `--dry-run`.
    5. Read its last line and its exit code. Only `Every value is stored somewhere.` with exit code 0 lets you offer to delete `.env.production.local`. `Stored nowhere: ...` names each value no place took (on `ci = "local"`: a secret without `--wrangler` or `--cloud-run`, a plain variable without `--cloud-run`): keep the file, tell the person those names, and where each belongs (a secret in Cloudflare or Secret Manager, a plain variable on the Cloud Run service with `--cloud-run`, else in `wrangler.jsonc` vars). `Not stored everywhere (a destination FAILED above): ...` names each value one place took and another refused (GitHub yes, the Worker no). A non-zero exit means a destination failed, whatever the last line says: keep the file, fix the `FAILED` line's cause and run it again. On Full automation the offer stays a no while any value is unstored or the exit code isn't 0.
 
-6. **Check it works.** Start the app. A missing variable fails at startup with its name (the pack's env schema does this). Then report which variables are set where, by name only.
+6. **Check it works.** Start the app. A missing variable fails at startup with its name (the pack's env schema does this; a Go service's `config.Load` does, rule 16 in `guide/app-conventions-go.md`). Then report which variables are set where, by name only.
 
 ## Keys on Full: the person only signs in and pastes
 
@@ -98,7 +99,7 @@ Group the keys by provider, in the connect block's `order`. For each provider:
      - The command holds no value, and the window is theirs. No window opens (a permission prompt, a sandbox, an error)? Give the one command in the next bullet instead.
    - Otherwise, give one command for their own terminal: `pnpm connect <provider>`. It refuses to run without a terminal, so never run it in your shell.
    - A destination with its own page (a GitHub secret on `ci = "actions"`, the provider's own settings): open that page in a new tab, at the empty field.
-   - A pack without the script: `npx wrangler secret put NAME --env <env>` or `gh secret set NAME --env <env>`, the same way. Both read the value hidden.
+   - A pack without the script: `npx wrangler secret put NAME --env <env>` or `gh secret set NAME --env <env>`, the same way. Both read the value hidden. A Go service has no window to open: name the git-ignored `.env.<env>.local` file for the person to open in their editor, and the `NAME=` line to paste into. Then run `push-secrets.mjs --cloud-run` yourself, dry first (step 5): the value goes from the file to Secret Manager on stdin.
 
    Then hand over, in one message:
    - "In the <provider> tab, press **<the button>** and do any step it asks for next (a code, closing the dialog)."
@@ -106,7 +107,7 @@ Group the keys by provider, in the connect block's `order`. For each provider:
    - "Copy the key from the tab and paste it into the prompt."
 
    One `pnpm connect <provider>` asks for each of that provider's keys in turn. For the next key, fill in its form in a new tab and hand over again.
-5. **Check by name.** `pnpm connect --dry-run` shows ✓ by name only. A pack without the script checks by name another way: `node .agents/skills/secrets/scripts/push-secrets.mjs --dry-run` names each empty value, `npx wrangler secret list --env <env>` lists the Worker's names, and on `ci = "actions"` so does `gh secret list --env <env>`. Never check a value. Close the tab that showed the value with a call that returns no page or picture (or leave it for the person), then start the next key.
+5. **Check by name.** `pnpm connect --dry-run` shows ✓ by name only. A pack without the script checks by name another way: `node .agents/skills/secrets/scripts/push-secrets.mjs --dry-run` names each empty value, `npx wrangler secret list --env <env>` lists the Worker's names, and on `ci = "actions"` so does `gh secret list --env <env>`. Never check a value. A Go service checks by name too: `push-secrets.mjs --dry-run --cloud-run` names each empty value and where it would go, and `gcloud secrets list` lists Secret Manager's names. Close the tab that showed the value with a call that returns no page or picture (or leave it for the person), then start the next key.
 
 **Done when** every key the app needs shows ✓ in step 5's check, or its sign-in line is under "Waiting on you" in `docs/state.md`, or its 🛑 is sent (a production key, a paid plan or a card).
 
@@ -115,8 +116,8 @@ Group the keys by provider, in the connect block's `order`. For each provider:
 No browser tool, and no terminal on the person's machine? Send one "Setup step for you" (`ask`) for every missing key, grouped so the person does it all in one sitting:
 
 1. For each provider, in order: the exact link from its "Make each key" table, the button to press and what to pick.
-2. Then the one command, in their own terminal in the app folder: `pnpm connect`. It asks for each key with hidden input.
-3. Then "Tell me when it's done." Check by name with `pnpm connect --dry-run`.
+2. Then the one command, in their own terminal in the app folder: `pnpm connect`. It asks for each key with hidden input. A Go service: their own `gcloud auth login` and the git-ignored `.env.<env>.local` files, as the walkthroughs in `cloud-run.md` and `neon.md` say.
+3. Then "Tell me when it's done." Check by name with `pnpm connect --dry-run` (a Go service: `push-secrets.mjs --dry-run --cloud-run`).
 
 Put it under "Waiting on you" in `docs/state.md`, send it as one ℹ️ FYI, run on the fakes, and go on with the loop.
 
@@ -147,17 +148,18 @@ Each file in `providers/` carries one fenced `json connect` block that `pnpm con
 - Local and test share one value; `"split": true` asks for them separately. Production is always asked separately, after its own yes.
 - A variable may name its own `"steps"` heading and `"url"`.
 - A provider with nothing to store (Supabase) has no block and says why. `cli/test/connect-blocks.test.mjs` checks every file.
+- The Go providers (`cloud-run.md`, `neon.md`) have a block too, but fill only names no web pack lists, and walk after the web providers (order 70 and up). `pnpm connect` in a web app never asks for them, and a Go service has no `pnpm connect`. `cli/test/go-environments.test.mjs` guards both.
 
 `pnpm connect` is based on Matt Pocock's wizard (MIT): https://github.com/mattpocock/skills/tree/main/skills/engineering/wizard
 
 ## Rules
 
-- Production values live only in the host's production secrets (and the GitHub `production` environment, on `ci = "actions"` only), or `.env.cloudflare.local` for the deploys' smoke-test values, or `.env.sentry.local` for the `sentry` add-on's source-map upload. Never in the repo, never in a test environment.
+- Production values live only in the host's production secrets (Secret Manager for a Go service; and the GitHub `production` environment, on `ci = "actions"` only), or `.env.cloudflare.local` for the deploys' smoke-test values, or `.env.sentry.local` for the `sentry` add-on's source-map upload. Never in the repo, never in a test environment.
 - Use test or sandbox keys for local and test (for example Stripe test mode, Clerk development instance).
 - A variable without `secret: yes` is public. It's fine in a GitHub variable or a `VITE_` client value. A secret never gets a `VITE_` prefix.
 - Settings that aren't secret go in committed config per environment (for example `vars` in `wrangler.jsonc`), not in a secret store.
 - Previews use the test values. `scope` lists `local`, `test` and `production`.
-- New variable later? In one pull request, add it to `.env.example` in the same format, to the env schema (`lib/env.ts`) and to the docs. Then run this skill again.
+- New variable later? In one pull request, add it to `.env.example` in the same format, to the env schema (`lib/env.ts`; a Go service: the `Config` struct) and to the docs. Then run this skill again.
 - **Rotating a key:** make the new key first, set it everywhere it lives (test, then production), deploy test and check, then revoke the old one. Write the date and reason in `docs/decisions.md`, never the value. The person does production. Full steps: `guide/environments.md`.
 - A command that prints a key (for example Clerk's `env pull --print`) runs only in the person's own terminal, never in yours. They paste the output into the git-ignored file; the push script takes it from there.
 - If the person pastes a value into chat anyway, don't repeat it. Tell them, and ask them to rotate that key.
