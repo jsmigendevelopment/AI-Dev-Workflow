@@ -1,0 +1,47 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T13:13:05.934Z",
+  "issue": null,
+  "pr": 631,
+  "sha": "3a52dbe108e3cbe96655e6377e70973cd675f3c5",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "commands": [
+    {
+      "name": "sync-skills --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "npm-readme --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cli bundle + npm test",
+      "result": "pass",
+      "seconds": 210
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 77
+    },
+    {
+      "name": "evals dry-run",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "pr-size",
+      "result": "pass",
+      "seconds": 0
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}
