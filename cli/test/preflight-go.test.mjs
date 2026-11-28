@@ -111,8 +111,9 @@ test("AC-538-2: the proxy host in the row is the one go says it uses, and only w
   const dir = project({ "go.mod": MOD("1.26.10") });
   const run = async (out) => row(await probe(dir, fakeSys({ answers: { ...HEALTHY, ...GO_OK, "go list": REFUSED, "go env GOPROXY": { ok: true, out } } })), "goproxy").detail;
   assert.match(await run("https://goproxy.example.test,direct"), /^goproxy\.example\.test didn't answer/);
-  assert.match(await run("https://user:token@goproxy.example.test"), /^proxy\.golang\.org didn't answer/);
-  assert.match(await run("file:///srv/proxy"), /^proxy\.golang\.org didn't answer/);
+  // #566: a proxy that isn't a plain host is said not to be one; the default's name belongs to the default alone.
+  assert.match(await run("https://user:token@goproxy.example.test"), /^GOPROXY isn't a plain host/);
+  assert.match(await run("file:///srv/proxy"), /^GOPROXY isn't a plain host/);
 });
 
 test("AC-538-3: WHEN the folder has no go.mod THEN the rows are the eight checks, and no go command runs", async () => {
@@ -150,5 +151,72 @@ test("AC-538-5: the kit's copies of the preflight files match their masters", ()
     const master = read(`scripts/${file}`);
     assert.equal(read(`.agents/skills/ask/scripts/${file}`), master, `ask skill: ${file}`);
     assert.equal(read(`cli/src/${file}`), master, `cli: ${file}`);
+  }
+});
+
+// #566: the proxy row says which proxy `go env GOPROXY` names, and never puts proxy.golang.org on one that isn't it. This
+// refusal has no host in its text, so a name in the row can only have come from the row's own words.
+const NO_HOST = { ok: false, out: "go: golang.org/x/sync: module lookup failed" };
+const proxyRow = async (value, list = NO_HOST) => {
+  const dir = project({ "go.mod": MOD("1.26.10") });
+  const sys = fakeSys({ answers: { ...HEALTHY, ...GO_OK, "go list": list, "go env GOPROXY": { ok: true, out: value } }, env: { CODEX_SANDBOX: "seatbelt" } });
+  const report = await probe(dir, sys);
+  return { detail: row(report, "goproxy").detail, text: render(report) };
+};
+
+test("AC-566-1: WHEN go env GOPROXY is off THEN the row says GOPROXY is off, and neither the row nor its steps name proxy.golang.org", async () => {
+  const { detail, text } = await proxyRow("off");
+  assert.match(detail, /^GOPROXY is off\b/);
+  assert.doesNotMatch(detail, /proxy\.golang\.org/);
+  assert.doesNotMatch(text, /proxy\.golang\.org/);
+});
+
+test("AC-566-1: WHEN go env GOPROXY is direct, or starts with direct or off, THEN the row names that, not a host", async () => {
+  assert.match((await proxyRow("direct")).detail, /^GOPROXY is direct\b/);
+  assert.match((await proxyRow("direct,https://proxy.golang.org")).detail, /^GOPROXY is direct\b/);
+  assert.match((await proxyRow("off|https://goproxy.example.test")).detail, /^GOPROXY is off\b/);
+  assert.doesNotMatch((await proxyRow("direct")).text, /proxy\.golang\.org/);
+});
+
+test("AC-566-1: WHEN go env GOPROXY is not a plain host THEN the row says so without printing it, and never names proxy.golang.org", async () => {
+  for (const value of ["file:///srv/proxy", "https://user:token@goproxy.example.test", "https://goproxy.example.test:notaport/x", "file:///srv/a|https://goproxy.example.test,direct"]) {
+    const { detail, text } = await proxyRow(value);
+    assert.match(detail, /^GOPROXY isn't a plain host\b/, value);
+    assert.doesNotMatch(text, /proxy\.golang\.org|token|srv\/proxy/, value);
+  }
+});
+
+test("AC-566-1: WHEN go env GOPROXY is a list or the default THEN the row still names the first plain host, and the default is proxy.golang.org", async () => {
+  assert.match((await proxyRow("https://goproxy.example.test|https://other.example.test,direct")).detail, /^goproxy\.example\.test didn't answer/);
+  assert.match((await proxyRow("https://proxy.golang.org,direct")).detail, /^proxy\.golang\.org didn't answer/);
+});
+
+test("AC-566-1: WHEN go answers with GOPROXY off or a plain host THEN the ok row says what is in use", async () => {
+  assert.match((await proxyRow("off", GO_OK["go list"])).detail, /^GOPROXY is off, and go got the module list/);
+  assert.match((await proxyRow("https://goproxy.example.test", GO_OK["go list"])).detail, /^goproxy\.example\.test answered/);
+});
+
+// A fake go that says GOPROXY is `proxy` and refuses the module list, run through the real script on a PATH of its own.
+function goWithProxy(proxy) {
+  const bin = temp("onrails-go-bin-");
+  put(bin, "go", `#!/bin/sh\ncase "$1" in\n  version) echo "go version go1.26.11 linux/amd64";;\n`
+    + `  list) echo "module lookup failed" >&2; exit 1;;\n  env) echo "${proxy}";;\nesac\n`);
+  chmodSync(join(bin, "go"), 0o755);
+  return bin;
+}
+
+test("AC-566-1: a fake go whose GOPROXY is off gives a blocked row that says so when run for real", posixOnly, () => {
+  const r = runScript(project({ "go.mod": MOD("1.26.10") }), goWithProxy("off"));
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^\| Go module proxy \| ✗ \| GOPROXY is off\b/m);
+  assert.doesNotMatch(r.stdout, /proxy\.golang\.org/);
+});
+
+test("AC-566-2: WHEN the GO_CACHE rung is shown THEN it says it helps when the default module cache is unwritable, and not that it helps with a blocked network", () => {
+  for (const [tool, platform] of [["claude", "linux"], ["codex", "linux"], ["claude-cloud", "linux"], ["claude", "win32"]]) {
+    const rung = ladder("goproxy", tool, { host: "the module proxy", platform }).find((step) => step.rung === 1).text;
+    assert.match(rung, /GOMODCACHE=/, `${tool} ${platform}`);
+    assert.match(rung, /helps when the default module cache is unwritable/, `${tool} ${platform}`);
+    assert.doesNotMatch(rung, /when the network is blocked|blocked network|blocked proxy/i, `${tool} ${platform}`);
   }
 });

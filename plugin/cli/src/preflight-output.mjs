@@ -51,9 +51,11 @@ const YARN_CACHE_WINDOWS = " In PowerShell: `$env:YARN_GLOBAL_FOLDER='.yarn-glob
   + " $env:YARN_CACHE_FOLDER='.yarn-cache'; yarn install`. In cmd.exe: `set \"YARN_GLOBAL_FOLDER=.yarn-global\" &&"
   + ' set "YARN_ENABLE_GLOBAL_CACHE=false" && set "YARN_CACHE_FOLDER=.yarn-cache" && yarn install`.';
 
-// Rung 1 for a blocked Go module proxy (#538): a module cache inside the project, and a mirror in GOPROXY. GOTOOLCHAIN=local
-// keeps go from fetching a toolchain through the same proxy. A bare VAR=value prefix works only in a POSIX shell.
-const GO_CACHE = "`GOMODCACHE=\"$PWD/.gomodcache\" GOTOOLCHAIN=local go mod download` (a project-local module cache; keep `.gomodcache/` out of git)";
+// Rung 1 for a blocked Go module proxy (#538): a module cache inside the project, and a mirror in GOPROXY. The cache helps
+// when the default one can't be written; it still needs the proxy to answer (#566). GOTOOLCHAIN=local keeps go from
+// fetching a toolchain through the same proxy. A bare VAR=value prefix works only in a POSIX shell.
+const GO_CACHE = "`GOMODCACHE=\"$PWD/.gomodcache\" GOTOOLCHAIN=local go mod download` (a project-local module cache: it helps when the default module cache is unwritable,"
+  + " and it still needs the proxy to answer; keep `.gomodcache/` out of git)";
 const GO_CACHE_WINDOWS = " In PowerShell: `$env:GOMODCACHE=\"$PWD\\.gomodcache\"; $env:GOTOOLCHAIN='local'; go mod download`.";
 const GO_MIRROR = "If the sandbox allows another host, a mirror: `GOPROXY=https://<mirror>,direct` in the same command, or `go env -w GOPROXY=https://<mirror>,direct`.";
 

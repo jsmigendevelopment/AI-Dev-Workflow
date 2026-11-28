@@ -73,11 +73,11 @@ function kitVersionFor(projectDir, kitDir) {
 
 // A Go project (#538): go is found, and new enough for go.mod's go line. It runs from the home folder, so no go.work or
 // toolchain line of the project's is read, and a go that is only in the project's node_modules/.bin never runs (#185).
-// Not required: the kit's own checks don't need Go.
+// GOTOOLCHAIN=local keeps go from fetching a toolchain to answer (#566). Not required: the kit's own checks don't need Go.
 function goCheck(goMod, sys, notFound) {
   const install = `Install Go ${goMod.want ? `${goMod.want} or newer ` : ""}from https://go.dev/dl/`;
   const remedy = { print: [install] };
-  const have = sys.probe("go", ["version"], { cwd: sys.home });
+  const have = sys.probe("go", ["version"], { cwd: sys.home, env: { GOTOOLCHAIN: "local" } });
   if (!have) return [FAIL, notFound("go not found", "go"), install, false, remedy];
   const version = have.ok ? /\bgo(\d+\.\d+(?:\.\d+)?)/.exec(have.out)?.[1] : null;
   if (!version) return [FAIL, "go found, but `go version` printed no version", "Run: go version, and fix what it says", false];

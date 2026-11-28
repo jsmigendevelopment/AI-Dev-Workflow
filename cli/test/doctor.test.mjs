@@ -263,3 +263,26 @@ test("AC-538-4: doctor never runs a go the project ships, and says where it foun
   assert.doesNotMatch(found.calls, /planted/);
   assert.match(found.stdout, /✓ Go 1\.26\.11 \(go\.mod needs 1\.26\.10\)/);
 });
+
+// #566: doctor's `go version` runs with GOTOOLCHAIN=local, so a go.mod or go.work in the home folder can't make go fetch a toolchain to answer.
+test("AC-566-3: WHEN doctor runs go version THEN the probe's environment holds GOTOOLCHAIN=local, from the home folder", () => {
+  const out = "go version go1.26.11 linux/amd64";
+  const sys = fakeSystem({ commands: ["go"], probes: { "go version": { ok: true, out, all: out } } });
+  const seen = [];
+  const probe = sys.probe;
+  sys.probe = (cmd, args, opts) => (seen.push({ line: [cmd, ...args].join(" "), opts }), probe(cmd, args, opts));
+  const [check] = goChecks({ "go.mod": GO_MOD }, sys);
+  assert.equal(check.status, "✓");
+  const run = seen.find((s) => s.line === "go version");
+  assert.equal(run.opts?.env?.GOTOOLCHAIN, "local");
+  assert.equal(run.opts?.cwd, sys.home);
+});
+
+test("AC-566-3: a fake go on PATH sees GOTOOLCHAIN=local when doctor runs it for real", unixOnly, () => {
+  const dir = tmp(), outside = tmp("onrails-bin-");
+  put(dir, "go.mod", GO_MOD);
+  fake(outside, "go", `#!/usr/bin/env node\nrequire("fs").appendFileSync(process.env.FAKE_LOG, "go GOTOOLCHAIN=" + (process.env.GOTOOLCHAIN ?? "unset") + " " + process.argv.slice(2).join(" ") + "\\n");\nconsole.log("go version go1.26.11 linux/amd64");\n`);
+  const r = doctorChild(dir, { bins: [outside] });
+  assert.match(r.calls, /^go GOTOOLCHAIN=local version$/m, r.calls);
+  assert.match(r.stdout, /✓ Go 1\.26\.11 \(go\.mod needs 1\.26\.10\)/);
+});
