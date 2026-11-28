@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **Which model did which job (#129).** `insights.mjs line job` now ends with a run line people read on GitHub: job, model, effort, time from `started=`, and the commit. `build` ends its pull request body with one and its commits with `Agent-Model:` and `Agent-Effort:` trailers; `pr-review`, `pr-security` and `qa` pass `started=`. A new optional `model_from` field says why a model or effort is `unknown`. `validate` refuses a control character in `job`, `model`, `effort` and `model_from`, so the run line stays one line. `npx onrails runs --pr <n>` (or `--issue <n>`, `--day <yyyy-mm-dd>`) prints the chain from the records, oldest first, and `--brief` gives `/back` one line per merged pull request (decision 129-1).
+
 ### Fixed
 
 - **The agent-file guard follows the review carry (#478).** On Full, `agent-files.mjs gate` takes a writer's `Weakening review: pass` at an earlier commit when the head is only clean merges of origin/main on top of it, each proved with `insights.mjs carry`'s own merge check. A conflict fix, a change of its own, a new commit, a read-only login's pass or a writer's fail on the way still needs a line at the head (decision 478-1).
