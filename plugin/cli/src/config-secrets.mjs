@@ -30,37 +30,76 @@ const SECRET_VALUE_SHAPES = [/^ASIA[A-Z0-9]/, /^AIza/, /eyJ[\w-]+\.[\w-]+\.[\w-]
 // A scheme-less login (user:pw@host). A leading mailto: is dropped first, so mailto:me@example.test still reads.
 const SCHEMELESS_LOGIN = /^[^\s:@/]+:[^\s@]+@[^\s@]+$/;
 // scheme://user:rest@, where `rest` runs to the first @. A password with a raw "/" lands in `rest`, and so does a port ahead of a
-// path that holds an @ (https://host:8443/a@b): that one is told apart by a host name, then 1 to 5 digits and a "/".
-const URL_LOGIN = /:\/\/([^/\s:@]*):([^\s@]*)@/;
+// path that holds an @ (https://host:8443/a@b). Only the web-style schemes in PORT_SCHEMES may have that port; for any other
+// scheme (mysql, postgres, redis) digits and a "/" are a password.
+const URL_LOGIN = /([a-z0-9+.-]*):\/\/([^/\s:@]*):([^\s@]*)@/gi;
+const PORT_SCHEMES = new Set(["http", "https", "ws", "wss", "ftp"]);
+// Bearer or Basic, then white space (a tab too) and anything: Authorization: Bearer abc, in any case, anywhere in a value.
+const AUTH_SCHEME = /(?<![a-z])(?:bearer|basic)\s+\S/i;
+// A secret-looking name, then = or : and a non-empty value: password=hunter2, api_key: abc, "token": "x".
+const NAME_VALUE = /(?<![\w.-])([\w.-]+)["']?\s*[=:]\s*["']?[^\s"']/g;
+// Anything with :// in it, so a URL inside a longer text is checked too.
+const URL_TOKEN = /\S*:\/\/\S*/g;
 
 // An unknown key format (SG., shpat_, hf_, pypi-, tskey-): one run of 20 or more characters with no space, mixing letters and
-// digits. A value with :// is left to the URL rules.
-function hasOpaqueToken(text) {
-  return text.length >= 20 && !/\s/.test(text) && !text.includes("://") && /[A-Za-z]/.test(text) && /\d/.test(text);
+// digits. A value with :// is left to the URL rules, which test each path piece and query value the same way.
+function isLongToken(text) {
+  return text.length >= 20 && !/\s/.test(text) && /[A-Za-z]/.test(text) && /\d/.test(text);
 }
 
 function hasUrlPassword(text) {
-  const login = URL_LOGIN.exec(text);
-  return login !== null && !(login[1] !== "" && /^\d{1,5}\//.test(login[2]));
+  for (const [, scheme, host, rest] of text.matchAll(URL_LOGIN)) {
+    const port = host !== "" && /^\d{1,5}\//.test(rest) && PORT_SCHEMES.has(scheme.toLowerCase());
+    if (!port) return true;
+  }
+  return false;
+}
+
+/** True when a URL carries a secret outside the password: a long token in a path piece or a query value, a secret-word query key, or a secret word that names a path piece (token=abc, or /token/abc). */
+function hasUrlSecret(url) {
+  const [before, ...tail] = url.slice(url.indexOf("://") + 3).split(/[?#]/);
+  const pieces = before.split("/").slice(1).flatMap((piece) => piece.split(";"));
+  const pairs = tail.join("&").split("&").filter((part) => part !== "").map((part) => [part.split("=")[0], part.split("=").slice(1).join("=")]);
+  const longToken = (text) => isLongToken(text) || isLongToken(safeDecode(text));
+  if ([...pieces, ...pairs.map(([, value]) => value)].some(longToken)) return true;
+  if (pairs.some(([key]) => looksSecret(safeDecode(key)))) return true;
+  return pieces.some((piece, i) => (piece.includes("=") || (pieces[i + 1] ?? "") !== "") && piece !== "" && looksSecret(safeDecode(piece.split("=")[0])));
+}
+
+function safeDecode(text) {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text; // a lone % is not an escape; test the text as written
+  }
+}
+
+function hasNameValue(text) {
+  return [...text.matchAll(NAME_VALUE)].some(([, name]) => looksSecret(name));
 }
 
 const singulars = (word) => [word, word.replace(/s$/, ""), word.replace(/es$/, "")];
+// Short secret words that are refused glued to a longer word (userpass, dbpw, userpswd, userpin), with how long the word must be:
+// longer than the secret word itself, and for "pin" longer than 4 so that "spin" still reads.
+const GLUED_ENDINGS = [["pass", 4], ["pw", 2], ["pswd", 4], ["pin", 4]];
 
-/** True when a word of the section or key name says it holds a credential: a listed word, its plural, a phrase, or a long one glued into a word. */
+/** True when a word of the section or key name says it holds a credential: a listed word, its plural, a phrase, or a long one glued into a word. A number after a word (key1, pass2) does not hide it. */
 export function looksSecret(name) {
   const words = name.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().split(/[._-]+/);
-  const forms = words.map(singulars);
+  const forms = words.map((word) => [...new Set([...singulars(word), ...singulars(word.replace(/\d+$/, ""))])]);
   if (forms.some((alts) => alts.some((word) => SECRET_WORDS.has(word)))) return true;
-  if (words.some((word) => SECRET_PARTS.some((part) => word.includes(part)))) return true;
-  if (forms.some((alts) => alts.some((word) => word.length > 4 && word.endsWith("pass")))) return true; // userpass, adminpass, mypass
+  if (forms.some((alts) => alts.some((word) => SECRET_PARTS.some((part) => word.includes(part))))) return true;
+  if (forms.some((alts) => alts.some((word) => GLUED_ENDINGS.some(([end, min]) => word.length > min && word.endsWith(end))))) return true; // userpass, dbpw, userpin
   return SECRET_PHRASES.some(([first, second]) => forms.some((alts, i) => alts.includes(first) && (forms[i + 1]?.includes(second) ?? false)));
 }
 
-/** True when a value starts the way an API token, key or private key does, or has the shape of a JWT, a Slack hook, a URL or user:pw@host with a password, or is one unknown long key-like token (#740). */
+/** True when a value starts the way an API token, key or private key does, or has the shape of a JWT, a Slack hook, a URL or user:pw@host with a password, a Bearer or Basic header, a name=value pair for a secret name, a long key-like token (also in a URL path or query) or a secret query key (#740). */
 export function valueLooksSecret(value) {
   const text = value.trim();
   const start = text.toLowerCase();
   if (SECRET_VALUE_STARTS.some((prefix) => start.startsWith(prefix)) || SECRET_VALUE_SHAPES.some((shape) => shape.test(text))) return true;
-  if (hasOpaqueToken(text) || hasUrlPassword(text)) return true;
+  if (AUTH_SCHEME.test(text) || hasUrlPassword(text) || hasNameValue(text)) return true;
+  if ((text.match(URL_TOKEN) ?? []).some(hasUrlSecret)) return true;
+  if (!text.includes("://") && isLongToken(text)) return true;
   return !text.includes("://") && SCHEMELESS_LOGIN.test(text.replace(/^mailto:/i, ""));
 }
