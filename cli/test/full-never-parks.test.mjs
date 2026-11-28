@@ -65,7 +65,7 @@ test("AC-204-2: WHEN the test reads the same paragraph THEN the below-Full ⏳ d
   assert.ok(cap.indexOf("**Below Full,**") < cap.indexOf("**On Full,**"), "Below Full comes first, as in step 6.5");
 });
 
-test("AC-204-3: WHEN the test reads coordinate step 7's red-main bullet THEN On Full names diagnose on the next tier up before anyone pings the person, then a revert of the merge to blame, and a 🛑 only for an always-stop cause", () => {
+test("AC-204-3: WHEN the test reads coordinate step 7's red-main bullet THEN On Full names diagnose with an escalation step only if one is left under routing (#469), then a revert of the merge to blame, and a 🛑 only for an always-stop cause", () => {
   const bullet = redMain();
   assert.ok(bullet, "the red-main bullet");
   const at = bullet.indexOf("On Full,");
@@ -73,7 +73,9 @@ test("AC-204-3: WHEN the test reads coordinate step 7's red-main bullet THEN On 
   const below = bullet.slice(0, at);
   const onFull = bullet.slice(at);
   assert.match(below, /Below Full, if it's still red after one fix round and nothing else can merge, it's a 🛑 blocker\./, "below Full is unchanged");
-  assert.match(onFull, /^On Full, after one fix round a fresh agent runs `diagnose` on the next tier up before anyone pings the person\./);
+  // #469: the diagnose round follows routing's Escalation, never the next tier, and never lands on the strongest tier on its own.
+  assert.match(onFull, /^On Full, after one fix round a fresh agent runs `diagnose` before anyone pings the person: one escalation step up if it has one left under `routing`'s "Escalation" \(the profile's own limits win\), else on the same tier and effort\. Never move an agent to the strongest tier on your own\./);
+  assert.doesNotMatch(onFull, /next tier up|tier above/, "#469: the diagnose round never climbs a tier on its own");
   assert.match(onFull, /Merges that don't fix main stay stopped until it is green, and builders keep building on their branches\./);
   // #209 round 1, must 1: a failed diagnose round never ends on the person. Revert the merge to blame, or keep going.
   // #209 round 2, nice 1 and 2: the revert gets its lane's usual step 6, and the closed issue is reopened.
@@ -108,7 +110,9 @@ test("AC-204-4: WHEN the test reads afk's unattended rules and its watchdog THEN
     assert.doesNotMatch(text, /⏳|needs-human/, `${name}: the On Full line asks nothing`);
   }
   assert.match(lines["Main goes red"], /`coordinate` step 7/);
-  assert.match(lines["Main goes red"], /`diagnose` on the next tier up before anyone pings the person/);
+  // #469: the same rule as coordinate step 7: an escalation step only if one is left under routing, never the strongest tier on its own.
+  assert.match(lines["Main goes red"], /after one fix round, a fresh agent runs `diagnose` before anyone pings the person, taking an escalation step only if it has one left under `routing`, else on the same tier and effort\. Never the strongest tier on its own\./);
+  assert.doesNotMatch(lines["Main goes red"], /next tier up|tier above/, "#469: no climb by tier");
   // #209 round 2, nice 1: the merge closed the issue, so it's reopened; a migration only goes forward.
   assert.match(lines["Main goes red"], /revert the merge that turned main red through a pull request and reopen its issue for a fix round \(a merge that added a migration gets a forward fix instead\)/i);
   assert.match(lines["Main goes red"], /another `diagnose` round or a split through `issues`/);
