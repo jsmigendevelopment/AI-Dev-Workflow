@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="or-build-loop" width="360" height="1128" viewBox="0 0 360 1128" role="img" aria-labelledby="or-build-loop-title" aria-describedby="or-build-loop-desc">
+  <title id="or-build-loop-title">The onRails build loop</title>
+  <desc id="or-build-loop-desc">A pitch leads to product questions, screens and tech choices. The plan has Works, Real and Ready passes. Each issue in the current pass goes through build and review. Fixes repeat review. Passing changes reach test. The owner controls release.</desc>
+  <style>
+    #or-build-loop{--or-bg:#21182e;--or-end:#352337;--or-card:#302441;--or-gold:#49302a;--or-violet:#3a2b52;--or-ink:#fff4e4;--or-note:#e4d3f5;--or-line:#d6b9ff;--or-amber:#ffba86;--or-glow:#ffb020;color:var(--or-ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    #or-build-loop text{fill:currentColor}
+    #or-build-loop .heading{font-size:23px;font-weight:800;letter-spacing:-.55px}
+    #or-build-loop .node-label{font-size:16px;font-weight:680}
+    #or-build-loop .label{font-size:14px;font-weight:580;fill:var(--or-note)}
+    #or-build-loop .warm{font-size:14px;font-weight:700;fill:var(--or-amber)}
+    #or-build-loop .sheet{fill:url(#or-build-loop-paper)}
+    #or-build-loop .halo{fill:var(--or-glow);opacity:.44;fill-rule:evenodd}
+    #or-build-loop .rule{fill:none;stroke:var(--or-amber);stroke-width:2;stroke-linecap:round}
+    #or-build-loop .node{fill:var(--or-card);stroke:var(--or-line);stroke-width:1.5}
+    #or-build-loop .gold{fill:var(--or-gold);stroke:var(--or-amber)}
+    #or-build-loop .violet{fill:var(--or-violet)}
+    #or-build-loop .rail{fill:none;stroke:var(--or-line);stroke-width:1.7;stroke-linejoin:round;marker-end:url(#or-build-loop-arrow)}
+    #or-build-loop .retry{stroke:var(--or-amber);stroke-dasharray:5 4;marker-end:url(#or-build-loop-return)}
+    #or-build-loop .stop-rail{stroke:var(--or-amber);marker-end:url(#or-build-loop-return)}
+    #or-build-loop .arrow{fill:var(--or-line)}
+    #or-build-loop .return{fill:var(--or-amber)}
+  </style>
+  <defs>
+    <linearGradient id="or-build-loop-paper" x2="1" y2="1"><stop stop-color="var(--or-bg)"/><stop offset="1" stop-color="var(--or-end)"/></linearGradient>
+    <marker id="or-build-loop-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path class="arrow" d="M0 0l8 4-8 4z"/></marker>
+    <marker id="or-build-loop-return" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path class="return" d="M0 0l8 4-8 4z"/></marker>
+  </defs>
+  <rect class="sheet" width="360" height="1128" rx="22"/>
+<path class="halo" d="M336 71a16 16 0 1 1-32 0 16 16 0 0 1 32 0zm-4 0a12 12 0 1 1-24 0 12 12 0 0 1 24 0z"/>
+<path class="rule" d="M24 64h42m6 0h13"/>
+<text class="heading" x="23" y="48" text-anchor="start">The onRails build loop</text>
+<path class="rail" d="M123 132v21"/>
+<path class="rail" d="M123 197v21"/>
+<path class="rail" d="M123 262v47"/>
+<path class="rail" d="M123 353v23"/>
+<path class="rail" d="M123 629v51"/>
+<path class="rail" d="M123 724v49"/>
+<path class="rail" d="M123 817v32"/>
+<path class="rail" d="M123 893v49"/>
+<path class="rail" d="M123 986v74"/>
+<path class="rail retry" d="M223 871h97q9 0 9-9v-58q0-9-9-9h-97"/>
+<text class="label" x="136" y="289" text-anchor="start">Design choice recorded</text>
+<text class="label" x="136" y="659" text-anchor="start">Current pass</text>
+<text class="label" x="136" y="753" text-anchor="start">One issue</text>
+<text class="warm" x="275" y="831" text-anchor="middle">Needs
+<tspan x="275" dy="17">work</tspan></text>
+<text class="label" x="136" y="923" text-anchor="start">Checks pass</text>
+<text class="warm" x="136" y="1027" text-anchor="start">Owner approves release</text>
+<rect class="node gold" x="23" y="88" width="200" height="44" rx="9"/>
+<text class="node-label" x="123" y="115" text-anchor="middle">Pitch the idea</text>
+<rect class="node" x="23" y="153" width="200" height="44" rx="9"/>
+<text class="node-label" x="123" y="180" text-anchor="middle">Ask product questions</text>
+<rect class="node" x="23" y="218" width="200" height="44" rx="9"/>
+<text class="node-label" x="123" y="245" text-anchor="middle">Sketch the screens</text>
+<rect class="node" x="23" y="309" width="200" height="44" rx="9"/>
+<text class="node-label" x="123" y="336" text-anchor="middle">Choose the tech</text>
+<rect class="node" x="23" y="376" width="314" height="253" rx="12"/>
+<text class="node-label" x="42" y="407" text-anchor="start">Plan working slices</text>
+<path class="node violet" d="M74 440H191L202 487H63z"/>
+<text class="node-label" x="132.5" y="458" text-anchor="middle">Ready</text>
+<text class="label" x="132.5" y="479" text-anchor="middle">Polish the core</text>
+<path class="node violet" d="M60 501H205L215 548H50z"/>
+<text class="node-label" x="132.5" y="519" text-anchor="middle">Real</text>
+<text class="label" x="132.5" y="540" text-anchor="middle">Deepen the core</text>
+<path class="node violet" d="M48 562H217L224 609H41z"/>
+<text class="node-label" x="132.5" y="580" text-anchor="middle">Works</text>
+<text class="label" x="132.5" y="601" text-anchor="middle">Try each slice</text>
+<path class="rail" d="M238 582v-56"/>
+<path class="rail" d="M238 516v-53"/>
+<text class="label" x="247" y="540" text-anchor="start">Pass
+<tspan x="247" dy="17">review</tspan></text>
+<text class="label" x="247" y="476" text-anchor="start">Pass
+<tspan x="247" dy="17">review</tspan></text>
+<rect class="node" x="23" y="680" width="200" height="44" rx="9"/>
+<text class="node-label" x="123" y="707" text-anchor="middle">Write issues</text>
+<rect class="node" x="23" y="773" width="200" height="44" rx="9"/>
+<text class="node-label" x="123" y="800" text-anchor="middle">Build the change</text>
+<rect class="node violet" x="23" y="849" width="200" height="44" rx="9"/>
+<text class="node-label" x="123" y="876" text-anchor="middle">Review the change</text>
+<rect class="node" x="23" y="942" width="200" height="44" rx="9"/>
+<text class="node-label" x="123" y="969" text-anchor="middle">Merge to test</text>
+<rect class="node gold" x="23" y="1060" width="200" height="44" rx="9"/>
+<text class="node-label" x="123" y="1087" text-anchor="middle">Public release</text>
+</svg>

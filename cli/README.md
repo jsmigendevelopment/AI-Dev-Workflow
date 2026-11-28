@@ -7,7 +7,12 @@
 
 [![Status: beta](https://img.shields.io/badge/status-beta-b45309?style=flat-square)](https://github.com/jsmigendevelopment/onRails/blob/main/CHANGELOG.md) Early and actively changing. Expect rough edges, especially on first setup.
 
-**onRails** helps AI agents plan, build, review and ship your app within rules you set.
+**onRails** turns an idea into small changes that fresh agents test and review. Claude Code and Codex read the same rules in your repo. You choose when the app goes public.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/figures/onrails-checks-dark.svg">
+  <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/figures/onrails-checks-light.svg" alt="The owner’s project rules guide a plan. A builder takes one issue. An independent reviewer sends it back for a fix or passes the commit to the test site. The owner decides when to release." width="460">
+</picture>
 
 ## ⚡ Install
 
@@ -24,12 +29,12 @@ Start a new Claude Code session. For other setups, see [Codex](#codex) or [npm](
 
 | Claude Code · Codex | When to use it | What happens |
 |---|---|---|
-| [`/idea`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/idea/SKILL.md) · `$idea` | Start a new app | Plan from pitch to issues. Below Full, you approve the screens before tech work; on Full, the agent picks and sends them in an FYI. |
-| [`/join`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/join/SKILL.md) · `$join` | Set up an existing repo | Map and run the repo, ask questions, then write `AGENTS.md` and `docs/`. |
-| [`/back`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/back/SKILL.md) · `$back` | Start or resume work | See what changed, who's working and what to do first. |
-| [`/afk`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/afk/SKILL.md) · `$afk` | Step away | Set a time, check usage and safety, then keep building until a hard stop. |
+| [`/idea`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/idea/SKILL.md) · `$idea` | Start a new app | Turn a pitch into decisions, screens, a plan and issues. |
+| [`/join`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/join/SKILL.md) · `$join` | Set up an existing repo | Map and run the repo, learn its conventions and write them down. |
+| [`/back`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/back/SKILL.md) · `$back` | Start or resume work | See what changed, what is blocked and what to do next. |
+| [`/afk`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/afk/SKILL.md) · `$afk` | Step away | Check usage and safety, then work eligible issues up to the agreed stops. |
 
-To get the latest onRails, type `/update` (`$update`). The other 26 skills run for you. To run one step yourself, see the [cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself).
+Type `/update` (`$update`) to refresh onRails. To run one of the other 26 skills yourself, see the [cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-advanced-run-one-step-yourself).
 
 [![npm package version](https://img.shields.io/npm/v/onrails?style=flat-square&color=a63407)](https://www.npmjs.com/package/onrails)
 [![Works with Claude Code](https://img.shields.io/badge/works%20with-Claude%20Code-7c3aed?style=flat-square)](#-install)
@@ -37,6 +42,11 @@ To get the latest onRails, type `/update` (`$update`). The other 26 skills run f
 [![MIT licence](https://img.shields.io/badge/licence-MIT-55566b?style=flat-square)](https://github.com/jsmigendevelopment/onRails/blob/main/LICENSE)
 
 [Install](#-install) · [Commands](#-the-four-commands) · [Defaults](#-opinionated-defaults) · [A run](#-what-a-run-looks-like) · [Guardrails](#-guardrails) · [Stacks](#-stacks-and-add-ons) · [Existing repo](#-add-it-to-a-repo-you-already-have) · [Cheat sheet](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/figures/onrails-build-loop-dark.svg">
+  <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/figures/onrails-build-loop-light.svg" alt="A pitch leads to product questions, screens and tech choices. The plan has Works, Real and Ready passes. Each issue in the current pass goes through build and review. Fixes repeat review. Passing changes reach test. The owner controls release." width="460">
+</picture>
 
 ## More install options
 
@@ -87,99 +97,80 @@ It installs the rules and skills, keeps your files and offers to open Claude Cod
 
 ## 🤔 What it is, and why
 
-AI agents follow your instructions. Where you leave a gap, they guess. They can take the first fix that works, invent UI components or build extra features. Add onRails to your project to set the rules and check its work.
+An agent can add items to a shared list and miss what a guest can see. onRails puts that decision on the issue, gives a builder a check to run and sends the change to a fresh reviewer.
 
-| Part | What it is | When it applies |
-|---|---|---|
-| [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blob/main/AGENTS.md) | 17 standing rules, the code rules and a stop-and-ask list | Every session |
-| 31 skills | Step-by-step instructions, one job each | When a request names the skill |
-| Guardrails | The local gate's checks, lint rules and blocked git commands | Always. They don't depend on a prompt. |
+| In the repo | What it does |
+|---|---|
+| [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blob/main/AGENTS.md) | 17 standing rules, the code rules and when to ask the owner in this checkout. |
+| Skills | Give agents steps for jobs like planning, building and reviewing. |
+| Guardrails | Run local checks, enforce code rules and block unsafe git commands. |
 
-- **Rules and conventions keep it on track.** It asks instead of guessing. Lint and the local gate fail the build when the code breaks a rule.
-- **You stay in charge.** You pick the product, the core and the stack. Production, secrets, real data and money always wait for you.
-- **Nobody checks their own work.** One fresh agent builds an issue. Other fresh agents review it and test it.
+The 0.7.1 release shipped 16 standing rules, 31 skills, 26 eval scenarios and 5 always-stop actions. Read about the kit's [principles](https://github.com/jsmigendevelopment/onRails/blob/main/guide/principles.md) and [evidence](https://github.com/jsmigendevelopment/onRails/blob/main/guide/evidence.md).
 
-See the [principles](https://github.com/jsmigendevelopment/onRails/blob/main/guide/principles.md) and [evidence](https://github.com/jsmigendevelopment/onRails/blob/main/guide/evidence.md) behind the kit.
+Jay Smigen uses onRails to build [Build Log](https://jsmigen.dev/blog/) and [Tranquiliti](https://tranquiliti.app).
 
 ## 🧰 Opinionated defaults
 
-onRails ships its maker's own preferences. They are a starting point, not the only right way.
+- **Stack.** TanStack Start on Cloudflare, Clerk for sign-in, shadcn/ui, Drizzle and pnpm. See [Stacks](#-stacks-and-add-ons).
+- **Writing.** Plain words and short sentences at about an eighth-grade reading level.
+- **Routing.** A model and effort for each job. See [Model routing](#-model-routing).
+- **Review.** A fresh agent reads the diff. A new commit needs a fresh verdict.
 
-- **The stack:** TanStack Start on Cloudflare, Clerk for sign-in, shadcn/ui, Drizzle and pnpm. See [Stacks](#-stacks-and-add-ons).
-- **The writing rules:** plain words, short sentences, about an 8th-grade reading level.
-- **The model routing:** which model and effort runs each job. See [Model routing](#-model-routing).
-- **The review steps:** nobody checks their own work, a fresh reviewer reads the diff, and a new commit needs a new review.
-
-**What you can change today: your profile.** Make it with `npx onrails profile init`. It lives at `~/.onrails/profile.toml`, and each new project gets a copy as `docs/profile.toml`. The skills read it as your defaults. The sections that matter most:
+Run `npx onrails profile init` to set your defaults in `~/.onrails/profile.toml`. New projects get a copy as `docs/profile.toml`.
 
 | Section | What it sets |
 |---|---|
-| `[me]` | Your name, naming style, and whether you type or use voice to text. Voice or both makes agents read your words by sound. That answer and your glossary of mishearings stay in `~/.onrails/`, never in a project |
-| `[web]` | The framework, UI kit, database, sign-in, hosting, and tools never to suggest |
-| `[defaults]` | The package manager, risk dial, automation level, grill mode, repo visibility and licence |
-| `[design]` | The look and feel, light or dark, roomy or dense, and how your app's text sounds |
-| `[routing]` | Your model for each tier and each role, and whether to ask before the strongest one |
+| `[me]` | Name, naming style and text or voice input. Your voice glossary stays in `~/.onrails/`. |
+| `[web]` | Framework, UI kit, database, sign-in, hosting and tools to skip. |
+| `[defaults]` | Package manager, risk, automation, grill mode, visibility and licence. |
+| `[design]` | Theme, spacing and voice. |
+| `[routing]` | Models by tier and role, and when to ask for the strongest one. |
 
-On every level below Full, the grill shows each pick for you to confirm. On Full, nothing waits: each pick is recorded as an "AI pick, not reviewed" and listed in an FYI. What you say in the session beats the profile. Only two stack packs are ready: TanStack Start, and TanStack Start with an Expo mobile app. For another stack, the agent sets up the same parts by hand. The risk dial and the automation level change who merges, but the review steps stay.
+On every level below Full, the grill shows each pick for you to confirm. On Full, nothing waits. The agent records each pick and sends an FYI. What you say in a session takes priority.
 
-**What the profile can't change yet:** the rules in `AGENTS.md` and the skills, such as the writing rules and the review steps. Today you edit those files in your project. `npx onrails update` keeps your edits and puts the kit's new copy next to yours to compare. Layered settings and personal rules, with no kit files to edit, are planned in [#124](https://github.com/jsmigendevelopment/onRails/issues/124). They haven't shipped yet.
-
-**This is not a guarantee.** Agents can still be wrong, even with these rules and checks. You own what you ship.
+Edit project rules and skills in place. `npx onrails update` keeps your edits and puts the kit's new copy beside yours. Layered settings are planned in [#124](https://github.com/jsmigendevelopment/onRails/issues/124).
 
 ## 🔁 What a run looks like
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/how-it-works-dark.svg">
-  <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/how-it-works.svg" alt="Plan once from pitch through issues. Then coordinate, build, run the local checks and code review, check the preview, review risky changes, merge to test and smoke test. Failed checks go back to Build. Your test site feedback becomes new issues." width="960">
-</picture>
+Plan around one thing someone can try end to end. For a shared list, add an item, reload and check that it is still there. Each step saves to files so `/back` can pick it up.
 
-Plan once. Each step saves to files, so you can stop any time and pick up with `/back`.
+| Step | What happens | Saved to `docs/` |
+|---|---|---|
+| Pitch and product grill | Describe the idea. Pick what the first release must do well and record the choices that shape it. | `vision.md`, `features.md`, `decisions.md` |
+| Screens | Try rough layouts, then a clickable design in both themes. Below Full, approve the screens before tech. On Full, the agent records its pick and sends the prototype. | `wireframes/index.html`, `design.md` |
+| Tech | Choose the stack, data, access, test setup and risk dial. | `stack.md`, `architecture.md`, `security-policy.md` |
+| Plan and issues | Outline three passes. Plan the current pass in detail. Give each step a ticket with something to try, acceptance checks, scope, dependencies and a review lane. | `pyramid.md`, `design.md` and tickets in GitHub |
+| Build and review | Say "start the loop". A fresh agent takes one issue and writes a failing test before the fix. The local gate and fresh reviewers check the exact commit. A failed check sends it back. | `state.md` |
+| Test and release | Merge the checked commit to the test site and smoke-test the main flow. File feedback as issues. You decide when to go live. | `state.md` |
 
-| # | Step | What happens | Saved to `docs/` |
-|---|---|---|---|
-| 1 | **Pitch** | You describe the idea in your own words. The agent repeats it in 3 to 5 lines and points out weak spots. | |
-| 2 | **Product grill** | Seven topics cover things people miss. Each round has three questions with suggested answers. Once the main flow is clear, your everyday model draws rough wireframes in the background. You describe the look, then the agent asks to use your strongest model for the full design. You see each screen as it's done. | `vision.md`, `features.md`, `decisions.md`, `wireframes/index.html`, `design.md` |
-| 3 | **MVP** | You pick the one thing that makes the app stand out. | `mvp.md` |
-| 4 | **Name** | While the screens finish, you get 5 to 7 names, `git init` and a GitHub repo if you say yes. | |
-| 5 | **You approve the screens** (below Full) | Try the full set as a clickable light and dark prototype. Below Full, the agent asks what to change and starts tech work after you approve. On Full, it records the screens as "AI pick, not reviewed", goes on, and sends the prototype in an FYI. | `decisions.md` |
-| 6 | **Tech grill** | Platform, stack, data, auth, environments, the local checks (no GitHub Actions) and the risk dial. Accept the picks or swap them. | `stack.md`, `architecture.md`, `security-policy.md` |
-| 7 | **Plan** | On the strongest model (below Full, after you approve it), it outlines three passes, cuts the first into steps you can try, and designs the schema and API from the approved screens. A script checks the steps. | `pyramid.md`, `design.md` |
-| 8 | **Issues** | One per step in the current pass. Each says what to try, gives WHEN/THEN checks with IDs, and lists scope limits, dependencies, risks, a lane and a complexity score. A read-only check looks for gaps in the plan. | GitHub issues |
-| 9 | **Keys** | It lists the accounts and keys for the first deploy and helps you set them up in about 10 minutes. | |
-| 10 | **Build loop** | Say "start the loop". The thread you talk to starts the loop in the background and stays free to answer you. Slice 0 sets up the app, the local checks and the test deploy. Then one fresh agent builds each issue, three in flight at most (one on Hands-on). | `state.md`, a line on what to try per merge |
-| 11 | **Pass gate** | The loop keeps going. A fresh audit checks the code against the plan and screens. The loop fixes what it finds and does some cleanup. Try it when you can, then the agent plans the next pass. | `pyramid.md` |
+After two rejected rounds (three for a complex issue), below Full the issue is parked and you're asked. On Full, nothing waits: one more round one step up if the builder has an escalation step left, then the issue is split into smaller ones, with an FYI.
 
-**What each pull request goes through:** build → the local gate (every check on the exact commit, from the session) → code review → QA on the preview → security review (risky changes only) → merge the exact commit that was checked → deploy to the test site → smoke test. A failed check goes back to a fresh builder. After two rejected rounds (three for a complex issue), below Full the issue is parked and you're asked. On Full, nothing waits: one more round one step up if the builder has an escalation step left, then the issue is split into smaller ones, with an FYI.
-
-**You control the test site.** The default stack lets you use Cloudflare Access, a password page or open access. Production starts on a “Coming soon” page. You decide when to go live.
+On the default stack, you choose how to protect the test site. Production starts on a “Coming soon” page.
 
 ### How the build is sliced: the tracer-bullet pyramid
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/tracer-bullet-pyramid-dark.svg">
-  <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/tracer-bullet-pyramid.svg" alt="Three passes narrow toward the core: Works covers every slice, Real deepens the core and key support, and Ready polishes the core. A gate sits between passes." width="960">
-</picture>
+A tracer bullet is a thin step through the screen, logic and data. Slice 0 gets the app running with local checks and a test site.
 
-If you build the full schema, then the API, then the UI, there’s nothing to try until the end. **Tracer bullets** cut through all three in thin slices. Try the first slice and steer while changes are cheap.
+- **Works** makes every slice tryable.
+- **Real** deepens the core.
+- **Ready** polishes the core and checks readiness for release.
 
-- **Slice 0** is the skeleton: the app runs, the local gate checks every pull request, and main deploys to test from the session.
-- **The MVP is three passes:** Works (a thin tracer bullet through every slice), Real (the core goes deep), Ready (the core polished, plus speed, accessibility, SEO and the launch checklist).
-- **A pass is an improvement** to what's already there.
-- **Each pass is cut into thin steps.** A slice is one thing the app lets you do, like "the shared list". A step is the smallest change to it that you can try, like "add an item". One step is one issue and one pull request, so every merge puts something new on the test site to try.
-- **Only what the core can't work without** goes in the MVP. Everything else comes after.
-- **A gate between passes:** a fresh audit and cleanup, which start at once, then you try it (on Full, `qa` tries it and nothing waits), then a re-plan. Later passes stay an outline until then.
-- **The end of pass 3 is "MVP complete" on the test site, not launch.** Going live is your call, whenever you choose.
-- **After the MVP, an hourglass:** the shape turns upside down and widens. Each layer adds new features, each in thin, plus a pass on what's already there, the core every time. Same gate between layers.
+One issue delivers one tryable step. A fresh audit and a chance to try the app inform the next pass. The owner decides when to launch. After the MVP, each new layer adds thin slices and revisits the core.
 
-**In agile terms**, a step is a user story sliced vertically. A slice is the activity its stories belong to. A pass or a layer is an iteration. The gate is the review, the retro and backlog refinement in one. `features.md` is the backlog. "Done means" in `pyramid.md` is the definition of done. Three in flight is the work-in-progress limit. The kit makes agents follow these rules. [The research behind it](https://github.com/jsmigendevelopment/onRails/blob/main/research/agile-flow.md)
+A step is a vertically sliced user story. A pass or layer is an iteration. The pass gate is the review, retro and backlog refinement in one. [The research behind it](https://github.com/jsmigendevelopment/onRails/blob/main/research/agile-flow.md)
 
-→ [The `pyramid` skill](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/pyramid/SKILL.md)
+[The `pyramid` skill](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/pyramid/SKILL.md)
 
 ## 🔒 Guardrails
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/figures/onrails-review-lanes-dark.svg">
+  <img src="https://raw.githubusercontent.com/jsmigendevelopment/onRails/main/assets/figures/onrails-review-lanes-light.svg" alt="Every lane starts with local checks and fresh code review. Normal adds a preview test. Risky also adds a security reviewer. A failed sign-in check sends a fix through local checks again. An always-stop action needs the owner in every lane." width="460">
+</picture>
+
 ### Checks before merge
 
-Every issue has a **lane**. The lane sets the checks.
+An issue's **lane** sets the checks before merge.
 
 | Lane | Checks before merge | When |
 |---|---|---|
@@ -187,9 +178,7 @@ Every issue has a **lane**. The lane sets the checks.
 | **normal** | local gate · code review · QA on the preview | Most issues |
 | **risky** | Normal · security review · you, unless you chose Full automation | Auth, secrets, personal data, money, migrations, new dependencies |
 
-- **The reviewer reads the diff.** It skips the pull request description.
-- **The review names the commit to merge.** A new commit needs a new review.
-- **A test is never weakened to pass.** The reviewer checks that too.
+The reviewer reads the diff, looks for weaker tests and names the commit to merge. A new commit needs a fresh review.
 
 ### Two dials
 
@@ -218,7 +207,7 @@ At every risk and automation level, the agent stops and asks before:
 - touching production settings, secrets or `.env` files
 - deploying to production or making the app public
 - spending money or signing up for a paid service
-- stopping or restarting a running strongest-tier job on its own call. "Not yet" means new work only; your "stop it" stops it at once
+- stopping or restarting a running strongest-tier job on its own call. “Not yet” applies to new work. A direct stop order takes effect at once
 
 ### Security reviews
 
@@ -250,11 +239,11 @@ The rules are in [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blo
 
 ### Keys never go through chat
 
-The [`secrets`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/secrets/SKILL.md) skill lists each variable and where to get it. It has click-by-click steps for 14 providers. You type values into a git-ignored file or a prompt. A script pushes them to GitHub and Cloudflare and prints names only. Paste a key into chat by mistake? It tells you to rotate it. → [Environments](https://github.com/jsmigendevelopment/onRails/blob/main/guide/environments.md)
+The [`secrets`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/secrets/SKILL.md) skill lists each variable and gives steps for 14 providers. Enter values in an ignored file or a masked prompt. The setup script reports names only. Rotate any key pasted into chat. [Environments](https://github.com/jsmigendevelopment/onRails/blob/main/guide/environments.md)
 
 ### Tests that the skills change behaviour
 
-[`evals/`](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md) holds seventeen small scenarios, one per rule that matters most: the grill asks before it builds, no force push or push to main, keys never in chat or git, test first inside the fence, a reviewer catches a weakened test, the wireframe gate, asking before the strongest model, a plan cut into thin steps you can try, a plan cut by layer sent back, the auto grill surfacing a one-way door, slice 0 showing the running app before the checks are set up, a blocker recorded instead of left in chat, a handoff answered with a reading, "go ahead" building more than one issue, a blocked issue not stopping the next one, "not yet" leaving a running strongest-tier job alone, and "stop it" stopping it. Each runs in Claude Code twice, with the kit and without, and checks what the agent did from its transcript and files, never from another model's opinion. A scenario passes only if the kit made the difference. The paid run, `npm run evals`, is your own call: you run it by hand when you choose to. It runs locally with your own login, on Claude Haiku 5.5. A full run cost about $0.16 when measured in 2026-11. Not every scenario passes on that model yet: [the evals README](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md#cost-controls) says which. The build loop never runs it: it runs only `npm run test:evals` (a fake `claude`, no model) and `node evals/run.mjs --dry-run`.
+[`evals/`](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md) contains 26 scenarios in 0.7.1. The runner schedules 20 by default and lists 6 opt-in scenarios. It runs the same task in Claude Code with and without onRails. A pass means every check succeeds with the kit and at least one fails without it. The paid run, `npm run evals`, is your own call: you run it by hand when you choose to. The build loop never runs it: it runs only `npm run test:evals` (a fake `claude`, no model) and `node evals/run.mjs --dry-run`. See cost controls and model results in [the evals README](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md#cost-controls).
 
 ### And the rest
 
@@ -324,9 +313,7 @@ The `tanstack-start` pack has 7 optional **add-ons**. The tech grill offers them
 
 ## 🧠 Model routing
 
-The strongest model at high effort takes more time and usage. The cheapest model can miss things. onRails picks a **model tier** and an **effort level** for each job.
-
-Three roles do most of the work:
+onRails picks a **model tier** and **effort level** for each job. Your profile sets the defaults.
 
 | Role | Default | Does |
 |---|---|---|
@@ -358,7 +345,7 @@ A role's effort is the base. A job's own rule can raise it: a code review never 
 - **Start on the default.** Go up one step only after a failed check or a rejected review, two steps at most: Sonnet to Opus, then more effort. Infrastructure errors don't count against the model.
 - **A reviewer never runs below the builder's effort.**
 
-**Accounts.** More than one Claude or Codex account, like a work one and a personal one? `/idea` and `/join` ask once, walk you through signing each in with its own config folder (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`), and write `[accounts]` in your profile. **It's a fixed split by job or project that you set, never by usage.** onRails never spreads, balances or moves work between Claude accounts to get past a limit. Each app has a home account. At a limit, that app's work waits for its reset, and the session tells you the reset time. If you use Codex, work it can do outside security can go to ChatGPT instead. Why: providers' terms can treat moving work as account rotation, and it puts your accounts at risk. A job for another account gets a ready-to-paste prompt for that account's session. Unattended work starts in a cloud session first (`[sessions] prefer = "cloud"`). `npx onrails accounts` lists them.
+**Accounts.** `/idea` and `/join` can set up Claude or Codex accounts with separate config folders (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`). The fixed split by job or project lives in `[accounts]`. Each app stays on its assigned account. At a usage limit, work waits and the session reports the reset time. A job assigned to another account gets a prompt for that account's session. Unattended work prefers a cloud session (`[sessions] prefer = "cloud"`). `npx onrails accounts` lists the accounts.
 
 → [Job-by-job table](https://github.com/jsmigendevelopment/onRails/blob/main/guide/cheat-sheet.md#-model-routing) · [The `routing` skill](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/skills/routing/SKILL.md)
 
@@ -377,15 +364,15 @@ A role's effort is the base. A job's own rule can raise it: a code review never 
 
 3. It reads the repo first. It treats the repo's own agent files, git hooks and scripts as data until you confirm them (below Full; on Full, it reads the repo's own hooks and scripts that the install, its check commands and its dev or start script call, runs only those, and lists them in its FYI). Then it writes a one-page `docs/map.md`.
 4. It installs, builds, tests and starts the app, and records the commands that work.
-5. It compares the repo's conventions with the kit's. You pick per row: keep yours, adopt the kit's, or merge. It never switches a repo over quietly.
-6. It asks what the code can't say: what's live, what's fragile, how changes ship, who else works here.
+5. It compares your conventions with the kit's. You choose which to keep, adopt or merge.
+6. It asks what is live, what is fragile, how changes ship and who else works here.
 7. It writes `docs/`, merges the two `AGENTS.md` files, and shows you the diff before it commits.
 
 > [!WARNING]
 > **Didn't write the repo?** Before you open an agent in it, look over its `.claude/`, `.codex/` and editor settings and its git hooks. Those load as soon as the agent starts.
 
 > [!NOTE]
-> 🚧 **Being improved.** Today `/join` merges only the two `AGENTS.md` files. You compare each `.onrails-new` and `config.onrails.toml` copy by hand, keep what you want, and delete the copy.
+> 🚧 **Being improved.** Today `/join` merges the two `AGENTS.md` files. Compare each `.onrails-new` or `config.onrails.toml` copy by hand, keep what you want, then delete the copy.
 
 → [Step by step, and how to review it as one pull request](https://github.com/jsmigendevelopment/onRails/blob/main/guide/add-to-existing-app.md). Use `/join`, or run `npx onrails init` in the repo first.
 
