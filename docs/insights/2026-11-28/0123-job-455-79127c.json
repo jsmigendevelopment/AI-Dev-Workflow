@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T01:23:58.629Z",
+  "issue": null,
+  "pr": 455,
+  "sha": "c8b8e4ed06d7d61be526aa6d3a471bd7cfb9c198",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "unknown",
+  "outcome": "fail",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "none: this sub-agent session shows no usage reading",
+  "send_back": "review-must"
+}

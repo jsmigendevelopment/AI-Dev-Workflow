@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T01:31:58.100Z",
+  "issue": null,
+  "pr": 452,
+  "sha": "5c57f03e2707d9b3a22954897b8b83583ee4d404",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "unknown",
+  "outcome": "pass",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "get_session shows a seven-day warning with no usage percent"
+}
