@@ -215,4 +215,5 @@ Work passed to another session or account is a handoff. It is written down with 
 | File | Load when |
 |---|---|
 | `references/handoffs.md` | You send work to another session, thread or account, or you receive a brief from one. |
+| `references/voice.md` | `voice.mjs` says `input` is `voice` or `both`: reading dictated words by sound, when to confirm a reading, and the glossary of mishearings. |
 | `references/preflight.md` | A session starts `/idea`, `/join`, `/back` or `build`, or a sandbox blocker shows up: an install, `.git`, a port or a browser. |

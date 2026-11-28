@@ -10,6 +10,7 @@ name = ""                       # how agents address you and credit you
 github_owner = ""               # account or organisation new repos go under
 github_plan = "free"            # free | team (decides what setup-github can turn on)
 naming_style = ""               # e.g. "one lowercase word + one capitalised word, festival themed"
+input = ""                      # typing | voice | both: voice or both makes agents read your words by sound. Personal: never copied into a project
 
 [me.signature]
 # The sign-off at the end of every README an agent writes: npx onrails signature --write README.md
