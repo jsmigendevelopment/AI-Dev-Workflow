@@ -71,3 +71,65 @@ test("AC-348-4 support: the Go guide's money, time, logs, events and access sect
   assert.match(section(go, 14), /track\(\)/);
   assert.match(section(go, 18), /check\(user, action, object\)/);
 });
+
+// #564: fixes from the review of the guide above. Each test reads the guide's words, so the examples
+// and the lines they sit in can't drift back.
+const bulletWith = (text, start) => text.split("\n").find((l) => l.startsWith(start)) ?? "";
+
+test("AC-564-1: WHEN a reader opens the ReplaceAttr example THEN it guards len(groups) == 0 and checks the kind before .Time()", () => {
+  const go = read(GO_GUIDE);
+  const from = go.indexOf("ReplaceAttr: func(");
+  assert.ok(from >= 0, "the guide has a ReplaceAttr example");
+  const example = go.slice(from, go.indexOf("\n\t\t},\n", from));
+  assert.match(example, /ReplaceAttr: func\(groups \[\]string, a slog\.Attr\)/, "groups is named, not dropped");
+  const guard = example.indexOf("len(groups) == 0");
+  const kind = example.indexOf("a.Value.Kind() == slog.KindTime");
+  const call = example.indexOf(".Time()");
+  assert.ok(guard >= 0, "the example guards len(groups) == 0");
+  assert.ok(kind >= 0, "the example checks a.Value.Kind() == slog.KindTime");
+  assert.ok(call >= 0, "the example still converts the time");
+  assert.ok(guard < call, "the group guard comes before .Time()");
+  assert.ok(kind < call, "the kind check comes before .Time()");
+});
+
+test("AC-564-2: WHEN a reader opens the Secret type THEN String() and MarshalJSON() both return [redacted]", () => {
+  const go = read(GO_GUIDE);
+  assert.match(go, /func \(Secret\) String\(\) string[^\n]*"\[redacted\]"/);
+  assert.match(go, /func \(Secret\) MarshalJSON\(\) \(\[\]byte, error\)[^\n]*\[redacted\]/);
+  assert.match(go, /func \(Secret\) LogValue\(\) slog\.Value[^\n]*\[redacted\]/, "the slog hook stays");
+  const bullet = bulletWith(section(go, 13), "- **Redaction by default");
+  assert.match(bullet, /`%s`/, "the text says it stays hidden in %s");
+  assert.match(bullet, /JSON/, "the text says it stays hidden in JSON");
+});
+
+test("AC-564-3: WHEN a reader opens the error envelope line THEN it is not 'the web app's own' and says requestId was added and fields kept", () => {
+  const go = read(GO_GUIDE);
+  const line = bulletWith(section(go, 5), "- **One error envelope");
+  assert.ok(line, "the envelope bullet exists");
+  assert.doesNotMatch(line, /web app's own/);
+  assert.match(line, /requestId`? (was )?added/);
+  assert.match(line, /`fields`[^.]*kept|kept[^.]*`fields`/);
+});
+
+test("AC-564-4: WHEN a reader compares the two lines about the system clock THEN both place it in internal/platform/clock, in UTC, as the one caller of time.Now()", () => {
+  const go = read(GO_GUIDE);
+  const intro = bulletWith(go, "Shared code lives under");
+  const bullet = bulletWith(section(go, 11), "- **A test clock");
+  for (const [name, line] of [["intro", intro], ["rule 11 bullet", bullet]]) {
+    assert.ok(line, `${name} line exists`);
+    assert.match(line, /internal\/platform\/clock/, `${name} names the clock's folder`);
+    assert.match(line, /time\.Now\(\)/, `${name} says where time.Now() is read`);
+    assert.match(line, /UTC/, `${name} says the clock is UTC`);
+  }
+  assert.doesNotMatch(go, /system clock in `cmd\/api`/, "the old place is gone");
+});
+
+test("AC-564-5: WHEN a reader opens the default authorization adapter line THEN it says the Go adapter on Postgres is untested and drops research/authorization.md", () => {
+  const go = read(GO_GUIDE);
+  const line = bulletWith(section(go, 18).replace(/^ +- /gm, "- "), "- The default adapter");
+  assert.ok(line, "the default adapter bullet exists");
+  assert.match(line, /untested/i);
+  assert.match(line, /Postgres/);
+  assert.doesNotMatch(go, /research\/authorization\.md/);
+  assert.ok(go.replace(/\n$/, "").split("\n").length < 300, "the guide stays under 300 lines");
+});
