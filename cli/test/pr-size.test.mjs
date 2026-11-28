@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "./child.mjs";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fakeGh, safeEnv, tmp, unixOnly } from "./helpers.mjs";
@@ -282,4 +282,181 @@ test("#377 round 2, nice items 3 and 4: only data types count as fixtures, under
   const skipped = size({ files: [...data.map((name) => [name, 300, 0]), ["src/a.ts", 10, 0]] });
   assert.equal(skipped.status, 0, skipped.stderr);
   assert.match(skipped.stdout, /#9: 10 changed lines counted, 2100 not counted/);
+});
+
+/** pr-size.mjs --base main in a checkout git takes for another user's, as a dev container's mounted folder is. A fake
+ * git (first on PATH) sets git's own GIT_TEST_ASSUME_DIFFERENT_OWNER for calls made inside the checkout, so git's real
+ * ownership check runs without chown or root. The operator's global config is a fake home: `.gitconfig` holds `safe`
+ * (the checkout's root by default, or the entries `safe(root)` returns), and `files(root, home)` replaces the home's
+ * files ({ path under the home: text, or null for a folder }). `env(home)` adds variables, `undefined` removes one (the
+ * shell's own GIT_CONFIG_COUNT and GIT_CONFIG_PARAMETERS are removed unless a test sets them).
+ * pr-size.mjs must trust the root itself only when git, reading that config, would. The fake logs each call as
+ * "<folder>\t<arguments>\t<GIT_CONFIG_GLOBAL>". */
+function otherOwner(files, { safe = (root) => [root], files: homeFiles, env: extra = () => ({}), owned = false } = {}) {
+  const dir = checkout();
+  commitBranch(dir, files);
+  const root = realpathSync(dir);
+  const fakes = tmp("onrails-owner-");
+  const home = join(fakes, "home");
+  mkdirSync(join(home, ".config"), { recursive: true });
+  const config = homeFiles?.(root, home) ?? { ".gitconfig": `[safe]\n${safe(root).map((entry) => `\tdirectory = ${entry}\n`).join("")}` };
+  for (const [path, text] of Object.entries(config)) {
+    if (text === null) mkdirSync(join(home, path), { recursive: true });
+    else mkdirSync(dirname(join(home, path)), { recursive: true }), writeFileSync(join(home, path), text);
+  }
+  mkdirSync(join(fakes, "bin"));
+  writeFileSync(join(fakes, "bin", "git"), `#!/bin/sh
+printf '%s\\t%s\\t%s\\n' "$PWD" "$*" "\${GIT_CONFIG_GLOBAL-unset}" >> "$FAKE_GIT_LOG"
+case "$PWD" in "$OTHER_OWNER"|"$OTHER_OWNER"/*) GIT_TEST_ASSUME_DIFFERENT_OWNER=1; export GIT_TEST_ASSUME_DIFFERENT_OWNER;; esac
+exec "$REAL_GIT" "$@"
+`);
+  chmodSync(join(fakes, "bin", "git"), 0o755);
+  const log = join(fakes, "git.log");
+  const env = safeEnv({ HOME: home, XDG_CONFIG_HOME: join(home, ".config"), OTHER_OWNER: owned ? "/nonexistent" : root, FAKE_GIT_LOG: log, REAL_GIT: join(git(fakes, "--exec-path").trim(), "git"), GIT_CONFIG_COUNT: undefined, GIT_CONFIG_PARAMETERS: undefined, ...extra(home) }, { bins: [join(fakes, "bin")] });
+  const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), "--base", "main"], { cwd: dir, encoding: "utf8", env });
+  const calls = existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean).map((line) => line.split("\t")) : [];
+  const control = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: dir, encoding: "utf8", env: { ...env, GIT_CONFIG_GLOBAL: "/dev/null" } });
+  return { ...r, root, calls, control };
+}
+
+const named = (args) => [...args.matchAll(/safe\.directory=(\S*)/g)].map((m) => m[1]);
+const isConfigRead = (args) => / config --file /.test(args);
+const refused = (r, why) => {
+  assert.equal(r.status, 2, `${why}: ${r.stdout}`);
+  assert.match(r.stderr, /dubious ownership/, why);
+  assert.doesNotMatch(r.stdout, /changed lines counted/, why);
+};
+const counted = (r, why) => {
+  assert.equal(r.status, 0, `${why}: ${r.stderr}`);
+  assert.match(r.stdout, /HEAD against main: 30 changed lines counted/, why);
+};
+const change = { "src/a.ts": lines(30) };
+/** The root listed, then `rest`, in the global config. */
+const listsRoot = (rest) => ({ files: (root) => ({ ".gitconfig": `[safe]\n\tdirectory = ${root}\n${rest}` }) });
+
+test("AC-432-1: WHEN the checkout is owned by another user and the global config marks it safe THEN pr-size.mjs --base origin/main runs and counts", unixOnly, () => {
+  const r = otherOwner({ "src/a.ts": lines(30) });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /dubious ownership/);
+  assert.match(r.stdout, /HEAD against main: 30 changed lines counted, 0 not counted/);
+  // The control: git as pr-size.mjs ran it before (no global config, no trust) refuses this checkout, as the fake owner means it to.
+  assert.match(r.control.stderr, /dubious ownership/);
+});
+
+test("#432: only the checkout's own root is trusted, never a wildcard, and every call stays isolated from the global config", unixOnly, () => {
+  const r = otherOwner(change);
+  assert.equal(r.status, 0, r.stderr);
+  // The operator's list is read by git itself, from a scratch folder: no repo, no trusted folder, the global config dropped.
+  const reads = r.calls.filter(([, args]) => isConfigRead(args));
+  assert.ok(reads.length > 0, "the list is read");
+  for (const [cwd, args, global] of reads) {
+    assert.ok(cwd !== r.root && !cwd.startsWith(`${r.root}/`), `a config read runs outside the checkout: ${cwd}`);
+    assert.equal(global, "/dev/null", `git ${args}`);
+    assert.deepEqual(named(args), [], `git ${args}`);
+  }
+  // Every call that can open the checkout: the first finds the root, and each names only that root.
+  const rest = r.calls.filter(([, args]) => !isConfigRead(args));
+  assert.match(rest[0][1], /rev-parse --show-toplevel$/, "the first call that opens the checkout finds the root");
+  assert.ok(rest.length > 1);
+  for (const [, args, global] of rest) {
+    assert.deepEqual(named(args), [r.root], `git ${args}`);
+    assert.equal(global, "/dev/null", `git ${args}`);
+  }
+});
+
+test("#432: WHEN the checkout is owned by another user and the global config does not list it THEN pr-size.mjs refuses it as main does, exit 2", unixOnly, () => {
+  const r = otherOwner(change, { safe: () => ["/srv/some/other/checkout"] });
+  refused(r, "another folder listed");
+  assert.ok(r.calls.every(([, args]) => !/safe\.directory=/.test(args)), "no call names a trusted folder");
+  refused(otherOwner(change, { safe: () => [] }), "no safe.directory at all");
+});
+
+test("#432: a global safe.directory of * is read as git reads it, so the checkout counts, and every call still names only its root", unixOnly, () => {
+  const r = otherOwner(change, { safe: () => ["*"] });
+  counted(r, "wildcard");
+  for (const [, args] of r.calls.filter(([, args]) => !isConfigRead(args))) assert.deepEqual(named(args), [r.root], `git ${args}`);
+});
+
+test("#432: an empty safe.directory clears the list before it, as in git, and a parent or a child of the root is not the root", unixOnly, () => {
+  refused(otherOwner(change, { safe: (root) => [root, ""] }), "cleared after the root");
+  counted(otherOwner(change, { safe: (root) => ["", root] }), "listed after the clear");
+  refused(otherOwner(change, { safe: (root) => [dirname(root), `${root}/src`] }), "a parent and a child");
+});
+
+// Each form below lists the root, and git, reading the same files, then does not trust it (or dies). Reading it by
+// hand once counted these; git parses the files now, so each is refused, as main refuses an unlisted checkout.
+{
+  const forms = {
+    'a later `directory = ""`': listsRoot('\tdirectory = ""\n'),
+    "a later `directory = # c`": listsRoot("\tdirectory = # reset\n"),
+    "a later `directory = ; c`": listsRoot("\tdirectory = ; reset\n"),
+    "a later bare `directory`": listsRoot("\tdirectory\n"),
+    "a clear in an included file": { files: (root) => ({ ".gitconfig": `[safe]\n\tdirectory = ${root}\n[include]\n\tpath = cleared\n`, cleared: "[safe]\n\tdirectory =\n" }) },
+    "a backslash continuation that joins the root's line to another value": { files: (root) => ({ ".gitconfig": `[safe]\n\tdirectory = /srv/other\\\n\tdirectory = ${root}\n` }) },
+    "a section git rejects, `[ safe ]`": { files: (root) => ({ ".gitconfig": `[ safe ]\n\tdirectory = ${root}\n` }) },
+    "an unclosed section after the root": listsRoot("[core\n"),
+    "a line git rejects after the root": listsRoot("= x\n"),
+  };
+  for (const [why, options] of Object.entries(forms)) {
+    test(`#432: WHEN the root is listed and then ${why} THEN it is refused, as git refuses it`, unixOnly, () => refused(otherOwner(change, options), why));
+  }
+}
+
+// git reads no user config at all for these, though the files list the root.
+{
+  const listed = { files: (root) => ({ ".gitconfig": `[safe]\n\tdirectory = ${root}\n`, ".config/git/config": `[safe]\n\tdirectory = ${root}\n` }) };
+  const forms = { "GIT_CONFIG_GLOBAL is empty": { GIT_CONFIG_GLOBAL: "" }, "HOME is unset": { HOME: undefined }, "HOME is empty": { HOME: "" } };
+  for (const [why, env] of Object.entries(forms)) {
+    test(`#432: WHEN ${why} THEN git reads no user config and the root is refused`, unixOnly, () => refused(otherOwner(change, { ...listed, env: () => env }), why));
+  }
+}
+
+// The operator's own environment can clear the list after the files list the root, and git then refuses the checkout.
+// The script drops every GIT_* variable, so it can't read that clear: it trusts nothing, as main does.
+{
+  const listed = { files: (root) => ({ ".gitconfig": `[safe]\n\tdirectory = ${root}\n` }) };
+  const clear = { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "safe.directory", GIT_CONFIG_VALUE_0: "" };
+  test("#432: WHEN GIT_CONFIG_COUNT clears safe.directory after the global file lists the root THEN it is refused, as git refuses it", unixOnly, () => {
+    const r = otherOwner(change, { ...listed, env: () => clear });
+    refused(r, "GIT_CONFIG_COUNT clears the list");
+    assert.equal(r.calls.some(([, args]) => isConfigRead(args)), false, "no list is read when the environment sets git config");
+    // A count of zero sets nothing, so the global file still counts.
+    counted(otherOwner(change, { ...listed, env: () => ({ GIT_CONFIG_COUNT: "0" }) }), "GIT_CONFIG_COUNT is 0");
+  });
+  test("#432: WHEN GIT_CONFIG_PARAMETERS clears safe.directory after the global file lists the root THEN it is refused, as git refuses it", unixOnly, () => {
+    refused(otherOwner(change, { ...listed, env: () => ({ GIT_CONFIG_PARAMETERS: "'safe.directory='" }) }), "GIT_CONFIG_PARAMETERS clears the list");
+    counted(otherOwner(change, { ...listed, env: () => ({ GIT_CONFIG_PARAMETERS: "" }) }), "GIT_CONFIG_PARAMETERS is empty");
+  });
+}
+
+test("#432: GIT_CONFIG_GLOBAL, when set, is the only user config read, and a file that lists the root there counts", unixOnly, () => {
+  const files = (root, home) => ({ ".gitconfig": "[safe]\n\tdirectory = /srv/other\n", ".config/git/config": "[safe]\n\tdirectory = /srv/other\n", "mine": `[safe]\n\tdirectory = ${root}\n` });
+  counted(otherOwner(change, { files, env: (home) => ({ GIT_CONFIG_GLOBAL: join(home, "mine") }) }), "GIT_CONFIG_GLOBAL lists the root");
+  // The other way round: the defaults list the root, the file GIT_CONFIG_GLOBAL names does not.
+  const defaults = (root) => ({ ".gitconfig": `[safe]\n\tdirectory = ${root}\n`, ".config/git/config": `[safe]\n\tdirectory = ${root}\n`, "mine": "[safe]\n\tdirectory = /srv/other\n" });
+  refused(otherOwner(change, { files: defaults, env: (home) => ({ GIT_CONFIG_GLOBAL: join(home, "mine") }) }), "GIT_CONFIG_GLOBAL wins over the defaults");
+  refused(otherOwner(change, { files: defaults, env: (home) => ({ GIT_CONFIG_GLOBAL: join(home, "missing") }) }), "a GIT_CONFIG_GLOBAL file that doesn't exist reads nothing");
+});
+
+test("#432: the XDG file is read, then ~/.gitconfig, and an empty entry in the later file clears the earlier one", unixOnly, () => {
+  const entry = (root) => `[safe]\n\tdirectory = ${root}\n`;
+  const clear = "[safe]\n\tdirectory =\n";
+  counted(otherOwner(change, { files: (root) => ({ ".config/git/config": entry(root) }) }), "the XDG file alone");
+  counted(otherOwner(change, { files: (root) => ({ ".gitconfig": entry(root) }), env: () => ({ XDG_CONFIG_HOME: undefined }) }), "~/.gitconfig alone, no XDG_CONFIG_HOME");
+  counted(otherOwner(change, { files: (root) => ({ ".config/git/config": entry(root) }), env: () => ({ XDG_CONFIG_HOME: undefined }) }), "the default XDG file, ~/.config/git/config");
+  counted(otherOwner(change, { files: (root) => ({ "xdg/git/config": entry(root) }), env: (home) => ({ XDG_CONFIG_HOME: join(home, "xdg") }) }), "XDG_CONFIG_HOME names the folder");
+  refused(otherOwner(change, { files: (root) => ({ ".config/git/config": entry(root), ".gitconfig": clear }) }), "a clear in ~/.gitconfig, after the XDG file lists the root");
+  counted(otherOwner(change, { files: (root) => ({ ".config/git/config": clear, ".gitconfig": entry(root) }) }), "~/.gitconfig lists the root after the XDG file clears");
+  counted(otherOwner(change, { files: (root) => ({ ".config/git/config": "[safe]\n\tdirectory = /srv/other\n", ".gitconfig": entry(root) }) }), "~/.gitconfig lists the root, the XDG file another folder");
+});
+
+test("#432: an included file's safe.directory counts, as git reads it", unixOnly, () => {
+  counted(otherOwner(change, { files: (root) => ({ ".gitconfig": "[include]\n\tpath = shared\n", shared: `[safe]\n\tdirectory = ${root}\n` }) }), "the include lists the root");
+});
+
+test("#432: WHEN a user config file can't be read THEN nothing is listed from it, and a checkout that needs no trust still counts", unixOnly, () => {
+  // ~/.gitconfig is a folder: git warns and carries on, so a checkout the user owns counts as it does on main.
+  counted(otherOwner(change, { files: () => ({ ".gitconfig": null }), owned: true }), "an owned checkout, ~/.gitconfig a folder");
+  counted(otherOwner(change, { files: (root) => ({ ".config/git/config": `[safe]\n\tdirectory = ${root}\n`, ".gitconfig": null }) }), "a folder after the XDG file that lists the root");
+  refused(otherOwner(change, { files: () => ({ ".gitconfig": null }) }), "nothing listed, a checkout owned by another user");
 });
