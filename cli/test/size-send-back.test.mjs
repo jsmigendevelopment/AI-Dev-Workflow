@@ -12,6 +12,7 @@ import { SCRIPTS, checkout, git } from "./pr-rules-fakes.mjs";
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), "utf8");
 const COORDINATE = ".agents/skills/coordinate/SKILL.md";
+const SIZE_REFERENCE = ".agents/skills/coordinate/references/size-send-back.md";
 const BUILD = ".agents/skills/build/SKILL.md";
 
 /** coordinate's step 6, up to step 7. */
@@ -21,11 +22,11 @@ const stepSix = () => {
   assert.ok(start > 0, "found step 6");
   return text.slice(start, text.indexOf("\n7. **Merge through one queue,**", start));
 };
-/** The size-first bullet of step 6. */
+/** The size-first bullet of step 6, with the reference its pointer names (#558 moved the send-back detail there). */
 const sizeFirst = () => {
   const line = stepSix().split("\n").find((l) => l.includes("**Size first**")) ?? "";
   assert.ok(line, "step 6 has a **Size first** bullet");
-  return line;
+  return `${line}\n${read(SIZE_REFERENCE)}`;
 };
 
 test("AC-378-1: WHEN a pull request is over the limit with no exception THEN step 6 runs pr-size.mjs before the clone and the code review, and an exit 1 gets no review", () => {

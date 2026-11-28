@@ -14,7 +14,8 @@ import { recordProblem } from "../../.agents/skills/coordinate/scripts/insights-
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const WRITER = join(REPO, ".agents/skills/coordinate/scripts/insights.mjs");
 const skill = (name) => readFileSync(join(REPO, ".agents/skills", name, "SKILL.md"), "utf8");
-const REASONS = ["size", "review-must", "checks", "infra", "process"];
+const sizeReference = () => readFileSync(join(REPO, ".agents/skills/coordinate/references/size-send-back.md"), "utf8");
+const REASONS =["size", "review-must", "checks", "infra", "process"];
 const COST = ["model", "effort", "usage_before", "usage_after", "usage_from", "outcome"];
 const FAKE = {
   n: "40", issue: "12", pr: "40", sha: "c".repeat(40), model: "opus", effort: "low", tool: "codex",
@@ -138,7 +139,7 @@ test("AC-380-1: WHEN a run sends work back THEN its skill names the reason, and 
       assert.equal(record.send_back, reason, name);
     }
   }
-  const size = commands(skill("coordinate"), (c) => c.includes("send_back=size"))[0];
+  const size = commands(skill("coordinate") + sizeReference(), (c) => c.includes("send_back=size"))[0];
   assert.ok(size, "coordinate's size send-back writes a record");
   const record = recordOf(run(repo(), size.split(" ")));
   assert.deepEqual([record.kind, record.outcome, record.send_back, record.sha], ["job", "fail", "size", FAKE.sha]);
