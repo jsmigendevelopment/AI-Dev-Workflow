@@ -529,3 +529,48 @@ test("AC-532-5: full.md names the Go check code and tests the script protects", 
     assert.ok(doc.includes(name), name);
   }
 });
+
+// #570: a Makefile can `include` any `*.mk` file and a Go workspace reads `go.work`, so each can carry the `check` target
+// or change which modules the checks run over. Only names are added; go.mod, go.sum and go.work.sum stay out (decision 570-1).
+const INCLUDE_AND_WORKSPACE_FILES = ["common.mk", "go.work", "build/check.mk", "ci.MK", "GO.WORK"];
+
+test("AC-570-1: WHEN a pull request changes a *.mk file or go.work at any depth THEN each is reported as check code", () => {
+  for (const name of INCLUDE_AND_WORKSPACE_FILES) {
+    for (const where of [name, `services/api/${name}`, `a/b/c/${name.toUpperCase()}`]) {
+      const r = decide({ changed: [where], stack: RECOMMENDED });
+      assert.equal(r.pass, false, where);
+      assert.ok(r.why.includes(where), `${where}: ${r.why}`);
+    }
+  }
+});
+
+test("AC-570-1: WHEN a *.mk file or go.work is renamed away THEN the old name is reported", () => {
+  for (const previous of ["mk/check.mk", "go.work"]) {
+    const r = decide({ changed: changedPaths([{ filename: "notes.txt", previous_filename: previous, status: "renamed" }]), stack: RECOMMENDED });
+    assert.equal(r.pass, false, previous);
+    assert.ok(r.why.includes(previous), r.why);
+  }
+});
+
+test("AC-570-1: WHEN only near misses change THEN go.mod, go.sum, go.work.sum and look-alike names pass", () => {
+  for (const path of ["go.mod", "go.sum", "go.work.sum", "services/api/go.work.sum", "docs/mk.md", "docs/check.mk.md", "a/check.mkdir/x.txt", "a/x.mk.bak",
+    "src/go.work.ts", "a/ago.work", "a/go.workspace", "docs/go.work.md", "mk"]) {
+    assert.equal(decide({ changed: [path], stack: RECOMMENDED }).pass, true, path);
+  }
+});
+
+test("AC-570-1: WHEN the level is Full and a *.mk file or go.work changes THEN a writer's pass at the head passes and a writer's fail fails", () => {
+  for (const path of INCLUDE_AND_WORKSPACE_FILES) {
+    const guard = (comments) => decide({ changed: [path], stack: FULL, comments, head: HEAD, trusted: WRITERS });
+    assert.equal(guard([]).pass, false, `${path}: no review`);
+    assert.equal(guard([PASS()]).pass, true, `${path}: a pass`);
+    assert.equal(guard([FAIL()]).pass, false, `${path}: a fail`);
+  }
+});
+
+test("AC-570-1: full.md names *.mk and go.work, and says go.work.sum stays out", () => {
+  const doc = read(".agents/skills/automation/references/full.md").split("## The weakening review")[1];
+  for (const name of ["`*.mk`", "`go.work`", "`go.work.sum`"]) {
+    assert.ok(doc.includes(name), name);
+  }
+});
