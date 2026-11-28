@@ -2,7 +2,7 @@
 
 Updated 2026-11-27 18:00 UTC by the coordinator (session_01QHnB3KjQfR34yczJypyfi1).
 
-- **Automation level:** Full (decision 259-1, the owner's words). No `docs/stack.md` yet (#360). Kit-repo reviews: decision 28.
+- **Automation level:** Full (decision 259-1, the owner's words). `docs/stack.md` records it (#360). Kit-repo reviews: decision 28, so the one code review writes the `Weakening review:` line.
 - **Main's checks:** Checks: pass @ 24ba647ec2893c60e7ca1658485700a67ab19c26 (sync-skills, npm-readme, bundle, cli `npm test` 980 tests 0 fail, `test:evals` 65/65, evals dry run).
 - **Sweep timer:** none · **Supervisor:** none (the loop runs as a sub-thread of the live thread). **Release:** 0.7.1 on npm; the rest is under Unreleased; releases are the owner's.
 
@@ -25,4 +25,4 @@ Nothing. No claims, no open loop pull requests. Open but not the loop's: #234 (E
 Nothing blocks. FYI only: add the commons review token when you want its Claude review (#89); tag v0.7.1 if not yet done.
 
 ## Gotchas
-`mark-check.mjs` is refused by the proxy (403); the `Checks:` comment is the record. `agent-files.mjs gate` asks for `human-approved` on agent files until #360; decision 28 covers it. Builders' cloud checkouts can be older than main: brief them to branch from fresh `origin/main` (#361). Run the gate with `TMPDIR` set or unset; both pass since #282.
+`mark-check.mjs` is refused by the proxy (403); the `Checks:` comment is the record. `agent-files.mjs gate` reads Full from `docs/stack.md` on main (#360): an agent-file pull request passes on the code review's `Weakening review: pass @ <head>` line, with no label. Builders' cloud checkouts can be older than main: brief them to branch from fresh `origin/main` (#361). Run the gate with `TMPDIR` set or unset; both pass since #282.
