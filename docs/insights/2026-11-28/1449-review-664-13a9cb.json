@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T14:49:38.678Z",
+  "issue": null,
+  "pr": 664,
+  "sha": "015196872b20aec89b43889fe81d32461acf0c7e",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 2,
+  "categories": [
+    "tests"
+  ],
+  "model_from": "session shows the model id, not an effort level"
+}
