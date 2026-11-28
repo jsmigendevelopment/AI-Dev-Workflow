@@ -197,7 +197,7 @@ test("AC-537-3: WHEN gcloud echoes a value in its JSON-escaped form THEN that fo
   for (const form of [tricky, JSON.stringify(tricky).slice(1, -1), "a\\\"b"]) assert.ok(!seen(r).includes(form), `no ${form}`);
 });
 
-test("AC-537-4: WHEN a go.mod sits above the .git folder THEN it is ignored and the messages stay as for a web app", UNIX, () => {
+test("AC-537-5: WHEN a go.mod sits above the .git folder THEN it is ignored and the messages stay as for a web app", UNIX, () => {
   const outer = tmp("onrails-go-above-");
   writeFileSync(join(outer, "go.mod"), "module example.com/other\n\ngo 1.26\n");
   const app = join(outer, "app");
@@ -210,4 +210,48 @@ test("AC-537-4: WHEN a go.mod sits above the .git folder THEN it is ignored and 
   assert.equal(r.status, 0, seen(r));
   assert.match(r.stdout, /Secrets go to Cloudflare with --wrangler; plain variables belong in wrangler\.jsonc vars\./);
   assert.doesNotMatch(r.stdout, /cloud-run/);
+});
+
+// #583: a flag that needs a value and has none must stop the run, not fall back to gcloud's active project or region.
+for (const flagName of ["--service", "--region", "--project"]) {
+  test(`AC-583-1: WHEN ${flagName} is the last word with no value THEN it exits 1 before any gcloud call, names the flag and prints no value`, UNIX, () => {
+    const r = run(PUSH, goRepo(), ["--cloud-run", flagName]);
+    assert.equal(r.status, 1, seen(r));
+    assert.deepEqual(r.calls, [], "no tool started");
+    assert.match(r.stderr, new RegExp(`${flagName} needs a value`));
+    assert.doesNotMatch(r.stdout, /: set |would set|FAILED/, "nothing was listed or pushed");
+    noValue(seen(r));
+  });
+}
+
+test("AC-583-1: WHEN a dry run ends with --project and no value THEN it exits 1 and lists no name", UNIX, () => {
+  const r = run(PUSH, goRepo(), ["--dry-run", "--env", "test", "--cloud-run", "--project"]);
+  assert.equal(r.status, 1, seen(r));
+  assert.match(r.stderr, /--project needs a value/);
+  assert.doesNotMatch(r.stdout, /would set/);
+});
+
+test("AC-583-1: WHEN --region is followed by another flag word THEN that word is no value and the run exits 1 before any gcloud call", UNIX, () => {
+  const r = run(PUSH, goRepo(), ["--cloud-run", "--region", "--env", "test"]);
+  assert.equal(r.status, 1, seen(r));
+  assert.deepEqual(r.calls, [], "no tool started");
+  assert.match(r.stderr, /--region needs a value/);
+  assert.doesNotMatch(seen(r), /--env/, "the word after the flag is not echoed");
+});
+
+test("AC-583-1: WHEN each flag has its value THEN the run goes on as before", UNIX, () => {
+  const r = run(PUSH, goRepo(), ["--dry-run", "--cloud-run", "--service", "shop", "--region", "europe-west1", "--project", "my-project", "--env", "production"]);
+  assert.equal(r.status, 0, seen(r));
+  assert.match(r.stdout, /would set SITE_URL as a Cloud Run variable \(service shop-production\) in project my-project, region europe-west1/);
+});
+
+test("AC-583-2: WHEN gcloud echoes a plain variable's value in Python repr form (a backslash doubled, quotes kept) THEN it shows <hidden> and the value in no form", UNIX, () => {
+  const dir = goRepo();
+  const tricky = 'https://example.com/a"b\\c';
+  writeFileSync(join(dir, ".env.production.local"), `API_TOKEN=${LIVE_VALUE}\nSITE_URL=${tricky}\n`);
+  const pythonRepr = tricky.replaceAll("\\", "\\\\");
+  const r = run(PUSH, dir, ["--cloud-run", "--env", "production"], undefined, { FAKE_FAIL: "gcloud run services update", FAKE_ECHO_TEXT: `invalid value: '${pythonRepr}'` });
+  assert.equal(r.status, 1, seen(r));
+  assert.match(r.stdout, /^production: FAILED SITE_URL as a Cloud Run variable \(service api-production\): invalid value: '<hidden>'$/m);
+  for (const form of [tricky, JSON.stringify(tricky).slice(1, -1), pythonRepr]) assert.ok(!seen(r).includes(form), `no ${form}`);
 });
