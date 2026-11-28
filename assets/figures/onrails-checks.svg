@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="or-checks" width="360" height="605" role="img" aria-labelledby="or-checks-title" aria-describedby="or-checks-desc">
+  <title id="or-checks-title">How onRails checks changes</title>
+  <desc id="or-checks-desc">The owner’s project rules guide a plan. A builder takes one issue. An independent reviewer sends it back for a fix or passes the commit to the test site. The owner decides when to release.</desc>
+  <style>
+    #or-checks{--or-bg:#fff8ef;--or-end:#fff1d7;--or-card:#fffcfa;--or-gold:#ffe9bd;--or-violet:#f2eaff;--or-ink:#211637;--or-note:#55426a;--or-line:#6242a2;--or-amber:#8a4319;--or-glow:#ffd166;color:var(--or-ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif
+      ;display:block;width:100%;height:auto;max-width:480px;margin-inline:auto;aspect-ratio:360 / 605}
+    #or-checks text{fill:currentColor}
+    #or-checks .heading{font-size:23px;font-weight:800;letter-spacing:-.55px}
+    #or-checks .node-label{font-size:16px;font-weight:680}
+    #or-checks .label{font-size:14px;font-weight:580;fill:var(--or-note)}
+    #or-checks .warm{font-size:14px;font-weight:700;fill:var(--or-amber)}
+    #or-checks .sheet{fill:url(#or-checks-paper)}
+    #or-checks .halo{fill:var(--or-glow);opacity:.44;fill-rule:evenodd}
+    #or-checks .rule{fill:none;stroke:var(--or-amber);stroke-width:2;stroke-linecap:round}
+    #or-checks .node{fill:var(--or-card);stroke:var(--or-line);stroke-width:1.5}
+    #or-checks .gold{fill:var(--or-gold);stroke:var(--or-amber)}
+    #or-checks .violet{fill:var(--or-violet)}
+    #or-checks .rail{fill:none;stroke:var(--or-line);stroke-width:1.7;stroke-linejoin:round;marker-end:url(#or-checks-arrow)}
+    #or-checks .retry{stroke:var(--or-amber);stroke-dasharray:5 4;marker-end:url(#or-checks-return)}
+    #or-checks .stop-rail{stroke:var(--or-amber);marker-end:url(#or-checks-return)}
+    #or-checks .arrow{fill:var(--or-line)}
+    #or-checks .return{fill:var(--or-amber)}
+    @media (prefers-color-scheme:dark){#or-checks{--or-bg:#21182e;--or-end:#352337;--or-card:#302441;--or-gold:#49302a;--or-violet:#3a2b52;--or-ink:#fff4e4;--or-note:#e4d3f5;--or-line:#d6b9ff;--or-amber:#ffba86;--or-glow:#ffb020}}
+    html[data-theme="dark"] #or-checks{--or-bg:#21182e;--or-end:#352337;--or-card:#302441;--or-gold:#49302a;--or-violet:#3a2b52;--or-ink:#fff4e4;--or-note:#e4d3f5;--or-line:#d6b9ff;--or-amber:#ffba86;--or-glow:#ffb020}
+    html[data-theme="light"] #or-checks{--or-bg:#fff8ef;--or-end:#fff1d7;--or-card:#fffcfa;--or-gold:#ffe9bd;--or-violet:#f2eaff;--or-ink:#211637;--or-note:#55426a;--or-line:#6242a2;--or-amber:#8a4319;--or-glow:#ffd166}
+    #or-checks > .wide{display:none}
+    @container onrails-figure (min-width:960px){
+      #or-checks{max-width:none;aspect-ratio:1000 / 250}
+      #or-checks > .compact{display:none}
+      #or-checks > .wide{display:inline}
+    }
+  </style>
+  <defs>
+    <linearGradient id="or-checks-paper" x2="1" y2="1"><stop stop-color="var(--or-bg)"/><stop offset="1" stop-color="var(--or-end)"/></linearGradient>
+    <marker id="or-checks-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path class="arrow" d="M0 0l8 4-8 4z"/></marker>
+    <marker id="or-checks-return" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path class="return" d="M0 0l8 4-8 4z"/></marker>
+  </defs>
+  <svg class="compact" width="100%" height="100%" viewBox="0 0 360 605">
+<rect class="sheet" width="360" height="605" rx="22"/>
+<path class="halo" d="M336 71a16 16 0 1 1-32 0 16 16 0 0 1 32 0zm-4 0a12 12 0 1 1-24 0 12 12 0 0 1 24 0z"/>
+<path class="rule" d="M24 64h42m6 0h13"/>
+<text class="heading" x="23" y="48" text-anchor="start">How onRails checks changes</text>
+<path class="rail" d="M122 130v47"/>
+<path class="rail" d="M122 220v47"/>
+<path class="rail" d="M122 310v47"/>
+<path class="rail" d="M122 400v47"/>
+<path class="rail" d="M122 490v47"/>
+<path class="rail retry" d="M221 379h98q9 0 9-9v-73q0-9-9-9h-97"/>
+<text class="label" x="135" y="159" text-anchor="start">Guide the plan</text>
+<text class="label" x="135" y="249" text-anchor="start">Scoped issue</text>
+<text class="label" x="135" y="339" text-anchor="start">Proposed change</text>
+<text class="label" x="135" y="429" text-anchor="start">Reviewed commit</text>
+<text class="warm" x="135" y="519" text-anchor="start">Owner approves release</text>
+<text class="warm" x="294" y="327" text-anchor="middle">Fix and
+<tspan x="294" dy="17">retry</tspan></text>
+<rect class="node gold" x="23" y="86" width="198" height="44" rx="9"/>
+<text class="node-label" x="122" y="113" text-anchor="middle">Owner’s project rules</text>
+<rect class="node" x="23" y="176" width="198" height="44" rx="9"/>
+<text class="node-label" x="122" y="203" text-anchor="middle">Plan the change</text>
+<rect class="node" x="23" y="266" width="198" height="44" rx="9"/>
+<text class="node-label" x="122" y="293" text-anchor="middle">Build the change</text>
+<rect class="node violet" x="23" y="356" width="198" height="44" rx="9"/>
+<text class="node-label" x="122" y="383" text-anchor="middle">Independent review</text>
+<rect class="node" x="23" y="446" width="198" height="44" rx="9"/>
+<text class="node-label" x="122" y="473" text-anchor="middle">Test site</text>
+<rect class="node gold" x="23" y="536" width="198" height="44" rx="9"/>
+<text class="node-label" x="122" y="563" text-anchor="middle">Public release</text>
+</svg>
+  <svg class="wide" width="100%" height="100%" viewBox="0 0 1000 250">
+<rect class="sheet" width="1000" height="250" rx="22"/>
+<path class="halo" d="M976 47a23 23 0 1 1-46 0 23 23 0 0 1 46 0zm-6 0a17 17 0 1 1-34 0 17 17 0 0 1 34 0z"/>
+<path class="rule" d="M24 64h42m6 0h13"/>
+<text class="heading" x="23" y="48" text-anchor="start">How onRails checks changes</text>
+<path class="rail" d="M147 156h45"/>
+<path class="rail" d="M298 156h45"/>
+<path class="rail" d="M453 156h56"/>
+<path class="rail" d="M641 156h49"/>
+<path class="rail" d="M786 156h77"/>
+<path class="rail retry" d="M575 127V94q0-8-8-8H405q-8 0-8 8v34"/>
+<text class="warm" x="489" y="74" text-anchor="middle">Fix and retry</text>
+<text class="label" x="170" y="205" text-anchor="middle">Guide
+<tspan x="170" dy="17">the plan</tspan></text>
+<text class="label" x="320" y="205" text-anchor="middle">Scoped
+<tspan x="320" dy="17">issue</tspan></text>
+<text class="label" x="482" y="205" text-anchor="middle">Proposed
+<tspan x="482" dy="17">change</tspan></text>
+<text class="label" x="665" y="205" text-anchor="middle">Reviewed
+<tspan x="665" dy="17">commit</tspan></text>
+<text class="warm" x="824" y="205" text-anchor="middle">Owner approves
+<tspan x="824" dy="17">release</tspan></text>
+<rect class="node gold" x="23" y="127" width="124" height="58" rx="9"/>
+<text class="node-label" x="85" y="152.5" text-anchor="middle">Owner’s
+<tspan x="85" dy="17">project rules</tspan></text>
+<rect class="node" x="191" y="127" width="107" height="58" rx="9"/>
+<text class="node-label" x="244.5" y="152.5" text-anchor="middle">Plan the
+<tspan x="244.5" dy="17">change</tspan></text>
+<rect class="node" x="342" y="127" width="111" height="58" rx="9"/>
+<text class="node-label" x="397.5" y="152.5" text-anchor="middle">Build the
+<tspan x="397.5" dy="17">change</tspan></text>
+<rect class="node violet" x="508" y="127" width="133" height="58" rx="9"/>
+<text class="node-label" x="574.5" y="152.5" text-anchor="middle">Independent
+<tspan x="574.5" dy="17">review</tspan></text>
+<rect class="node" x="689" y="127" width="97" height="58" rx="9"/>
+<text class="node-label" x="737.5" y="161" text-anchor="middle">Test site</text>
+<rect class="node gold" x="862" y="127" width="115" height="58" rx="9"/>
+<text class="node-label" x="919.5" y="152.5" text-anchor="middle">Public
+<tspan x="919.5" dy="17">release</tspan></text>
+</svg>
+</svg>
