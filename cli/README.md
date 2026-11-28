@@ -101,7 +101,7 @@ An agent can add items to a shared list and miss what a guest can see. onRails p
 
 | In the repo | What it does |
 |---|---|
-| [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blob/main/AGENTS.md) | Sets standing rules, code rules and when to ask the owner. |
+| [`AGENTS.md`](https://github.com/jsmigendevelopment/onRails/blob/main/AGENTS.md) | 17 standing rules, the code rules and when to ask the owner in this checkout. |
 | Skills | Give agents steps for jobs like planning, building and reviewing. |
 | Guardrails | Run local checks, enforce code rules and block unsafe git commands. |
 
@@ -142,6 +142,8 @@ Plan around one thing someone can try end to end. For a shared list, add an item
 | Plan and issues | Outline three passes. Plan the current pass in detail. Give each step a ticket with something to try, acceptance checks, scope, dependencies and a review lane. | `pyramid.md`, `design.md` and tickets in GitHub |
 | Build and review | Say "start the loop". A fresh agent takes one issue and writes a failing test before the fix. The local gate and fresh reviewers check the exact commit. A failed check sends it back. | `state.md` |
 | Test and release | Merge the checked commit to the test site and smoke-test the main flow. File feedback as issues. You decide when to go live. | `state.md` |
+
+After two rejected rounds (three for a complex issue), below Full the issue is parked and you're asked. On Full, nothing waits: one more round one step up if the builder has an escalation step left, then the issue is split into smaller ones, with an FYI.
 
 On the default stack, you choose how to protect the test site. Production starts on a “Coming soon” page.
 
@@ -241,9 +243,7 @@ The [`secrets`](https://github.com/jsmigendevelopment/onRails/blob/main/.agents/
 
 ### Tests that the skills change behaviour
 
-[`evals/`](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md) contains 26 scenarios in 0.7.1. The runner schedules 20 by default and lists 6 opt-in scenarios. It runs the same task in Claude Code with and without onRails. A pass means every check succeeds with the kit and at least one fails without it.
-
-The paid run, `npm run evals`, is your call. The build loop runs `npm run test:evals` with a fake `claude` and `node evals/run.mjs --dry-run`. See cost controls and model results in [the evals README](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md#cost-controls).
+[`evals/`](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md) contains 26 scenarios in 0.7.1. The runner schedules 20 by default and lists 6 opt-in scenarios. It runs the same task in Claude Code with and without onRails. A pass means every check succeeds with the kit and at least one fails without it. The paid run, `npm run evals`, is your own call: you run it by hand when you choose to. The build loop never runs it: it runs only `npm run test:evals` (a fake `claude`, no model) and `node evals/run.mjs --dry-run`. See cost controls and model results in [the evals README](https://github.com/jsmigendevelopment/onRails/blob/main/evals/README.md#cost-controls).
 
 ### And the rest
 
@@ -323,7 +323,7 @@ onRails picks a **model tier** and **effort level** for each job. Your profile s
 
 A role's effort is the base. A job's own rule can raise it: a code review never runs below the builder, and a security review runs one step above code review.
 
-Set `cto`, `coordinator` or `builder` in `[routing]`. For example, `cto = "Claude Opus 5.5"` puts CTO work on Opus.
+**Your profile wins.** Set `cto`, `coordinator` or `builder` in `[routing]`. A person who says "no Fable" sets `cto = "Claude Opus 5.5"` and gets the CTO on Opus.
 
 | Job | Tier · effort | Example model |
 |---|---|---|
