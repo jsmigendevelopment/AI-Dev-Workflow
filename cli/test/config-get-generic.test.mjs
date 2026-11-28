@@ -125,3 +125,50 @@ test("AC-740-1: WHEN a secret-looking name is followed by = or : and a value ins
   const plain = ["password=", "password:", "monkey=1", "mode=fast", "retry=3 timeout=10", "note: write to me@example.test", "key", "set the password later", "git@github.com:org/repo.git", "12:30"];
   for (const v of plain) assert.equal(value(v).out, `${v.trim()} (project)`, v);
 });
+
+// Round 2 of the review of #744. Same rule: the tests above are unchanged.
+const TOKEN = "aB3dE5fG7hJ9kL1mN3pQ5rStUvWx1234";
+
+test("AC-740-1: WHEN a long token is the user name of a URL THEN it is refused, and a short user name still reads", () => {
+  const secret = [
+    `https://ghp_${TOKEN}AbCd@github.com/o/r.git`, `https://${TOKEN}@host`, `https://${TOKEN}@host/`, `https://${TOKEN}:x-oauth-basic@host/o/r`,
+    `https://${TOKEN}@host:8443/x`, `ssh://${TOKEN}@host/o/r`, `see https://${TOKEN}@host/ now`,
+  ];
+  for (const v of secret) assertRefused(value(v), v, v);
+  const plain = ["git@github.com:o/r.git", "ssh://git@host/o/r", "https://user@host/", "https://user@host:22/x", "https://example.test/a:b@c", "https://deploy-bot@host/o/r"];
+  for (const v of plain) assert.equal(value(v).out, `${v} (project)`, v);
+});
+
+test("AC-740-1: WHEN a known key start (ghp_, sk-, AKIA, xox...) or token or apikey plus a long token is inside spaced text THEN it is refused, and the plain spaced value still reads", () => {
+  const secret = [
+    "Authorization: token ghp_abc123", "use ghp_abc123 here", "use sk-abc123 here", "see AKIAABCDEFGHIJKLMNOP now", "x xoxb-123-abc y", "a github_pat_abc b", "paste -----BEGIN PRIVATE KEY----- here",
+    `Authorization: Token ${TOKEN}`, `ApiKey ${TOKEN}`, `api_key ${TOKEN}`, `x-api-key ${TOKEN}`, `token ${TOKEN}`, "(ghp_abc)",
+  ];
+  for (const v of secret) assertRefused(value(v), v, v);
+  const plain = ["a1b2c3d4e5f6g7h8i9j0 with spaces", "token please", "my token is short", "apikey abc", "risk-free task-force", "Authorization: none", "mask-1 and flask_2", "tokens are cool"];
+  for (const v of plain) assert.equal(value(v).out, `${v} (project)`, v);
+});
+
+test("AC-740-1: WHEN a bare query, a fragment or a host label is a long token THEN it is refused, and plain queries, fragments and hosts still read", () => {
+  const secret = [
+    `https://h.example.test/?${TOKEN}`, `https://h.example.test/#${TOKEN}`, `https://h.example.test/a?x=1#${TOKEN}`, `https://h.example.test/#/route/${TOKEN}`,
+    `https://${TOKEN}.example.test/`, `https://app.${TOKEN}.example.test:8443/x`, `https://h.example.test/a?b=1&${TOKEN}`, `https://${TOKEN}`,
+  ];
+  for (const v of secret) assertRefused(value(v), v, v);
+  const plain = [
+    "https://example.test/?lang=en", "https://example.test/#top", "https://example.test/#/docs/intro", "https://ec2-12-34-56-78.compute-1.amazonaws.com/", "http://[2001:db8:85a3:0:0:8a2e:370:7334]/x",
+    "https://example.test:8443/", "https://example.test/search?q=hello+world&page=2",
+  ];
+  for (const v of plain) assert.equal(value(v).out, `${v} (project)`, v);
+});
+
+test("AC-740-4: WHEN a name is authorization, auth_code, session_id, signature, db_url, redis_url, connstr or a glued key name (masterkey, adminkey, awskey, privkey, keyfile) THEN it prints nothing", () => {
+  const names = [
+    "authorization", "Authorization", "auth_code", "authCode", "authcode", "session_id", "sessionId", "sessionid", "session_id2", "signature", "signatures", "db_url", "dbUrl", "dburl",
+    "redis_url", "redisUrl", "connstr", "db_connstr", "masterkey", "master_key", "adminkey", "awskey", "privkey", "passw0rd", "recovery_code", "recoveryCode", "keyfile", "key_file",
+  ];
+  for (const name of names) assertRefused(named(name), name, "plain-value");
+  for (const name of ["auth", "session", "session_name", "recovery", "db_name", "code", "design", "author", "sign", "monkey", "path", "id"]) {
+    assert.equal(named(name).out, "plain-value (project)", name);
+  }
+});

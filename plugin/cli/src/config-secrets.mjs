@@ -10,11 +10,14 @@ const SECRET_WORDS = new Set([
   "pw", "pswd", "pin", "totp", "seed", "mnemonic",
 ]);
 // Two words that say a credential only together: auth_header, database_url, connection_string.
-const SECRET_PHRASES = [["auth", "header"], ["database", "url"], ["connection", "string"]];
+const SECRET_PHRASES = [
+  ["auth", "header"], ["database", "url"], ["connection", "string"], ["auth", "code"], ["session", "id"], ["db", "url"], ["redis", "url"], ["recovery", "code"],
+];
 // These are long enough to refuse inside a word, so a glued name (authtoken, secretkey, dbpass, licensekey) is caught too.
 const SECRET_PARTS = [
   "token", "secret", "password", "passwd", "passphrase", "credential", "bearer", "apikey", "privatekey", "accesskey", "signingkey", "sshkey", "authkey", "webhook",
   "dbpass", "smtppass", "passcode", "pwd", "cookie", "hmac", "licensekey", "authheader", "databaseurl", "connectionstring",
+  "authorization", "authcode", "sessionid", "signature", "dburl", "redisurl", "connstr", "masterkey", "adminkey", "awskey", "privkey", "passw0rd", "recoverycode", "keyfile",
 ];
 
 // A value that starts like one of these is a credential whatever its name says. Compared in lower case: over-refusing is the safe side.
@@ -26,6 +29,14 @@ const SECRET_VALUE_STARTS = [
 // Shapes that count anywhere in a value, and in the case they are written: AWS temporary keys (ASIA), Google API keys (AIza),
 // a JWT (three dot-separated base64url parts), a Slack hook URL and a URL with a password (scheme://user:pw@host).
 const SECRET_VALUE_SHAPES = [/^ASIA[A-Z0-9]/, /^AIza/, /eyJ[\w-]+\.[\w-]+\.[\w-]*/, /hooks\.slack\.com\/services\//i, /:\/\/[^/\s]*:[^/\s]*@/];
+
+// The secret starts above, found anywhere in a value at a word boundary (use ghp_... here, Authorization: token ghp_...). The
+// "bearer " and "basic " starts are left out: AUTH_SCHEME already covers them anywhere.
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const ANYWHERE_STARTS = SECRET_VALUE_STARTS.filter((start) => !/^(bearer|basic) /.test(start));
+const START_ANYWHERE = new RegExp(`(?<![a-z0-9])(?:${ANYWHERE_STARTS.map(escapeRegex).join("|")})`, "i");
+// token, apikey (api_key, api-key) or Authorization:, white space, then a long token: Authorization: Token <32 characters>.
+const KEYWORD_TOKEN = /(?<![a-z0-9])(?:token|api[-_]?key|authorization:?)(?=\s+(\S+))/gi; // the look-ahead keeps "Authorization: Token <key>" from using up the word Token
 
 // A scheme-less login (user:pw@host). A leading mailto: is dropped first, so mailto:me@example.test still reads.
 const SCHEMELESS_LOGIN = /^[^\s:@/]+:[^\s@]+@[^\s@]+$/;
@@ -55,13 +66,24 @@ function hasUrlPassword(text) {
   return false;
 }
 
-/** True when a URL carries a secret outside the password: a long token in a path piece or a query value, a secret-word query key, or a secret word that names a path piece (token=abc, or /token/abc). */
+const longToken = (text) => isLongToken(text) || isLongToken(safeDecode(text));
+
+/** The pieces of a URL's authority that can hold a token: the user name (before the last @, any :password dropped) and each host label. A bracketed IPv6 address and the port are hex and digits, so they are left out. */
+function authorityParts(authority) {
+  const at = authority.lastIndexOf("@");
+  const host = authority.slice(at + 1).replace(/:\d*$/, "");
+  const labels = host.startsWith("[") ? [] : host.split(".");
+  return [...(at < 0 ? [] : [authority.slice(0, at).split(":")[0]]), ...labels];
+}
+
+/** True when a URL carries a secret outside the password: a long token as the user name, a host label, a path piece, a bare query or fragment or a query value, a secret-word query key, or a secret word that names a path piece (token=abc, or /token/abc). */
 function hasUrlSecret(url) {
   const [before, ...tail] = url.slice(url.indexOf("://") + 3).split(/[?#]/);
   const pieces = before.split("/").slice(1).flatMap((piece) => piece.split(";"));
-  const pairs = tail.join("&").split("&").filter((part) => part !== "").map((part) => [part.split("=")[0], part.split("=").slice(1).join("=")]);
-  const longToken = (text) => isLongToken(text) || isLongToken(safeDecode(text));
-  if ([...pieces, ...pairs.map(([, value]) => value)].some(longToken)) return true;
+  const parts = tail.join("&").split("&").filter((part) => part !== "");
+  const pairs = parts.map((part) => [part.split("=")[0], part.split("=").slice(1).join("=")]);
+  const bare = parts.filter((part) => !part.includes("=")).flatMap((part) => part.split("/")); // /?<token>, #<token>, #/route/<token>
+  if ([...authorityParts(before.split("/")[0]), ...pieces, ...bare, ...pairs.map(([, value]) => value)].some(longToken)) return true;
   if (pairs.some(([key]) => looksSecret(safeDecode(key)))) return true;
   return pieces.some((piece, i) => (piece.includes("=") || (pieces[i + 1] ?? "") !== "") && piece !== "" && looksSecret(safeDecode(piece.split("=")[0])));
 }
@@ -74,8 +96,13 @@ function safeDecode(text) {
   }
 }
 
+function hasKeywordToken(text) {
+  return [...text.matchAll(KEYWORD_TOKEN)].some(([, word]) => longToken(word));
+}
+
 function hasNameValue(text) {
-  return [...text.matchAll(NAME_VALUE)].some(([, name]) => looksSecret(name));
+  // "Authorization: none" has always read (AC-740-3), so the name alone does not count here: its value is tested by KEYWORD_TOKEN and AUTH_SCHEME.
+  return [...text.matchAll(NAME_VALUE)].some(([, name]) => looksSecret(name) && name.toLowerCase() !== "authorization");
 }
 
 const singulars = (word) => [word, word.replace(/s$/, ""), word.replace(/es$/, "")];
@@ -98,7 +125,7 @@ export function valueLooksSecret(value) {
   const text = value.trim();
   const start = text.toLowerCase();
   if (SECRET_VALUE_STARTS.some((prefix) => start.startsWith(prefix)) || SECRET_VALUE_SHAPES.some((shape) => shape.test(text))) return true;
-  if (AUTH_SCHEME.test(text) || hasUrlPassword(text) || hasNameValue(text)) return true;
+  if (AUTH_SCHEME.test(text) || hasUrlPassword(text) || hasNameValue(text) || START_ANYWHERE.test(text) || hasKeywordToken(text)) return true;
   if ((text.match(URL_TOKEN) ?? []).some(hasUrlSecret)) return true;
   if (!text.includes("://") && isLongToken(text)) return true;
   return !text.includes("://") && SCHEMELESS_LOGIN.test(text.replace(/^mailto:/i, ""));
