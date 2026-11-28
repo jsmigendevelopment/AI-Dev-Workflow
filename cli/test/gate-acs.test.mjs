@@ -236,3 +236,57 @@ test("AC-747-6: WHEN consistency.md is read THEN check 13 runs check-gate-acs.mj
   assert.match(consistency, /^Consistency check · pass <N> · <date> · <k> issues read$/m);
   assert.match(consistency, /^1\. \[<check number>\] /m);
 });
+
+// Fix round 1 (review of PR #754): each case below failed on the first head.
+test("AC-747-4: WHEN a GitHub issue body says `Status: done` and has a gap THEN it still exits 1 (only a file may be skipped as done)", () => {
+  const body = `Status: done\n\n${withAcs(REFUSE_ONLY)}`;
+  const r = run([], stdin(issue(7, body)));
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stdout, /^#7 Issue 7: AC-1 refuses an input/);
+  const mixed = run([], stdin(issue(7, body), issue(8, withAcs("AC-8-1: WHEN it runs THEN it prints the title"))));
+  assert.equal(mixed.status, 1, mixed.stdout);
+  assert.equal(lines(mixed).length, 1);
+});
+
+test("AC-747-2: WHEN the refusal word in the covering THEN is quoted, in backticks or in a fence THEN it is only a mention and the gate fails", () => {
+  const mentions = [
+    'it prints "refused"', "it prints `refused`", "`blocked` is not printed", "it prints ```refused``` in the log",
+    "it prints “refused”", 'it says "rejected" and "denied"',
+  ];
+  for (const then of mentions) {
+    assert.equal(gateGap(withAcs(REFUSE_ONLY, `AC-2: WHEN the flag is unknown THEN ${then}`))?.id, "AC-1", then);
+  }
+  // A real refusal beside a quoted example still covers, and a code span as the subject of a plain verb still covers.
+  for (const then of ['it is refused with "unknown flag"', "it refuses and prints `blocked`", "`pnpm lint` fails", "it blocks the call"]) {
+    assert.equal(gateGap(withAcs(REFUSE_ONLY, `AC-2: WHEN the flag is unknown THEN ${then}`)), null, then);
+  }
+});
+
+test("AC-747-2: WHEN the covering THEN says `rather than` or `instead of` before the refusal word THEN the gate fails", () => {
+  for (const then of ["it is accepted rather than refused", "it is accepted instead of being blocked", "it warns rather than rejects", "it runs instead of failing"]) {
+    assert.equal(gateGap(withAcs(REFUSE_ONLY, `AC-2: WHEN the flag is unknown THEN ${then}`))?.id, "AC-1", then);
+  }
+  assert.equal(gateGap(withAcs(REFUSE_ONLY, "AC-2: WHEN the flag is unknown THEN it refuses rather than guesses")), null);
+});
+
+test("AC-747-1: WHEN a THEN refuses in the wider words (errors, 4xx, aborts, is redacted ...) and nothing covers the rest THEN the check fails the issue", () => {
+  for (const then of ["it errors", "the run errors out", "it exits with an error", "it returns 403", "it returns 401", "it returns 400", "the API returns 4xx",
+    "it returns an HTTP 422", "the flag is not accepted", "it aborts", "it cannot continue", "it does not print the value", "the value is redacted",
+    "it is not permitted", "the call isn't accepted"]) {
+    assert.equal(gateGap(withAcs(`AC-1: WHEN the input is --dry THEN ${then}`))?.id, "AC-1", then);
+  }
+  for (const then of ["it runs without errors", "it prints the title with no errors", "it returns 200", "it accepts the flag"]) {
+    assert.equal(gateGap(withAcs(`AC-1: WHEN the input is --dry THEN ${then}`)), null, then);
+  }
+});
+
+test("AC-747-1: WHEN a refusing AC hides its word with lookalike letters, zero-width characters or full-width letters THEN it is still a refusing AC", () => {
+  const hidden = {
+    "a Cyrillic e": "it rеfuses", "a Cyrillic o and c": "it blосks", "a Greek o": "it blοcks the call", "a zero-width space": "it ref​uses",
+    "a zero-width joiner and a soft hyphen": "it re‍fu­ses", "full-width letters": "it ｒｅｆｕｓｅｓ", "Cyrillic capitals": "it is ВLОСКED",
+  };
+  for (const [how, then] of Object.entries(hidden)) {
+    assert.equal(gateGap(withAcs(`AC-1: WHEN the input is --dry THEN ${then}`))?.id, "AC-1", how);
+  }
+  assert.equal(gateGap(withAcs("AC-1: WHEN the input is --dry THEN привет and the page loads")), null);
+});

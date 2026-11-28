@@ -4,7 +4,7 @@
 // whose WHEN names the rest ("not on the allowed list", "any other", "unknown", "not listed") and whose THEN refuses.
 // Read only: it writes nothing. The consistency check runs it (check 13).
 // Usage:  gh issue list --limit 200 --json number,title,body | node check-gate-acs.mjs    issues on stdin
-//         node check-gate-acs.mjs docs/issues/*.md     issue files, before GitHub; a `Status: done` file is skipped
+//         node check-gate-acs.mjs docs/issues/*.md     issue files, before GitHub; a `Status: done` file is skipped (a GitHub body never is)
 // Exit 0: no issue has a refusing AC without a covering one. Exit 1: one line per such issue, naming its first
 // refusing AC. Exit 2: the input can't be read, holds no issue, or an issue has no AC line the reader can take.
 // It fails closed: an unreadable issue is never a pass. What satisfies it is exact (docs/decisions/747-1.md).
@@ -19,15 +19,31 @@ const BLOCK_START = /^[ \t]*(?:#|[-*+][ \t]|\d+[.)][ \t])/;
 const WHEN_THEN = /^when\b(.*?)\bthen\b(.*)$/is;
 
 // What a refusing THEN says: the issue's words (refuses, blocks, hides, exits non-zero) and their near synonyms.
-const REFUSES = new RegExp(String.raw`(?<![\p{L}-])(?:${[
+const wordsRe = (alternatives) => new RegExp(String.raw`(?<![\p{L}-])(?:${alternatives.join("|")})(?![\p{L}-])`, "giu");
+const BASE_REFUSALS = [
   String.raw`refus(?:e|es|ed|ing|al)`, String.raw`block(?:s|ed|ing)?`, String.raw`reject(?:s|ed|ing)?`,
   String.raw`den(?:y|ies|ied)`, String.raw`forbid(?:s|den)?`, String.raw`disallow(?:s|ed)?`, String.raw`hid(?:e|es|den)`,
   String.raw`fail(?:s|ed)?`, String.raw`prints?\s+nothing`, String.raw`nothing\s+(?:is\s+)?(?:printed|shown|written)`,
   String.raw`(?:is|are)\s+not\s+(?:printed|shown|written|allowed)`, String.raw`never\s+(?:prints?|shows?|writes?)`,
   String.raw`exits?\s+(?:with\s+)?(?:code\s+|status\s+)?(?:non-?zero|[1-9]\d*)`, String.raw`exit\s+(?:code\s+|status\s+)?(?:is\s+)?(?:non-?zero|[1-9]\d*)`,
-].join("|")})(?![\p{L}-])`, "giu");
+];
+// More words that mark an AC as refusing. They go on the detecting list only, never the covering one, so a wider list
+// can only flag more issues (the gate rule). "errors" is the verb here, not the noun after "no" or "without".
+const MORE_REFUSALS = [
+  String.raw`(?<!\b(?:no|any|without|zero|with|of|the|more|fewer|all|new|some|many|few|these|those|its|their|same|type|lint|syntax)\s)errors`,
+  String.raw`exits?\s+with\s+an?\s+error`, String.raw`(?:returns?|responds?\s+with)\s+(?:an?\s+)?(?:http\s+)?(?:status\s+)?(?:code\s+)?(?:4\d\d|4xx)`,
+  String.raw`(?:is|are)\s+not\s+(?:accepted|permitted)`, String.raw`(?:isn|aren)['’]t\s+(?:accepted|permitted|allowed|printed|shown|written)`,
+  String.raw`abort(?:s|ed|ing)?`, String.raw`can(?:not|['’]t)\s+continue`, String.raw`(?:does\s+not|doesn['’]t)\s+print`, String.raw`(?:is|are|gets?)\s+redacted`,
+];
+const REFUSES = wordsRe(BASE_REFUSALS); // what a covering AC's THEN must say
+const REFUSES_ANY = wordsRe([...BASE_REFUSALS, ...MORE_REFUSALS]); // what marks an AC as refusing
 // A negation in the few words before a refusal word ("not refused", "never blocks", "doesn't refuse", "no flag is refused").
-const NEGATED = /(?:(?<![\p{L}])(?:not|never|no|nor|without)|n['’]t)\s+(?:[\p{L}'’-]+\s+){0,3}$/iu;
+const NEGATED = /(?:(?<![\p{L}])(?:not|never|no|nor|without)|n['’]t)\s+(?:[\p{L}'’-]+\s+){0,3}$/iu;
+// "accepted rather than refused", "runs instead of failing": the word names what does not happen.
+const INSTEAD = /(?<![\p{L}])(?:rather\s+than|instead\s+of)\s+(?:[\p{L}'’-]+\s+){0,3}$/iu;
+// A quoted, backticked or fenced span is a mention of a word, not the AC's result. It is swapped for a mark.
+const SPANS = /```[\s\S]*?```|`[^`]*`|"[^"]*"|“[^”]*”/g;
+const MARK = "";
 
 // What names "every other input" in a WHEN: an allowed-list phrase, a quantified rest, or an unknown/unlisted input.
 const CATCH_ALL = [
@@ -61,13 +77,34 @@ export function readAcs(body) {
   return acs.map((ac) => ({ ...ac, text: ac.text.replace(/^[\s*_`]+/, "").trim() }));
 }
 
-/** True when `then` holds a refusal word the few words before it don't negate. */
-const refuses = (then) => [...then.matchAll(REFUSES)].some((m) => !NEGATED.test(then.slice(0, m.index)));
+/**
+ * True when `then` holds a refusal word that is not a mention: not in quotes, backticks or a fence, not negated in the
+ * few words before it, not after "rather than" or "instead of", and not "is not printed" said of a quoted name.
+ */
+const refuses = (then) => {
+  const said = then.replace(SPANS, MARK);
+  return [...said.matchAll(REFUSES)].some((m) => {
+    const before = said.slice(0, m.index);
+    const ofQuoted = /^(?:is|are)\s/i.test(m[0]) && before.trimEnd().endsWith(MARK);
+    return !NEGATED.test(before) && !INSTEAD.test(before) && !ofQuoted;
+  });
+};
+
+// Lookalike letters that read as Latin: Cyrillic and Greek, both cases. An AC may hide a refusal word with them.
+const LOOKALIKES = Object.fromEntries([
+  ..."а:a е:e о:o р:p с:c у:y х:x і:i ј:j ѕ:s һ:h ԁ:d к:k м:m н:h т:t в:b А:A В:B Е:E К:K М:M Н:H О:O Р:P С:C Т:T Х:X У:Y І:I Ј:J Ѕ:S".split(" "),
+  ..."α:a ο:o ν:v ρ:p ι:i κ:k τ:t υ:u χ:x γ:y ϲ:c Α:A Β:B Ε:E Ζ:Z Η:H Ι:I Κ:K Μ:M Ν:N Ο:O Ρ:P Τ:T Υ:Y Χ:X".split(" "),
+].map((pair) => pair.split(":")));
+const INVISIBLE = /[­͏؜ᅟᅠ឴឵᠋-᠎​-‏‪-‮⁠-⁯ㅤ︀-️﻿ﾠ]/g;
+
+/** The text as a reader sees it: compatibility forms folded (NFKC, so full-width letters), invisible characters dropped, lookalikes made Latin. */
+export const normalise = (text) => text.normalize("NFKC").replace(INVISIBLE, "").replace(/[Ͱ-ϿЀ-ԯ]/g, (c) => LOOKALIKES[c] ?? c);
 
 /** True when the AC's own THEN refuses (a negated refusal still counts: it is a gate, so it needs the rest covered). */
 export function isRefusing(ac) {
-  const then = WHEN_THEN.exec(ac.text)?.[2] ?? ac.text;
-  return then.search(REFUSES) !== -1;
+  const text = normalise(ac.text);
+  const then = WHEN_THEN.exec(text)?.[2] ?? text;
+  return then.search(REFUSES_ANY) !== -1;
 }
 
 /** True when the AC's WHEN names every other input, its THEN refuses, and it isn't an `agent` check. */
@@ -106,7 +143,7 @@ function fromFile(path) {
 function fromStdin() {
   const issues = JSON.parse(readFileSync(0, "utf8"));
   if (!Array.isArray(issues) || !issues.every((i) => i && (typeof i.body === "string" || i.body === null))) throw new Error("not a list");
-  return issues.map((i) => ({ label: `#${i.number} ${i.title ?? ""}`.trim(), body: i.body ?? "", done: statusOf(i.body) === "done" }));
+  return issues.map((i) => ({ label: `#${i.number} ${i.title ?? ""}`.trim(), body: i.body ?? "", done: false })); // A GitHub body can say "Status: done" to switch the check off, so only a file is skipped.
 }
 
 function main(args) {
