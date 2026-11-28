@@ -243,7 +243,8 @@ test("#377 round 2, must 1: a source file git or GitHub shows as binary is exit 
   const renamed = size({ entries: [{ ...entry("src/b.ts", "renamed"), previous_filename: "src/a.ts" }], api: contents("src/b.ts", nulCode) });
   assert.equal(renamed.status, 2, "a rename whose new content holds a NUL");
   for (const [why, text] of [["an empty new file", ""], ["a mode change, no NUL", lines(1500)]]) {
-    const r = size({ entries: [entry("src/run.sh", why === "an empty new file" ? "added" : "modified")], api: contents("src/run.sh", text) });
+    // #407: GitHub lists a mode change as "changed"; a "modified" entry with 0/0 and content is exit 2 (AC-407-2).
+    const r = size({ entries: [entry("src/run.sh", why === "an empty new file" ? "added" : "changed")], api: contents("src/run.sh", text) });
     assert.equal(r.status, 0, `${why}: ${r.stderr}`);
   }
   const image = size({ entries: [entry("public/logo.png"), entry("src/gone.ts", "removed")] });
