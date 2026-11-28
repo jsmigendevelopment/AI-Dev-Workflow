@@ -8,9 +8,6 @@
     // A shared helper the kit ships for the first page with images (the web-performance skill).
     "src/components/responsive-image.tsx",
   ],
-  // lefthook runs from its own install script and lefthook.yml. Knip sees that only through the hook in
-  // .git/hooks, missing when `pnpm install` ran before `git init`, in a worktree or with LEFTHOOK=0 (#319).
-  "ignoreDependencies": ["lefthook"],
   // An export the same file also uses is part of that file's own API, not dead code.
   "ignoreExportsUsedInFile": true,
   "ignoreIssues": {

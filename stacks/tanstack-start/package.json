@@ -21,6 +21,7 @@
     "check": "pnpm lint && pnpm typecheck && pnpm knip && pnpm dupes && pnpm check:migrations && pnpm test && pnpm build",
     "check:lowmem": "pnpm lint && pnpm typecheck && pnpm knip && pnpm dupes && pnpm check:migrations && vitest run --maxWorkers=1 && pnpm build",
     "knip": "knip",
+    "hooks": "lefthook install",
     "dupes": "jscpd",
     "check:migrations": "node scripts/check-migrations.ts",
     "db:generate": "drizzle-kit generate",
