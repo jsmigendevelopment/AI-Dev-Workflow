@@ -51,13 +51,27 @@ const SIZE = /^\s*(\d+)\s*(?:[·•\-–—:,(]+\s*(.*?)\)?\s*)?$/;
 const cells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
 const isRow = (line) => line.trim().startsWith("|");
 const key = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "");
-// A comment hides what is in it, a table too. Blank it out but keep its line breaks, so line numbers still match.
-// One never closed hides the rest of the file, as it does on the rendered page (#405).
-const uncomment = (text) => text.replace(/<!--[\s\S]*?(?:-->|$)/g, (c) => c.replace(/[^\n]/g, ""));
+const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+const closes = (fence, line) => new RegExp(`^ {0,3}${fence[0]}{${fence.length},}\\s*$`).test(line);
 
-/** Every Markdown table outside a comment, as { line, header: [lowercase names], rows: [{ line, cells }] }. */
+// The lines as a reader sees them: a fenced code block or an HTML comment is blanked out, line by line, so line
+// numbers still match. A comment spans lines, or runs to the end of the file, only when "<!--" starts a line (up to
+// 3 spaces in), as an HTML block does on the rendered page. Elsewhere, as in a cell, only one closed on its line hides (#405).
+function visibleLines(text) {
+  let fence = null, comment = false;
+  return text.split(/\r?\n/).map((line) => {
+    if (fence) { if (closes(fence, line)) fence = null; return ""; }
+    if (comment) { comment = !line.includes("-->"); return ""; }
+    const open = line.match(FENCE);
+    if (open) { fence = open[1]; return ""; }
+    if (/^ {0,3}<!--/.test(line)) { comment = !line.includes("-->", line.indexOf("<!--") + 4); return ""; }
+    return line.replace(/<!--.*?-->/g, "");
+  });
+}
+
+/** Every Markdown table outside a comment or a code fence, as { line, header: [lowercase names], rows: [{ line, cells }] }. */
 export function tables(text) {
-  const lines = uncomment(text).split(/\r?\n/);
+  const lines = visibleLines(text);
   const out = [];
   for (let i = 0; i < lines.length - 1; i++) {
     if (!isRow(lines[i]) || !/^\|?\s*:?-{3,}/.test(lines[i + 1].trim())) continue;
@@ -150,7 +164,7 @@ function longestChain(steps) {
 // The Lines cell is the issue's Size value (#375): "about 300 lines", or "exception: <reason>". The issues
 // skill's reader judges it, so a cell it can't read fails here as it would on the issue.
 function linesProblem(cell) {
-  const value = cell.trim(); // tables() has already blanked out comments
+  const value = cell.trim(); // tables() has already blanked out each comment closed in the cell
   if (!value) return `has no line estimate. In the Lines column, write the changed lines its pull request will have, not counting generated files, lockfiles and test fixtures: "about 300 lines"`;
   const body = `Size: ${value}`;
   const [gap] = checkSizes([{ number: 0, title: "step", body }]);

@@ -138,3 +138,28 @@ test("AC-405-3: WHEN a cell says `split into #12, #13` THEN the eval's steps-are
   assert.equal(split.pass, false);
   assert.match(split.detail, /step 4 .*splits an issue/);
 });
+
+// Steps 1 to 6, step 6's Lines cell changed, then step 7 at 1,500 lines and a step 8.
+const DELETE = ["8", "Delete an item", "Shared list", "Click the bin next to \"milk\": it is gone", "2", "4"];
+const eight = (six, last = "about 100 lines") => plan([...STEPS.slice(0, 5), [...STEPS[5].slice(0, 6), six], BIG, [...DELETE, last]]);
+// The plan with a second steps table, holding step 7 at 1,500 lines, after the given lines of prose.
+const afterProse = (prose) => `${plan()}\n${prose}\n\n${TABLE}${row(BIG)}\n`;
+
+test("AC-405-2: WHEN a <!-- doesn't start a line THEN only a comment closed on that line hides, and the rows below it are read", () => {
+  const unclosed = eight("about 120 lines <!-- check with design");
+  assert.deepEqual(readSteps(unclosed).map((s) => s.id), ["1", "2", "3", "4", "5", "6", "7", "8"]);
+  assert.match(errors(unclosed), /step 7 .*the line estimate is 1,500 lines/);
+  const acrossRows = eight("about 120 lines <!-- a", "about 100 lines -->");
+  assert.deepEqual(readSteps(acrossRows).map((s) => s.id), ["1", "2", "3", "4", "5", "6", "7", "8"]);
+  assert.match(errors(acrossRows), /step 7 .*the line estimate is 1,500 lines/);
+  assert.match(errors(afterProse("Hide a note with `<!--` and `-->`. Close it on the same line")), /step 7 .*1,500 lines/);
+  assert.match(errors(afterProse("An indented line is code:\n\n    <!-- not a comment")), /step 7 .*1,500 lines/);
+  assert.equal(errors(eight("about 120 lines <!-- check with design -->")).match(/step 6/), null);
+});
+
+test("#405: WHEN a table or a <!-- sits in a fenced code block THEN the checker ignores it", () => {
+  const fenced = plan(STEPS, `An example of a big step:\n\n\`\`\`md\n${TABLE}${row(BIG)}\n\`\`\`\n\n~~~\n<!-- an example comment\n~~~\n\n${TABLE}`);
+  assert.deepEqual(readSteps(fenced).map((s) => s.id), STEPS.map((s) => s[0]));
+  assert.deepEqual(checkPlan(fenced).errors, []);
+  assert.match(errors(afterProse("````\n<!-- an example comment\n```\nstill code\n````")), /step 7 .*1,500 lines/);
+});
