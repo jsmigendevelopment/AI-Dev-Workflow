@@ -23,7 +23,7 @@ Everything else gets three options with trade-offs and a recommendation, decided
 ## How
 
 1. **Check what's known.** Read `docs/research/README.md`, the index, and the person's research library if they have one. Don't redo a `current` dossier.
-2. **Run it in its own thread** on the strongest model at high effort (see `routing`). Commit its brief first: the question, the constraints from `docs/vision.md` and `docs/stack.md`, and what "good" means for this app.
+2. **Run it in its own thread** on the strongest model at high effort (see `routing`). Commit its brief first: the question, the constraints from `docs/vision.md` and `docs/stack.md`, and what "good" means for this app. Briefed as that thread? Step 2 is you. Commit the brief, do the research here and start no second thread.
 3. **Write the dossier** to `docs/research/<topic>.md` from the `idea` skill's `templates/research.md`, with its store in `docs/research/<topic>/` (`references/desk-research.md`): at least three options, every claim labelled, a recommendation with its confidence, and what would change the answer.
 4. **Record provenance** in `docs/research/<topic>/provenance.json`: the exact model ID, effort, harness, dates and brief for every role (`references/provenance.md`). `unknown` when the session doesn't show it. Never guess.
 5. **Fact-check before anyone acts on it.** A fresh session, on another model if you have one, checks every claim and writes `fact-check.csv`. Each finding gets fixed, disputed or accepted, with a reason. Until then the dossier is `draft`.

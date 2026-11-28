@@ -136,6 +136,9 @@ function checkField(name, spec, value) {
 /** The only keys a commands item has: any other, an own __proto__ included, is refused (#411). */
 const COMMAND_KEYS = ["name", "result", "seconds"];
 
+/** The characters the gate's mark-check.mjs refuses in a command name (#386, #465): control (C0, DEL, C1), format (a zero-width space, a bidi override), and line and paragraph separators. */
+const NAME_CONTROL = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+
 function checkCommands(commands) {
   for (const c of commands) {
     if (!c || typeof c !== "object" || typeof c.name !== "string" || !["pass", "fail", "skipped"].includes(c.result)
@@ -143,7 +146,9 @@ function checkCommands(commands) {
       return "commands: each item needs name, result (pass, fail or skipped) and seconds";
     }
     if (Object.keys(c).some((k) => !COMMAND_KEYS.includes(k))) return `commands: an item has a key other than ${COMMAND_KEYS.join(", ")}`;
+    if (c.name === "") return "commands: a name is empty";
     if (c.name.length > TEXT_CAP) return `commands: a name is longer than ${TEXT_CAP} characters`;
+    if (NAME_CONTROL.test(c.name)) return "commands: a name holds a control, format or line-separator character";
   }
   return null;
 }

@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T11:52:19.094Z",
+  "issue": null,
+  "pr": 617,
+  "sha": "a0db7b02530ab8e59a2800d387c869e0b303f2b5",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "pass",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "not shown in this cloud sub-agent session"
+}
