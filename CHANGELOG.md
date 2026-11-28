@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Fixed
+
+- The pull request size check never passes what it can't count (#407). Any file that shows as binary but isn't a known binary type (an image, font, archive and the like), such as a UTF-16 `.md` or an extensionless script, is exit 2 with its name. In a pull request, an added or modified file with 0/0, no patch and content is exit 2, an empty new file isn't listed as binary, and a git error other than a missing path is exit 2. A `Size exception:` line inside a `<script>` or `<style>` block doesn't count (decisions 377-2 and 407-1).
+
 ## [0.7.2] - 2026-11-28
 
 ### Added
