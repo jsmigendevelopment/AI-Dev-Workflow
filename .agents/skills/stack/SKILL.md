@@ -122,6 +122,7 @@ A stack pack is a ready-made starter for one stack: configs, the folder skeleton
 
 - **A pack exists for the pick:** say so, and slice 0 applies it (see `pyramid`).
 - **A stub pack** (`stacks/<name>/PACK.md`, no app files yet): the groundwork is done but the starter isn't built. Tell the person, then build it in their project by following `PACK.md` step by step: the pinned versions, the folder structure, how each check-contract command maps, the checks and release. Never add the GitHub Actions workflow a `PACK.md` asks for: make that job a package script the session runs instead. Re-check the versions first, because they age. Slice 0 isn't done until every check-contract command passes. Afterwards, offer to contribute the finished starter back to the kit.
+- **Changing a pack in the kit?** Run `npm test` in `cli/` with `ONRAILS_PRETTIER_INSTALL=1` (needs the network), or with `ONRAILS_PRETTIER_DIR` set to the folder of the pack's pinned Prettier package (the one with its `package.json`). Without one of them the AC-421-2 tests skip, and a pack file Prettier would change still passes.
 - **No pack:** slice 0 sets up the same things by hand, following the check contract and `architecture.md`. Afterwards, offer to save the result as a new pack.
 
 Research behind the packs: `research/platform-packs.md` in the kit.
