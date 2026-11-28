@@ -4,6 +4,12 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Fixed
+
+- The pull request size check never passes what it can't count (#407). Any file that shows as binary but isn't a known binary type (an image, font, archive and the like), such as a UTF-16 `.md` or an extensionless script, is exit 2 with its name. In a pull request, an added or modified file with 0/0, no patch and content is exit 2, an empty new file isn't listed as binary, and a git error other than a missing path is exit 2. A `Size exception:` line inside a `<script>` or `<style>` block doesn't count (decisions 377-2 and 407-1).
+
+## [0.7.2] - 2026-11-28
+
 ### Added
 
 - **Which model did which job (#129).** `insights.mjs line job` now ends with a run line people read on GitHub: job, model, effort, time from `started=`, and the commit. `build` ends its pull request body with one and its commits with `Agent-Model:` and `Agent-Effort:` trailers; `pr-review`, `pr-security` and `qa` pass `started=`. A new optional `model_from` field says why a model or effort is `unknown`. `validate` refuses a control character in `job`, `model`, `effort` and `model_from`, so the run line stays one line. `npx onrails runs --pr <n>` (or `--issue <n>`, `--day <yyyy-mm-dd>`) prints the chain from the records, oldest first, and `--brief` gives `/back` one line per merged pull request (decision 129-1).
@@ -53,6 +59,7 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ### Changed
 
+- **The review cap's extra round follows `routing`'s escalation (#406).** On Full, `coordinate` and `afk` run the extra round only when the builder has an escalation step left, and never move a builder to the strongest tier on their own; with none left, the issue goes straight to the split. `npx onrails profile init` asks for the `fast` model, `npx onrails accounts` names the ChatGPT exception for non-security builds, and `roles.mjs` refuses C1 controls and line separators, warns on `[[routing]]` and `[routing.<name>]`, words its "outside [routing]" warning right, and warns only about the role asked for.
 - **Writing the issues is the CTO role's job (#402).** `issues`, `pyramid` and `idea` steps 9 and 10 no longer put the pyramid or writing the issues on a set tier. They point to `routing`'s CTO role and read it with `roles.mjs cto`, so a profile's `cto = ...` applies. Below Full, they ask before the strongest tier only when `roles.mjs cto` prints it, and one yes covers every CTO job in the session.
 - **Orphan sweep follow-ups (#397).** `orphans.mjs` lists an unlabelled issue whose body starts with `Handoff ·` when its author is one of the repo's people, reads REST's `created_at` next to gh's `createdAt`, reads a claim on a non-ASCII branch name git accepts and words the note for a name it can't check, and lets only this repo's pull requests (not a fork's) keep a claim in review. A handoff's sender makes the `handoff` label first, `board.md` reads each issue's `author` and each pull request's `isCrossRepository`, and says the issue read sees the first 100 comments and where paged ones go, and the `handoff-reading` eval's question must offer two different readings either side of an "or" (decisions 397-1 and 397-2).
 - **Size docs (#394).** `pr-review`'s size line, rule 13 of the code-style guide and the README's rules table say what `pr-size.mjs` does: under 1,000 changed lines, not counting lockfiles, generated files and test fixtures, or the `size-exception` label and a `Size exception: <reason>` line. None names `large-pr` or 400 lines any more.
@@ -369,7 +376,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - The first kit: `AGENTS.md`, skills for the product grill, the tech grill, research, the tracer-bullet pyramid, issues, model routing, the build loop, reviews and browser tests, plus templates and a guide.
 - Skills live in `.agents/skills` for Codex and are copied to `.claude/skills` for Claude Code. CI checks the copies match.
 
-[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.3...v0.6.0

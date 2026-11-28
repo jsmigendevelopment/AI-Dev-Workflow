@@ -5,7 +5,8 @@ import { init } from "../src/init.mjs";
 import { profileCopy, profileInit, profilePath, profileShow } from "../src/profile.mjs";
 import { exists, fakeAsk, logger, put, read, tmp } from "./helpers.mjs";
 
-const ANSWERS = ["octo-org", "pro", "team", "festival themed", 'Model "Big"', "", "Creative X", ""];
+// #406: the fast tier is asked after everyday; Enter keeps it blank.
+const ANSWERS = ["octo-org", "pro", "team", "festival themed", 'Model "Big"', "", "", "Creative X", ""];
 
 test("profile init asks, keeps defaults on Enter, re-asks bad choices, and writes the template", async () => {
   const home = tmp();
@@ -84,7 +85,7 @@ test("init copies the home profile into a project without one, and leaves an exi
 // #100 AC-3: the tier question is asked once, at setup, and saved as ask_before_strongest.
 test("AC-100-3: profile init asks once about the strongest model, and a yes turns the per-job question off", async () => {
   const home = tmp();
-  const ask = fakeAsk(["", "", "", "", "", "", "", "yes"]);
+  const ask = fakeAsk(["", "", "", "", "", "", "", "", "yes"]); // one Enter per model question, the fast tier included (#406)
   assert.equal(await profileInit({ home, ask, log: logger() }), 0);
   assert.match(read(home, ".onrails/profile.toml"), /^ask_before_strongest = false +# ask before/m);
   assert.equal(ask.questions.filter((q) => q.startsWith("May the planner use your strongest model without asking each time?")).length, 1);
