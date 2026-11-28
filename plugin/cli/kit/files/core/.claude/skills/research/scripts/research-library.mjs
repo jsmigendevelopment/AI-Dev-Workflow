@@ -194,10 +194,11 @@ export function personalValues(toml) {
   return found;
 }
 
-/** A profile fit for a project: [research] library and library_path replaced by a comment. */
+/** A profile fit for a project: [research] library and library_path, and [me] input (#457), replaced by a comment. */
 export function stripPersonal(toml) {
+  const personal = (l) => (l.section === "research" && PERSONAL_KEYS.includes(l.key)) || (l.section === "me" && l.key === "input");
   return tomlLines(toml)
-    .map((l) => (l.section === "research" && PERSONAL_KEYS.includes(l.key) ? `# ${l.key}: ${PERSONAL_NOTE}` : l.line))
+    .map((l) => (personal(l) ? `# ${l.key}: ${PERSONAL_NOTE}` : l.line))
     .join("\n");
 }
 

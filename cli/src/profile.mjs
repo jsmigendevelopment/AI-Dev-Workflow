@@ -49,6 +49,9 @@ export async function profileInit({ home, kitDir, ask, yes = false, log = consol
   const before = TIER_LINE.exec(toml)?.[2] === "false" ? "yes" : "no";
   const tier = yes ? before : await askDefault(ask, "May the planner use your strongest model without asking each time?", before, ["yes", "no"]);
   toml = toml.replace(TIER_LINE, (_, head) => `${head}${tier === "yes" ? "false" : "true"}`);
+  // Asked once here too (#457). Enter keeps both, the safe pick: it only turns on reading by sound.
+  const input = yes ? "both" : await askDefault(ask, "Do you mostly type, or use voice to text?", "both", ["typing", "voice", "both"]);
+  toml = setValue(toml, "input", input);
   writeFile(path, toml);
   log(`Wrote ${path}. Edit it any time; the rest of the file has more defaults.`);
   return 0;

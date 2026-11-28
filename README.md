@@ -112,6 +112,7 @@ onRails ships its maker's own preferences. They are a starting point, not the on
 
 | Section | What it sets |
 |---|---|
+| `[me]` | Your name, naming style, and whether you type or use voice to text. Voice or both makes agents read your words by sound. That answer and your glossary of mishearings stay in `~/.onrails/`, never in a project |
 | `[web]` | The framework, UI kit, database, sign-in, hosting, and tools never to suggest |
 | `[defaults]` | The package manager, risk dial, automation level, grill mode, repo visibility and licence |
 | `[design]` | The look and feel, light or dark, roomy or dense, and how your app's text sounds |
