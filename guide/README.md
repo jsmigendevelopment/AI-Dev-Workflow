@@ -7,6 +7,7 @@ Load a guide only when its row fits the job. Most runs need none: the skills car
 | [code-style.md](code-style.md) | A code rule is unclear, or you want the reason before you bend one. Ships as `build/references/code-style.md`. |
 | [testing.md](testing.md) | A test is hard to write, or you're unsure what to mock, how to name it or whether a snapshot fits. Ships as `build/references/testing.md`. |
 | [app-conventions.md](app-conventions.md) | Deciding or reviewing how an app handles state, errors, loading, the API, money, time, the database, logs, events, env or access. Ships as `build/references/app-conventions.md`. |
+| [app-conventions-go.md](app-conventions-go.md) | The app has a Go backend, and you're deciding or reviewing how it handles errors, the API, money, time, the database, logs, events, OpenAPI, env or access. Read it beside `app-conventions.md`. |
 | [environments.md](environments.md) | Adding, rotating or onboarding a key or variable, or setting up local, test, preview or production. |
 | [staying-in-the-loop.md](staying-in-the-loop.md) | Explaining pings, the board or the automation levels to the person. |
 | [add-to-existing-app.md](add-to-existing-app.md) | Adding the kit to an app that already has code. |

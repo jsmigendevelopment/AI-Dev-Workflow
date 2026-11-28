@@ -1,0 +1,53 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T08:26:04.951Z",
+  "issue": null,
+  "pr": 557,
+  "sha": "829c9d9eecae969563e7ba6e4e6f29f97431862c",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "fence": "Fence: pass, the pull request stays inside issue #348 (merge of main only)",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "npm run bundle && npm test (cli)",
+      "result": "pass",
+      "seconds": 112
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 99
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 2
+    },
+    {
+      "name": "pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "pr-rules.mjs",
+      "result": "pass",
+      "seconds": 2
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}
