@@ -34,6 +34,7 @@ test("AC-362-1: two branches that each add a line under the same Unreleased head
   const real = read("CHANGELOG.md");
   assert.ok(real.includes(UNRELEASED), "CHANGELOG.md has an Unreleased heading");
   const start = real.includes(ADDED) ? real : real.replace(UNRELEASED, ADDED);
+  // Guards the copy's setup: the branches below edit at ADDED, so an ADDED that stops starting with UNRELEASED fails here.
   assert.ok(start.includes(ADDED), "the copy has an Added heading under Unreleased");
   writeFileSync(join(dir, "CHANGELOG.md"), start);
   git("add", ".");
@@ -49,7 +50,7 @@ test("AC-362-1: two branches that each add a line under the same Unreleased head
   assert.equal(merge.status, 0, `fix/901 merges into fix/902 with no conflict: ${merge.stdout}${merge.stderr}`);
   const merged = readFileSync(join(dir, "CHANGELOG.md"), "utf8");
   assert.doesNotMatch(merged, /^(<<<<<<<|=======|>>>>>>>)/m, "no conflict markers");
-  const added = merged.split(ADDED)[1].split("\n### ")[0];
+  const added = merged.split(ADDED)[1].split(/\n#{2,3} /)[0];
   for (const line of Object.values(lines)) {
     assert.equal(added.split("\n").filter((l) => l === line).length, 1, `${line} is under Unreleased > Added once`);
   }
