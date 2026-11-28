@@ -141,7 +141,8 @@ test("AC-329-8: outcome done and a non-board went-wrong note with no links exit 
 });
 
 test("fileName uses the PR, else the issue, else 0, and text over 200 characters is refused", () => {
-  const base = { v: 1, kind: "touch", at: NOW, issue: 3, pr: null, sha: null, job: null, tool: null, model: "unknown", effort: "unknown", what: "yes", minutes: 1 };
+  // NOW as the writer writes it: since #411, at must be exactly what toISOString gives.
+  const base = { v: 1, kind: "touch", at: "2026-11-27T14:32:00.000Z", issue: 3, pr: null, sha: null, job: null, tool: null, model: "unknown", effort: "unknown", what: "yes", minutes: 1 };
   assert.equal(fileName(base, "abcdef"), "1432-touch-3-abcdef.json");
   assert.equal(fileName({ ...base, pr: 8 }, "abcdef"), "1432-touch-8-abcdef.json");
   assert.equal(fileName({ ...base, issue: null }, "abcdef"), "1432-touch-0-abcdef.json");

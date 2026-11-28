@@ -19,6 +19,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gh, pages } from "./agent-files.mjs";
 import { dayFolder, fileName, validate } from "./insights-record.mjs";
+import { exceptionReason } from "./pr-size.mjs";
 
 const BASE = "main";
 /** Main as land reads it: never by the short name origin/main, which a tag or a local branch of that name shadows (#422). */
@@ -152,8 +153,10 @@ function openNew(root, repo, files) {
 function mark(repo, pull) {
   const missing = LABELS.filter((l) => !(pull.labels ?? []).some((x) => x?.name === l));
   if (missing.length) gh("-X", "POST", ...missing.flatMap((l) => ["-f", `labels[]=${l}`]), `repos/${repo}/issues/${pull.number}/labels`);
+  // Read as #377's rule reads it: a line in an HTML comment or a code block doesn't count. The new line goes first, so
+  // an unclosed comment or fence in the old body can't hide it (#411).
   const body = String(pull.body ?? "");
-  if (!body.includes(SIZE_LINE)) gh("-X", "PATCH", "-f", `body=${body.trimEnd()}\n\n${SIZE_LINE}\n`, `repos/${repo}/pulls/${pull.number}`);
+  if (!exceptionReason(body)) gh("-X", "PATCH", "-f", `body=${[SIZE_LINE, body.trimEnd()].filter(Boolean).join("\n\n")}\n`, `repos/${repo}/pulls/${pull.number}`);
 }
 
 function open(root, repo) {
