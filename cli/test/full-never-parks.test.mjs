@@ -30,23 +30,25 @@ const nextLine = (text, indent, prefix) => {
   return lines[at + 1] ?? "";
 };
 
-test("AC-204-1: WHEN the test reads coordinate step 6's review-cap paragraph THEN its On Full sentence names one more round on the next tier up, then a split through issues, and no ⏳ decision or needs-human", () => {
+test("AC-204-1: WHEN the test reads coordinate step 6's review-cap paragraph THEN its On Full sentence names one more round with an escalation step left (#406), then a split through issues, and no ⏳ decision or needs-human", () => {
   const onFull = line(reviewCap(), "   - ", "**On Full,**");
   assert.ok(onFull, "an On Full bullet in the review-cap paragraph");
-  assert.match(onFull, /one more round with a fresh builder on the next tier up/);
-  assert.match(onFull, /`routing`'s "escalate one step after a verified failure"/);
+  // #406: the extra round takes routing's next escalation step, if one is left, never the next tier.
+  assert.match(onFull, /if the builder has an escalation step left under `routing`'s "Escalation"/);
+  assert.match(onFull, /run one more round with a fresh builder that takes that step/);
   assert.match(onFull, /the profile's own limits win/);
   assert.match(onFull, /Still rejected\? Split it\./);
   assert.match(onFull, /close the pull request with a comment that keeps its branch/i);
   assert.match(onFull, /send the issue to `issues` to cut into smaller issues \(each 4 or under\)/);
   assert.match(onFull, /link the old branch and every open finding from each new issue/);
   assert.match(onFull, /The old issue closes as split\./);
-  // #209 round 1, nice 2: an issue too small to split gets one new issue on the next tier up, not the same split again.
-  // #209 round 2, nice 4: with no tier above, the same tier, so the coordinator never stops to work it out.
-  assert.match(onFull, /Can't be cut smaller\? Then `issues` files one new issue with every open finding as its checklist, and a fresh builder builds it on the next tier up from the last round, or the same tier when none is above \(the profile's own limits win\), instead of a split at the same size\./);
+  // #209 round 1, nice 2: an issue too small to split gets one new issue, not the same split again.
+  // #406: no escalation step is left by then, so the last round's tier and effort, never a tier up.
+  assert.match(onFull, /Can't be cut smaller\? Then `issues` files one new issue with every open finding as its checklist, and a fresh builder builds it on the same tier and effort as the last round, instead of a split at the same size\./);
   assert.ok(onFull.indexOf("Split it.") < onFull.indexOf("Can't be cut smaller?"), "the small-issue clause follows the split");
   assert.match(onFull, /"AI pick, not reviewed".*a `failed` board event.*the next batched ℹ️ FYI/);
-  assert.ok(onFull.indexOf("next tier up") < onFull.indexOf("Split it."), "the escalation round comes before the split");
+  assert.ok(onFull.indexOf("escalation step left") < onFull.indexOf("Split it."), "the escalation round comes before the split");
+  assert.doesNotMatch(onFull, /next tier up/, "#406: the cap never climbs a tier on its own");
   assert.ok(onFull.includes(NO_GATE), "it says there's no ⏳ decision and no needs-human");
   const rest = onFull.replace(NO_GATE, "");
   assert.doesNotMatch(rest, /⏳|needs-human|`ask`/, "the On Full bullet asks nothing");
@@ -113,7 +115,7 @@ test("AC-204-4: WHEN the test reads afk's unattended rules and its watchdog THEN
   assert.match(lines["Main goes red"], /A 🛑 only for a cause on `AGENTS.md`'s always-stop list or the person's own login\./);
   assert.doesNotMatch(lines["Main goes red"], /nothing else can (?:move|merge)/);
   assert.match(lines["An issue fails twice"], /`coordinate`'s review cap/);
-  assert.match(lines["An issue fails twice"], /next tier up.*split through `issues`/);
+  assert.match(lines["An issue fails twice"], /escalation step left under `routing`.*split through `issues`/);
   // #209 round 1, must 2: a stuck builder is one failed round toward the cap, not a step up a tier (`routing`).
   assert.match(lines["the stuck builder"], /stop the stuck builder and count it as one failed round toward the review cap: before the cap, a fresh builder on the same tier; at the cap, follow `coordinate`'s review cap\./);
   assert.doesNotMatch(lines["the stuck builder"], /next tier up/, "being stuck alone never moves the issue up a tier");
@@ -136,6 +138,8 @@ test("#209 round 1, must 3: WHEN the test reads the README's line on what each p
   for (const file of ["README.md", "cli/README.md"]) {
     const text = read(file);
     assert.doesNotMatch(text, /After two rejected rounds, the issue is parked and you're asked\./, `${file}: the old line, wrong on Full`);
-    assert.match(text, /After two rejected rounds \(three for a complex issue\), below Full the issue is parked and you're asked\. On Full, nothing waits: one more round on a stronger model, then the issue is split into smaller ones, with an FYI\./, file);
+    // #406: the extra round is routing's next escalation step, so it runs only while one is left.
+    assert.match(text, /After two rejected rounds \(three for a complex issue\), below Full the issue is parked and you're asked\. On Full, nothing waits: one more round one step up if the builder has an escalation step left, then the issue is split into smaller ones, with an FYI\./, file);
+    assert.doesNotMatch(text, /one more round on a stronger model/, `${file}: the old line, which could climb past the escalation steps`);
   }
 });
