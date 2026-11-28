@@ -16,7 +16,8 @@ export const DEFAULTS = {
 };
 const EFFORTS = ["low", "medium", "high", "extra-high"];
 
-const HEADER = /^\s*\[\s*routing\s*\]\s*(?:#.*)?$/;
+// The [routing] table. TOML names the same table with a quoted key, so ["routing"] and ['routing'] count too (#476).
+const HEADER = /^\s*\[\s*(?:routing|"routing"|'routing')\s*\]\s*(?:#.*)?$/;
 // [[routing]] or [routing.<name>]: a header that names routing but isn't the [routing] table.
 const OTHER_ROUTING = /^\s*\[\[?\s*(?:routing|"routing"|'routing')\s*(?:\.|\]\])/;
 const PAIR = /^\s*(?:([A-Za-z0-9_-]+)|"([^"\\\n]*)"|'([^'\n]*)')\s*=\s*(.*)$/;
