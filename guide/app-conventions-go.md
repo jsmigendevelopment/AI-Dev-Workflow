@@ -6,7 +6,7 @@ Section numbers match `app-conventions.md`, so "rule 13" means the same thing in
 
 The Go pack picked the tools (decisions 340-1 and 342-1): huma on `net/http`'s ServeMux, Postgres on Neon through pgx, goose for migrations, sqlc for queries, Clerk's Go SDK for sign-in, Cloud Run as the host. This page names no version. The pack pins them.
 
-Shared code lives under `internal/platform/<name>/` (`apperror`, `money`, `clock`, `logger`, `events`, `authz`, `config`). Each feature is a module under `internal/modules/<module>/`, with its handler, service and repository layers in its own `internal/` folder. Go's compiler refuses an import across that wall. The architecture file sets the final names.
+Shared code lives under `internal/platform/<name>/` (`apperror`, `money`, `clock`, `logger`, `events`, `authz`, `config`). The system clock is `internal/platform/clock`: the one place that calls `time.Now()`, and it returns UTC. Each feature is a module under `internal/modules/<module>/`, with its handler, service and repository layers in its own `internal/` folder. Go's compiler refuses an import across that wall. The architecture file sets the final names.
 
 ## 5. One error system from day one
 
@@ -14,7 +14,7 @@ Shared code lives under `internal/platform/<name>/` (`apperror`, `money`, `clock
 - **Expected errors get a specific message** that says what happened and what to do next: "That email is already used. Sign in instead?"
 - **Unexpected errors get a short message and a request ID:** "Something broke on our side. Reference: 7f3a9c." No stack, SQL or internal name reaches the caller.
 - **One request ID, end to end.** The first middleware takes `X-Request-Id` from the caller or makes one. It goes in the context, the response header, the log line and the error body. The web app shows it as the reference ID.
-- **One error envelope,** the web app's own: `{"ok": false, "error": {"code", "message", "requestId"}}`. huma answers with RFC 9457 problem details by default. The pack replaces that once, in huma's `NewError` hook, so the TypeScript client parses one shape.
+- **One error envelope,** the web app's shape: `{"ok": false, "error": {"code", "message", "requestId"}}`. `requestId` was added, and `fields` (messages per input, on `validation` only) was kept. huma answers with RFC 9457 problem details by default. The pack replaces that once, in huma's `NewError` hook, so the TypeScript client parses one shape.
 - **Wrap, don't replace.** Add context with `fmt.Errorf("create note: %w", err)`. Test with `errors.Is` and `errors.As`, never on the message text. Never `_ = err`.
 - **Logged once, at the boundary:** the error middleware, or the job runner. A recover middleware turns a panic into `internal` and logs it once, with the stack in the log only.
 
@@ -89,11 +89,12 @@ func (m Money) Add(o Money) (Money, error) {
   The standard library has no date-only type. A birthday stored as midnight UTC shows the day before for anyone west of London.
 - **Show times in the user's zone** at the edge, in the web app. The server converts with `t.In(loc)` only for what it sends itself, such as an email.
 - **Never parse an ambiguous string.** An instant goes through `time.Parse(time.RFC3339, s)`, a date through `time.DateOnly`. No layout like `"01/02/2006"` on user text.
-- **A test clock.** Services get a `clock.Clock` from the composition root. `time.Now()` is called in one place, the system clock in `cmd/api`. Tests pass a fixed one.
+- **A test clock.** Services get a `clock.Clock` from the composition root (`cmd/api`). `time.Now()` is called in one place, the system clock in `internal/platform/clock`, and it returns UTC. Tests pass a fixed one.
 - **Calendar days and hours differ.** `t.AddDate(0, 0, 1)` is the next calendar day, `t.Add(24 * time.Hour)` is 24 hours. Pick by what the words mean.
 - **Daylight saving cases:** a day with 23 hours and one with 25, a local time that doesn't exist (2:30 on the spring-forward night), one that happens twice, and a repeating event across the change. For a time that doesn't exist or happens twice, `time.Date` picks one answer and its docs don't say which, so test what the app expects.
 
 ```go
+// internal/platform/clock/clock.go
 type Clock interface{ Now() time.Time }
 
 type systemClock struct{}
@@ -140,7 +141,7 @@ CREATE INDEX notes_user_id_idx ON notes (user_id);
 - **Levels:** `debug` (off in production), `info` (a normal thing worth knowing, sampled if noisy), `warn` (the app coped: a retry, a fallback), `error` (a request or job failed and a person must look; never sampled).
 - **Standard fields,** the same as the web app's: `ts` (UTC), `level`, `event` (an `object_action` name like `note_created`), `request_id`, `user_id` (an internal ID only, never an email or a name), `route`, `duration_ms` and `error_code` (on warn and error).
 - **One logger package,** `internal/platform/logger`. Its `ReplaceAttr` renames `time` to `ts`, `msg` to `event` and lowercases the level. Nothing else calls `fmt.Print*`, `log.Print*` or the global `slog` functions. The context carries the logger with `request_id` already on it.
-- **Redaction by default.** A secret is a type that logs as `[redacted]`. Passwords, tokens, cookies, auth headers, emails and personal data are masked before the line is written.
+- **Redaction by default.** A secret is a type that shows as `[redacted]` in `slog`, in `%s` and `%v`, and in JSON. Passwords, tokens, cookies, auth headers, emails and personal data are masked before the line is written.
 - **No log lines in loops.** Log once, after the loop, with a count. Sample noisy info such as health checks. Never sample `warn` or `error`.
 - **An error is logged once, at the boundary** (rule 5). Code below it wraps the error and returns it.
 - **Where logs go:** standard output, which Cloud Run collects. Read them with `gcloud run services logs read`. Whether the viewer reads `level` as severity is for the Go pack to check. How long logs are kept goes in `docs/stack.md`.
@@ -148,18 +149,22 @@ CREATE INDEX notes_user_id_idx ON notes (user_id);
 ```go
 type Secret string
 
-func (Secret) LogValue() slog.Value { return slog.StringValue("[redacted]") }
+// Hidden in slog, in %s and %v (String), and in JSON (MarshalJSON), even inside a logged struct.
+func (Secret) LogValue() slog.Value         { return slog.StringValue("[redacted]") }
+func (Secret) String() string               { return "[redacted]" }
+func (Secret) MarshalJSON() ([]byte, error) { return []byte(`"[redacted]"`), nil }
 
 func New(w io.Writer, level slog.Level) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{
 		Level: level,
-		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
-			switch a.Key {
-			case slog.TimeKey:
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			topLevel := len(groups) == 0 // an attribute inside a group may share a built-in key
+			switch {
+			case topLevel && a.Key == slog.TimeKey && a.Value.Kind() == slog.KindTime:
 				return slog.Time("ts", a.Value.Time().UTC())
-			case slog.MessageKey:
+			case topLevel && a.Key == slog.MessageKey:
 				a.Key = "event"
-			case slog.LevelKey:
+			case topLevel && a.Key == slog.LevelKey:
 				a.Value = slog.StringValue(strings.ToLower(a.Value.String()))
 			}
 			return a
@@ -247,7 +252,7 @@ func Load(get func(string) string) (Config, error) {
 - **Anything more** (sharing, teams, roles, folders): relationship-based access control, as in `app-conventions.md` rule 18.
   - One `check(user, action, object)` function, behind a port: the `authz.Checker` interface. `cmd/api` injects the adapter, like a repository. Services call it. Nothing else decides access.
   - No role checks scattered in code. No `user.Role == "admin"` in a service or a handler.
-  - The default adapter is the kit's small built-in engine: a tuples table in Postgres and the schema of relations as Go code in one file (until `research/authorization.md` confirms). SpiceDB, OpenFGA or another service can replace it without touching a service.
+  - The default adapter is the kit's small built-in engine: a tuples table in Postgres and the schema of relations as Go code in one file. The Go adapter on Postgres is untested: nothing in the kit has run it against a real database yet, so test it before you rely on it. SpiceDB, OpenFGA or another service can replace it without touching a service.
   - If `Check` returns an error, deny. Never fail open.
 - The tech grill asks: *"Will people share things, have teams, or have roles?"* The answer goes in `docs/security-policy.md`.
 
