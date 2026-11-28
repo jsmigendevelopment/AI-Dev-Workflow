@@ -43,6 +43,10 @@ Rules for every agent in this repo: planner, builder, reviewer or coordinator.
     - **Never a report of harm.** A 🛑 for a critical security finding, production down or anything on the always-stop list always pings, whatever the rows say.
     - **Never an always-stop item.** No row lifts one, at any level, Full included: the person gives the go-ahead for it themselves. A row that names the item ("deploy to production after the checks pass") lifts only the repeated asks: one 🛑 that cites the row and pings once. With no naming row, it is the same one 🛑 that pings once, on Full too, never only an FYI. No agent decides it in the person's place, on Full either.
     - **Below Full, a row lifts only the ping.** The `needs-human` label and the "Waiting on you" line are still written, so the step still shows as the person's, and the person still takes it themselves, below Full: a merge or the `human-approved` label (`coordinate`, Rules).
+17. **The live thread only talks.** The thread the person talks to answers, records the person's decisions, writes a note or files an issue, and hands work down. It never builds, reviews, merges, deploys, runs the checks, runs long installs or tests, or waits on a job, a run or another agent.
+    - **The rest goes to a background sub-agent or sub-thread,** so the turn ends at once: any other action that changes a repo, any command over about 30 seconds and any such wait. No background tool? Do it here, and say once that you can't react while it runs.
+    - **Quick reads are fine** when the answer needs them: a file, an issue, `gh api`, a status. A long read goes to a sub-agent; say when it will report back.
+    - **Never block the person.** When they speak while a sub-agent works, answer right away, and pass their words down when they touch that work (`coordinate`, "Where this runs").
 
 ## Code
 
