@@ -26,7 +26,7 @@ Check which one you are first:
    - **Answer the person right away, whatever the loop is doing.** Never wait for a receipt or a report first.
    - **A job the person names** ("merge #12", "run the checks", "rebuild it"): pass it to the loop if one runs, else start a background sub-agent for that job alone, with their words. Say in one line who has it, then end your turn.
    - **Down:** the person's words that touch the loop (pause, stop, a new decision, feedback on a pull request) go to it word for word, through the handoff rule: a message to the sub-agent or session, and the loop's `Got it ·` receipt back. A new decision is written to its own file, `docs/decisions/<issue>-<n>.md` (rule 4), first, then relayed.
-   - **Pause or stop** (`ask`, "Pause and stop") covers the loop and every builder under it: relay it, then show what's still running (`procs.mjs list --mine`, `timer.mjs status`, and the loop's own list).
+   - **Pause or stop** (`ask`, "Pause and stop") covers the loop and every builder under it: relay it, then show what's still running (`procs.mjs list --mine`, `timer.mjs status`, and the loop's own list when it reports back; don't wait for it).
    - **Up:** the loop's reports come back to the live thread, which tells the person in short lines.
 
    **Done when** the loop runs elsewhere and the live thread's turn has ended, or the loop runs here because nothing else can.
