@@ -14,7 +14,7 @@
 // It reads the API only. A read with no answer throws, which own-branch.mjs turns into exit 2.
 import { isDeepStrictEqual } from "node:util";
 import { RULE_FILES } from "./agent-files.mjs";
-import { goChange, isGoFile } from "./dependabot-go.mjs";
+import { clip, goChange, isGoFile } from "./dependabot-go.mjs";
 
 const ONLY = "The local gate only runs the loop's own branches.";
 export const DEPENDABOT = "dependabot[bot]";
@@ -175,7 +175,7 @@ export function dependabotBump(pull, read) {
   const files = read.files();
   if (!files.length) return refuse(`#${number} changes no files, so there's no bump to check.`);
   const other = files.filter((f) => f.status !== "modified" || f.previous_filename || RULE_FILES.test(f.filename) || !(MANIFEST.test(f.filename) || LOCKFILE.test(f.filename) || isGoFile(f.filename)));
-  if (other.length) return refuse(`Dependabot's #${number} changes more than existing manifests and lockfiles: ${other.map((f) => `${f.filename} (${f.status})`).join(", ")}.`);
+  if (other.length) return refuse(`Dependabot's #${number} changes more than existing manifests and lockfiles: ${other.map((f) => `${clip(f.filename)} (${f.status})`).join(", ")}.`);
   const commits = read.commits();
   if (commits.length !== count || commits.at(-1)?.sha !== sha) throw new Unsettled(`GitHub listed ${commits.length} commits ending at ${commits.at(-1)?.sha}, but #${number} has ${count} ending at ${sha}`);
   const stranger = commits.map(notDependabots).find(Boolean);
