@@ -124,7 +124,7 @@ Run `npx onrails profile init` to set your defaults in `~/.onrails/profile.toml`
 | `[design]` | Theme, spacing and voice. |
 | `[routing]` | Models by tier and role, and when to ask for the strongest one. |
 
-What you say in a session takes priority. Below Full, you confirm the choices the grill recommends. On Full, the agent records each pick and sends an FYI.
+On every level below Full, the grill shows each pick for you to confirm. On Full, nothing waits. The agent records each pick and sends an FYI. What you say in a session takes priority.
 
 Edit project rules and skills in place. `npx onrails update` keeps your edits and puts the kit's new copy beside yours. Layered settings are planned in [#124](https://github.com/jsmigendevelopment/onRails/issues/124).
 
