@@ -21,6 +21,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CAP, canonical, recordProblem } from "./insights-land.mjs";
+import { trustedRoot } from "./pr-size.mjs";
 import { VERSION, dayFolder, fileName, validate } from "./insights-record.mjs";
 
 const SHA = /^[0-9a-f]{40}$/;
@@ -173,9 +174,15 @@ function notCleanMerge(root, from, to) {
   return merged.tree === tree ? null : `${to}'s tree isn't the clean merge of main: it holds a change of its own`;
 }
 
-/** The checkout that holds dir, by isolated git, so no GIT_ variable, config or hook can point it elsewhere. Throws when none. */
+/**
+ * The checkout that holds dir, by isolated git, so no GIT_ variable, config or hook can point it elsewhere. Throws when
+ * none. A checkout owned by another user (a dev container's mounted folder) is found only when the operator's own global
+ * config lists the script's checkout as safe.directory, or `*` (#544): pr-size.mjs's trustedRoot() reads that list the
+ * same way (decision 432-1), and this call names only that one folder. Unlisted, it is refused as before.
+ */
 export function checkoutOf(dir) {
-  return git(dir, ["rev-parse", "--show-toplevel"]);
+  const trust = trustedRoot();
+  return git(dir, [...(trust ? ["-c", `safe.directory=${trust}`] : []), "rev-parse", "--show-toplevel"]);
 }
 
 /** Fetches main into refs/remotes/origin/main for the checkout at root, as carry's proof reads it. Throws when it can't. */
