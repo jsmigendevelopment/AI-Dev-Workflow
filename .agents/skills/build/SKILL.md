@@ -5,6 +5,10 @@ description: Use when implementing one issue ("implement issue 12", "build this 
 
 # Build: one issue, one fresh session, inside the fence
 
+**Started by the person in the live thread** (the thread they talk to, rule 17 in `AGENTS.md`)? Don't build there. Pass the issue to the loop if one runs, else start a background sub-agent briefed *"Use the `build` skill for #<n>."* with the person's words (`coordinate`, "Where this runs"). Say in one line who has it, and end the turn.
+
+**Your brief came from another thread?** Never hand your own job down again: do it yourself, and start a sub-agent only where a step below says to.
+
 ## Steps
 
 0. **Preflight:** `node .agents/skills/ask/scripts/preflight.mjs --if-changed --record`. It skips the probes when `docs/state.md` says `Environment: ok` and the sandbox hasn't changed. A `✗` row? Follow `../ask/references/preflight.md` before anything else: fix what you can, climb its ladder, ONE message for the rest. Installs blocked? Don't scaffold, and don't build what needs them.

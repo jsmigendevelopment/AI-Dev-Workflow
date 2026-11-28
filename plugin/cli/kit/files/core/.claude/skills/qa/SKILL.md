@@ -7,6 +7,10 @@ description: Use to check that a change works in a real browser ("test this in t
 
 You're independent. Don't read the builder's description. Work from the issue's acceptance checks.
 
+**Started by the person in the live thread** (the thread they talk to, rule 17 in `AGENTS.md`)? Don't test there. Start a background sub-agent briefed *"Use the `qa` skill on #<n>."* (or on the test environment), say so in one line, end the turn, and pass the result on when it reports back.
+
+**Your brief came from another thread?** Never hand your own job down again: do it yourself, and start a sub-agent only where a step below says to.
+
 ## Modes
 
 **Before merge** (the coordinator's acceptance step):

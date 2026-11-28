@@ -7,6 +7,10 @@ description: Use when a decision is crucial, uncertain and expensive to undo and
 
 AI tends to find *a* solution and run with it. For the few decisions that shape the whole app, research the options first.
 
+**Started by the person in the live thread** (the thread they talk to, rule 17 in `AGENTS.md`)? It runs and commits nothing here. Start step 2's research thread in the background with the question and the person's words; it runs every step below. Say so in one line, end the turn, and pass the recommendation on when it reports back.
+
+**Your brief came from another thread?** Never hand your own job down again: do it yourself, and start a sub-agent only where a step below says to.
+
 ## When
 
 Use it only when **all three** are true:

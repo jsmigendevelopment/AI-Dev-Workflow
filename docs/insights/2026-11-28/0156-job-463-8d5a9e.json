@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T01:56:08.898Z",
+  "issue": 454,
+  "pr": 463,
+  "sha": "bdba2e40b3e237694bc0da650ce40d759b113e4d",
+  "job": "build",
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "outcome": "finished",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "effort from preflight; usage not shown in this cloud sub-agent session"
+}
