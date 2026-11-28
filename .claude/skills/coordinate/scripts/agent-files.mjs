@@ -26,8 +26,8 @@
 //        verify-run --runs <json> [the flags above, for the live decision]
 // Exit 0 passes, 1 fails. No dependencies.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { commandFor } from "./command-for.mjs";
 
@@ -471,7 +471,18 @@ async function run(argv, env) {
   return r;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+/** True when node started this file, also through a symlinked file or folder: import.meta.url is the real path, so
+ * argv[1] is resolved to its real path too (#506, as in pr-size.mjs, #439). */
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false; // An argv[1] that names no file (a REPL, a loader's stand-in) isn't this module.
+  }
+}
+
+if (isMainModule()) {
   // Not a top-level await: gate's lazy import loads insights-land.mjs, which imports this file, so it must be done loading.
   main(process.argv.slice(2)).then((code) => (process.exitCode = code));
 }
