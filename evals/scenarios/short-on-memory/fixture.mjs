@@ -18,7 +18,7 @@ process.stdout.write("Free memory: ${FREE_GB} GB of 8 GB\\n");
 
 const AGENTS = `# AGENTS.md
 
-This project's facts. The workflow's rules are in AGENTS.onrails.md.
+This project's facts. The onRails workflow's rules are in AGENTS.onrails.md.
 
 ## Project facts
 

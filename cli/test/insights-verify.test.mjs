@@ -106,3 +106,28 @@ test("#332: land --verify refuses a pull request the coordinator didn't open, or
   const moved = verify(dir, 97, pullOf(97, ref, "d".repeat(40)));
   assert.equal(moved.status, 2, moved.stderr);
 });
+
+for (const kind of ["tag", "branch"]) {
+  test(`AC-422-2: WHEN the coordinator's clone has a ${kind} named origin/main THEN land --verify diffs the records pull request against main itself`, unixOnly, () => {
+    const { dir, seed } = setup();
+    // A good records pull request with the shadow on its own head: against the shadow it would change no file.
+    const okRef = "chore/insights-2026-11-27-1700";
+    const okSha = branch(seed, okRef, GOOD);
+    git(dir, "fetch", "-q", "origin", okRef);
+    git(dir, kind, "origin/main", okSha);
+    const ok = verify(dir, 98, pullOf(98, okRef, okSha));
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.match(ok.stdout, new RegExp(okSha));
+
+    // One that also changes README.md, with the shadow on the commit that changed it: against the shadow, only the
+    // record would show.
+    const badRef = "chore/insights-2026-11-27-1701";
+    const first = branch(seed, badRef, { "README.md": "changed\n" });
+    const badSha = branch(seed, badRef, { [pathOf(REVIEW)]: json(REVIEW) }, first);
+    git(dir, "fetch", "-q", "origin", badRef);
+    git(dir, kind, "-f", "origin/main", first);
+    const bad = verify(dir, 99, pullOf(99, badRef, badSha));
+    assert.equal(bad.status, 1, `${bad.stdout}${bad.stderr}`);
+    assert.match(bad.stderr, /README\.md: outside docs\/insights\//);
+  });
+}

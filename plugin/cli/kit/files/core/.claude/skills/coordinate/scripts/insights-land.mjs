@@ -1,8 +1,8 @@
 // `insights.mjs land` and the record-file check it shares with `harvest` (#332). Run it through insights.mjs:
-//   land [--repo <owner>/<name>]   lands every valid record file in the checkout that isn't on origin/main. gh's own
+//   land [--repo <owner>/<name>]   lands every valid record file in the checkout that isn't on main. gh's own
 //       open records pull request (a chore/insights- branch it opened in this repo) gets the missing files as one more
 //       commit, a fast-forward, and its number is printed. With none open, it pushes chore/insights-<day>-<hhmm> off
-//       origin/main with only those files, opens a pull request and prints its number. Either way the pull request
+//       main with only those files, opens a pull request and prints its number. Either way the pull request
 //       gets the no-issue and size-exception labels and the "Size exception:" body line it lacks (#377's size rule).
 //       Nothing pending: prints nothing and calls no API. It stages the files in the checkout, so the pull after the merge is
 //       clean (decision 332-2).
@@ -10,6 +10,8 @@
 //       and the head sha only if gh's own login opened it from a chore/insights- branch of this repo (same repo id)
 //       against main, and every changed file is an added plain file under docs/insights/, at most CAP bytes, in the
 //       writer's exact bytes, a valid record, with the name the writer gives it. Exit 1 names each file that isn't.
+// Main is always refs/remotes/origin/main, fetched with an explicit refspec, never the short name origin/main, which a
+// tag or a local branch can shadow (#422). Every git call drops the variables that move the repository (MOVES_REPO).
 // Exit 2: a usage, git or API error, or a head that moved while it was read.
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
@@ -19,6 +21,8 @@ import { gh, pages } from "./agent-files.mjs";
 import { dayFolder, fileName, validate } from "./insights-record.mjs";
 
 const BASE = "main";
+/** Main as land reads it: never by the short name origin/main, which a tag or a local branch of that name shadows (#422). */
+const MAIN = "refs/remotes/origin/main";
 /** The most bytes a record file may have: the writer's biggest real record is under 2 KB. */
 export const CAP = 16384;
 const RECORD_PATH = /^docs\/insights\/\d{4}-\d{2}-\d{2}\/[^/]+\.json$/;
@@ -29,8 +33,16 @@ const OPTS = { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
 const LABELS = ["no-issue", "size-exception"];
 const SIZE_LINE = "Size exception: insights records only, each checked by land --verify";
 
+// What every git call here drops, as carry's fetch does (decision 333-2): the variables that move the repository, and
+// config given through the environment. A hook exports GIT_DIR and GIT_INDEX_FILE, which would point land's reads,
+// commit, push and staging at another repository or index (#422). HOME, the config files it names, tokens and
+// transport variables stay: the push's login lives there.
+const MOVES_REPO = /^GIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE|CEILING_DIRECTORIES|COMMON_DIR|CONFIG_PARAMETERS|CONFIG_COUNT|CONFIG_KEY_\d+|CONFIG_VALUE_\d+)$/;
+/** The env for land's git: no repository-moving variable, and a missing login fails at once instead of prompting. */
+const gitEnv = () => ({ ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !MOVES_REPO.test(name))), GIT_TERMINAL_PROMPT: "0" });
+
 /** git in root: trimmed text, or the raw bytes as a Buffer with `bytes`. */
-export const git = (root, args, { env = process.env, bytes = false } = {}) => {
+export const git = (root, args, { env = gitEnv(), bytes = false } = {}) => {
   const out = execFileSync("git", args, { ...OPTS, cwd: root, env, encoding: bytes ? "buffer" : "utf8" });
   return bytes ? out : out.trim();
 };
@@ -78,9 +90,9 @@ function fetchHead(root, pull) {
   return sha;
 }
 
-/** Record files on disk that aren't on origin/main. An invalid one is named and left out. */
+/** Record files on disk that aren't on main. An invalid one is named and left out. */
 function pending(root) {
-  const onMain = new Set(git(root, ["ls-tree", "-r", "--name-only", `origin/${BASE}`, "--", "docs/insights"]).split("\n"));
+  const onMain = new Set(git(root, ["ls-tree", "-r", "--name-only", MAIN, "--", "docs/insights"]).split("\n"));
   const top = join(root, "docs", "insights");
   const files = [];
   for (const day of existsSync(top) ? readdirSync(top).sort() : []) {
@@ -101,7 +113,7 @@ function pending(root) {
 function commitOn(root, parent, files) {
   const dir = mkdtempSync(join(tmpdir(), "onrails-insights-"));
   try {
-    const env = { ...process.env, GIT_INDEX_FILE: join(dir, "index") };
+    const env = { ...gitEnv(), GIT_INDEX_FILE: join(dir, "index") };
     git(root, ["read-tree", parent], { env });
     for (const path of files) {
       git(root, ["update-index", "--add", "--cacheinfo", `100644,${git(root, ["hash-object", "-w", "--", path])},${path}`], { env });
@@ -124,7 +136,7 @@ function grow(root, pull, files) {
 function openNew(root, repo, files) {
   const iso = new Date(process.env.ONRAILS_NOW || Date.now()).toISOString();
   const branch = `chore/insights-${iso.slice(0, 10)}-${iso.slice(11, 13)}${iso.slice(14, 16)}`;
-  git(root, ["push", "-q", "origin", `${commitOn(root, `origin/${BASE}`, files)}:refs/heads/${branch}`]);
+  git(root, ["push", "-q", "origin", `${commitOn(root, MAIN, files)}:refs/heads/${branch}`]);
   const body = [
     `Records only, from \`insights.mjs land\`: ${files.length} file(s) under docs/insights/. Its review is \`insights.mjs land --verify\` (decision 332-1).`,
     "",
@@ -158,9 +170,9 @@ function open(root, repo) {
   mark(repo, pull);
 }
 
-/** Each changed file between origin/main and sha as [path, why it isn't an added record]. Empty: all good. */
+/** Each changed file between main and sha as [path, why it isn't an added record]. Empty: all good. */
 function badFiles(root, sha) {
-  const parts = git(root, ["diff", "--raw", "-z", "--no-renames", "--no-abbrev", `origin/${BASE}...${sha}`]).split("\0").filter(Boolean);
+  const parts = git(root, ["diff", "--raw", "-z", "--no-renames", "--no-abbrev", `${MAIN}...${sha}`]).split("\0").filter(Boolean);
   if (!parts.length) return [["(none)", "it changes no file"]];
   const bad = [];
   for (let i = 0; i < parts.length; i += 2) {
@@ -200,7 +212,7 @@ export function land(root, args) {
   const origin = /github\.com[:/]+([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(git(root, ["remote", "get-url", "origin"]))?.[1];
   const repo = flag("--repo") ?? origin;
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo ?? "")) throw new Error("pass --repo <owner>/<name>: origin isn't a GitHub URL");
-  git(root, ["fetch", "-q", "origin", BASE]);
+  git(root, ["fetch", "-q", "origin", `+refs/heads/${BASE}:${MAIN}`]);
   if (args.includes("--verify")) verify(root, repo, flag("--verify"));
   else open(root, repo);
 }

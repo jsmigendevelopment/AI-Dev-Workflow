@@ -9,7 +9,7 @@ import { ISSUES_README, PACKAGE, issue } from "../../lib/local-issues.mjs";
 // AGENTS.onrails.md when a project already has an AGENTS.md. Without the kit, that import finds nothing.
 const AGENTS = (commands) => `# AGENTS.md
 
-This project's facts. The workflow's rules are in AGENTS.onrails.md.
+This project's facts. The onRails workflow's rules are in AGENTS.onrails.md.
 
 ## Project facts
 

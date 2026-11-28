@@ -1,7 +1,7 @@
 // Where GitHub values go, on `ci = "actions"` only: on `ci = "local"` nothing reads them, so
 // connect writes none ("none", #139). GitHub Free gives a private repository no environments and no
 // environment secrets, so setup-github sets the repository variable SECRETS_MODE to "repository"
-// there. The workflows then read repository secrets named TEST_<name> (test and previews) and
+// there. The workflows on `ci = "actions"` then read repository secrets named TEST_<name> (test and previews) and
 // PRODUCTION_<name>; connect reads the same variable, so it always writes the names they read.
 import type { Ci } from '../cloudflare/ci-mode.ts'
 import type { Run } from './places.ts'

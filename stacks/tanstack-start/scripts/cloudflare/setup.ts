@@ -20,7 +20,7 @@ import { zone } from './zone.ts'
 // ---------------------------------------------------------------- the run
 
 export const DEPLOY_TOKEN_HELP = [
-  'Create the GitHub Actions token: Cloudflare dashboard → My Profile → API Tokens → Create Token,',
+  'Create the GitHub Actions token for ci = "actions": Cloudflare dashboard → My Profile → API Tokens → Create Token,',
   'start from the "Edit Cloudflare Workers" template, then:',
   '  - Account → D1 → Edit (migrations and Time Travel bookmarks)',
   '  - Account → Queues → Edit (only with the jobs add-on)',
@@ -120,13 +120,13 @@ async function addonResources(
   if (!buckets.length && !queues.length) log('No R2 buckets or queues declared (no add-on needs them).')
 }
 
-/** Step 4: the account id and the deploy token, for GitHub Actions. Only on `ci = "actions"`. */
+/** Step 4: the account id and the deploy token, for GitHub Actions on `ci = "actions"` only. */
 async function github(deps: Deps, options: Options, log: Log, chosen: Account) {
   if (options.ci !== 'actions')
     return log(
       'None: docs/stack.md says ci = "local". The session deploys with the person\'s wrangler login, so nothing goes to GitHub.',
     )
-  log(`CLOUDFLARE_ACCOUNT_ID = ${chosen.id}   (not a secret, but stored as one by the workflows)`)
+  log(`CLOUDFLARE_ACCOUNT_ID = ${chosen.id}   (not a secret, but stored as one on ci = "actions")`)
   const gh = await deps.run('gh', ['auth', 'status'])
   if (gh.status !== 0)
     log('GitHub CLI not signed in: set CLOUDFLARE_ACCOUNT_ID by hand in each environment below.')
@@ -183,7 +183,7 @@ export async function setupCloudflare(options: Options, deps: Deps): Promise<num
     // Before the secrets: `wrangler secret put` on a missing Worker makes an empty placeholder.
     log('\n3. The first test deploy')
     const first = await firstTestDeploy(deps, options, log, resources.test)
-    log('\n4. GitHub Actions')
+    log('\n4. GitHub (ci = "actions" only)')
     await github(deps, options, log, chosen)
     log('\n5. App secrets')
     await secrets(deps, options, log)

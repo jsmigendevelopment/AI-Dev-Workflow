@@ -10,7 +10,7 @@ import { checkBody, isApiPath } from './request-limits'
  *
  * - A person types the password once; the answer sets an HttpOnly, Secure, SameSite=Lax session
  *   cookie holding an HMAC of the password (never the password itself).
- * - CI sends the password in `x-site-password` on every request. Never `Authorization`: `/api/v1`
+ * - The session deploys' smoke test sends the password in `x-site-password` on every request. Never `Authorization`: `/api/v1`
  *   reads `Authorization: Bearer` for Clerk.
  * - Comparisons are constant-time; wrong answers are rate-limited per client.
  * - It covers what the Worker answers (pages, server functions, `/api/v1`). Static files (the

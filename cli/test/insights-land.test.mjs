@@ -8,7 +8,7 @@ import { spawnSync } from "./child.mjs";
 import { safeEnv, unixOnly } from "./helpers.mjs";
 import { toLine, validate } from "../src/insights-record.mjs";
 import { exceptionReason } from "../../.agents/skills/coordinate/scripts/pr-size.mjs";
-import { JOB, ME, OLD, REPO, REVIEW, SHA, SIZE_LINE, branch, git, json, pathOf, pullOf, put, record, records, run, setup } from "./insights-land-fakes.mjs";
+import { JOB, ME, OLD, REPO, REVIEW, SHA, SIZE_LINE, branch, git, json, pathOf, pullOf, put, record, records, run, setup, twoNew } from "./insights-land-fakes.mjs";
 
 const comment = (id, login, body) => ({ id, user: { login }, body });
 const COMMENTS = "repos/acme/app/issues/40/comments";
@@ -127,12 +127,6 @@ test("#332: harvest skips a record already held under another name, and names a 
   assert.equal(fresh(other).length, 2, "the clash stays as it was, and the next line is written");
 });
 
-/** Writes two new records into the checkout, as a reviewer's harvest and the gate would. */
-function twoNew(dir) {
-  put(dir, pathOf(REVIEW, "d4e5f6"), json(REVIEW));
-  put(dir, pathOf(JOB, "0a0b0c"), json(JOB));
-  return [pathOf(REVIEW, "d4e5f6"), pathOf(JOB, "0a0b0c")].sort();
-}
 const BRANCH = "chore/insights-2026-11-27-1432";
 const OPEN = "repos/acme/app/pulls?state=open&per_page=100";
 const PULLS = {
@@ -158,6 +152,33 @@ test("AC-332-3: WHEN the checkout has two record files not on origin/main (a tem
   const body = r.calls.slice(r.calls.indexOf("-f body=") + 8, r.calls.indexOf(" -f head="));
   assert.equal(exceptionReason(body), "insights records only, each checked by land --verify", "#377's size rule reads it");
 });
+
+/** A commit off main holding `files`, pushed as `side`, with a `kind` (tag or branch) named origin/main on it in dir. */
+function shadow(dir, seed, kind, files) {
+  const side = branch(seed, "side", files);
+  git(dir, "fetch", "-q", "origin", "side");
+  git(dir, kind, "origin/main", side);
+  return side;
+}
+
+for (const kind of ["tag", "branch"]) {
+  test(`AC-422-1: WHEN the coordinator's clone has a ${kind} named origin/main on a commit that isn't on main THEN land opens its records pull request off main itself, with exactly the files not on main`, unixOnly, () => {
+    const { dir, seed } = setup();
+    const added = twoNew(dir);
+    // The shadow holds the first file: read through it, main would seem to have that file already.
+    const side = shadow(dir, seed, kind, { [added[0]]: readFileSync(join(dir, added[0]), "utf8") });
+    const r = run(dir, ["land", "--repo", "acme/app"], PULLS);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, "77\n");
+    git(dir, "fetch", "-q", "origin");
+    const main = git(dir, "rev-parse", "refs/remotes/origin/main");
+    const head = git(dir, "rev-parse", `refs/remotes/origin/${BRANCH}`);
+    assert.notEqual(main, side);
+    assert.equal(git(dir, "rev-parse", `${head}^`), main, "one commit on main itself, not on the shadow");
+    const diff = git(dir, "diff", "--name-status", "--no-renames", `${main}...${head}`);
+    assert.deepEqual(diff.split("\n").sort(), added.map((p) => `A\t${p}`), "both files, the one the shadow holds too");
+  });
+}
 
 test("#332: after the records pull request merges, the coordinator's git pull --ff-only is clean", unixOnly, () => {
   const { dir, seed } = setup();
