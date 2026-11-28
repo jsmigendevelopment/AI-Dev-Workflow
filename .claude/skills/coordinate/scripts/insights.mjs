@@ -195,6 +195,9 @@ function keep(root, record) {
 // comment starts with `Code review: ...` and holds the verdict at the start of a later line (pr-review, "Verdict").
 const VERDICT = /^Checks: (pass|fail) @ ([0-9a-f]{40})\s*$/;
 const REVIEWED = /^Code review: (?:approve|request changes) @ ([0-9a-f]{40})\s*$/;
+// A `Checks:` line that carries text after the sha: not a verdict, and worth saying why (#545).
+const TRAILING = /^Checks: (?:pass|fail) @ [0-9a-f]{40}(?!\s*$)/;
+const TRAILING_WHY = "its `Checks: pass|fail @ <sha>` line has text after the sha: the line must end at the sha";
 
 /**
  * Why a `check` record can't come from this comment, or null (#441). Builders, reviewers and the coordinator post as
@@ -206,10 +209,12 @@ function checkProblem(body, record) {
   let verdict = VERDICT.exec(lines[0]);
   if (!verdict) {
     const reviewed = REVIEWED.exec(lines[0]);
+    if (!reviewed && TRAILING.test(lines[0])) return TRAILING_WHY;
     if (!reviewed) return "its comment doesn't start with `Checks: pass|fail @ <sha>` or `Code review: approve|request changes @ <sha>`";
     if (reviewed[1] !== record.sha) return `the comment reviews ${reviewed[1]}, not the record's ${record.sha}`;
     const found = lines.map((l) => VERDICT.exec(l)).filter(Boolean);
     if (found.length > 1) return "the comment has two or more Checks: lines, so which one covers this run is unclear";
+    if (!found.length && lines.some((l) => TRAILING.test(l))) return TRAILING_WHY;
     if (!found.length) return "the comment has no `Checks: pass|fail @ <sha>` line at the start of a line";
     [verdict] = found;
   }
