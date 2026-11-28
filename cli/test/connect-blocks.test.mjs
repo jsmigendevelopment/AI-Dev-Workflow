@@ -51,6 +51,38 @@ test("AC-444-2: WHEN pnpm connect sentry runs on ci = \"actions\" THEN its three
       assert.deepEqual(groupsFor(sentry.vars[name], mode).map((g) => g.name), ["local and test", "production"], `${name} (${mode})`);
 });
 
+// #459: the "every deploy" name comes from a rule on the places (decision 444-1), so a new provider value could trip
+// it. These two tests walk every provider file and fail when one does.
+const EVERY_DEPLOY = "every deploy (test and production)";
+
+/** Every var of every provider file, with each group it is asked in, in each secrets mode. */
+function connectGroups() {
+  const rows = [];
+  for (const file of readdirSync(DIR).filter((f) => f.endsWith(".md"))) {
+    const provider = parseProvider(file.slice(0, -3), readFileSync(DIR + file, "utf8"));
+    if (!provider) continue;
+    for (const [name, spec] of Object.entries(provider.vars))
+      for (const mode of ["none", "environment", "repository"])
+        for (const group of groupsFor(spec, mode)) rows.push({ provider: provider.id, name, spec, mode, group });
+  }
+  return rows;
+}
+
+test("AC-459-1: WHEN the connect places are built for every provider THEN only Sentry's three values carry the \"every deploy\" group name", () => {
+  const named = connectGroups().filter((r) => r.group.name === EVERY_DEPLOY);
+  assert.deepEqual(
+    named.map((r) => `${r.provider}:${r.name}:${r.mode}`).sort(),
+    ["SENTRY_AUTH_TOKEN", "SENTRY_ORG", "SENTRY_PROJECT"].map((name) => `sentry:${name}:none`),
+  );
+});
+
+test("AC-459-2: WHEN a value in the \"every deploy\" group has a key-prefix rule THEN no such value exists to apply the production rule to", () => {
+  // No value in that group has a prefix shape today, so the shape check has no rule to apply: the guard is that none
+  // appears. One that does needs the group counted as production in prefixesFor (providers.ts); decision 459-1.
+  const withPrefix = connectGroups().filter((r) => r.group.name === EVERY_DEPLOY && r.spec.shape?.prefix);
+  assert.deepEqual(withPrefix.map((r) => `${r.provider}:${r.name}`), []);
+});
+
 test("production refuses Cloudflare's documented Turnstile test keys", () => {
   const cloudflare = parseProvider("cloudflare", readFileSync(DIR + "cloudflare.md", "utf8"));
   for (const name of ["TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"]) {
