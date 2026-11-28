@@ -132,7 +132,7 @@ Rules 1, 2, 7, 8, 9, 10, 12 and 13 need judgement. `pr-review` checks them by ha
 
 ## Your own preferences
 
-Add your own rules here, in the same shape: the rule, then one line of why. Then ask an agent to carry them into the `build` and `pr-review` skills and, where a tool can check one, into lint.
+Add your own rules here, in the same shape: the rule, then one line of why. Then have an agent carry them into the `build` and `pr-review` skills and, where a tool can check one, into lint.
 
 Prompts to start with:
 

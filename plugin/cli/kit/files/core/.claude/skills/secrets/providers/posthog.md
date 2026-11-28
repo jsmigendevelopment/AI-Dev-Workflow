@@ -1,4 +1,4 @@
-# PostHog (only if the person picks PostHog over the `analytics` add-on)
+# PostHog (only if the person chooses PostHog over the `analytics` add-on)
 
 Last checked: 2026-11-27. Official docs:
 - https://posthog.com/docs/libraries/js

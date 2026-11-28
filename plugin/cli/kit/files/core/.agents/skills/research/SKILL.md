@@ -32,7 +32,7 @@ Everything else gets three options with trade-offs and a recommendation, decided
 8. **Commit with the trailers** `Research-Model: <exact ID>` and `Research-Effort: <effort or unknown>`, in the commit and the pull request.
 9. **Capture it to the library.** Every run of this skill, every research on the strongest tier, and every "deep research", "research properly" or "dig into" is captured. A quick lookup (a version, a doc link) isn't. Follow `references/library.md`:
    - `[research] library` set in the personal profile (`~/.onrails/profile.toml`, never `docs/profile.toml`): check that the repo is private and refuse a public one, read its `research-library.json`, write the entry where it says, run its checks, and open a pull request. Don't ask.
-   - No library and `offered = false`: offer once to make a private one. Record the answer, so you never offer again.
+   - No library and `offered = false`: offer once to make a private one. Record the answer, so you never offer again. On Full, don't offer: the next bullet skips this step.
    - **On Full automation, skip this step:** no offer, no capture, `offered` left unset. Step 10's FYI says the dossier wasn't saved to a library.
 
    Done when the library's checks pass and the pull request is open, or the refusal or the "no" is recorded.

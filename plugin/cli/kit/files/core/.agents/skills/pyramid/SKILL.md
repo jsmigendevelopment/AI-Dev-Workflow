@@ -66,12 +66,12 @@ pass 1  ████ ████ ████ ████ ████
    - Lint enforces the code rules a tool can check (see `AGENTS.md`), and there's a generator that makes a new module from the example one. Write its command in "Commands that work here" in `AGENTS.md`.
    - The checks run from the session before every merge, never from GitHub Actions: `check`, `test:e2e`, a secret scan, the agent-file guard and the stack pack's pull request rules, recorded as the `onrails/check` commit status (`coordinate`). Write `ci = "local"` in `docs/stack.md`, and add no `.github/workflows/`.
    - **Set up in the skeleton** (see `guide/app-conventions.md` in the kit): the error system with request IDs and structured logs, a health endpoint, `/api/v1`, UTC times and money in cents, the ID strategy and standard columns, the audit log, feature flags, `object_action` event names, breakpoints and a type scale in the tokens, per-module `copy.ts`, and generators for module, route, section and component. A stack pack should ship these. Without one, build them by hand.
-   - Main deploys to test from the session after each merge, and there's a preview per pull request if the host offers one (the stack pack's `deploy:*` scripts). Record the test URL in `AGENTS.md`.
+   - Main deploys to test from the session after each merge, and there's a preview per pull request if the host has one (the stack pack's `deploy:*` scripts). Record the test URL in `AGENTS.md`.
    - Open `secrets` and wire every key the stack needs.
    - **Set up GitHub for the person:**
      1. If `gh auth status` fails, ask them to run `gh auth login` and wait. On Full, park it in the FYI and keep doing what doesn't need GitHub.
      2. Run `node .agents/skills/name/scripts/setup-github.mjs --dry-run` and show them the list.
-     3. Below Full, say in one line what it does (labels, Dependabot, secret scanning, rules on main; on `ci = "actions"` only, a production environment that waits for them) and ask: *"Set this up now?"*
+     3. Below Full, say in one line what it does (labels, Dependabot, secret scanning, rules on main; on `ci = "actions"` only, a production environment that waits for them) and ask: *"Set this up now?"* On Full, skip the ask: the last bullet below says what to run.
      4. On a yes, run it without `--dry-run` and show the results, including anything skipped because of their plan.
      - Main requires at most the `onrails/check` commit status (only where a probe status posts), never an Actions check.
      - **On Full automation, ask nothing.** `gh` signed in? Run it without `--dry-run`, and put the results in an ℹ️ FYI. Not signed in? Run local mode (`../coordinate/references/local-mode.md`) and list `gh auth login` in the FYI.
@@ -94,7 +94,7 @@ A step passes when all four are true:
 
 - **Count them.** Fewer than two steps per slice means you listed slices, not steps. Cut again.
 - **Ways to cut:** the plainest path first, then one rule at a time, one kind of data at a time, one state at a time (empty, error, loading), and the simple version before the nice one. `references/slicing.md` has each one with an example.
-- **One schema change per slice per pass.** A migration puts a step in the risky lane, and below Full that lane can wait for the person. So a slice's first step adds its whole table as `docs/design.md` has it, and the steps after it use that table.
+- **One schema change per slice per pass.** A migration puts a step in the risky lane, and below Full that lane can wait for the person. On Full the lane gets an extra agent review instead (#103). So a slice's first step adds its whole table as `docs/design.md` has it, and the steps after it use that table.
 - **An open question isn't a step.** Use `research`, or make the first step the thinnest one that would prove the idea wrong.
 
 ## Checking a plan

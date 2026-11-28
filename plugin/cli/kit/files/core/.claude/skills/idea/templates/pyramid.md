@@ -6,7 +6,7 @@
 - [ ] Every check runs from the session before each merge (`onrails/check`), with no GitHub Actions
 - [ ] Boundary check on
 - [ ] Main deploys to test. Test URL: 
-- [ ] A preview per pull request (if the host offers one)
+- [ ] A preview per pull request (if the host has one)
 
 ## Slices
 
