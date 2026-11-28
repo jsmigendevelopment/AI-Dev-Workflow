@@ -115,7 +115,9 @@ test("npx onrails ps through the binary: --help lists it, an empty registry says
 
 test("the one real process: start a harmless child, see it listed, stop it, and nothing of it is left", () => {
   const home = tmp("procs-real-home-"), cwd = tmp("procs-real-cwd-");
-  const env = { PATH: safePath(), HOME: home, USERPROFILE: home, SystemRoot: process.env.SystemRoot, ONRAILS_THREAD: "real-test" };
+  // One session for start and stop, as in real use: without it, CI has no session id and no claude or codex parent,
+  // so the record's owner is unknown and stop rightly refuses it (it passed only when run under an agent).
+  const env = { PATH: safePath(), HOME: home, USERPROFILE: home, SystemRoot: process.env.SystemRoot, ONRAILS_THREAD: "real-test", CLAUDE_CODE_SESSION_ID: "real-test-session" };
   const script = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { cwd, env, encoding: "utf8", timeout: 30_000 });
   const started = script("start", "--why", "the real test", "--until", "this test ends", "--", process.execPath, "-e", "setInterval(() => {}, 1000)");
   assert.equal(started.status, 0, started.stdout + started.stderr);
