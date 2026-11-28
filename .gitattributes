@@ -22,6 +22,7 @@ cli/README.md linguist-generated
 .agents/skills/ask/scripts/procs-winacl.mjs linguist-generated
 .agents/skills/ask/scripts/procs.mjs linguist-generated
 .agents/skills/build/references/app-conventions.md linguist-generated
+.agents/skills/build/references/app-conventions-go.md linguist-generated
 .agents/skills/build/references/code-style.md linguist-generated
 .agents/skills/build/references/testing.md linguist-generated
 .agents/skills/coordinate/scripts/command-for.mjs linguist-generated
