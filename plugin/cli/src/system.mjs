@@ -2,7 +2,7 @@
 //   platform, isRoot, home, env, cwd
 //   where(name)               toolPath's answer: { path } it may run, or { why } (and { found }) when it may not
 //   has(name)                 may a command run? (where's file lookup, no shell)
-//   probe(cmd, args, {cwd})   run a read-only check: { ok, out (first line), all, stdout } or null
+//   probe(cmd, args, {cwd, env})  run a read-only check (env: extra variables for it): { ok, out (first line), all, stdout } or null
 //   exec(argv, {cwd})         run a fix the person said yes to, output shown live: true/false
 //   spawnInteractive(argv, {cwd})  hand the terminal to an agent session: its exit code
 //   runTool(cmd, args, opts)  spawnSync's answer, for the process registry's git, ps and powershell.exe
@@ -151,8 +151,9 @@ export function realSystem({ projectDir = process.cwd(), platform = process.plat
     // The same question spawnInteractive and exec ask, so init --start and doctor --fix never offer a tool launch
     // refuses, such as a .cmd shim in a folder whose name holds % (#215).
     has: (name) => Boolean(start([name]).how),
-    probe(cmd, args, { cwd } = {}) {
-      const { how } = start([cmd, ...args]);
+    // env adds variables to the child's environment (doctor's go: GOTOOLCHAIN=local); the PATH search still uses the session's.
+    probe(cmd, args, { cwd, env: extra } = {}) {
+      const { how } = start([cmd, ...args], extra ? { ...env, ...extra } : env);
       if (!how) return null;
       const r = run(how.file, how.args, { cwd, env: how.env, encoding: "utf8", timeout: 15000, windowsVerbatimArguments: how.verbatim });
       if (r.error || r.status === null) return null;
