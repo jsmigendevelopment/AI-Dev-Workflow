@@ -17,7 +17,7 @@ export const followUps = ["Quick question while that runs: what's #4 about?"];
 
 const SUB_AGENT = /^(?:Agent|Task)$/;
 // Work the live thread never does itself: merge, commit, push or branch; run the tests or an install.
-const WORK = /\bgit\s+(?:merge|commit|push|rebase|cherry-pick|reset|checkout\s+-b|switch\s+-c)\b|\bnpm\s+(?:test|ci|install|run)\b|\bnode\s+--test\b/;
+const WORK = /\bgit\s+(?:merge(?![-\w])|commit|push|rebase|cherry-pick|reset|checkout\s+-b|switch\s+-c)\b|\bnpm\s+(?:test|ci|install|run)\b|\bnode\s+--test\b/;
 // Waiting on a sub-agent or a command: reading its output with a block, a monitor, a sleep, a foreground sub-agent.
 const WAIT = /^(?:TaskOutput|AgentOutputTool|BashOutput|Monitor)$/;
 

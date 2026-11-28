@@ -25,9 +25,10 @@ const rule = (title) => {
 test("AC-390-1: WHEN AGENTS.md is read THEN a standing rule says the live thread only talks and hands the rest down", () => {
   const r = rule("The live thread only talks");
   assert.match(r, /answers, records the person's decisions, writes a note or files an issue, and hands work down/);
-  assert.match(r, /never builds, reviews, merges, deploys, runs the checks, runs long installs or tests, or waits on anything/);
+  // A wait for the person's own answer stays allowed (rule 1, `back` step 8): only work and runs are named.
+  assert.match(r, /never builds, reviews, merges, deploys, runs the checks, runs long installs or tests, or waits on a job, a run or another agent\./);
   assert.match(r, /background sub-agent or sub-thread/);
-  assert.match(r, /changes a repo, any command over about 30 seconds and any wait/);
+  assert.match(r, /changes a repo, any command over about 30 seconds and any such wait/);
   assert.match(r, /\*\*Quick reads are fine\*\*/);
   assert.match(r, /long read goes to a sub-agent[^\n]*when it will report back/);
   assert.match(r, /\*\*Never block the person\.\*\*[^\n]*answer right away[^\n]*pass (?:their|the) words down/);
@@ -51,7 +52,15 @@ test("AC-390-1: WHEN back, afk and automation run in the live thread THEN their 
   const afk = skill("afk");
   assert.match(afk, /Run "Check main"[^\n]*in a background sub-agent \(rule 17\)/);
   assert.doesNotMatch(afk, /Missing, older or a fail\? Run "Check main" in `coordinate` step 8 first\./);
+  assert.match(afk, /A background sub-agent commits it and opens the pull request \(rule 17\); don't wait for it\./);
+  assert.doesNotMatch(afk, /^ {3}Commit it\. If the session dies/m);
   const steps = section(skill("automation"), "Steps");
   assert.match(steps, /background sub-agent opens the pull request \(rule 17\)/);
   assert.doesNotMatch(steps, /Commit it through a pull request like any change\./);
+});
+
+test("AC-390-1: WHEN the person's feedback in /back needs a fix THEN the live thread never fixes it inline", () => {
+  const step9 = skill("back").split("\n").find((l) => l.startsWith("9. **Feedback becomes issues or ideas.**")) ?? "";
+  assert.match(step9, /Never fix it inline: the loop builds the fix \(rule 17\)\./);
+  assert.doesNotMatch(step9, /unless they're tiny/);
 });

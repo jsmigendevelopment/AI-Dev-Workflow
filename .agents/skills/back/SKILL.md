@@ -60,7 +60,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
    On Full and the app now has real users? Suggest switching to Recommended (the `automation` skill) in the FYI.
 
-9. **Feedback becomes issues or ideas.** As the person tries things, sort each point. Something wrong or slow in what's built: open `issues` and write one issue for it, and the loop builds the fix in the current pass (labelled `gate` while a gate runs). Something missing is a new idea: add a row to `docs/features.md`, and the next re-plan places it. Don't fix things inline unless they're tiny. Take a line off "To try" once they've tried it.
+9. **Feedback becomes issues or ideas.** As the person tries things, sort each point. Something wrong or slow in what's built: open `issues` and write one issue for it, and the loop builds the fix in the current pass (labelled `gate` while a gate runs). Something missing is a new idea: add a row to `docs/features.md`, and the next re-plan places it. Never fix it inline: the loop builds the fix (rule 17). Take a line off "To try" once they've tried it.
 
 10. **Before the session ends,** not before step 11 (a loop that step starts keeps running), stop what you started (`procs.mjs stop mine`, then its list is empty), and update `docs/state.md`. Overwrite it, keep it under 30 lines, and leave it so a brand-new session could take over.
 

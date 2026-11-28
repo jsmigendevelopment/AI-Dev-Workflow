@@ -44,7 +44,7 @@ description: Use when the person is stepping away and wants the build loop to ke
    - the limit choice;
    - the hard stop, or "none".
 
-   Commit it. If the session dies at 3 a.m., this note is all `/back` will have. Stop what this session started for the person, the dev server first: `node .agents/skills/ask/scripts/procs.mjs list --mine`, then `procs.mjs stop <id>` for each.
+   A background sub-agent commits it and opens the pull request (rule 17); don't wait for it. If the session dies at 3 a.m., this note is all `/back` will have. Stop what this session started for the person, the dev server first: `node .agents/skills/ask/scripts/procs.mjs list --mine`, then `procs.mjs stop <id>` for each.
 
 6. **Leave the loop running** under the rules below. It runs as a background sub-agent or session (`coordinate`, "Where this runs"); none yet? Start one. This thread, the live thread, goes idle: it starts no work of its own while the person is away. For every merge, add one line to "Merged while away" in `docs/state.md`, next to the "To try" line `coordinate` writes.
 

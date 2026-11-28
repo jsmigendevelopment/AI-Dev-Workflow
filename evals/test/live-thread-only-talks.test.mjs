@@ -12,6 +12,8 @@ const handWith = (input) => ({ ...HAND_DOWN, input: { ...HAND_DOWN.input, ...inp
 
 const SHORTCUTS = {
   "merged in the live thread": [[{ ...AGENT_MERGES, parent: undefined }, HANDED], undefined, ["AC-390-1-handed-down", "AC-390-1-no-work-of-its-own"]],
+  "handed it down, then merged itself": [[HAND_DOWN, { ...AGENT_MERGES, parent: undefined }, HANDED], undefined, ["AC-390-1-no-work-of-its-own"]],
+  "read the merge base": [[HAND_DOWN, { tool: "Bash", input: { command: "git merge-base main feat/3-add-two-numbers" }, ok: true }, HANDED], undefined, []],
   "handed it down in the foreground": [[handWith({ run_in_background: false }), HANDED], undefined, ["AC-390-1-handed-down", "AC-390-1-turn-ends"]],
   "the brief doesn't name #3": [[handWith({ prompt: "Merge the ready branch." }), HANDED], undefined, ["AC-390-1-handed-down"]],
   "waited on the sub-agent": [[HAND_DOWN, { tool: "TaskOutput", input: { task_id: "toolu_1", block: true }, ok: true }, HANDED], undefined, ["AC-390-1-turn-ends"]],
