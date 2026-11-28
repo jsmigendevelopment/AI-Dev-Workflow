@@ -1,0 +1,53 @@
+{
+  "schema": "research-provenance/1",
+  "dossier": "go-api-toolchain.md",
+  "stores": [
+    "desk"
+  ],
+  "roles": [
+    {
+      "role": "author",
+      "requested": {
+        "model": "claude-sonnet-5-5",
+        "effort": "high"
+      },
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "harness": "Claude Code (version not shown to the session), cloud session, subagent builder started by the coordinator",
+      "started": "2026-11-28",
+      "finished": "2026-11-28",
+      "brief": "briefs/author.md",
+      "notes": "The model ID is the one the system prompt reports. The effort is the one the preflight row reports ('effort high'); the session shows no named effort level of its own. The research skill asks for the strongest tier; the owner's standing instruction that worker agents run Sonnet 5.5 at high effort was followed instead. The author did all the reading and ran every experiment itself, with no helper."
+    },
+    {
+      "role": "fact-check",
+      "requested": {
+        "model": "claude-sonnet-5-5",
+        "effort": "high"
+      },
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "harness": "Claude Code (version not shown to the session), cloud session, the author's own session in a separate pass",
+      "started": "2026-11-28",
+      "finished": "2026-11-28",
+      "brief": "briefs/fact-check.md",
+      "disposition": "fact-check.csv",
+      "notes": "Not a fresh session. The author's own pass, made while commits were blocked (the container's signing helper was missing) and no fresh session could start. It re-opened the pages behind the riskiest claims and re-queried the registries. Its findings are the first rows of fact-check.csv. The fresh-session role below followed it."
+    },
+    {
+      "role": "fact-check",
+      "requested": {
+        "model": "claude-sonnet-5-5",
+        "effort": "high"
+      },
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "harness": "Claude Code (version not shown to the session), cloud session, a fresh sub-agent started by the coordinator with no earlier context",
+      "started": "2026-11-28",
+      "finished": "2026-11-28",
+      "brief": "briefs/fact-check.md",
+      "disposition": "fact-check.csv",
+      "notes": "The fresh-session fact-check issue #342's AC-342-4 asks for. It ran against branch head 7daf213, from the brief and the repository only, and could not reach GitHub, so it used the module proxy and npm for release dates. Its model and effort are the ones the coordinator reports requesting; the author did not see the sub-agent's own session. It reported 38 findings (28 confirmed, 7 wrong, 3 unconfirmed); the author grouped them into the rows marked 'Fresh session' in fact-check.csv. Same model as the author, because the owner allows Sonnet 5.5 for workers."
+    }
+  ]
+}

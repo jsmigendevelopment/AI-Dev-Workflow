@@ -1,0 +1,60 @@
+id,title,location,accessed,read
+s1,"golangci-lint: Linters (docs, page dated 2026-11-24)",https://golangci-lint.run/docs/linters/,2026-11-28,full
+s2,"golangci-lint: Linters settings (docs, page dated 2026-11-24): depguard, funlen, nolintlint read",https://golangci-lint.run/docs/linters/configuration/,2026-11-28,skimmed
+s3,"golangci-lint: Local installation (docs, page dated 2026-11-24)",https://golangci-lint.run/docs/welcome/install/local/,2026-11-28,full
+s4,"golangci-lint: Configuration file (docs, page dated 2026-11-24)",https://golangci-lint.run/docs/configuration/file/,2026-11-28,skimmed
+s5,"golangci-lint: Install overview (docs, page dated 2026-11-24; only a menu, no steps)",https://golangci-lint.run/docs/welcome/install/,2026-11-28,skimmed
+s6,"depguard README (repository main branch; describes the older v1 config)",https://raw.githubusercontent.com/OpenPeeDeeP/depguard/main/README.md,2026-11-28,skimmed
+s7,"go-arch-lint README (repository master branch)",https://raw.githubusercontent.com/fe3dback/go-arch-lint/master/README.md,2026-11-28,full
+s8,"go-arch-lint: archfile syntax (repository master branch)",https://raw.githubusercontent.com/fe3dback/go-arch-lint/master/docs/syntax/README.md,2026-11-28,full
+s9,"arch-go README (repository master branch)",https://raw.githubusercontent.com/arch-go/arch-go/master/README.md,2026-11-28,full
+s10,"Go blog: Routing Enhancements for Go 1.22",https://go.dev/blog/routing-enhancements,2026-11-28,full
+s11,"Go 1.24 release notes: tool directives",https://go.dev/doc/go1.24,2026-11-28,skimmed
+s12,"Go: Managing dependencies (opened for tool pinning; nothing used)",https://go.dev/doc/modules/managing-dependencies,2026-11-28,skimmed
+s13,"Go: Release history (go1.27.0 and go1.26.0 dates)",https://go.dev/doc/devel/release,2026-11-28,skimmed
+s14,"Go: download list as JSON (current stable releases)",https://go.dev/dl/?mode=json,2026-11-28,full
+s15,"Go: Toolchains (GOTOOLCHAIN default)",https://go.dev/doc/toolchain,2026-11-28,skimmed
+s16,"pkg.go.dev: net/http ServeMux (page opened, not read through)",https://pkg.go.dev/net/http#ServeMux,2026-11-28,skimmed
+s17,"oapi-codegen README (repository main branch)",https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/main/README.md,2026-11-28,skimmed
+s18,"oapi-codegen: net/http server doc (repository main branch)",https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/main/docs/stdhttp-server.md,2026-11-28,skimmed
+s19,"ogen README (repository main branch)",https://raw.githubusercontent.com/ogen-go/ogen/main/README.md,2026-11-28,skimmed
+s20,"ogen docs: Getting started",https://ogen.dev/docs/intro,2026-11-28,skimmed
+s21,"huma README (repository main branch)",https://raw.githubusercontent.com/danielgtaylor/huma/main/README.md,2026-11-28,full
+s22,"huma docs: Features (page dated 2026-11-17)",https://huma.rocks/features/,2026-11-28,skimmed
+s23,"huma docs: Config and OpenAPI (page dated 2026-11-17)",https://huma.rocks/features/openapi-generation/,2026-11-28,skimmed
+s24,"huma docs: Request validation, nullable fields (page dated 2026-11-17)",https://huma.rocks/features/request-validation/,2026-11-28,skimmed
+s25,"huma v2.41.0 source, schema.go (Go module proxy copy)",https://proxy.golang.org/github.com/danielgtaylor/huma/v2/@v/v2.41.0.zip,2026-11-28,skimmed
+s26,"swag README (repository master branch)",https://raw.githubusercontent.com/swaggo/swag/master/README.md,2026-11-28,skimmed
+s27,"swag README (repository v2 branch)",https://raw.githubusercontent.com/swaggo/swag/v2/README.md,2026-11-28,skimmed
+s28,"openapi-typescript docs: Introduction",https://openapi-ts.dev/introduction,2026-11-28,full
+s29,"openapi-fetch docs",https://openapi-ts.dev/openapi-fetch/,2026-11-28,skimmed
+s30,"Hey API docs: Get started (page dated 2026-11-27)",https://heyapi.dev/openapi-ts/get-started,2026-11-28,skimmed
+s31,"Hey API docs: Fetch client (page dated 2026-11-27)",https://heyapi.dev/openapi-ts/clients/fetch,2026-11-28,skimmed
+s32,"orval README (repository master branch)",https://raw.githubusercontent.com/orval-labs/orval/master/README.md,2026-11-28,full
+s33,"orval docs site (https://orval.dev/ and /docs/overview): HTTP 403 to the fetch, not read",https://orval.dev/docs/overview,2026-11-28,skimmed
+s34,"chi README (repository master branch)",https://raw.githubusercontent.com/go-chi/chi/master/README.md,2026-11-28,skimmed
+s35,"echo README (repository master branch): supported versions, Echo Pro",https://raw.githubusercontent.com/labstack/echo/master/README.md,2026-11-28,full
+s36,"echo docs landing page (355 characters, no content used)",https://echo.labstack.com/docs,2026-11-28,skimmed
+s37,"Schemathesis docs (page dated 2026-11-22)",https://schemathesis.readthedocs.io/en/stable/,2026-11-28,skimmed
+s38,"Hurl docs: Installation (page dated 2026-11-27)",https://hurl.dev/docs/installation.html,2026-11-28,skimmed
+s39,"Playwright docs: API testing (page dated 2026-11-20)",https://playwright.dev/docs/api-testing,2026-11-28,skimmed
+s40,"Hurl latest release (GitHub REST API)",https://api.github.com/repos/Orange-OpenSource/hurl/releases/latest,2026-11-28,skimmed
+s41,"Experiment log: versions and repository facts (Go proxy, npm registry, GitHub REST API)",research/go-api-toolchain/experiments/versions-and-repos.md,2026-11-28,full
+s42,"Experiment log: boundary rules (depguard, go-arch-lint, arch-go, internal folders, per-tool modfiles, guard)",research/go-api-toolchain/experiments/boundaries.md,2026-11-28,full
+s43,"Experiment log: the contract (spec-first, code-first, validation, Schemathesis)",research/go-api-toolchain/experiments/contract.md,2026-11-28,full
+s44,"Experiment log: TypeScript client generators on TypeScript 6 and 7",research/go-api-toolchain/experiments/generators.md,2026-11-28,full
+s45,"Experiment log: routers and end-to-end candidates",research/go-api-toolchain/experiments/routers-and-e2e.md,2026-11-28,full
+s46,"Kit: agent-file guard, check-code list (at commit a52f61b)",.agents/skills/coordinate/scripts/agent-files.mjs,2026-11-28,full
+s47,"Kit: coordinate skill, step 6.1.3 (at commit a52f61b)",.agents/skills/coordinate/SKILL.md,2026-11-28,skimmed
+s48,"Kit: the Python pack's check contract and pinned-version table (at commit a52f61b)",stacks/python-fastapi/PACK.md,2026-11-28,full
+s49,"Kit: web pack package.json (at commit a52f61b)",stacks/tanstack-start/package.json,2026-11-28,full
+s50,"Kit: web pack API end-to-end spec (at commit a52f61b)",stacks/tanstack-start/e2e/api.spec.ts,2026-11-28,skimmed
+s51,"Kit: Go API platform dossier and decision 340-1 (at commit a52f61b)",research/go-api-platform.md,2026-11-28,skimmed
+s52,"Web search 1: golangci-lint linter maximum file length lines per file Go",search:golangci-lint linter maximum file length lines per file Go,2026-11-28,skimmed
+s53,"Web search 2: Go linter enforce modules do not import each other layered architecture import rules",search:Go linter enforce modules do not import each other layered architecture import rules go-arch-lint arch-go depguard comparison,2026-11-28,skimmed
+s54,"Kit: build skill, App rules (API and OpenAPI rule; at commit a52f61b)",.agents/skills/build/SKILL.md,2026-11-28,skimmed
+s55,"Kit: AGENTS.md, Code rules (file and function sizes; at commit a52f61b)",AGENTS.md,2026-11-28,full
+s56,"revive: rule descriptions (repository master branch; the file-length-limit entry)",https://raw.githubusercontent.com/mgechev/revive/master/RULES_DESCRIPTIONS.md,2026-11-28,skimmed
+s57,"go-arch-lint v1.19.2 go.mod (Go module proxy)",https://proxy.golang.org/github.com/fe3dback/go-arch-lint/@v/v1.19.2.mod,2026-11-28,full
+s58,"huma v2.41.0 go.mod (Go module proxy)",https://proxy.golang.org/github.com/danielgtaylor/huma/v2/@v/v2.41.0.mod,2026-11-28,full
+s59,"oapi-codegen v2.9.0 go.mod (Go module proxy)",https://proxy.golang.org/github.com/oapi-codegen/oapi-codegen/v2/@v/v2.9.0.mod,2026-11-28,full

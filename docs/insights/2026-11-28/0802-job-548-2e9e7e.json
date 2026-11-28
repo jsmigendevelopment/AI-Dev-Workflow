@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T08:02:57.470Z",
+  "issue": 342,
+  "pr": 548,
+  "sha": "8548d1a8881292bead385b38fa5c3a139097b152",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "model_from": "system prompt gives the model ID; no effort level shown",
+  "outcome": "pass",
+  "started": "2026-11-28T07:57:00Z",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "no usage reading in this session"
+}

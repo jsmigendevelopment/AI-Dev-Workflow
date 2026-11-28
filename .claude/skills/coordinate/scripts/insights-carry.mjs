@@ -52,6 +52,12 @@ export function heldRecords(root) {
   return held;
 }
 
+/**
+ * The kinds of the records `records` hold at `sha`. The coordinator's own size-check job (#427) is no run of the
+ * review, so it doesn't make a `job`: only a review job at the head does.
+ */
+export const kindsAt = (records, sha) => new Set(records.filter((r) => r.sha === sha && !(r.kind === "job" && r.job === "size-check")).map((r) => r.kind));
+
 /** Writes a valid record as a new file in root's docs/insights/<day>/ and returns its path. Throws when it can't. */
 export function save(root, record) {
   const dir = join(root, dayFolder(record));
@@ -213,7 +219,7 @@ export function carry(args) {
   const why = notCleanMerge(root, from, to);
   if (why) refuse(why);
   const held = heldRecords(root).filter((r) => r.pr === Number(pr));
-  const kinds = (sha) => new Set(held.filter((r) => r.sha === sha).map((r) => r.kind));
+  const kinds = (sha) => kindsAt(held, sha);
   const atFrom = held.filter((r) => r.sha === from);
   const reviews = atFrom.filter((r) => r.kind === "review").sort((a, b) => a.at.localeCompare(b.at));
   if (!kinds(from).has("job") || !reviews.length) refuse(`#${pr} has no job and review records at the reviewed ${from} here: harvest first`);
