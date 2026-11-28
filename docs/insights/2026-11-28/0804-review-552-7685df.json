@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T08:04:37.058Z",
+  "issue": 427,
+  "pr": 552,
+  "sha": "ad9d0c88cd9661c63eaa63dd9ee9bbc5a8139ccf",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 2,
+  "categories": [
+    "docs"
+  ]
+}
