@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-// Is a newer onRails on npm? (#448) Used by the session-start hook and /back (`line`), the loop (`plan`) and doctor.
-//   node latest.mjs line [--root <dir>]                 one line when something is behind, else nothing
-//   node latest.mjs plan --prs <file> [--root <dir>]    JSON: what Full does about it (pr, wait, suggest or none)
+// Is a newer onRails on npm? (#448) Used by the session-start hook and /back (`line`) and doctor.
+//   node latest.mjs line [--root <dir>]    one line when something is behind, else nothing
 // It reads https://registry.npmjs.org/onrails/latest at most once a day, keeps the answer in ~/.onrails/latest.json, and
 // gives up after 2 seconds. Offline, a timeout, a proxy refusal or bad data: it prints nothing and never fails the session.
 // The request is a plain GET: nothing about the project, no identifiers, no headers of ours.
-// [updates] check = "daily" | "weekly" | "off" and on_full = "pr" | "suggest" in docs/profile.toml, else ~/.onrails/profile.toml.
+// [updates] check = "daily" | "weekly" | "off" in docs/profile.toml, else ~/.onrails/profile.toml.
 // ONRAILS_REGISTRY and ONRAILS_CHANGELOG_URL point the check at a fake in tests; ONRAILS_NOW sets the clock.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -19,8 +18,6 @@ const TIMEOUT_MS = 2000;
 const DAY_MS = 24 * 3600e3;
 const WINDOW_DAYS = { daily: 1, weekly: 7 };
 const VERSION = /^\d+\.\d+\.\d+$/;
-// The branch an update pull request is opened on: chore/<issue>-update-onrails.
-const UPDATE_BRANCH = /^chore\/\d+-update-onrails$/;
 
 // ~/.onrails, or ~/.ai-dev-workflow (its name before the rename) while only that one exists, as notify.mjs reads it.
 function homeDir(home) {
@@ -41,13 +38,10 @@ function setting(root, home, section, key) {
   return undefined;
 }
 
-/** The [updates] switches: check (daily, weekly or off) and on_full (pr or suggest). An unknown value means the default. */
+/** The [updates] switch: check is daily, weekly or off. An unknown value means daily. */
 export function settings(root, home = homedir()) {
-  const pick = (key, allowed, fallback) => {
-    const value = setting(root, home, "updates", key)?.toLowerCase();
-    return allowed.includes(value) ? value : fallback;
-  };
-  return { check: pick("check", ["daily", "weekly", "off"], "daily"), onFull: pick("on_full", ["pr", "suggest"], "pr") };
+  const check = setting(root, home, "updates", "check")?.toLowerCase();
+  return { check: ["daily", "weekly", "off"].includes(check) ? check : "daily" };
 }
 
 const parts = (v) => v.split(".").map(Number);
@@ -166,30 +160,6 @@ export function updateLine({ latest, kit = null, plugins = [] }) {
   return `onRails ${latest.version} is out ${where}. Run /update to get it.`;
 }
 
-/** The open update pull request's branch, or null. prs: GitHub's list (head.ref, or headRefName from gh pr list). */
-export function openUpdatePr(prs) {
-  return prs.map((p) => p.head?.ref ?? p.headRefName).find((ref) => UPDATE_BRANCH.test(ref ?? "")) ?? null;
-}
-
-/**
- * What Full does about the latest release (AC-4): "pr" (open one update pull request), "wait" (one is open, so never a
- * second), "suggest" (a major version, a level below Full, or on_full = "suggest": say it, and a major also gets an
- * FYI) or "none" (nothing newer).
- */
-export function plan({ latest, kit, level, onFull = "pr", prs = [] }) {
-  const bump = bumpKind(latest, kit);
-  if (!bump) return { action: "none" };
-  const out = { version: latest, bump, fyi: bump === "major" };
-  if (bump === "major" || level !== "full" || onFull !== "pr") return { action: "suggest", ...out };
-  const open = openUpdatePr(prs);
-  return open ? { action: "wait", pr: open, ...out } : { action: "pr", ...out };
-}
-
-// The automation level in docs/stack.md ("- **Level:** full"), read as full-kit.mjs and agent-files.mjs read it.
-function automationLevel(root) {
-  try { return readFileSync(join(root, "docs", "stack.md"), "utf8").match(/\*\*Level:\*\*\s*`?([a-z-]+)/i)?.[1].toLowerCase() ?? "recommended"; } catch { return "recommended"; }
-}
-
 const flag = (argv, name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
 
 /** The command line. Returns the exit code; `line` is always 0. */
@@ -202,24 +172,13 @@ export async function main(argv, env = process.env, log = console.log) {
     home, check: switches.check, now: Number.isFinite(clock) ? clock : Date.now(),
     registry: (env.ONRAILS_REGISTRY ?? REGISTRY).replace(/\/$/, ""), changelog: env.ONRAILS_CHANGELOG_URL ?? CHANGELOG_URL,
   });
-  if (argv[0] === "plan") {
-    let prs;
-    try { prs = JSON.parse(readFileSync(flag(argv, "--prs") ?? "", "utf8")); } catch (error) {
-      // Never guess: without the list we can't tell that no update pull request is open.
-      console.error(`latest.mjs: can't read the open pull requests (${error.code ?? error.message}). Pass --prs <file> with GitHub's open list.`);
-      return 2;
-    }
-    const latest = await read();
-    log(JSON.stringify(plan({ latest: latest?.version, kit: kitVersion(root), level: automationLevel(root), onFull: switches.onFull, prs: Array.isArray(prs) ? prs : [] })));
-    return 0;
-  }
   if (argv[0] === "line") {
     const latest = await read();
     const text = latest ? updateLine({ latest, kit: kitVersion(root), plugins: pluginVersions(home, env) }) : "";
     if (text) log(text);
     return 0;
   }
-  console.error("Usage: latest.mjs line [--root <dir>] | plan --prs <file> [--root <dir>]");
+  console.error("Usage: latest.mjs line [--root <dir>]");
   return 2;
 }
 

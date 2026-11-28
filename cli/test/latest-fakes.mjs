@@ -34,12 +34,11 @@ export async function registry({ version = "0.8.0", changelog = "", hang = false
 }
 
 /** A project with .onrails.json at `kit`, the check's script, and an optional docs/profile.toml. */
-export function project({ kit = "0.7.1", profile, stack } = {}) {
+export function project({ kit = "0.7.1", profile } = {}) {
   const dir = tmp("onrails-latest-");
   put(dir, ".onrails.json", JSON.stringify({ kitVersion: kit }));
   put(dir, SCRIPT, readFileSync(join(REPO, SCRIPT), "utf8"));
   if (profile) put(dir, "docs/profile.toml", profile);
-  if (stack) put(dir, "docs/stack.md", stack);
   return dir;
 }
 
