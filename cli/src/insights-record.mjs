@@ -37,6 +37,9 @@ export const ENVELOPE = {
   source: str(false, ["board"]),
 };
 
+/** A usage reading's window as the tool names it (#431): `seven_day`, `five_hour`, or `unknown`. */
+const WINDOW = { type: "str", req: false, pattern: /^[a-z][a-z0-9_]{0,39}$/, hint: "a window name as the tool shows it, lower case letters, digits and underscores (seven_day), or unknown" };
+
 /** Why a run's work went back (#380): too big, a must-fix finding, a red check, the machine, or a process rule. */
 const SEND_BACKS = ["size", "review-must", "checks", "infra", "process"];
 /** The outcomes a send-back may come with: a run that passed or finished sent nothing back. */
@@ -44,10 +47,12 @@ const SENT_BACK = ["fail", "failed", "stopped", "handed-off"];
 
 export const KINDS = {
   // usage_before and usage_after are the provider's reading as the tool shows it, or unknown; usage_from says where (#380).
-  // lines is a size-check record's counted lines of the head it checked (#427).
+  // lines is a size-check record's counted lines of the head it checked (#427). usage_window_* and usage_resets_* are the
+  // window a reading is for (seven_day) and the UTC time it resets, as the tool shows them, or unknown (#431).
   job: {
     outcome: str(true, OUTCOMES), started: str(false), ended: str(false),
     usage_before: str(false), usage_after: str(false), usage_from: str(false), send_back: str(false, SEND_BACKS), lines: int(false),
+    usage_window_before: WINDOW, usage_window_after: WINDOW, usage_resets_before: str(false), usage_resets_after: str(false),
   },
   // state, fence and a null failed_step come from the local gate's mark-check.mjs --record (#331, decision 331-1).
   check: {
@@ -146,9 +151,28 @@ function checkCommands(commands) {
 /** Exactly what toISOString writes for it: Date.parse alone reads "(...)" as a comment and takes offsets (#411). */
 const isoUtc = (at) => typeof at === "string" && !Number.isNaN(Date.parse(at)) && new Date(at).toISOString() === at;
 
+/**
+ * The window and reset rules (#431): each belongs to a reading, and a reset time is a UTC time exactly as toISOString
+ * writes it, or unknown. A tool may show the window and reset with no percentage, so the reading may be unknown.
+ */
+function windowProblems(record) {
+  const errors = [];
+  for (const side of ["before", "after"]) {
+    for (const name of [`usage_window_${side}`, `usage_resets_${side}`]) {
+      const value = record[name];
+      if (value === undefined) continue;
+      if (record[`usage_${side}`] === undefined) errors.push(`${name}: only with usage_${side} (the reading it is for)`);
+      if (name.startsWith("usage_resets_") && typeof value === "string" && value !== "" && value !== "unknown" && !isoUtc(value)) {
+        errors.push(`${name}: must be a UTC ISO time, exactly as toISOString writes it (2026-11-30T10:00:00.000Z), or unknown`);
+      }
+    }
+  }
+  return errors;
+}
+
 /** The run-cost rules of a job record (#380). Records from before #380 have none of these fields, so they pass. */
 function jobProblems(record, board) {
-  const errors = [];
+  const errors = windowProblems(record);
   if (record.send_back !== undefined && !SENT_BACK.includes(record.outcome)) {
     errors.push(`send_back: only on a run that sent work back (outcome ${SENT_BACK.join(", ")})`);
   }

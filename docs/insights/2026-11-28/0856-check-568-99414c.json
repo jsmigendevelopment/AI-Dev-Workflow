@@ -1,0 +1,46 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T08:56:12.486Z",
+  "issue": 564,
+  "pr": 568,
+  "sha": "c680f44e522c0112abc97ddbce85b2814a669f40",
+  "job": "review",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "state": "success",
+  "fence": "none",
+  "commands": [
+    {
+      "name": "sync-skills --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "npm-readme --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "cli bundle + npm test",
+      "result": "pass",
+      "seconds": 120
+    },
+    {
+      "name": "test:evals",
+      "result": "pass",
+      "seconds": 63
+    },
+    {
+      "name": "evals dry-run",
+      "result": "pass",
+      "seconds": 2
+    },
+    {
+      "name": "pr-size",
+      "result": "pass",
+      "seconds": 1
+    }
+  ]
+}
