@@ -133,3 +133,43 @@ test("AC-564-5: WHEN a reader opens the default authorization adapter line THEN 
   assert.doesNotMatch(go, /research\/authorization\.md/);
   assert.ok(go.replace(/\n$/, "").split("\n").length < 300, "the guide stays under 300 lines");
 });
+
+// #574: three leftovers from #568's review. Each test reads the guide's words, so the examples can't
+// drift back. (The snippets were also compiled with go vet and run in a scratch module.)
+test("AC-574-1: WHEN a reader opens the error envelope example THEN it shows fields beside code, message and requestId", () => {
+  const go = read(GO_GUIDE);
+  const line = bulletWith(section(go, 5), "- **One error envelope");
+  assert.ok(line, "the envelope bullet exists");
+  const example = line.match(/\{"ok": false, "error": \{[^}]*\}\}/)?.[0];
+  assert.ok(example, "the bullet has the example envelope");
+  for (const key of ["code", "message", "requestId", "fields"]) {
+    assert.ok(example.includes(`"${key}"`), `the example envelope shows ${key}`);
+  }
+});
+
+test("AC-574-2: WHEN a reader opens the Secret type THEN it has GoString() returning [redacted] and the text says exported fields", () => {
+  const go = read(GO_GUIDE);
+  const from = go.indexOf("type Secret string");
+  assert.ok(from >= 0, "the guide has the Secret type");
+  const block = go.slice(from, go.indexOf("func New(", from));
+  assert.match(block, /func \(Secret\) GoString\(\) string[^\n]*"\[redacted\]"/);
+  assert.match(block, /%#v/, "the comment names %#v");
+  assert.match(block, /exported fields/, "the comment says exported fields, so an unexported one isn't promised");
+  assert.doesNotMatch(block, /even inside a logged struct/, "the unqualified claim is gone");
+});
+
+test("AC-574-3: WHEN a reader opens the ReplaceAttr example THEN its msg and level cases check the attribute's kind too", () => {
+  const go = read(GO_GUIDE);
+  const from = go.indexOf("ReplaceAttr: func(");
+  assert.ok(from >= 0, "the guide has a ReplaceAttr example");
+  const lines = go.slice(from, go.indexOf("\n\t\t},\n", from)).split("\n");
+  const caseOf = (key) => lines.find((l) => l.includes("case ") && l.includes(`a.Key == slog.${key}`)) ?? "";
+  const msg = caseOf("MessageKey");
+  const level = caseOf("LevelKey");
+  assert.match(msg, /topLevel/, "the msg case keeps the group guard");
+  assert.match(msg, /a\.Value\.Kind\(\) == slog\.KindString/, "the msg case checks for a string");
+  assert.match(level, /topLevel/, "the level case keeps the group guard");
+  assert.match(level, /a\.Value\.Kind\(\) == slog\.KindAny/, "the level case checks for slog's Level value (kind Any)");
+  assert.match(lines.join("\n"), /a\.Key = "event"/, "msg is still renamed to event");
+  assert.match(lines.join("\n"), /strings\.ToLower\(a\.Value\.String\(\)\)/, "level is still lowercased");
+});

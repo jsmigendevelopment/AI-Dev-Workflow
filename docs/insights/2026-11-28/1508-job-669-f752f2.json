@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T15:08:53.239Z",
+  "issue": 583,
+  "pr": 669,
+  "sha": "a66fe53f37fe6fcff5e17f2e2ab1e66805882cc6",
+  "job": "review-code",
+  "tool": null,
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "finished",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "no usage reading shown to this session"
+}

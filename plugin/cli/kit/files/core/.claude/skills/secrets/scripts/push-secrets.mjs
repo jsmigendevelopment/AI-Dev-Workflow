@@ -38,6 +38,15 @@ if (equalsForm) {
   console.error(`${equalsForm.split("=")[0]}=... is not understood: write the flag and its value as two words (for example --service shop).`);
   process.exit(1);
 }
+// A flag that takes a value but ends the line, or is followed by another flag, has none: without this a push meant for one
+// project would go to gcloud's active one (#583). The message names the flag and never a word from the line.
+for (const name of ["--service", "--region", "--project"]) {
+  const at = args.indexOf(name);
+  if (at !== -1 && (args[at + 1] === undefined || args[at + 1].startsWith("--"))) {
+    console.error(`${name} needs a value: write the flag and its value as two words (for example ${name} <name>). Nothing was sent.`);
+    process.exit(1);
+  }
+}
 const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
 const only = flag("--env");
 
@@ -214,8 +223,10 @@ for (const env of envs) {
   if (!existsSync(file)) { console.log(`${env}: no ${file}, skipped`); continue; }
   const values = parseEnv(file);
   // A tool's error can echo what it was given: every value in the file is hidden before a line prints, as connect does (#161).
-  // gcloud may echo a value in its JSON-escaped form (a quote or backslash in it), so that form is hidden too, longest first.
-  const secretsToHide = [...new Set(Object.values(values).filter(Boolean).flatMap((v) => [v, JSON.stringify(v).slice(1, -1)]))].sort((a, b) => b.length - a.length);
+  // gcloud may echo a value in its JSON-escaped form (a quote or backslash in it), or in Python repr form (a backslash
+  // doubled, quotes kept: gcloud is Python), so those forms are hidden too, longest first (#583).
+  const forms = (v) => [v, JSON.stringify(v).slice(1, -1), v.replaceAll("\\", "\\\\")];
+  const secretsToHide = [...new Set(Object.values(values).filter(Boolean).flatMap(forms))].sort((a, b) => b.length - a.length);
   const hide = (text) => secretsToHide.reduce((t, v) => t.replaceAll(v, "<hidden>"), String(text));
   for (const [name, m] of Object.entries(meta)) {
     if (!m.scope.includes(env)) continue;
