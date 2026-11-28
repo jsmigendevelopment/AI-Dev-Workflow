@@ -126,7 +126,7 @@ async function github(deps: Deps, options: Options, log: Log, chosen: Account) {
     return log(
       'None: docs/stack.md says ci = "local". The session deploys with the person\'s wrangler login, so nothing goes to GitHub.',
     )
-  log(`CLOUDFLARE_ACCOUNT_ID = ${chosen.id}   (not a secret, but the workflows on ci = "actions" read it as one)`)
+  log(`CLOUDFLARE_ACCOUNT_ID = ${chosen.id}   (not a secret, but stored as one on ci = "actions")`)
   const gh = await deps.run('gh', ['auth', 'status'])
   if (gh.status !== 0)
     log('GitHub CLI not signed in: set CLOUDFLARE_ACCOUNT_ID by hand in each environment below.')
