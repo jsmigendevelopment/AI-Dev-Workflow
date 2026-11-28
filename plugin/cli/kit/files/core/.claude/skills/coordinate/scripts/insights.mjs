@@ -26,7 +26,7 @@
 //
 // The merge step's records (#333), after a harvest, in the same checkout:
 //   has-records --pr <n> --sha <sha>   exit 0 when docs/insights/ holds a job, a check and a review record whose pr
-//       is <n> and whose sha is <sha>, each a file land would land as it is; board records don't count. Presence, not
+//       is <n> and whose sha is <sha>, each a file land would land as it is; board records and the size check's own job (#427) don't count. Presence, not
 //       pass: the verdicts are the Checks: comment's and the review's. Exit 1 names each missing kind and the job
 //       that makes it. Exit 2: a usage error, or a checkout it can't read. It writes nothing and calls no API; its
 //       only git call finds the checkout. Not `land --verify`, which checks a records-only pull request.
@@ -40,7 +40,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pages } from "./agent-files.mjs";
-import { carry, heldRecords, save } from "./insights-carry.mjs";
+import { carry, heldRecords, kindsAt, save } from "./insights-carry.mjs";
 import { canonical, land, ownAccount, recordProblem } from "./insights-land.mjs";
 import { ASK_FILE, KINDS, LINE_START, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
 
@@ -268,7 +268,7 @@ function hasRecords(args) {
     fail(2, `couldn't read docs/insights/ (${e.code || e.message}), so nothing was checked. Fix the checkout and run this again.`);
   }
   const target = pr === undefined ? `issue #${issue}` : `#${pr}`;
-  const found = new Set(held.filter((r) => (pr === undefined ? r.issue === Number(issue) : r.pr === Number(pr)) && r.sha === sha).map((r) => r.kind));
+  const found = kindsAt(held.filter((r) => (pr === undefined ? r.issue === Number(issue) : r.pr === Number(pr))), sha);
   const missing = Object.keys(NEEDED).filter((kind) => !found.has(kind));
   if (!missing.length) return process.stdout.write(`${target} @ ${sha}: job, check and review records found\n`);
   // Local mode has no pull request to harvest from: its records are already files in this checkout.

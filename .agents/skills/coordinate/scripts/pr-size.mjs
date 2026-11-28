@@ -15,6 +15,10 @@
 // `Size exception: <reason>` line in its description. A local diff has no label, so it can't pass that way.
 // Exit 0: under the limit, or an exception with its reason. 1: at or over it. 2: a usage, git or API error, or a count
 // that isn't a whole number. Never a pass.
+// --record [issue=<n>] [model=<m>] [effort=<e>] [tool=<t>] [model_from=<why>], last on the line (#427): after the count,
+// writes the check's insights record through insights.mjs write, next to this script, in the checkout it runs in
+// (the coordinator's main): job=size-check, the pull request (null for a local diff), the head sha, the counted lines,
+// outcome pass, or fail with send_back=size. The count on it is this script's own. A count that can't be recorded is exit 2.
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -40,6 +44,8 @@ const SOURCE = /\.(?:[cm]?[jt]sx?|py|go|rs|rb|java|kts?|swift|c|h|cc|cpp|hpp|cs|
 const EXCEPTION = /^(?:[-*][ \t]+)?(?:\*\*)?Size exception:(?:\*\*)?[ \t]*(\S.*?)[ \t]*$/m;
 const SAFE_REF = /^(?!-)[\w./@^~-]+$/;
 const BIGGEST = 5;
+// What --record takes from the caller: who ran the check. The script sets every other field of the record.
+const RECORD_PAIR = /^(?:issue|model|effort|tool|model_from)=/;
 // git and GitHub call a file binary when its first 8000 bytes hold a NUL.
 const NUL_WINDOW = 8000;
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -248,7 +254,7 @@ function readPull(repo, pr) {
   if (!hasCommit(checkoutRoot(), base)) throw new Error(`The base ${base} isn't in this checkout: git fetch origin ${pull.base.ref}`);
   const head = pull.head?.sha ?? "";
   if (!/^[0-9a-f]{40}$/.test(head)) throw new Error(`#${pr} has no head commit sha.`);
-  return { files: markBinaries(repo, head, files, base), tree: base, labels: (pull.labels ?? []).map((l) => l.name), body: pull.body ?? "" };
+  return { files: markBinaries(repo, head, files, base), tree: base, labels: (pull.labels ?? []).map((l) => l.name), body: pull.body ?? "", sha: head };
 }
 
 // The branch's own .gitattributes could mark its text as binary (`binary`, `-diff`), which shows as `-` with no lines.
@@ -265,13 +271,30 @@ function readLocal(base, head) {
     const args = [`--git-dir=${gitDir}`, `--work-tree=${empty}`, "diff", "--numstat", "-z", "-M", "--no-textconv", "--no-ext-diff", from, head, "--"];
     const listed = numstatFiles(git(args, { cwd: empty, env: { GIT_INDEX_FILE: join(empty, "index") } }));
     const files = listed.map((f) => (f.binary && !sizeAtHead(root, head, f.filename) ? { ...f, binary: false } : f));
-    return { files, tree, labels: [], body: "" };
+    return { files, tree, labels: [], body: "", sha: git(["rev-parse", "--verify", `${head}^{commit}`], { cwd: root }).trim() };
   } finally {
     rmSync(empty, { recursive: true, force: true });
   }
 }
 
-export function main(argv) {
+/** Writes the size check's record through insights.mjs write, next to this script. Returns why it couldn't, or null. */
+function writeRecord(pairs, { pr, sha, total, failed }) {
+  const fields = ["job=size-check", `pr=${pr ?? "null"}`, `sha=${sha}`, `lines=${total}`, `outcome=${failed ? "fail" : "pass"}`, ...(failed ? ["send_back=size"] : [])];
+  const r = spawnSync(process.execPath, [join(HERE, "insights.mjs"), "write", "job", ...fields, ...pairs], { encoding: "utf8" });
+  if (r.status !== 0) return String(r.stderr || r.error?.message || `exit ${r.status}`).trim();
+  console.log(`Insights: wrote ${r.stdout.trim()}`);
+  return null;
+}
+
+export function main(allArgs) {
+  // --record is last, and takes who ran the check; everything before it is the size check's own arguments.
+  const at = allArgs.indexOf("--record");
+  const pairs = at < 0 ? null : allArgs.slice(at + 1);
+  if (pairs?.some((pair) => !RECORD_PAIR.test(pair))) {
+    console.error("Usage: --record takes issue=, model=, effort=, tool= and model_from= pairs, last on the line. The script sets the rest of the record.");
+    return 2;
+  }
+  const argv = at < 0 ? allArgs : allArgs.slice(0, at);
   const { pr, repo } = prArgs(argv);
   const base = argv.includes("--base") ? argv[argv.indexOf("--base") + 1] ?? "" : null;
   // A pull request counts GitHub's head, so --head there would be silently dropped: refuse it.
@@ -280,7 +303,7 @@ export function main(argv) {
   const head = argv[2] === "--head" ? argv[3] ?? "" : "HEAD";
   const local = argv[0] === "--base" && (argv.length === 2 || (argv.length === 4 && argv[2] === "--head"));
   if (!onePull && !(local && SAFE_REF.test(base ?? "") && SAFE_REF.test(head))) {
-    console.error("Usage: pr-size.mjs <n> --repo <owner>/<name>, or pr-size.mjs --base <ref> [--head <ref>]");
+    console.error("Usage: pr-size.mjs <n> --repo <owner>/<name>, or pr-size.mjs --base <ref> [--head <ref>], each with --record [key=value ...] last");
     return 2;
   }
   let got;
@@ -294,9 +317,16 @@ export function main(argv) {
   }
   report(size, pr ? `#${pr}` : `${head} against ${base}`);
   const problem = sizeProblem(size.total, got);
-  if (problem) return console.error(problem), 1;
-  if (size.total >= MAX_CHANGED_LINES) console.log(`Size exception: ${exceptionReason(got.body)}`);
-  return 0;
+  if (problem) console.error(problem);
+  else if (size.total >= MAX_CHANGED_LINES) console.log(`Size exception: ${exceptionReason(got.body)}`);
+  if (pairs) {
+    const why = writeRecord(pairs, { pr, sha: got.sha, total: size.total, failed: Boolean(problem) });
+    if (why) {
+      console.error(`Couldn't record the size (${size.total} counted lines, ${problem ? "over the limit" : "under it or excepted"}): ${why}`);
+      return 2;
+    }
+  }
+  return problem ? 1 : 0;
 }
 
 /** True when node started this file, also through a symlinked file or folder: import.meta.url is the real path, so
