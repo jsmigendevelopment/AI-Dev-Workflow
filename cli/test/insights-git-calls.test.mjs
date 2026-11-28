@@ -113,8 +113,13 @@ test("AC-450-2: WHEN push.followTags=true, a local annotated tag is reachable fr
   addsNoTag(fx, "a new records branch");
 });
 
-test("AC-450-2: WHEN push.followTags=true and a local annotated tag is reachable from the records commit THEN land's push to the open records pull request's branch sends no tag, and fetching that branch writes no refs/tags/*", unixOnly, () => {
+/**
+ * Land on an open records pull request's branch, which has a tag on its own head, from a clone set up by `tagged()` plus
+ * `config` (git config keys and values). The remote's tags may land in the clone only if the clone had them before.
+ */
+function landOnOpenPull(config) {
   const fx = tagged();
+  for (const [key, value] of Object.entries(config)) git(fx.dir, "config", key, value);
   const ref = "chore/insights-2026-11-27-1200";
   // From the full ref: the seed fetched the tag named origin/main too, which makes the short name ambiguous.
   const sha = branch(fx.seed, ref, { [pathOf(REVIEW, "d4e5f6")]: json(REVIEW) }, "refs/remotes/origin/main");
@@ -129,6 +134,16 @@ test("AC-450-2: WHEN push.followTags=true and a local annotated tag is reachable
   const names = (cwd) => git(cwd, "for-each-ref", "--format=%(refname)", "refs/tags").split("\n");
   assert.deepEqual(names(join(fx.root, "remote.git")), ["refs/tags/on-head", "refs/tags/origin/main"], "land pushed no tag");
   assert.deepEqual(names(fx.dir), ["refs/tags/v1-local"], "its fetches wrote no tag");
+}
+
+test("AC-450-2: WHEN push.followTags=true and a local annotated tag is reachable from the records commit THEN land's push to the open records pull request's branch sends no tag, and fetching that branch writes no refs/tags/*", unixOnly, () => {
+  landOnOpenPull({});
+});
+
+// remote.origin.tagOpt=--tags makes a fetch take every tag of the remote unless the call says --no-tags, so this is the
+// case that fails when fetchHead() drops its --no-tags (#565).
+test("AC-450-2: WHEN remote.origin.tagOpt=--tags is also set THEN fetching the open records pull request's branch still writes no refs/tags/*", unixOnly, () => {
+  landOnOpenPull({ "remote.origin.tagOpt": "--tags" });
 });
 
 test("AC-450-3: WHEN GIT_DIR and GIT_WORK_TREE point at another clone THEN land stages and pushes only the checkout it was started in", unixOnly, () => {
