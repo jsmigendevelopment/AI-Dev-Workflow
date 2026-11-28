@@ -1,0 +1,53 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T16:53:25.856Z",
+  "issue": null,
+  "pr": 696,
+  "sha": "eab4e35896b7550199567523764d80e723c5739a",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "fence": "Fence: update-check part of #448 (AC-4 split to #698); merged-main head, base behind main path.",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cd cli && npm run bundle (no diff)",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cd cli && npm test",
+      "result": "pass",
+      "seconds": 95
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 64
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}
