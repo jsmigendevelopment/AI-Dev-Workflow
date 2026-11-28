@@ -23,7 +23,8 @@ const PREFLIGHT = ["preflight.mjs", "preflight-sys.mjs", "preflight-owner.mjs", 
 const PROCS = ["procs.mjs", "procs-sys.mjs", "procs-winacl.mjs", "procs-store.mjs", "procs-path.mjs", "procs-records.mjs", "procs-stop.mjs", "procs-hooks.mjs"];
 /** Each copy as [master, copy], both relative to the repo. */
 export const COPIES = [
-  ...["code-style.md", "testing.md", "app-conventions.md", "app-conventions-go.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
+  // Every guide these link to ships beside them (#593), so a link in a copy never points at a file that is not there.
+  ...["code-style.md", "code-style-go.md", "testing.md", "app-conventions.md", "app-conventions-go.md", "environments.md", "evidence.md"].map((name) => [join("guide", name), join(SRC, "build", "references", name)]),
   [CHECKER, join(SRC, "research", "scripts", "check-research.mjs")],
   [CHECKER, join("cli", "src", "check-research.mjs")],
   // The library helper and the template library's copies of the checker and the schemas.
