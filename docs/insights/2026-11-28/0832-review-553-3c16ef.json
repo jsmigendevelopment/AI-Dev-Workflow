@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T08:32:29.284Z",
+  "issue": null,
+  "pr": 553,
+  "sha": "848640e59dc4fe98ad0ad116203bc078c18deca2",
+  "job": "carry-review",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "model_from": "effort is not shown in this session",
+  "round": 2,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 0,
+  "categories": [
+    "tests",
+    "code-rules"
+  ]
+}
