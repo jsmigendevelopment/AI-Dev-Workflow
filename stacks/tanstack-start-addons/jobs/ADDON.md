@@ -8,6 +8,7 @@ Background jobs and schedules: a Cloudflare Queue that this same Worker produces
 | **Alternatives** | `ctx.waitUntil()` for fire-and-forget work under 30 s that may be lost; Cloudflare Workflows for long multi-step processes with sleeps; Durable Object alarms for per-object timers |
 | **Env vars** | none. Bindings: `JOBS` (queue producer) |
 | **Packages** | none |
+| **With a Go backend** | TypeScript backend only: it is a Cloudflare Queue that the web pack's Worker produces to and consumes. On a Go backend, background jobs and schedules go in the Go service; no Go add-on exists yet: file one when an app needs it |
 | **Issue** | `Skills: build` · lane `normal` |
 
 ## What it adds

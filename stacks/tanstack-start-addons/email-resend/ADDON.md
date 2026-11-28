@@ -8,6 +8,7 @@ Transactional email through Resend: an `EmailSender` port, a Resend adapter over
 | **Alternatives** | Postmark or Amazon SES behind the same port; Cloudflare Email Routing is for receiving, not sending |
 | **Env vars** | `RESEND_API_KEY` (secret), `EMAIL_FROM` (a sender on a verified domain) |
 | **Packages** | none (Resend's REST API over `fetch`) |
+| **With a Go backend** | TypeScript backend only: it adds a sender to the web pack's Worker. On a Go backend, sending email goes in the Go service; no Go add-on exists yet: file one when an app needs it |
 | **Issue** | `Skills: build, web-security` · lane `risky` (email to outside addresses can be abused to mail strangers, and it costs money past the free tier) |
 | **Vendor setup** | Resend's docs and account MCP servers, the kit's way: `.agents/skills/secrets/setup/resend.md`. Keys and the domain: `.agents/skills/secrets/providers/resend.md` |
 

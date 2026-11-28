@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T13:56:11.693Z",
+  "issue": 540,
+  "pr": 645,
+  "sha": "c6f414fdb26a2ec458d5c6895356559152f41b1f",
+  "job": "carry-review",
+  "tool": null,
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 3,
+  "categories": [
+    "tests",
+    "process"
+  ],
+  "model_from": "effort not shown in this sub-agent session"
+}
