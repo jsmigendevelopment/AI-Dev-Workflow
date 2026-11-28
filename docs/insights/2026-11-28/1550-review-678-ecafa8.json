@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T15:50:36.332Z",
+  "issue": null,
+  "pr": 678,
+  "sha": "7dbfb18c6bddb27250f9c3c4d1d0ecdbbac87443",
+  "job": "carry-review",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 0,
+  "model_from": "a sub-agent has no status line, and get_session shows the parent session"
+}
