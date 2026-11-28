@@ -9,13 +9,26 @@
 //   is named by its line.
 // - Each `require` is `<module path> <version>`, with `// indirect` or any comment kept as it was. A path at the head
 //   must be a path the merge base had, only its version may differ, and each version is a canonical semantic version.
-// - go.sum: every line not at the merge base is `<module> <version> h1:<hash>` or `<module> <version>/go.mod h1:<hash>`.
-//   Lines gone from it are fine (`go mod tidy` drops the old versions'). Go checks each hash against the module
-//   proxy's checksum database, so a line for a module go.mod doesn't require does nothing.
+// - A bump of a path that a `replace` or `exclude` line of the merge base names on its left is refused (#581): the line
+//   may pin one version, and the new version can switch it on, or the old version's pin off, with no line changing.
+// - go.sum: every line not at the merge base is `<module> <version> h1:<hash>` or `<module> <version>/go.mod h1:<hash>`,
+//   and its `<module> <version>[/go.mod]` isn't one the merge base has with another hash (#581). Lines gone from it are
+//   fine (`go mod tidy` drops the old versions'). Go compares the downloaded bytes with every go.sum line for that
+//   version and asks the checksum database only when a line is missing, so a line for a module go.mod doesn't require
+//   does nothing, and a second hash for a version can only fail a build.
+// - Only the go.mod and go.sum of a module count: one under a `vendor/` or `testdata/` folder, which Go ignores, is
+//   refused as any other file is (#581).
+// - A refusal quotes at most 200 characters of a line, so a huge line can't fill a comment (#581).
 // Each check returns why the change is more than a version bump, or null, like manifestChange and lockfileChange.
 
-/** go.mod or go.sum, at any depth, the way `go` finds them. */
-export const GO_FILE = /(?:^|\/)go\.(?:mod|sum)$/;
+const GO_NAME = /(?:^|\/)go\.(?:mod|sum)$/;
+// Folders `go` skips: what is in one is a copy or a fixture, never the module being bumped. Any letter case, since a
+// case-insensitive file system reads Vendor/ as vendor/.
+const SKIPPED = /(?:^|\/)(?:vendor|testdata)\//i;
+const CAP = 200;
+
+/** go.mod or go.sum, at any depth, the way `go` finds them: not one under vendor/ or testdata/ (#581). */
+export const isGoFile = (path) => GO_NAME.test(path) && !SKIPPED.test(path);
 const GO_MOD = /(?:^|\/)go\.mod$/;
 const DIRECTIVES = new Set(["module", "go", "toolchain", "godebug", "require", "exclude", "replace", "retract", "tool", "ignore"]);
 // Characters a statement's words may hold: module paths and versions, `=>`, a retract range's brackets and commas,
@@ -38,7 +51,9 @@ function modulePath(path) {
   return DOMAIN.test(first) && rest.every((e) => ELEMENT.test(e));
 }
 
-const quoted = (row) => JSON.stringify(row.trim());
+/** At most 200 characters of a line, so a reason stays short however long the line is. */
+const clip = (row) => (row.length > CAP ? `${row.slice(0, CAP)}...` : row);
+const quoted = (row) => JSON.stringify(clip(row.trim()));
 const text = (s) => (s.kind === "comment" ? s.comment : [s.kind, ...s.args].join(" ") + (s.comment ? ` ${s.comment}` : ""));
 
 /** A go.mod read as statements `{ n, kind, args, comment }`, or `{ error }` for the first line it can't read. */
@@ -80,10 +95,28 @@ function parse(source, where) {
   if (open) return { error: `${where}line ${open.n} opens a ${open.kind} block that never closes` };
   const seen = new Set();
   for (const s of out.filter((x) => x.kind === "require")) {
-    if (seen.has(s.args[0])) return { error: `${where}line ${s.n} requires ${s.args[0]} twice` };
+    if (seen.has(s.args[0])) return { error: `${where}line ${s.n} requires ${clip(s.args[0])} twice` };
     seen.add(s.args[0]);
   }
   return { statements: out };
+}
+
+/**
+ * Why a bump changes what a replace or exclude of the merge base applies to, or null: a path on the left of one, whose
+ * version the bump changes. A line that pins one version is switched on by the new version and off by the old one's
+ * going, and one with no version covers every version, so a person looks at each (#581).
+ */
+function switchedOn(baseStatements, baseRequires, headStatements) {
+  const named = new Map();
+  for (const s of baseStatements) if ((s.kind === "replace" || s.kind === "exclude") && !named.has(s.args[0])) named.set(s.args[0], s);
+  for (const s of headStatements.filter((x) => x.kind === "require")) {
+    const line = named.get(s.args[0]);
+    const old = baseRequires.get(s.args[0]);
+    if (line && old.args[1] !== s.args[1]) {
+      return `bumps ${clip(s.args[0])} from ${clip(old.args[1])} to ${clip(s.args[1])}, a path line ${line.n} of the merge base names in a ${line.kind}: ${quoted(text(line))}`;
+    }
+  }
+  return null;
 }
 
 /** Why a go.mod, read at both ends, changes more than the versions of requirements it had, or null. */
@@ -98,8 +131,8 @@ export function goModChange(before, after) {
   for (const s of head.statements) {
     if (s.kind === "require") {
       const old = baseRequires.get(s.args[0]);
-      if (!old) return `line ${s.n} adds the module path ${s.args[0]}: ${quoted(text(s))}`;
-      if (old.comment !== s.comment) return `line ${s.n} changes the comment of ${s.args[0]}: ${quoted(text(s))}`;
+      if (!old) return `line ${s.n} adds the module path ${clip(s.args[0])}: ${quoted(text(s))}`;
+      if (old.comment !== s.comment) return `line ${s.n} changes the comment of ${clip(s.args[0])}: ${quoted(text(s))}`;
       kept.add(old);
       continue;
     }
@@ -111,12 +144,19 @@ export function goModChange(before, after) {
     return CHANGES.has(s.kind) ? `line ${s.n} changes the ${s.kind} line to ${quoted(text(s))}` : `line ${s.n} adds the ${s.kind === "comment" ? "comment" : `${s.kind} line`} ${quoted(text(s))}`;
   }
   const gone = base.statements.find((s) => !kept.has(s));
-  return gone ? `removes line ${gone.n} of the merge base, ${quoted(text(gone))}` : null;
+  return gone ? `removes line ${gone.n} of the merge base, ${quoted(text(gone))}` : switchedOn(base.statements, baseRequires, head.statements);
 }
 
-/** Why a go.sum has a new line that isn't a module proxy hash, or null. Lines already at the merge base aren't judged. */
+/** Why a go.sum has a new line that isn't a module proxy hash, or rehashes a version the merge base has, or null. Lines already at the merge base aren't judged. */
 export function goSumChange(before, after) {
-  const old = new Set(before.split("\n").filter(Boolean));
+  const oldRows = before.split("\n").filter(Boolean);
+  const old = new Set(oldRows);
+  // `<module> <version>[/go.mod]` to the merge base's first line for it: Go writes one hash for it, never two.
+  const pinned = new Map();
+  for (const [i, row] of oldRows.entries()) {
+    const key = row.split(" ").slice(0, 2).join(" ");
+    if (!pinned.has(key)) pinned.set(key, i + 1);
+  }
   const rows = after.split("\n");
   if (rows.at(-1) === "") rows.pop();
   for (const [i, row] of rows.entries()) {
@@ -124,6 +164,8 @@ export function goSumChange(before, after) {
     const [path, version, hash, ...extra] = row.split(" ");
     const ok = !extra.length && HASH.test(hash ?? "") && modulePath(path) && VERSION.test((version ?? "").replace(/\/go\.mod$/, ""));
     if (!ok) return `line ${i + 1} isn't a go.sum line of the form <module> <version> h1:<hash>: ${quoted(row)}`;
+    const at = pinned.get(`${path} ${version}`);
+    if (at) return `line ${i + 1} has another hash than line ${at} of the merge base for the same module version: ${quoted(row)}`;
   }
   return null;
 }
