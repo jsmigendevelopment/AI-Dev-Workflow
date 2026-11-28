@@ -53,7 +53,15 @@ test("AC-397-1: handoff-reading: a reading and its question in one paragraph, wi
     "one paragraph that restates a larger autoplay video and asks to start": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start?" }],
     "a question that says the styles stay as they are": [STAMP, { text: "Shall I add the autoplay video to make it pop, with the styles as they are?" }],
     "a question mark in the receipt line itself": [append("Got it · landing-page thread · My reading: a larger autoplay video to make it pop. OK to start?"), { text: "I replied in the handoff." }],
+    // Round 1 of the review on #437: an "or" that isn't between two readings offers no choice.
+    "'or not' after the go-ahead": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start, or not?" }],
+    "'or should I wait'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start, or should I wait?" }],
+    "'or do you want anything else'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start, or do you want anything else?" }],
+    "'whether or not'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. Let me know whether or not to start?" }],
+    "'a second or so'": [STAMP, { text: "Got it. A larger autoplay video, a second or so longer, to make it pop. OK?" }],
   };
   for (const [name, steps] of Object.entries(cases)) assert.deepEqual(failedChecks(t, steps), ["AC-5-asks-owner"], name);
   assert.deepEqual(failedChecks(t, plan.with.steps), [], "the good transcript");
+  const choice = { text: "Got it. \"Make the hero pop\" could mean a video or a bolder headline. Which one do you want? I recommend the headline. I've started nothing on the hero." };
+  assert.deepEqual(failedChecks(t, [goodReceipt, choice]), [], "a video or a bolder headline");
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The orphan sweep (../../ask/references/handoffs.md) from the lists the sweep already fetched. It makes no API calls.
 //   node orphans.mjs --github <issues.json> [--github <prs.json>] [--json]
-// The issue list needs `comments,body,createdAt` (board.md, "Render"), in gh's camelCase or REST's snake_case.
+// The issue list needs `comments,body,createdAt,author` (board.md, "Render"), in gh's camelCase or REST's snake_case.
 // Only comments by the repo's OWNER, a MEMBER or a COLLABORATOR count. It finds:
 //   - no-receipt: a handoff record (a `Handoff ·` comment, an issue labelled `handoff`, an issue whose body starts
 //     with `Handoff ·` by one of the repo's people, or a `Claimed by` comment) with no `Got it ·` receipt after it,

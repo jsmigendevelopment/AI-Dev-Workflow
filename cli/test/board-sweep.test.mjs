@@ -78,4 +78,12 @@ test("#397 items 5 and 6: WHEN the board reads the lists THEN the pull request r
   const render = between(read("coordinate/board.md"), "## Render", "## The Google Sheet");
   assert.match(render.split("\n").find((l) => l.startsWith("gh pr list")), /--json [\w,]*\bisCrossRepository\b/);
   assert.match(render, /first 100 comments/);
+  // Round 1 of the review on #437, nice 1: the paged comments go where the script reads them.
+  assert.match(render, /put them in that issue's `comments` in `<cache>\/<project>-issues\.json` before the run/);
+});
+
+// Round 1 of the review on #437, must 1: gh's issue rows carry no association, so the author's login is the only trust.
+test("AC-397-2: WHEN the board reads the issues THEN it asks for each issue's author, so an unlabelled `Handoff ·` issue can be trusted", () => {
+  const render = between(read("coordinate/board.md"), "## Render", "## The Google Sheet");
+  assert.match(render.split("\n").find((l) => l.startsWith("gh issue list")), /--json [\w,]*\bauthor\b/);
 });
