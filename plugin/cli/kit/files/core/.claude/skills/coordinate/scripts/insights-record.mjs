@@ -7,7 +7,10 @@ import { randomBytes } from "node:crypto";
 export const VERSION = 1;
 export const TEXT_CAP = 200;
 const SHA = /^[0-9a-f]{40}$/;
-const RULE = /^(?:[^\s:]+:\d+|hook:[\w-]+|missing)$/;
+// A rule's path holds no space, colon or control character (#334): records name it as people read it.
+const RULE = /^(?:[^\s:\u0000-\u001f\u007f]+:\d+|hook:[\w-]+|missing)$/;
+/** An ask record's file name (#334): what an answer record's answered names. */
+export const ASK_FILE = /^\d{4}-ask-\d+-[0-9a-f]{6}\.json$/;
 
 // A field spec: type (int, num, str, bool, list, json), required, and for str an optional list of values or a pattern.
 const int = (req = true) => ({ type: "int", req });
@@ -54,6 +57,7 @@ export const KINDS = {
     rule: { type: "str", req: true, pattern: RULE, hint: "<path>:<line>, hook:<event> or missing" },
     level: str(true, ["blocker", "decision", "fyi"]), waited_minutes: num(false), full_should_prevent: bool(false),
     rule_ok: bool(false), title: str(false),
+    answered: { type: "str", req: false, pattern: ASK_FILE, hint: "an ask record's file name, <hhmm>-ask-<n>-<id>.json" },
   },
   touch: { what: str(true, ["sign-in", "merge", "yes", "paste", "answer", "other"]), minutes: num() },
   merge: { conflicted: list() },
@@ -152,6 +156,14 @@ function jobProblems(record, board) {
   return errors;
 }
 
+/** An ask's title is shown to people, and an answer always says how long it waited (#334). */
+function askProblems(record) {
+  const errors = [];
+  if (typeof record.title === "string" && CONTROL.test(record.title)) errors.push("title: holds a control character (U+0000 to U+001F or U+007F)");
+  if (record.answered !== undefined && record.waited_minutes === undefined) errors.push("waited_minutes: required with answered");
+  return errors;
+}
+
 /** The fields the run line prints (#129). A control character there, a newline above all, could fake a second run line. */
 const PRINTED = ["job", "model", "effort", "model_from"];
 const CONTROL = /[\u0000-\u001f\u007f]/;
@@ -186,6 +198,7 @@ export function validate(record) {
     if (e) errors.push(e);
   }
   if (record.kind === "job") errors.push(...jobProblems(record, board));
+  if (record.kind === "ask") errors.push(...askProblems(record));
   if (record.kind === "note" && !board && record.kind_of !== "went-right" && !(Array.isArray(record.links) && record.links.length)) {
     errors.push("links: required unless kind_of is went-right");
   }

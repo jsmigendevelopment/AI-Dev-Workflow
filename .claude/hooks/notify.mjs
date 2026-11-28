@@ -10,9 +10,16 @@
 //      node .claude/hooks/notify.mjs --level blocker|decision|fyi --title "<what>"
 //           [--message "<questions, and what happens if you don't answer>"] [--link <url>]
 //           [--issue N] [--critical] [--project <name>] [--print]
+//           [--rule <path>:<line>] [--always-stop]
 //      node .claude/hooks/notify.mjs --flush   send held pings whose time has come (each sweep)
 //      node .claude/hooks/notify.mjs --clear   drop held pings (after /back has shown them)
 //    It prints what it did as JSON: sent, batched, held or recorded.
+//
+// Each ask, from either way in, then writes an `ask` insights record (#334) through the repo's
+// .agents/skills/coordinate/scripts/insights.mjs, and the JSON names its path under "record":
+// the rule that made the agent stop (--rule, else "missing"; "hook:<event>" from a hook),
+// whether that line exists (rule_ok), and full_should_prevent: on Full, unless --always-stop.
+// No writer in the repo (a plain app), or a failed write: the ping is unchanged.
 //
 // The rules (the `ask` skill has the full convention):
 // - blocker: ping now. decision: one batched ping at most every [notify] batch_minutes (default 30).
@@ -31,7 +38,7 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 
 // ~/.onrails, or ~/.ai-dev-workflow (its name before the rename to onRails) while only that one exists.
 const NEW_HOME = join(homedir(), ".onrails"), OLD_HOME = join(homedir(), ".ai-dev-workflow");
@@ -170,7 +177,7 @@ async function flush(state, cfg, { force = false } = {}) {
   return { ...result, sent: items.length };
 }
 
-async function handle(item, cfg, { hook = false } = {}) {
+async function handle(item, cfg) {
   const state = readJson(BATCH, { lastSent: null, pending: [] });
   state.pending ??= [];
   let out;
@@ -192,7 +199,49 @@ async function handle(item, cfg, { hook = false } = {}) {
       : { action: "batched", nextAt: new Date(Date.parse(state.lastSent) + cfg.batchMs).toISOString(), waiting: state.pending.length };
   }
   if (out.action !== "recorded" && !saveBatch(state)) Object.assign(out, NOT_SAVED);
-  if (!hook) console.log(JSON.stringify({ level: item.level, ...out }));
+  return out;
+}
+
+// ---------- the ask record (#334) ----------
+
+// "<path>:<line>" when that line is in a file inside the repo. Absolute paths and ".." never count.
+function ruleOk(root, path, line) {
+  if (line < 1 || isAbsolute(path) || path.split(/[\\/]/).includes("..")) return false;
+  try { return readFileSync(join(root, path), "utf8").replace(/\n$/, "").split("\n").length >= line; } catch { return false; }
+}
+
+const fullLevel = (root) => {
+  try { return readFileSync(join(root, "docs", "stack.md"), "utf8").match(/\*\*Level:\*\*\s*`?([a-z-]+)/i)?.[1].toLowerCase() === "full"; } catch { return false; }
+};
+
+// The record's rule fields, and what the JSON says about them.
+function ruleFields(root, rule) {
+  if (rule === undefined) return [{ rule: "missing" }, { rule: "missing" }];
+  if (rule.startsWith("hook:")) return [{ rule }, {}];
+  const m = /^([^\s:\u0000-\u001f\u007f]+):(\d+)$/.exec(rule);
+  if (!m) return [{ rule: "missing", rule_ok: false }, { rule: "missing", warning: "--rule must be <path>:<line>" }];
+  return [{ rule, rule_ok: ruleOk(root, m[1], Number(m[2])) }, {}];
+}
+
+// Writes the ask record after the ping is decided, and says what happened. It never throws.
+function askRecord(root, item, { rule, alwaysStop = false, title: fullTitle = item.title }) {
+  const script = join(root, ".agents", "skills", "coordinate", "scripts", "insights.mjs");
+  const [fields, said] = ruleFields(root, rule);
+  if (!existsSync(script)) return { ...said, skipped: "no insights.mjs in this repo" };
+  // A title can come from a hook's message: control characters never reach the record.
+  const title = String(fullTitle).replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, 200);
+  Object.assign(fields, { level: item.level, full_should_prevent: fullLevel(root) && !alwaysStop, model_from: "notify.mjs is not told the model" });
+  if (Number.isSafeInteger(item.issue) && item.issue > 0) fields.issue = item.issue;
+  if (title) fields.title = title;
+  try {
+    const r = spawnSync(process.execPath, [script, "write", "ask", ...Object.entries(fields).map(([k, v]) => `${k}=${v}`)], {
+      cwd: root, encoding: "utf8", timeout: 5000, env: { ...process.env, CLAUDE_PROJECT_DIR: root, ONRAILS_NOW: item.ts },
+    });
+    if (r.status === 0) return { ...said, path: r.stdout.trim() };
+    return { ...said, error: String(r.stderr || r.error?.message || "the writer failed").trim().split("\n")[0].slice(0, 200) };
+  } catch (e) {
+    return { ...said, error: String(e.message).slice(0, 200) };
+  }
 }
 
 // Records the ask on the board (if the board script is in this repo and the home folder is writable).
@@ -225,7 +274,7 @@ async function cli() {
   }
   const level = flag("--level");
   if (!["blocker", "decision", "fyi"].includes(level) || !flag("--title")) {
-    return console.log("Usage: notify.mjs --level blocker|decision|fyi --title <what> [--message <text>] [--link <url>] [--issue N] [--critical] [--print] | --flush | --clear");
+    return console.log("Usage: notify.mjs --level blocker|decision|fyi --title <what> [--message <text>] [--link <url>] [--issue N] [--critical] [--rule <path>:<line>] [--always-stop] [--print] | --flush | --clear");
   }
   const item = {
     level,
@@ -238,7 +287,9 @@ async function cli() {
     ts: now().toISOString(),
   };
   if (!has("--no-board")) boardEvent(root, item);
-  await handle(item, cfg);
+  const out = await handle(item, cfg);
+  const record = askRecord(root, item, { rule: flag("--rule"), alwaysStop: has("--always-stop"), title: flag("--title") });
+  console.log(JSON.stringify({ level: item.level, ...out, record }));
 }
 
 // Reads either tool's hook JSON. Both send cwd and hook_event_name.
@@ -263,7 +314,10 @@ async function hook(raw) {
   const root = rootOf(input.cwd || process.env.CLAUDE_PROJECT_DIR || process.cwd());
   const got = fromHook(input);
   if (!got || got.level === "fyi") return;
-  await handle({ ...got, critical: false, project: basename(root), link: "", ts: now().toISOString() }, config(root), { hook: true });
+  const item = { ...got, critical: false, project: basename(root), link: "", ts: now().toISOString() };
+  await handle(item, config(root));
+  // The event's name is the rule: a hook has no line to cite.
+  askRecord(root, item, { rule: `hook:${String(input.hook_event_name || "").replace(/[^\w-]/g, "").slice(0, 60) || "unknown"}` });
 }
 
 try {
