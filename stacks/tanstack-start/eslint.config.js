@@ -27,7 +27,7 @@ const elements = [
 ].map((e) => ({ ...e, partialMatch: false }))
 
 const files = [
-  { category: 'service', pattern: 'src/modules/*/server/*.service.ts' },
+  { category: 'service', pattern: 'src/modules/*/server/*.service.ts', capture: ['module', 'name'] },
   { category: 'server-functions', pattern: 'src/modules/*/server/*.functions.ts' },
   { category: 'adapter', pattern: 'src/modules/*/server/*.{repository.drizzle,table}.ts' },
   {
@@ -35,6 +35,17 @@ const files = [
     pattern: 'src/modules/*/server/*.{controller,service,repository,table,http}.ts',
   },
   { category: 'server-internal', pattern: 'src/modules/*/server/*.repository.{drizzle,memory}.ts' },
+  // A repository's port and its adapters share a base name (`notes.repository.ts`, `notes.repository.drizzle.ts`).
+  {
+    category: 'repository-port',
+    pattern: 'src/modules/*/server/*.repository.ts',
+    capture: ['module', 'name'],
+  },
+  {
+    category: 'repository-adapter',
+    pattern: 'src/modules/*/server/*.repository.{drizzle,memory}.ts',
+    capture: ['module', 'name'],
+  },
   { category: 'client', pattern: 'src/modules/*/{ui,hooks}/**' },
   { category: 'test', pattern: '**/*.test.{ts,tsx}' },
 ]
@@ -296,6 +307,32 @@ export default tseslint.config(
                 { to: { file: { categories: ['adapter', 'server-functions'] } } },
               ],
               message: 'A service holds business rules only: no database, HTTP, SDK or adapter imports.',
+            },
+            // Compose, don't couple: a controller composes services, a service composes repositories.
+            {
+              from: { file: { categories: 'service' } },
+              disallow: { to: { file: { categories: 'service' } } },
+              message: 'A service never imports another service: a controller composes services.',
+            },
+            {
+              from: { file: { categories: ['repository-port', 'repository-adapter'] } },
+              disallow: { to: { file: { categories: ['repository-port', 'repository-adapter'] } } },
+              message: 'A repository never imports another repository: a service composes repositories.',
+            },
+            // The one exception: an adapter implements its own port, in its own module.
+            {
+              from: { file: { categories: 'repository-adapter' } },
+              allow: {
+                to: {
+                  file: {
+                    categories: 'repository-port',
+                    captured: {
+                      module: '{{ from.file.captured.module }}',
+                      name: '{{ from.file.captured.name }}',
+                    },
+                  },
+                },
+              },
             },
             // The browser reaches the server only through server functions.
             {
