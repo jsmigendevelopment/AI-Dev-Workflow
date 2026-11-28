@@ -215,6 +215,8 @@ function askProblems(record) {
 /** The fields the run line prints (#129). A control character there, a newline above all, could fake a second run line. */
 const PRINTED = ["job", "model", "effort", "model_from"];
 const CONTROL = /[\u0000-\u001f\u007f]/;
+/** Next line, line separator, paragraph separator: not in CONTROL, but some viewers break a line at them (#513). Text fields keep them. */
+const LINE_BREAK = /[\u0085\u2028\u2029]/;
 
 /** The problems with a record, each starting with the field's name. An empty list means it is valid. */
 export function validate(record) {
@@ -232,7 +234,9 @@ export function validate(record) {
   }
   for (const name of ["model", "effort"]) if (record[name] === undefined) errors.push(`${name}: required (unknown when not known)`);
   for (const name of PRINTED) {
-    if (typeof record[name] === "string" && CONTROL.test(record[name])) errors.push(`${name}: holds a control character (U+0000 to U+001F or U+007F)`);
+    if (typeof record[name] !== "string") continue;
+    if (CONTROL.test(record[name])) errors.push(`${name}: holds a control character (U+0000 to U+001F or U+007F)`);
+    else if (LINE_BREAK.test(record[name])) errors.push(`${name}: holds a line-break character (U+0085, U+2028 or U+2029)`);
   }
   for (const [name, spec] of Object.entries(kinds)) {
     const e = checkField(name, board ? { ...spec, req: false } : spec, record[name]);
