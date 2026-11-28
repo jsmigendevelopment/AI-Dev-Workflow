@@ -1,6 +1,8 @@
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+
 import { ESLint } from 'eslint'
 import tseslint from 'typescript-eslint'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // The routing, store and SSR rules in eslint.config.js and eslint-rules.js, each proved on a
 // deliberate violation through the real config (a rule that never fires passes silently). The
@@ -80,4 +82,81 @@ describe('lint: a route that is not fully server-rendered says why', () => {
     const hits = await rulesHit(route('  // ssr: the canvas editor needs window.\n  ssr: false,'), file)
     expect(hits.filter((m) => m.startsWith('local/ssr-needs-reason'))).toEqual([])
   })
+})
+
+// "Compose, don't couple" (#92): a controller composes services, a service composes
+// repositories. The boundary check needs imports that resolve, so each probe sits in the real
+// notes server folder and imports a file that exists there.
+describe('lint: services and repositories do not import their own kind', () => {
+  const dir = 'src/modules/notes/server'
+  const boundaryHits = async (code: string, file: string) =>
+    (await rulesHit(code, `${dir}/${file}`)).filter((m) => m.startsWith('boundaries/dependencies'))
+
+  const port = "import type { NotesRepository } from './notes.repository'\n"
+  const service = "import type { NotesService } from './notes.service'\n"
+
+  it('AC-707-1: refuses a service importing another service, and says a controller composes them', async () => {
+    const hits = await boundaryHits(service, 'tags.service.ts')
+    expect(hits).toHaveLength(1)
+    expect(hits[0]).toContain('a controller composes services')
+  })
+
+  it.each([
+    ['a port into a port of another name', port, 'tags.repository.ts'],
+    [
+      'an adapter into a port of another name',
+      "import { drizzleNotesRepository } from './notes.repository.drizzle'\n",
+      'tags.repository.ts',
+    ],
+    [
+      'a memory fake into a Drizzle adapter',
+      "import { drizzleNotesRepository } from './notes.repository.drizzle'\n",
+      'notes.repository.memory.ts',
+    ],
+    ['a Drizzle adapter into a port of another name', port, 'tags.repository.drizzle.ts'],
+    ['a memory fake into a port of another name', port, 'tags.repository.memory.ts'],
+    [
+      'a port into its own memory fake',
+      "import { memoryNotesRepository } from './notes.repository.memory'\n",
+      'notes.repository.ts',
+    ],
+  ])('AC-707-2: refuses a repository importing a repository: %s', async (_, code, file) => {
+    const hits = await boundaryHits(code, file)
+    expect(hits).toHaveLength(1)
+    expect(hits[0]).toContain('a service composes repositories')
+  })
+
+  it.each([
+    ['a Drizzle adapter imports its own port', port, 'notes.repository.drizzle.ts'],
+    ['a memory fake imports its own port', port, 'notes.repository.memory.ts'],
+    ['a service imports a repository port', port, 'tags.service.ts'],
+    ['a controller imports a service', service, 'tags.controller.ts'],
+    ['a service test imports its service', service, 'tags.service.test.ts'],
+  ])('AC-707-3: allows it when %s', async (_, code, file) => {
+    expect(await boundaryHits(code, file)).toEqual([])
+  })
+})
+
+// An adapter may import its own port, in its own module only. A second module needs a real
+// `*.repository.ts` for the import to resolve, so the test writes one and removes it after.
+describe('lint: an adapter reaches its own port, never the same-named port of another module', () => {
+  const other = 'src/modules/lint-probe-other/server'
+
+  beforeAll(() => {
+    mkdirSync(other, { recursive: true })
+    writeFileSync(`${other}/notes.repository.ts`, 'export type OtherNotesRepository = never\n')
+  })
+  afterAll(() => rmSync('src/modules/lint-probe-other', { recursive: true, force: true }))
+
+  it.each(['notes.repository.drizzle.ts', 'notes.repository.memory.ts'])(
+    'AC-707-5: refuses %s importing a port of the same name in another module',
+    async (file) => {
+      const code =
+        "import type { OtherNotesRepository } from '@/modules/lint-probe-other/server/notes.repository'\n"
+      const hits = (await rulesHit(code, `src/modules/notes/server/${file}`)).filter((m) =>
+        m.startsWith('boundaries/dependencies'),
+      )
+      expect(hits).toHaveLength(1)
+    },
+  )
 })
