@@ -54,3 +54,7 @@ s52,"Web search 1: golangci-lint linter maximum file length lines per file Go",s
 s53,"Web search 2: Go linter enforce modules do not import each other layered architecture import rules",search:Go linter enforce modules do not import each other layered architecture import rules go-arch-lint arch-go depguard comparison,2026-11-28,skimmed
 s54,"Kit: build skill, App rules (API and OpenAPI rule; at commit a52f61b)",.agents/skills/build/SKILL.md,2026-11-28,skimmed
 s55,"Kit: AGENTS.md, Code rules (file and function sizes; at commit a52f61b)",AGENTS.md,2026-11-28,full
+s56,"revive: rule descriptions (repository master branch; the file-length-limit entry)",https://raw.githubusercontent.com/mgechev/revive/master/RULES_DESCRIPTIONS.md,2026-11-28,skimmed
+s57,"go-arch-lint v1.19.2 go.mod (Go module proxy)",https://proxy.golang.org/github.com/fe3dback/go-arch-lint/@v/v1.19.2.mod,2026-11-28,full
+s58,"huma v2.41.0 go.mod (Go module proxy)",https://proxy.golang.org/github.com/danielgtaylor/huma/v2/@v/v2.41.0.mod,2026-11-28,full
+s59,"oapi-codegen v2.9.0 go.mod (Go module proxy)",https://proxy.golang.org/github.com/oapi-codegen/oapi-codegen/v2/@v/v2.9.0.mod,2026-11-28,full

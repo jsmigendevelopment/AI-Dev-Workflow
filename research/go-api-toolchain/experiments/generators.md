@@ -174,6 +174,71 @@ TypeError: Cannot read properties of undefined (reading 'createKeywordTypeNode')
 tsc 7 over orval output: exit 0
 ```
 
+## Which tool printed which TypeScript 7 error, and Hey API's pre-release
+
+From the steps above: openapi-typescript 7.13.0 stops with `Cannot read properties of undefined (reading 'createKeywordTypeNode')` (its `dist/lib/ts.mjs`), and `@hey-api/openapi-ts` 0.99.0 stops with `Cannot read properties of undefined (reading 'AnyKeyword')`. Added after the fresh-session fact-check, which ran Hey API's `next` dist-tag on TypeScript 7.0.2 and got exit 0; I ran it again here, with a one-operation version of the same spec.
+
+Script `exp-heynext.sh`:
+
+```bash
+#!/bin/bash
+# Hey API's pre-release (the next dist-tag) against TypeScript 7.0.2, with the same two-operation spec as the other generator runs.
+set -u
+D=$TMPDIR/heynext; rm -rf $D; mkdir -p $D; cd $D
+cat > openapi.yaml <<'EOF'
+openapi: 3.1.0
+info: {title: Notes, version: 1.0.0}
+paths:
+  /api/v1/notes:
+    get:
+      operationId: listNotes
+      responses:
+        "200":
+          description: all notes
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/NoteList"}
+components:
+  schemas:
+    Note:
+      type: object
+      required: [id, title]
+      properties:
+        id: {type: string}
+        title: {type: string}
+    NoteList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/Note"}
+EOF
+echo '{ "name": "heynext", "private": true, "type": "module" }' > package.json
+npm view @hey-api/openapi-ts dist-tags --json 2>&1 | tr '\n' ' '; echo
+npm install --save-dev --legacy-peer-deps --no-audit --no-fund typescript@7.0.2 @hey-api/openapi-ts@next 2>&1 | tail -1
+./node_modules/.bin/tsc --version
+echo "--- @hey-api/openapi-ts@next on TypeScript 7.0.2"
+./node_modules/.bin/openapi-ts -i openapi.yaml -o src/hey 2>&1 | tail -3 | cut -c1-200; echo "exit ${PIPESTATUS[0]}"
+ls src/hey 2>&1 | tr '\n' ' '; echo
+npm ls @hey-api/openapi-ts 2>&1 | grep openapi-ts
+```
+
+Output:
+
+```
+{   "latest": "0.99.0",   "next": "0.0.0-next-20260930190945" } 
+added 47 packages in 2s
+Version 7.0.2
+--- @hey-api/openapi-ts@next on TypeScript 7.0.2
+[Job 1] ~ Generating...
+[Job 1]   [1] openapi.yaml
+[Job 1] ✓ <tmp>/heynext/src/hey · 4 files · 45ms
+exit 0
+client client.gen.ts core index.ts sdk.gen.ts types.gen.ts 
+`-- @hey-api/openapi-ts@0.0.0-next-20260930190945
+```
+
 ## Open openapi-typescript issues that mention TypeScript 6 (GitHub search API)
 
 Script `issues.mjs`:

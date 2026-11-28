@@ -44,3 +44,9 @@ Options down the side, the questions across the top. Each cell names claims in `
 | **ServeMux** | c60 | c63 | c61, c62 | c36, c66 | c24 |
 | **chi** | `gap`: its docs were skimmed only | c63 | c61, c62 | c66 | c64 |
 | **echo** | `gap`: its docs were skimmed only | c63 | c61, c62 | c66 | c64, c65 |
+
+## Corrections after the fresh-session fact-check
+
+Read a corrected claim in place of the one it corrects: c69 for c3 and c4 (a file-length rule exists, in revive), c70 for c11 (go-arch-lint's go.mod says 1.26.0), c72 for c6's list-mode wording. Refined: c73 for c53 (Hey API's pre-release runs on TypeScript 7), c74 for c54 (the openapi-typescript issues). New: c71 (huma needs Go 1.26.10), c75 (golangci-lint documents a dedicated modfile).
+
+Cells that said `gap` for file size in question 1 are filled by c69: A (depguard in golangci-lint) now has revive's `file-length-limit` beside it for the file-size column.

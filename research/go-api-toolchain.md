@@ -29,16 +29,16 @@ Which tools should the Go pack (#279's children) be built with: the lint and bou
 
 | Question | Pick | Confidence |
 |---|---|---|
-| 1. Lint and the boundary rule | **golangci-lint 2.15.0** (with its depguard, funlen and nolintlint), **go-arch-lint 1.19.2** for the layers, and **Go's own `internal/` folders** for the module wall. A 30-line script for file size. | **Medium** |
+| 1. Lint and the boundary rule | **golangci-lint 2.15.0** (with its depguard, funlen and nolintlint), **go-arch-lint 1.19.2** for the layers, and **Go's own `internal/` folders** for the module wall. File size: revive's `file-length-limit` (in golangci-lint) as the 500-line stop, and a short script for the 300-line warning. | **Medium** |
 | 2. The check contract | Root **`package.json` scripts** (a shim) call `go tool`, `go vet`, `go test -race`, `go build` and the web pack's own scripts. `test:e2e` is **Playwright API testing** against the built binary. | **Medium-high** |
 | 3. The contract and the client | **Code-first: huma 2.41.0** on ServeMux, its OpenAPI 3.1 file committed, and **orval 8.49.0** to make the TypeScript client. A regenerate-and-compare step inside `typecheck` is what makes drift fail `check`. | **Medium** for huma, **medium** for orval |
 | 4. The router | **`net/http` ServeMux**, through huma's `humago` adapter. chi 5.5.0 is the runner-up. | **High** |
 
 **The main reasons:**
 - Drift is not what separates spec-first from code-first. Both fail `check` on a rename, and both need the same regenerate step to fail it [c41, c42 · measured]. What separates them is what each leaves out: oapi-codegen's strict server accepted a body that breaks the spec [c43 · measured], and huma refused the same body [c44 · measured].
-- No Go linter counts the lines of a file [c3 · read], and depguard can't wildcard a module name [c7, c8 · measured]. Go's compiler can: a module's layers under `internal/` can't be imported from outside it [c13 · measured].
+- depguard can't wildcard a module name [c7, c8 · measured]. A file-length cap exists, in revive, but with one limit per rule [c69 · measured]. Go's compiler can: a module's layers under `internal/` can't be imported from outside it [c13 · measured].
 - The local gate and the agent-file guard read `package.json`, not a Makefile [c22, c23, c26 · read, measured].
-- openapi-typescript, the usual pick, stops working on the TypeScript 7.0.2 that npm now calls `latest`; so does Hey API. orval runs on both 6 and 7 [c53 · measured].
+- openapi-typescript, the usual pick, stops working on the TypeScript 7.0.2 that npm now calls `latest`; so does Hey API's latest release (its pre-release runs). orval is the one stable release that runs on both 6 and 7 [c53, c73 · measured].
 
 ## 1. Lint and the boundary rule
 
@@ -51,14 +51,14 @@ Two modules (`notes`, `tags`), each with `handler`, `service` and `repository`. 
 | Option | Module imports a sibling | Handler skips the service | Needs a rule per module? | Cost |
 |---|---|---|---|---|
 | **A. depguard** (inside golangci-lint) | Caught, with a rule for that module. A module with no rule was not checked [c8 · measured] | Caught, with a prefix per module. A glob in `pkg` matched nothing [c7 · measured] | **Yes** | Nothing extra: it is part of golangci-lint [c6 · read] |
-| **B. go-arch-lint** 1.19.2 | Caught for service to service. **Not** caught for a handler importing another module's service [c12 · measured] | Caught, one rule for all modules [c12 · measured] | No | A second tool; 49-line modfile [c11, c17] |
+| **B. go-arch-lint** 1.19.2 | Caught for service to service. **Not** caught for a handler importing another module's service [c12 · measured] | Caught, one rule for all modules [c12 · measured] | No | A second tool; 49-line modfile [c11, c17]; its go.mod says Go 1.26.0 [c70] |
 | **C. arch-go** 2.1.2 | Not run for a sibling | Caught, one rule for all modules [c15 · measured] | No | 35-line modfile [c17]; prints a coverage figure beside each run [c15] |
 | **D. Go's `internal/` folders** | **Caught by `go build`**, with no config [c13 · measured] | Not its job: inside one module the compiler can't tell layers apart | No | A folder layout |
 | **E. A small `go list` script** | Not built here | Not built here | No | Code to keep. Left out: B and D cover what it would |
 
 ### The pick (AI pick, not reviewed)
 
-**D plus B for the boundaries, A for banned imports and size, a short script for file size.** One layout:
+**D plus B for the boundaries, A for banned imports and function size, revive for the file-size stop, a short script for the rest.** One layout:
 
 ```
 cmd/api/                         builds the server; the composition root
@@ -89,14 +89,14 @@ tools/golangci-lint.mod, tools/go-arch-lint.mod, tools/oapi-codegen.mod ...
     repository: { anyVendorDeps: true }
   ```
 - **golangci-lint holds the rest.** `funlen` at 60 lines (its default) flagged a long function, though its 40-statement default fires first [c5, c10 · read, measured]. A depguard rule with a `files` glob stopped a service importing `net/http` [c9 · measured]. `nolintlint` with `require-explanation` and `require-specific` stops a bare `//nolint` [c21 · read, c68 · measured]. The three lints and `go vet` passed on a clean tree of this layout and failed on each bad import [c68 · measured].
-- **File size has no linter.** golangci-lint's list has none [c3 · read]; one web search found none (not found in 2 searches) [c4 · summary]; arch-go counts function lines only [c16 · read]. So a script, `scripts/check-file-size.mjs`, counts lines in `*.go`: warn at 300, fail at 500, and also fails a `//nolint` with no `#<issue>` number (nolintlint can't) [c21 · read]. A file named `scripts/check-*` is check code to the agent-file guard [c22 · measured], which is what you want.
-- **Pin each tool in its own modfile.** `go get -modfile=tools/<name>.mod -tool <module>@<version>` pins it, and `go tool -modfile=tools/<name>.mod <name>` runs it [c19 · read, c17 · measured]. One file per tool, because two tools in one modfile moved each other's dependencies: adding oapi-codegen to a file with golangci-lint and go-arch-lint made go print "upgraded golang.org/x/tools v0.52.0 => v0.53.0" [c18 · measured]. golangci-lint's own install page says tool directives are not guaranteed to work and recommends its binary [c2 · read]. I think that warning is about exactly this, and one modfile per tool answers it. If the pack's builder sees a failure that only the tool-built binary has, switch that one tool to the official binary.
+- **File size: revive's `file-length-limit`, plus a script.** golangci-lint's revive linter has a `file-length-limit` rule with `max`, `skip-comments` and `skip-blank-lines`; with `max: 300` it flagged a 355-line file, and with `max: 500` it passed [c69 · measured]. Revive takes one limit per rule [c69]. So revive is the **500-line stop**, set with both skip options off so it counts lines the way `AGENTS.md` does [inferred: I ran it with both on], and `scripts/check-file-size.mjs` does the rest: the **300-line warning**, and a `//nolint` with no `#<issue>` number, which nolintlint can't check [c21 · read]. A file named `scripts/check-*` is check code to the agent-file guard [c22 · measured], which is what you want. My first draft said no linter caps a file; the fresh-session fact-check found the revive rule, and the first search missed it (the search found none, c4) [c3, c4 are corrected by c69]. arch-go counts function lines only [c16 · read].
+- **Pin each tool in its own modfile.** `go get -modfile=tools/<name>.mod -tool <module>@<version>` pins it, and `go tool -modfile=tools/<name>.mod <name>` runs it [c19 · read, c17 · measured]. One file per tool, because two tools in one modfile moved each other's dependencies: adding oapi-codegen to a file with golangci-lint and go-arch-lint made go print "upgraded golang.org/x/tools v0.52.0 => v0.53.0" [c18 · measured]. golangci-lint's own install page says tool directives are not guaranteed to work and recommends its binary [c2 · read], and then documents a dedicated modfile, run with `go tool -modfile=golangci-lint.mod golangci-lint run`, to keep its dependencies apart from the project's [c75 · read]. That is the method this pick uses, one file per tool. If the pack's builder sees a failure that only the tool-built binary has, switch that one tool to the official binary.
 
 **Confidence: medium.** Every part ran on a scratch app and caught what it should [c68 · measured]; they ran as three commands, not as the pack's single `lint`, and Go 1.27 was not tried (below). golangci-lint and depguard are GPL-3.0 [c1 · read]. I think that doesn't touch the product, because they only read the code and are not linked into it, but that is a licence call for the person.
 
-**What would change it:** a file-length linter shipping in golangci-lint (drop the script); go-arch-lint going quiet (arch-go does the layer rule too [c15 · measured]); the pack choosing a layout without `internal/` nesting (then go-arch-lint plus a depguard rule per module).
+**What would change it:** revive dropping or changing `file-length-limit` (then the script covers the stop too); go-arch-lint going quiet (arch-go does the layer rule too [c15 · measured]); the pack choosing a layout without `internal/` nesting (then go-arch-lint plus a depguard rule per module).
 
-**Pin:** golangci-lint 2.15.0 and go-arch-lint 1.19.2, on Go 1.26.11. **Re-check:** `curl -s https://proxy.golang.org/github.com/golangci/golangci-lint/v2/@latest` and the same for `github.com/fe3dback/go-arch-lint`.
+**Pin:** golangci-lint 2.15.0 and go-arch-lint 1.19.2, on Go 1.26.11 (both need Go 1.26 [c20, c70]). **Re-check:** `curl -s https://proxy.golang.org/github.com/golangci/golangci-lint/v2/@latest` and the same for `github.com/fe3dback/go-arch-lint`.
 
 ## 2. The check contract for Go
 
@@ -194,15 +194,15 @@ Same spec, three generators, on TypeScript 6.0.3 (the web pack's) and 7.0.2 (npm
 
 | Option | On TypeScript 6.0.3 | On TypeScript 7.0.2 | Install | Size of output | Activity |
 |---|---|---|---|---|---|
-| **openapi-typescript 7.13.0 + openapi-fetch 0.17.0** | Works; failed `tsc` after the rename [c52 · measured] | **Crashes on start** [c53 · measured] | npm **refuses** (peer `typescript ^5.x`); pnpm warns and installs [c51 · measured] | 90 lines of types plus a 6 kB client [c52 · measured, c56 · vendor] | Last release 2026-02-11; open issues for TypeScript 6 and 7 [c54 · read] |
+| **openapi-typescript 7.13.0 + openapi-fetch 0.17.0** | Works; failed `tsc` after the rename [c52 · measured] | **Crashes on start** [c53 · measured] | npm **refuses** (peer `typescript ^5.x`); pnpm warns and installs [c51 · measured] | 90 lines of types plus a 6 kB client [c52 · measured, c56 · vendor] | Last release 2026-02-11; open issues for TypeScript 6 and 7 (as the author read them on 2026-11-28) [c54, c74] |
 | **orval 8.49.0** | Works; failed `tsc` after the rename [c52 · measured] | **Works**; its output passes `tsc` 7.0.2 [c53 · measured] | Installs clean; Node 22.18 or newer, 26 dependencies [c57 · read] | One 116-line file [c52 · measured] | Releases weekly (8.44.0 on 2026-10-21, 8.49.0 on 2026-11-22) [c57 · read] |
-| **Hey API 0.99.0** | Works; failed `tsc` after the rename [c52 · measured] | **Crashes on start** [c53 · measured] | Installs clean [c58 · read] | 4 files, 2,026 lines with its client and core [c52 · measured] | 0.x, 683 open issues, a migration note per breaking release [c58 · read] |
+| **Hey API 0.99.0** | Works; failed `tsc` after the rename [c52 · measured] | **0.99.0 crashes on start** [c53 · measured]; its `next` pre-release (0.0.0-next-20260930190945) ran, exit 0 [c73 · measured] | Installs clean [c58 · read] | 4 files, 2,026 lines with its client and core [c52 · measured] | 0.x, 683 open issues (as the author read them on 2026-11-28), a migration note per breaking release [c58 · read] |
 
-**Pick: orval 8.49.0, with its `fetch` client (AI pick, not reviewed).** It is the only one of the three that runs on both TypeScript lines [c53 · measured]. The web pack is on 6.0.3 today, and 7.0.2 is what npm calls `latest`, so the pack would otherwise break on its next TypeScript bump [c50 · read]. Its README also lists React Query output [c57 · read], which the web pack already uses (TanStack Query 5.108.3 [c28 · read]); the pack can switch to hooks later. Its docs site refused the fetch (HTTP 403), so I read its README and tested it instead [c59 · read]. It moves fast: pin the exact version.
+**Pick: orval 8.49.0, with its `fetch` client (AI pick, not reviewed).** It is the only one of the three whose stable release runs on both TypeScript lines [c53 · measured]; Hey API's pre-release does too, but it is a pre-release [c73 · measured]. The web pack is on 6.0.3 today, and 7.0.2 is what npm calls `latest`, so the pack would otherwise break on its next TypeScript bump [c50 · read]. Its README also lists React Query output [c57 · read], which the web pack already uses (TanStack Query 5.108.3 [c28 · read]); the pack can switch to hooks later. Its docs site refused the fetch (HTTP 403), so I read its README and tested it instead [c59 · read]. It moves fast: pin the exact version.
 
-**Confidence: medium.** All three work today on 6.0.3. The pick rests on one measured fact (TypeScript 7), and openapi-typescript may ship support before the pack upgrades [c54 · read]; the small types-only client is still attractive.
+**Confidence: medium.** All three work today on 6.0.3. The pick rests on one measured fact (TypeScript 7), and openapi-typescript may ship support before the pack upgrades [c54, c74 · read]; the small types-only client is still attractive.
 
-**What would change it:** openapi-typescript releasing TypeScript 6 and 7 support (issues 2818 and 2872 are open [c54 · read]); orval breaking on a spec the scratch one didn't have (a real API has more shapes than two operations).
+**What would change it:** openapi-typescript releasing TypeScript 6 and 7 support (issues 2818, 2841 and 2872 were open on 2026-11-28, as the author read them [c74 · read]); orval breaking on a spec the scratch one didn't have (a real API has more shapes than two operations).
 
 **Pin:** orval 8.49.0. **Re-check:** `npm view orval version` and `npm view openapi-typescript version peerDependencies`.
 
@@ -210,28 +210,28 @@ Same spec, three generators, on TypeScript 6.0.3 (the web pack's) and 7.0.2 (npm
 
 | Option | Patterns and parameters | Wrong method and unknown path | Size and dependencies | Contract tools |
 |---|---|---|---|---|
-| **`net/http` ServeMux** (Go 1.22 and newer) | `GET /posts/{id}`, read with `PathValue`; the more specific pattern wins [c60 · read] | 405 with an Allow list; unknown path is plain text 404 [c63 · measured] | 5.81 MB, 0 third-party packages [c61, c62 · measured] | huma has an adapter (`humago`) [c36 · read]; oapi-codegen has `std-http-server` [c66 · read]; ogen mounts in it [c39 · read] |
+| **`net/http` ServeMux** (Go 1.22 and newer) | `GET /posts/{id}`, read with `PathValue`; the more specific pattern wins [c60 · read] | 405 with an Allow list; unknown path is plain text 404 [c63 · measured] | 5.81 MB, 0 third-party packages, the router included [c61, c62 · measured] | huma has an adapter (`humago`) [c36 · read]; oapi-codegen has `std-http-server` [c66 · read]; ogen mounts in it [c39 · read] |
 | **chi 5.5.0** (MIT) | Not tested beyond a route and a parameter | 405 with Allow; plain text 404 [c63 · measured] | 6.07 MB, 1 package [c61, c62 · measured] | All three have an adapter [c66 · read] |
 | **echo 5.4.7** (MIT; 4.16.6 is also current) | Not tested beyond a route and a parameter | 405 with Allow; JSON 404 [c63 · measured] | v5 6.42 MB, 1 package; v4 6.39 MB, **21** packages [c61, c62 · measured] | oapi-codegen has both (`echo-server`, `echo5-server`) [c66 · read] |
 
 **Pick: ServeMux (AI pick, not reviewed).** It gives method and parameter patterns, 405 with Allow and no dependency, and every contract tool above accepts it [c60, c63, c62, c36, c66]. What it lacks is route groups and a middleware stack; a 10-line helper that wraps a handler in a list of `func(http.Handler) http.Handler` does it [inferred]. A sign-in check such as the one in decision 340-1 is, I think, the usual `func(http.Handler) http.Handler` shape, so it wraps ServeMux the same way [inferred]. I did not time the routers: for a CRUD API I think routing cost is lost in the database call, and I found no source that says otherwise.
 
-Echo is the one to avoid: it has two current majors, with v4 on bug fixes until 2026-12-31 [c64 · read], an agent trained on v4 code will write v4 [inferred], and LabStack sells a commercial layer on top [c64 · read].
+Echo is the one to avoid, but not for its weight: v5 pulls in only itself [c62 · measured], so this rests on the version split and the paid layer. It has two current majors, with v4 on bug fixes until 2026-12-31 [c64 · read], an agent trained on v4 code will write v4 [inferred], and LabStack sells a commercial layer on top [c64 · read].
 
 **Confidence: high** that ServeMux is enough; **medium** that nobody will want chi's route groups later. Moving from ServeMux to chi later is small, because huma and oapi-codegen both have a chi adapter [c66, c36 · read].
 
 **What would change it:** a need for per-group middleware on dozens of routes (chi).
 
-**Pin:** the router is the Go standard library: **Go 1.26.11**. **Re-check:** `curl -s 'https://go.dev/dl/?mode=json' | grep -o '"version": "go[0-9.]*"' | head -3`.
+**Pin:** the router is the Go standard library: **Go 1.26.11**, the older of the two stable lines on purpose (1.27.4 is current and was not tried with these tools). **Re-check:** `curl -s 'https://go.dev/dl/?mode=json' | grep -o '^  "version": "go[0-9.]*"' | head -3`.
 
 ## Pinned versions
 
-Re-check any row with the command shown. Versions are those on 2026-11-28. Every Go tool below needs Go 1.26 [c20, c37 · measured, read]; the tools were run on 1.26.x toolchains, and **Go 1.27.4 is unconfirmed** with them [c24 · read].
+Re-check any row with the command shown. Versions are those on 2026-11-28. Every Go tool below needs Go 1.26: golangci-lint, go-arch-lint and oapi-codegen say `go 1.26.0`, and **huma says `go 1.26.10`** [c20, c70, c71 · measured, read]. The tools were run on 1.26.x toolchains, and **Go 1.27.4 is unconfirmed** with them [c24 · read].
 
 | Piece | Version | Re-check with |
 |---|---|---|
-| Go | 1.26.11 (1.27.4 is current; unconfirmed with these tools) | `curl -s 'https://go.dev/dl/?mode=json' \| grep -o '"version": "go[0-9.]*"' \| head -3` |
-| golangci-lint (with depguard, funlen, nolintlint) | 2.15.0 | `curl -s https://proxy.golang.org/github.com/golangci/golangci-lint/v2/@latest` |
+| Go | 1.26.11 (the older stable line on purpose; 1.27.4 is current, unconfirmed with these tools; 1.26.10 is the least huma accepts) | `curl -s 'https://go.dev/dl/?mode=json' \| grep -o '^  "version": "go[0-9.]*"' \| head -3` |
+| golangci-lint (with depguard, funlen, nolintlint, revive) | 2.15.0 | `curl -s https://proxy.golang.org/github.com/golangci/golangci-lint/v2/@latest` |
 | go-arch-lint | 1.19.2 | `curl -s https://proxy.golang.org/github.com/fe3dback/go-arch-lint/@latest` |
 | huma | 2.41.0 | `curl -s https://proxy.golang.org/github.com/danielgtaylor/huma/v2/@latest` |
 | orval | 8.49.0 | `npm view orval version` |
@@ -250,7 +250,7 @@ ServeMux, `go vet` and `go test` ship with Go. The tools ran on the 1.26.0 and 1
 - **H3 (drift needs a regenerate step): held** for both styles [c41, c42 · measured].
 - **H4 (openapi-typescript fits): partly wrong.** It runs on 6.0.3, npm refuses the install, and it crashes on 7.0.2 [c51, c53 · measured].
 - **H5 (strict server validates): wrong.** 201 on a body that breaks the spec [c43 · measured].
-- **H6 (a file-length linter): wrong.** Not found [c3, c4].
+- **H6 (a file-length linter): partly wrong.** I expected none and wrote that none existed; revive's `file-length-limit` is one, with a single limit per rule [c69 · measured]. A script is still needed for a second limit.
 - **H7 (ServeMux is enough): held** [c60, c63, c36, c66].
 - **H8 (a Makefile is the natural home): wrong for this kit.** The gate and the guard read `package.json` [c22, c23, c26].
 
@@ -259,7 +259,8 @@ ServeMux, `go vet` and `go test` ship with Go. The tools ran on the 1.26.0 and 1
 - **The pack as a whole.** No `pnpm check` ran on a real Go pack. The pieces ran as separate commands on scratch apps.
 - **Go 1.27.** The tools ran on 1.26.x toolchains.
 - **The git form of `gen:check`.** Copies were compared with `diff`.
-- **The gate's clean-home run.** The gate runs each command with an empty home [c26 · read]. I think the Go module cache then starts empty, so a first run downloads every module, and a `go.mod` that names a newer toolchain makes the `go` command fetch it unless `GOTOOLCHAIN=local` is set [inferred from s15]. Not run.
+- **The gate's clean-home run.** The gate runs each command with an empty home [c26 · read]. I think the Go module cache then starts empty, so a first run downloads every module, and a `go.mod` that names a newer toolchain makes the `go` command fetch it unless `GOTOOLCHAIN=local` is set [inferred from s15]. With `GOTOOLCHAIN=local` the installed Go must be 1.26.10 or newer, or huma will not build [c71 · read]. Not run.
+- **GitHub-only counts.** The open-issue counts (huma 119, Hey API 683), openapi-typescript's issues 2818, 2841 and 2872 and its last push date come from the GitHub REST API on 2026-11-28; the fresh fact-check could not reach GitHub and did not confirm them. The npm side (no openapi-typescript release since 2026-02-11) was confirmed.
 - **ogen, swaggo, Hurl, Taskfile and echo's and chi's route groups.** Read, not run.
 - **Windows.** Nothing ran there.
 - **Router speed.** Size and dependencies only.
@@ -269,15 +270,27 @@ ServeMux, `go vet` and `go test` ship with Go. The tools ran on the 1.26.0 and 1
 
 Not built here, because the issue's fence is research only:
 1. **Add the Go check config to the agent-file guard.** `.golangci.yml`, `.go-arch-lint.yml` and `tools/*.mod` are not check code today [c22 · measured]. An agent could loosen a lint rule with no weakening review.
-2. **Gate environment for Go.** Set `GOTOOLCHAIN=local`, and give `GOMODCACHE` and `GOCACHE` a cache folder like the pnpm store [inferred].
+2. **Gate environment for Go.** Install Go 1.26.10 or newer, set `GOTOOLCHAIN=local`, and give `GOMODCACHE` and `GOCACHE` a cache folder like the pnpm store [inferred].
 3. **huma's three settings** above: nullable arrays, `$schema`, the error body.
-4. **`scripts/check-file-size.mjs`**, and a rule that bans a plain `mux.HandleFunc` outside `cmd/`.
+4. **revive's `file-length-limit` at 500 in `.golangci.yml`, `scripts/check-file-size.mjs` for the 300 warning and the `#<issue>` check**, and a rule that bans a plain `mux.HandleFunc` outside `cmd/`.
 
 ## Fact-check
 
-**Status: draft. The fresh-session fact-check has not run yet.** It reads the branch from the remote, and this session could not push: the container's commit-signing helper was deleted during the session, and the coordinator asked me to stage the work and stop. When commits work again, the fresh session runs from `go-api-toolchain/briefs/fact-check.md`, its rows are added to `go-api-toolchain/fact-check.csv`, and the index row moves to `current`.
+**Status: current.** A fresh sub-agent with no earlier context ran the fact-check on 2026-11-28 against branch head 7daf213, from `go-api-toolchain/briefs/fact-check.md`, on Sonnet 5.5 at high effort. GitHub could not be reached from its session, so it used the module proxy and npm timestamps for release dates. It reported 38 findings: 28 confirmed, 7 wrong and 3 unconfirmed. They are in `go-api-toolchain/fact-check.csv` as the rows that start 'Fresh session', each with a disposition and a reason; the confirmed ones are grouped.
 
-**What was done in the meantime** (the author's own pass, not a fresh session): the pages behind the riskiest `read` claims were opened again and the quoted phrases found; the pinned versions were queried again; and two small fixes were made (c32's timing, and the Go version line in the boundaries experiment). The findings are the first rows of `fact-check.csv`, each with a disposition. Every `measured` claim was read against its experiment output but not re-run.
+Every pinned version matched. The oapi-codegen validation gap, the router sizes and package counts (byte for byte), and the TypeScript 7 crashes of openapi-typescript and Hey API 0.99.0 all reproduced. The pick for each of the four questions held. Confidence for question 1 stays medium: the part that changed is the file-size rule.
+
+**What it found and what changed:**
+- **A file-length linter exists.** revive's `file-length-limit` in golangci-lint 2.15.0 caps a file; the first draft said none did. The pick now uses it as the 500-line stop and keeps a script for the 300-line warning (c69; c3 and c4 are corrected by it; H6 is now partly wrong).
+- **Hey API's pre-release runs on TypeScript 7.** Only the stable 0.99.0 crashes. The pick's wording now says "the one stable release" (c73).
+- **go-arch-lint needs Go 1.26.0, not 1.25** (c70), and **huma needs Go 1.26.10 or newer** (c71): the pins, the gate item and the follow-ups say so.
+- **The Go re-check command printed 1.27.4 three times.** It now matches top-level lines only, and the pin says it is the older stable line on purpose.
+- **The depguard list-mode sentence was wrong** (c72); the issue list for openapi-typescript missed 2872 (c74); GitHub-only counts are labelled as read by the author; the router table says "the router included"; the echo advice says what it rests on.
+- **Unconfirmed, accepted:** the GitHub-only numbers, and the `measured` claims no second run backed. The fresh pass re-ran some of them (the oapi-codegen validation, the router sizes, the TypeScript 7 crashes, revive) and they matched.
+
+The fact-check also noted that golangci-lint's install page documents a dedicated modfile for running the tool, which is the method this pick uses (c75).
+
+**Before it:** the author's own pass (first rows of `fact-check.csv`) re-opened the pages behind the riskiest claims and found the quoted phrases.
 
 ## Provenance
 

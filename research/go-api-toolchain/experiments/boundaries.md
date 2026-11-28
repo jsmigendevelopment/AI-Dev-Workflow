@@ -772,3 +772,54 @@ check code  tsconfig.json
 check code  playwright.config.ts
 not covered go.mod
 ```
+
+## File length: revive's `file-length-limit` inside golangci-lint 2.15.0
+
+Added after the fresh-session fact-check found this rule: the first version of this file said no Go linter caps file length. golangci-lint's settings page lists the rule in revive's example (`name: file-length-limit`, `max`, `skip-comments`, `skip-blank-lines`). Run on 2026-11-28, with a fresh scratch folder.
+
+Script `exp-revive.sh`:
+
+```bash
+#!/bin/bash
+# revive's file-length-limit inside golangci-lint 2.15.0: a 355-line file against a limit of 300 and of 500.
+set -u
+D=$TMPDIR/rev; rm -rf $D; mkdir -p $D/tools; cd $D
+printf 'module example.com/rev\n\ngo 1.26\n' > go.mod
+printf 'module example.com/rev/tools\n\ngo 1.26\n' > tools/golangci-lint.mod
+go get -modfile=tools/golangci-lint.mod -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 > /dev/null 2>&1
+{ echo 'package rev'; echo; echo '// Big adds a lot.'; echo 'func Big() int {'; echo '	x := 0'; for i in $(seq 1 350); do echo "	x += $i"; done; echo '	return x'; echo '}'; } > big.go
+wc -l big.go
+GL="go tool -modfile=tools/golangci-lint.mod golangci-lint"
+for max in 300 500; do
+cat > .golangci.yml <<EOF
+version: "2"
+linters:
+  default: none
+  enable: [revive]
+  settings:
+    revive:
+      rules:
+        - name: file-length-limit
+          arguments:
+            - max: $max
+              skip-comments: true
+              skip-blank-lines: true
+EOF
+echo "--- revive file-length-limit max $max"
+$GL run ./... 2>&1 | head -4 | cut -c1-200; echo "exit ${PIPESTATUS[0]}"
+done
+```
+
+Output:
+
+```
+357 big.go
+--- revive file-length-limit max 300
+big.go:357: file-length-limit: file length is 355 lines, which exceeds the limit of 300 (revive)
+1 issues:
+* revive: 1
+exit 1
+--- revive file-length-limit max 500
+0 issues.
+exit 0
+```
