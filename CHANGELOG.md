@@ -4,6 +4,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-28
+
 ### Added
 
 - **The kit's own repo has a `docs/stack.md` on Full, so the agent-file guard stops asking for a label (#360).** It records Full automation with every switch (decision 259-1) and one code review per pull request (decision 28). `pr-review` says that where `docs/stack.md` says so, the one code review writes the `Weakening review:` line in its verdict. `agent-files.mjs gate` then passes a skill change on a writer's pass at the head, and fails one without it (decision 360-1).
@@ -368,7 +370,8 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 - The first kit: `AGENTS.md`, skills for the product grill, the tech grill, research, the tracer-bullet pyramid, issues, model routing, the build loop, reviews and browser tests, plus templates and a guide.
 - Skills live in `.agents/skills` for Codex and are copied to `.claude/skills` for Claude Code. CI checks the copies match.
 
-[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/jsmigendevelopment/onRails/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/jsmigendevelopment/onRails/compare/v0.5.3...v0.6.0
