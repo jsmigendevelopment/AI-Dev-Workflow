@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T12:20:14.342Z",
+  "issue": 474,
+  "pr": 618,
+  "sha": "34bd3100c7befc6200a358d877ddf7067144a18b",
+  "job": "carry-review",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 1,
+  "categories": [
+    "docs"
+  ],
+  "model_from": "session shows the model id only, no effort"
+}
