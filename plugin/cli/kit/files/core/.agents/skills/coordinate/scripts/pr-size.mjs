@@ -16,9 +16,9 @@
 // Exit 0: under the limit, or an exception with its reason. 1: at or over it. 2: a usage, git or API error, or a count
 // that isn't a whole number. Never a pass.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { changedPaths, gh, pages, prArgs } from "./agent-files.mjs";
 
@@ -299,4 +299,15 @@ export function main(argv) {
   return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+/** True when node started this file, also through a symlinked file or folder: import.meta.url is the real path, so
+ * argv[1] is resolved to its real path too (#439). */
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false; // An argv[1] that names no file (a REPL, a loader's stand-in) isn't this module.
+  }
+}
+
+if (isMainModule()) process.exitCode = main(process.argv.slice(2));
