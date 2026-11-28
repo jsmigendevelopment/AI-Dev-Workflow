@@ -76,18 +76,30 @@ export async function headSha(deps: DeployDeps) {
   return (await step(deps, 'read the commit', deps.run('git', ['rev-parse', 'HEAD']))).trim()
 }
 
+/** An insights record waiting to land: a new file under docs/insights/. It holds no code. */
+const PENDING_RECORD = /^\?\? "?docs\/insights\//
+
 /**
  * Stops when the checkout has uncommitted or untracked changes, or git can't tell: the build would
- * ship them under a commit that doesn't hold them. `then` says what to do instead.
+ * ship them under a commit that doesn't hold them. `then` says what to do instead. New files under
+ * docs/insights/ don't count, because the coordinator's checkout holds them until they land. An edit
+ * to a record git already has still counts.
  */
 export async function noChanges(deps: DeployDeps, then: string) {
-  const status = await deps.run('git', ['status', '--porcelain'])
+  // `-uall` lists each untracked file, not just its folder, so a real file next to a record shows.
+  const status = await deps.run('git', ['status', '--porcelain', '-uall'])
   if (status.status !== 0)
     throw new Stop(
       `git couldn't tell whether the checkout has uncommitted changes:\n${tail(status, 5)}\n${then}`,
     )
-  if (status.stdout.trim())
-    throw new Stop(`the checkout has uncommitted changes:\n${tail(status, 10)}\n${then}`)
+  const changes = status.stdout
+    .split('\n')
+    .filter((line) => line.trim() && !PENDING_RECORD.test(line))
+    .join('\n')
+  if (changes)
+    throw new Stop(
+      `the checkout has uncommitted changes:\n${tail({ ...status, stdout: changes, stderr: '' }, 10)}\n${then}`,
+    )
 }
 
 const ORIGIN_MAIN = 'refs/remotes/origin/main'
