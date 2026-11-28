@@ -1,0 +1,61 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T16:01:46.956Z",
+  "issue": 555,
+  "pr": 684,
+  "sha": "dff6f16943bd1b1bbdacb6dfce392533795c0504",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "state": "success",
+  "fence": "none",
+  "commands": [
+    {
+      "name": "node scripts/check-research.mjs research",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node scripts/check-research.mjs research --base origin/main",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cd cli && npm run bundle",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "cd cli && npm test",
+      "result": "pass",
+      "seconds": 165
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 80
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0
+    }
+  ]
+}
