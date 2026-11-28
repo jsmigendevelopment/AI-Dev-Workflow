@@ -39,22 +39,52 @@ export function singular(plural: string): string {
   )
 }
 
+// A word that starts like a flag: any dash (ASCII `-`, or a Unicode one such as an autocorrected
+// em dash `—dry`, en dash, minus sign U+2212), after any spaces and zero-width characters. An
+// empty or zero-width-only word counts too: it is never a name. Only a lone `--` is let through.
+const DASHES = /^[\s\p{Z}\p{Cf}]*(?:$|[\p{Pd}\u2212\u02d7\u2043\u30fc])/u
+const LOOKS_LIKE_DRY = /^[\s\p{Z}\p{Cf}\p{Pd}\u2212\u02d7\u2043\u30fc]*dry/iu
+
+/** The word as one visible line: spaces, controls and zero-width characters become \uXXXX. */
+function show(word: string): string {
+  if (!/[\p{Z}\p{C}\s]/u.test(word) && word !== '') return word
+  const text = [...word].map((c) =>
+    /[\p{Z}\p{C}\s]/u.test(c) ? `\\u${c.codePointAt(0)?.toString(16).padStart(4, '0')}` : c,
+  )
+  return `"${text.join('')}"`
+}
+
 /**
- * Stops at once, before anything is read or written, on any `--flag` this generator doesn't take.
+ * Stops at once, before anything is read or written, on an argument this generator doesn't take.
  * An ignored flag would still run for real: `--dry-run` (the kit CLI's own spelling), `--DRY`,
- * `--no-dry` or `--plan` must never turn a planned run into a real one. `known` lists the flags
- * with their value word, like `--item <singular>`. `--item=x` is a different, unknown flag.
- * A lone `--` is not a flag. Call it first, so no later step runs.
+ * `--no-dry`, `—dry` (an autocorrected dash) or `--plan` must never turn a planned run into a
+ * real one. Refused anywhere in the arguments, before or after the words:
+ *   - any `--flag` not in `known`, and any other word that starts with a dash (`-dry`, `-n`,
+ *     `—dry`, a Unicode dash, a space before the dash), and an empty or zero-width-only word;
+ *   - a value flag (`--item <singular>`) with no word after it, or a dash word after it.
+ * `known` lists the flags with their value word. `--item=x` is a different, unknown flag. A lone
+ * `--` is the usual end-of-options mark: it is ignored, and the words after it are taken as they
+ * are. Call it first, so no later step runs.
  */
 export function refuseUnknownFlags(known: string[]) {
   const names = known.map((k) => k.split(' ')[0])
-  const flag = process.argv.slice(2).find((a) => a.startsWith('--') && a !== '--' && !names.includes(a))
-  if (!flag) return
-  fail(
-    /^--dry/i.test(flag)
-      ? `Unknown flag ${flag}. Did you mean --dry?`
-      : `Unknown flag ${flag}. Known flags: ${known.join(', ')}.`,
-  )
+  const args = process.argv.slice(2)
+  for (const [i, word] of args.entries()) {
+    if (word === '--' || names.includes(word)) {
+      const spec = known.find((k) => k.split(' ')[0] === word && k.includes(' '))
+      const next = args[i + 1]
+      if (spec && (next === undefined || DASHES.test(next)))
+        fail(`${word} needs a word after it, like ${spec}.`)
+      continue
+    }
+    if (!DASHES.test(word)) continue
+    const bad = word.startsWith('--') ? word : show(word)
+    fail(
+      LOOKS_LIKE_DRY.test(word)
+        ? `Unknown flag ${bad}. Did you mean --dry?`
+        : `Unknown flag ${bad}. Known flags: ${known.join(', ')}.`,
+    )
+  }
 }
 
 /** `--dry`: every step below plans instead of acting; `report()` prints the plan. */

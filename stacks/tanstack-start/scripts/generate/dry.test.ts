@@ -195,7 +195,7 @@ describe('a mistyped --dry is refused, never ignored (AC-710-6)', () => {
     })
   })
 
-  it('refuses before any other check, and only the --dry look-alikes', () => {
+  it('names a --dry look-alike before any other check, and lets --dry and --no-route through', () => {
     // A bad name would fail too, but the flag is named first.
     const bad = generate(scratch(false), 'new-module.ts', ['Bad_Name', '--dry-run'])
     expect(bad.stderr).toBe(DID_YOU_MEAN('--dry-run'))

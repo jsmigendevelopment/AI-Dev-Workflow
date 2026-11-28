@@ -53,6 +53,39 @@ const PLACES: Place[] = [
   ['after the words', (flags, words) => [...words, ...flags]],
 ]
 
+/**
+ * Words that start like a flag without being `--flag` (#732): a single dash, an autocorrected
+ * Unicode dash, a space or zero-width character in front, or no word at all. [word, how the line
+ * shows it, whether it reads as a mistyped --dry].
+ */
+const DASH_WORDS: [word: string, shown: string, dry: boolean][] = [
+  ['-dry', '-dry', true],
+  ['-dry-run', '-dry-run', true],
+  ['-n', '-n', false],
+  ['-', '-', false],
+  ['-x', '-x', false],
+  ['\u2014dry', '\u2014dry', true], // em dash
+  ['\u2013dry', '\u2013dry', true], // en dash
+  ['\u2012dry', '\u2012dry', true], // figure dash
+  ['\u2015dry', '\u2015dry', true], // horizontal bar
+  ['\u2212dry', '\u2212dry', true], // minus sign
+  ['\u2010dry', '\u2010dry', true], // hyphen
+  ['\ufe63dry', '\ufe63dry', true], // small hyphen-minus
+  ['\uff0ddry', '\uff0ddry', true], // full-width hyphen-minus
+  ['\u2014\u2014dry', '\u2014\u2014dry', true], // doubled em dash, as autocorrect writes it
+  ['\u2014x', '\u2014x', false],
+  [' --dry', '"\\u0020--dry"', true],
+  ['\t-x', '"\\u0009-x"', false],
+  ['\u200b--dry', '"\\u200b--dry"', true],
+  ['\u200b-n', '"\\u200b-n"', false],
+  ['', '""', false],
+  [' ', '"\\u0020"', false],
+  ['\u200b', '"\\u200b"', false],
+  ['\u200b\u200d\ufeff', '"\\u200b\\u200d\\ufeff"', false],
+]
+
+const NEEDS_WORD = '--item needs a word after it, like --item <singular>.\n'
+
 describe.each(TARGETS)('$name refuses a flag it does not take (AC-710-7)', (target) => {
   const refuses = (flags: string[], says: string, build: Place[1]) => {
     const dir = target.scratchApp()
@@ -81,6 +114,16 @@ describe.each(TARGETS)('$name refuses a flag it does not take (AC-710-7)', (targ
 
   it.each(PLACES)('--foo bar %s: refused at --foo, "bar" is never taken as a name', (_where, build) =>
     refuses(['--foo', 'bar'], UNKNOWN('--foo', target.known), build),
+  )
+
+  it.each(DASH_WORDS.flatMap((w) => PLACES.map(([where, build]) => [...w, where, build] as const)))(
+    '%j %#: a dash-like word, refused (%s) before or after the words, nothing written, no tool run',
+    (word, shown, dry, _where, build) =>
+      refuses(
+        [word],
+        dry ? `Unknown flag ${shown}. Did you mean --dry?\n` : UNKNOWN(shown, target.known),
+        build,
+      ),
   )
 
   it('refuses before any other check, so a bad name or a missing word never hides it', () => {
@@ -117,6 +160,76 @@ describe('--no-route is a flag of new:module only (AC-710-7)', () => {
       expect(run.status).toBe(0)
       expect(run.stderr).toBe('')
       expect(section(run.stdout, 'Would create').length).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('new:module --item needs a word after it (AC-710-7, #732 AC-2)', () => {
+  const refuses = (args: string[]) => {
+    const dir = scratch(false)
+    const before = snapshot(dir)
+    const run = generate(dir, 'new-module.ts', args)
+    expect(run.status).toBe(1)
+    expect(run.stderr).toBe(NEEDS_WORD)
+    expect(run.stdout).toBe('')
+    expect(snapshot(dir)).toEqual(before)
+    expect(run.pnpmCalls).toBe('')
+  }
+
+  it.each([
+    ['last, after the name', [MOD, '--item']],
+    ['last, after other flags', [MOD, '--dry', '--item']],
+    ['last, with no name', ['--item']],
+    ['last, after --no-route', ['--no-route', MOD, '--item']],
+    ['followed by --dry, before the name', ['--item', '--dry', MOD]],
+    ['followed by --dry, after the name', [MOD, '--item', '--dry']],
+    ['followed by --no-route, before the name', ['--item', '--no-route', MOD]],
+    ['followed by --no-route, after the name', [MOD, '--item', '--no-route']],
+    ['followed by --foo', ['--item', '--foo', MOD]],
+    ['followed by a lone --', ['--item', '--', MOD]],
+    ['followed by a dash word', [MOD, '--item', '-x']],
+    ['followed by an em-dash word', ['--item', '\u2014dry', MOD]],
+    ['followed by an empty word', [MOD, '--item', '']],
+    ['given twice, the second one with no word', [MOD, '--item', 'dry-widget', '--item']],
+  ] as [string, string[]][])('--item %s: one line, nothing written, no tool run', (_name, args) =>
+    refuses(args),
+  )
+
+  it('still takes a word: --item dry-widget works before and after the name', () => {
+    for (const args of [
+      ['--item', 'dry-widget', MOD, '--dry'],
+      [MOD, '--item', 'dry-widget', '--dry'],
+    ]) {
+      const run = generate(scratch(false), 'new-module.ts', args)
+      expect(run.status).toBe(0)
+      expect(run.stderr).toBe('')
+    }
+  })
+
+  it('a lone -- ends the options and is ignored: new:module -- <name> makes the module', () => {
+    for (const args of [
+      ['--', MOD, '--dry'],
+      [MOD, '--', '--dry'],
+      ['--dry', '--', MOD],
+    ]) {
+      const run = generate(scratch(false), 'new-module.ts', args)
+      expect(run.status).toBe(0)
+      expect(run.stderr).toBe('')
+      expect(section(run.stdout, 'Would create').length).toBeGreaterThan(0)
+    }
+  })
+
+  it('--item is no flag of the other generators: refused as unknown, before or after the words', () => {
+    for (const target of TARGETS.filter((t) => t.script !== 'new-module.ts')) {
+      for (const [, build] of PLACES) {
+        const dir = target.scratchApp()
+        const before = snapshot(dir)
+        const run = generate(dir, target.script, build(['--item', 'x'], target.args))
+        expect(run.status).toBe(1)
+        expect(run.stderr).toBe(UNKNOWN('--item', '--dry'))
+        expect(snapshot(dir)).toEqual(before)
+        expect(run.pnpmCalls).toBe('')
+      }
     }
   })
 })
