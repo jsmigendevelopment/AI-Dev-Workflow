@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T09:18:02.086Z",
+  "issue": null,
+  "pr": 576,
+  "sha": "788c60764ec91e51c652c8c5b6e55683727d9b9c",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "outcome": "fail",
+  "model_from": "effort not shown in this session",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "not shown in this session",
+  "started": "2026-11-28T09:11:00Z",
+  "send_back": "review-must"
+}
