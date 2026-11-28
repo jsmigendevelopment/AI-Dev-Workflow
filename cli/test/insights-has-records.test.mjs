@@ -156,3 +156,32 @@ test("AC-333-4: WHEN carry exits 2 THEN the merge step fetches the branch and ru
 test("AC-333-4: WHEN carry exits 2 a second time on the same merge sha THEN the merge step sends it to a fresh review with one FYI, so it never retries forever", () => {
   assert.match(mergeStep(), /carry[^\n]*second exit 2 on the same merge sha[^\n]*fresh `pr-review`[^\n]*FYI/);
 });
+
+/** The stderr line that names `kind` as missing. */
+const hintFor = (stderr, kind) => stderr.split("\n").find((l) => l.includes(`no ${kind} record`));
+
+test("AC-551-1: WHEN has-records --pr reports a missing check record THEN its hint names mark-check --record and harvest as the two routes and doesn't end in 'Then harvest.', while the job and review hints keep it", unixOnly, () => {
+  const none = hasRecords(checkout([]));
+  assert.equal(none.status, 1, none.stdout + none.stderr);
+  const check = hintFor(none.stderr, "check");
+  assert.ok(check, none.stderr);
+  assert.doesNotMatch(check, /Then harvest\.$/, "the check hint doesn't end with the job and review tail");
+  assert.match(check, /mark-check\.mjs --record/, "route 1: the gate writes the record");
+  assert.match(check, /or harvest if a `Checks:` or `Code review:` comment at this sha carries the check line\.$/, "route 2: harvest, only when a comment carries it");
+  for (const kind of ["job", "review"]) {
+    assert.match(hintFor(none.stderr, kind), /fresh pr-review: its verdict comment carries the \w+ line\. Then harvest\.$/, `${kind} keeps Then harvest.`);
+  }
+  // Each kind on its own, so the line under test is the only one missing.
+  for (const [gone, left] of [["job", [CHECK, REVIEW]], ["check", [JOB, REVIEW]], ["review", [JOB, CHECK]]]) {
+    const r = hasRecords(checkout(left));
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.equal(hintFor(r.stderr, gone)?.endsWith("Then harvest."), gone !== "check", `${gone}: ${r.stderr}`);
+  }
+});
+
+test("AC-551-1: WHEN has-records --issue reports a missing check record THEN its hint is unchanged: the gate again, no harvest", unixOnly, () => {
+  const r = run(checkout([]), ["has-records", "--issue", "12", "--sha", SHA]);
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(hintFor(r.stderr, "check"), /: no check record\. run the local gate \(coordinate step 6\.1\) on this sha again: mark-check\.mjs --record writes it\.$/);
+  assert.doesNotMatch(r.stderr, /harvest/);
+});
