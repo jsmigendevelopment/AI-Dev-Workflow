@@ -39,6 +39,11 @@ export function singular(plural: string): string {
   )
 }
 
+// `--dry-run` is the kit CLI's own spelling (`onrails update --dry-run`), so a person may type it
+// here. Refuse it, and any `--dry=<value>`, before anything else: ignored, it would really write.
+const MISTYPED_DRY = process.argv.slice(2).find((a) => /^--dry(-run)?(=|$)/.test(a) && a !== '--dry')
+if (MISTYPED_DRY) fail(`Unknown flag ${MISTYPED_DRY}. Did you mean --dry?`)
+
 /** `--dry`: every step below plans instead of acting; `report()` prints the plan. */
 export const DRY = process.argv.includes('--dry')
 const plan = { create: [] as string[], edit: [] as string[], run: [] as string[] }

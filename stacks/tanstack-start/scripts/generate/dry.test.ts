@@ -154,7 +154,19 @@ describe.each(GENERATORS)('$name --dry', ({ script, args, withModule }) => {
 })
 
 describe('--dry refuses with the same message (AC-710-3)', () => {
-  const REFUSALS: { why: string; script: string; args: string[]; says: RegExp }[] = [
+  type Refusal = {
+    why: string
+    script: string
+    args: string[]
+    says: RegExp
+    /** Breaks the scratch app before the run, e.g. removes a line a generator edits next to. */
+    spoil?: (dir: string) => void
+  }
+  const rewrite = (dir: string, file: string, change: (text: string) => string) => {
+    const path = join(dir, file)
+    writeFileSync(path, change(readFileSync(path, 'utf8')))
+  }
+  const REFUSALS: Refusal[] = [
     { why: 'a bad name', script: 'new-module.ts', args: ['Bad_Name'], says: /must be kebab-case/ },
     {
       why: 'a bad component name',
@@ -195,17 +207,39 @@ describe('--dry refuses with the same message (AC-710-3)', () => {
       says: /no bareQueries\.list/,
     },
     { why: 'no arguments', script: 'new-table.ts', args: [], says: /Usage: pnpm new:table/ },
+    {
+      why: 'a composition root with no local import to anchor on',
+      script: 'new-module.ts',
+      args: ['dry-gadgets'],
+      says: /Could not update src\/server\/composition\.ts/,
+      spoil: (dir) =>
+        rewrite(dir, 'src/server/composition.ts', (t) => t.replace(/^import .* from '\.\/.*\n/gm, '')),
+    },
+    {
+      why: 'an e2e helpers file with no ROUTES list',
+      script: 'new-route.ts',
+      args: ['dry-reports/weekly', MOD],
+      says: /Could not update e2e\/helpers\.ts/,
+      spoil: (dir) =>
+        rewrite(dir, 'e2e/helpers.ts', (t) => t.replace('export const ROUTES = [', 'export const PAGES = [')),
+    },
   ]
 
-  it.each(REFUSALS)('$why', ({ script, args, says }) => {
-    const plain = generate(scratch(true), script, args)
+  const spoiled = (spoil?: (dir: string) => void) => {
+    const dir = scratch(true)
+    spoil?.(dir)
+    return dir
+  }
+
+  it.each(REFUSALS)('$why', ({ script, args, says, spoil }) => {
+    const plain = generate(spoiled(spoil), script, args)
     expect(plain.status).toBe(1)
     expect(plain.stderr).toMatch(says)
     for (const dryArgs of [
       [...args, '--dry'],
       ['--dry', ...args],
     ]) {
-      const dry = scratch(true)
+      const dry = spoiled(spoil)
       const before = snapshot(dry)
       const run = generate(dry, script, dryArgs)
       expect(run.status).toBe(1)
@@ -234,5 +268,39 @@ describe('--dry before or after the words (AC-710-4)', () => {
     expect(positional(['tasks', '--item', 'task'])).toEqual(['tasks'])
     expect(positional(['--item', 'task', 'tasks'])).toEqual(['tasks'])
     expect(positional(['notes', '--dry', 'task-badge'])).toEqual(['notes', 'task-badge'])
+  })
+})
+
+describe('a mistyped --dry is refused, never ignored (AC-710-6)', () => {
+  const LINE = (flag: string) => `Unknown flag ${flag}. Did you mean --dry?\n`
+
+  describe.each(GENERATORS)('$name', ({ script, args, withModule }) => {
+    it.each([
+      ['--dry-run', 'before the words', (a: string[]) => ['--dry-run', ...a]],
+      ['--dry-run', 'after the words', (a: string[]) => [...a, '--dry-run']],
+      ['--dry=yes', 'before the words', (a: string[]) => ['--dry=yes', ...a]],
+      ['--dry=yes', 'after the words', (a: string[]) => [...a, '--dry=yes']],
+    ])('%s %s: one line, nothing written, no tool run', (flag, _where, build) => {
+      const dir = scratch(withModule)
+      const before = snapshot(dir)
+      const run = generate(dir, script, build(args))
+      expect(run.status).toBe(1)
+      expect(run.stderr).toBe(LINE(flag))
+      expect(run.stdout).toBe('')
+      expect(snapshot(dir)).toEqual(before)
+      expect(run.pnpmCalls).toBe('')
+    })
+  })
+
+  it('refuses before any other check, and only the --dry look-alikes', () => {
+    // A bad name would fail too, but the flag is named first.
+    const bad = generate(scratch(false), 'new-module.ts', ['Bad_Name', '--dry-run'])
+    expect(bad.stderr).toBe(LINE('--dry-run'))
+    const value = generate(scratch(false), 'new-module.ts', [MOD, '--dry-run=1'])
+    expect(value.stderr).toBe(LINE('--dry-run=1'))
+    // Other flags keep their meaning: `--dry` plans, `--no-route` is still understood.
+    const ok = generate(scratch(false), 'new-module.ts', [MOD, '--dry', '--no-route'])
+    expect(ok.status).toBe(0)
+    expect(section(ok.stdout, 'Would create').length).toBeGreaterThan(0)
   })
 })
