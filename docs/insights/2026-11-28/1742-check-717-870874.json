@@ -1,0 +1,62 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T17:42:24.700Z",
+  "issue": null,
+  "pr": 717,
+  "sha": "3386f0246f792e87234082b87031f83ce7e18bf6",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "cd cli && npm run bundle",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "cd cli && npm test",
+      "result": "pass",
+      "seconds": 135
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 110
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "pack lint-rules.test.ts",
+      "result": "pass",
+      "seconds": 2
+    },
+    {
+      "name": "fresh app pnpm check",
+      "result": "pass",
+      "seconds": 69
+    }
+  ],
+  "state": "success",
+  "failed_step": null,
+  "flaky_rerun": false
+}
