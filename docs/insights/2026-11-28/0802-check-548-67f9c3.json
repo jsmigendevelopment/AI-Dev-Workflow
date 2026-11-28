@@ -1,0 +1,57 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T08:02:57.538Z",
+  "issue": 342,
+  "pr": 548,
+  "sha": "8548d1a8881292bead385b38fa5c3a139097b152",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "model_from": "system prompt gives the model ID; no effort level shown",
+  "state": "success",
+  "fence": "none",
+  "commands": [
+    {
+      "name": "check-research",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "decision-ids",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "sync-skills",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "npm-readme",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "cli bundle and test",
+      "result": "pass",
+      "seconds": 175
+    },
+    {
+      "name": "test:evals",
+      "result": "pass",
+      "seconds": 98
+    },
+    {
+      "name": "evals dry-run",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "pr-size",
+      "result": "pass",
+      "seconds": 2
+    }
+  ]
+}
