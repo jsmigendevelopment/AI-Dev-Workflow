@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **Which model did which job (#129).** `insights.mjs line job` now ends with a run line people read on GitHub: job, model, effort, time from `started=`, and the commit. `build` ends its pull request body with one and its commits with `Agent-Model:` and `Agent-Effort:` trailers; `pr-review`, `pr-security` and `qa` pass `started=`. A new optional `model_from` field says why a model or effort is `unknown`. `validate` refuses a control character in `job`, `model`, `effort` and `model_from`, so the run line stays one line. `npx onrails runs --pr <n>` (or `--issue <n>`, `--day <yyyy-mm-dd>`) prints the chain from the records, oldest first, and `--brief` gives `/back` one line per merged pull request (decision 129-1).
+
 ### Fixed
 
 - The pull request size check never passes what it can't count (#407). Any file that shows as binary but isn't a known binary type (an image, font, archive and the like), such as a UTF-16 `.md` or an extensionless script, is exit 2 with its name. In a pull request, an added or modified file with 0/0, no patch and content is exit 2, an empty new file isn't listed as binary, and a git error other than a missing path is exit 2. A `Size exception:` line inside a `<script>` or `<style>` block doesn't count (decisions 377-2 and 407-1).
