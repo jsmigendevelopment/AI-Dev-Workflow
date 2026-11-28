@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **Which model did which job (#129).** `insights.mjs line job` now ends with a run line people read on GitHub: job, model, effort, time from `started=`, and the commit. `build` ends its pull request body with one and its commits with `Agent-Model:` and `Agent-Effort:` trailers; `pr-review`, `pr-security` and `qa` pass `started=`. A new optional `model_from` field says why a model or effort is `unknown`. `validate` refuses a control character in `job`, `model`, `effort` and `model_from`, so the run line stays one line. `npx onrails runs --pr <n>` (or `--issue <n>`, `--day <yyyy-mm-dd>`) prints the chain from the records, oldest first, and `--brief` gives `/back` one line per merged pull request (decision 129-1).
+
 ### Fixed
 
 - **Every add-on's lint step, and the pack's pre-commit hook, make the Worker's types before `eslint --fix` (#425).** The `analytics`, `database-supabase`, `email-resend`, `jobs`, `r2-uploads` and `stripe` add-ons now run `pnpm cf-typegen`, then `eslint --fix` and `prettier --write` on their own files only, as the Sentry add-on does since #320. The lefthook pre-commit job runs `pnpm cf-typegen` first, so it no longer fails on `no-unsafe-argument` in a fresh copy or drops a needed type assertion from a staged file (decision 425-1).

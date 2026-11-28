@@ -37,6 +37,9 @@ export const COPIES = [
   // The weekly report (#381) reads the records with the format's validate, so it goes wherever that goes.
   [join("scripts", "insights-week.mjs"), join(SRC, "coordinate", "scripts", "insights-week.mjs")],
   [join("scripts", "insights-week.mjs"), join("cli", "src", "insights-week.mjs")],
+  // The run log (#129) reads them the same way: a pull request's chain, an issue's or a day's.
+  [join("scripts", "insights-runs.mjs"), join(SRC, "coordinate", "scripts", "insights-runs.mjs")],
+  [join("scripts", "insights-runs.mjs"), join("cli", "src", "insights-runs.mjs")],
   // push-secrets' rule for starting gh and npx, also for setup-github's gh (#238), copied next to each script that needs it.
   // A skill script imports another skill's script only when both always ship together, as pyramid's check-plan.mjs
   // imports issues' check-issue-size.mjs (#376).

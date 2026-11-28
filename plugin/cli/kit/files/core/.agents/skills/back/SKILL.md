@@ -40,7 +40,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
 6. **Report, sized to the time away.** After a short break, 3 lines. After a night, at most 10 lines: counts plus the top three in each, with links to the rest.
    - **To try:** the "To try" list in `docs/state.md`, newest first: what to do and what they'll see, with the test link.
-   - **Merged:** split into *checked and passed*, *checked and failed*, and *not checked yet*, with test links.
+   - **Merged:** split into *checked and passed*, *checked and failed*, and *not checked yet*, with test links. Under each, the line `node .agents/skills/coordinate/scripts/insights-runs.mjs --pr <n> --brief` prints: who built and reviewed it, at what effort, how long (#129).
    - **Failed or parked,** and why.
    - **Waiting on you,** most important first: 🛑 blockers, then ⏳ decisions, each with its recommended answer, from the board and the "Waiting on you" list in `docs/state.md`. Then run `node .claude/hooks/notify.mjs --clear`, so held pings don't fire now that they've been seen.
    - **FYI:** ready to try, usage, rate limits, and stale research dossiers, each with its re-check date. Below Full, offer to re-check one before a decision leans on it. On Full, list it, and re-check it before a decision leans on it.

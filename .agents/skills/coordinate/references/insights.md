@@ -22,7 +22,7 @@ Exit 2 names the bad field and writes nothing. Exit 1 is any other failed write.
 
 ## The envelope (every kind)
 
-`v` (1), `kind`, `at` (UTC ISO; `ONRAILS_NOW` sets it in tests), `issue`, `pr`, `sha` (40 hex or null), `job`, `tool`, `model`, `effort`. Pass `model=` and `effort=` from your own session, the way preflight's `--model`/`--effort` take them. Left out, they are `unknown`. Never write the one the routing table asked for.
+`v` (1), `kind`, `at` (UTC ISO; `ONRAILS_NOW` sets it in tests), `issue`, `pr`, `sha` (40 hex or null), `job`, `tool`, `model`, `effort`, and optional `model_from`. Pass `model=` and `effort=` from your own session, the way preflight's `--model`/`--effort` take them. Left out, they are `unknown`. Never write the one the routing table asked for. Either one `unknown`? Add `model_from=<why>`: where you looked (#129).
 
 Optional `source=board`: a record from `board.mjs` (#346) needs only the envelope.
 
@@ -44,6 +44,13 @@ Text is capped at 200 characters. A list is comma-separated or a JSON list, and 
 | `usage` | **limit**, **waited_minutes** |
 | `gate` | **pass**, **issues_done**, **hours_to_ready** |
 | `note` | **kind_of** (`went-right`, `went-wrong`, `look-again`), **belongs** (`project`, `kit`, `tool`), **text**, links (record file names; required unless `went-right`) |
+
+## Which model did which job (#129)
+
+- **The run line.** `line job` prints the comment, then one line people read on GitHub: `Run: <job> · <model> · <effort> · <time> · #<pr> @ <sha>`. Pass `started=<UTC time>` (`date -u +%Y-%m-%dT%H:%M:%SZ` when the run starts) for the time; with none, or one that isn't a UTC time, it says `unknown`. The builder's pull request body ends with one (`outcome=pr-opened`), and so does every reviewer's and QA's verdict.
+- **Commit trailers.** A builder's commits end with `Agent-Model: <model>` and `Agent-Effort: <effort>`.
+- **The log.** `node .agents/skills/coordinate/scripts/insights-runs.mjs --pr <n>` (or `npx onrails runs --pr <n>`) prints a pull request's chain, oldest first, with each run's model, effort and time; `--issue <n>` the same from the issue, `--day <yyyy-mm-dd>` one day, and `--pr <n> --brief` the one line `/back` gives. A build's time runs from its start record.
+- **No account.** A record has no account field, so the writer refuses one: no record names an account (decision 129-1).
 
 ## What a run cost (#380)
 
