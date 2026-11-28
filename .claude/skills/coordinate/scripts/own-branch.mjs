@@ -7,7 +7,8 @@
 // access or higher, as a whole line in the claim's exact form: "Claimed by <session> at <time> · branch <name>".
 // A Dependabot bump passes too, with no claim (#226): opened by dependabot[bot] from a dependabot/ branch in this
 // repo, every commit Dependabot's and verified, and changing only dependency versions in existing package.json
-// files and registry lockfiles (dependabot-bump.mjs).
+// files and registry lockfiles, or the versions of existing require lines in go.mod with its go.sum lines (#531,
+// dependabot-bump.mjs). A Go bump gets the same exit codes as an npm one.
 // On a pass it prints the head's full sha. It reads the API only, and runs nothing from the pull request.
 // Exit 0: the loop's own branch. 1: not, so never check it out or run it. 2: a usage or API error, including an
 // access check with no answer (a proxy's 403, a 5xx, a rate limit, the network), or a bump's file list that doesn't
