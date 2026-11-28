@@ -36,6 +36,41 @@ test("AC-378-1 and AC-378-2: size-send-back: each shortcut fails its own check, 
   for (const [name, [steps, want]] of Object.entries(SHORTCUTS)) assert.deepEqual(failedWith(t, steps), want, name);
 });
 
+// #512: the size check is the same run after a `cd <dir> &&`, or when the command is split over lines.
+const PR_SIZE = `${SCRIPTS}/pr-size.mjs`;
+const SIZE_ARGS = "--base main --head feat/1-report";
+const REST = [SPLIT_BRIEF, REVIEW_TWO, MERGE_TWO, DONE];
+
+test("AC-512-1: WHEN a plan step runs `cd <dir> && node .../pr-size.mjs`, or splits the command over lines, THEN size-checked passes", { skip: skipWin }, (t) => {
+  const RUNS = {
+    "cd <dir> && node": `cd . && node ${PR_SIZE} ${SIZE_ARGS} || true`,
+    "cd <dir> && node, the dir from a command": `cd "$(git rev-parse --show-toplevel)" && node ${PR_SIZE} ${SIZE_ARGS} || true`,
+    "cd <dir>; node": `cd .; node ${PR_SIZE} ${SIZE_ARGS} || true`,
+    "cd <dir> on one line, node on the next": `cd .\nnode ${PR_SIZE} ${SIZE_ARGS} || true`,
+    "node, a backslash, then the script": `node \\\n  ${PR_SIZE} ${SIZE_ARGS} || true`,
+    "node over several lines, one flag a line": `node ${PR_SIZE} \\\n  --base main \\\n  --head feat/1-report || true`,
+    "cd <dir> &&, a backslash, then node": `cd . && \\\n  node ${PR_SIZE} ${SIZE_ARGS} || true`,
+    "a blank line, then node": `\n  node ${PR_SIZE} ${SIZE_ARGS} || true`,
+  };
+  for (const [name, bash] of Object.entries(RUNS)) assert.deepEqual(failedWith(t, [{ bash }, ...REST]), [], name);
+});
+
+test("AC-512-1: WHEN a plan step only reads or searches pr-size.mjs, or names it after a cd, an echo or a comment, THEN size-checked still fails", { skip: skipWin }, (t) => {
+  const NOT_RUNS = {
+    "grep -n node": `grep -n node ${PR_SIZE}`,
+    "cd <dir> && grep -n node": `cd . && grep -n node ${PR_SIZE}`,
+    "cd <dir> && cat": `cd . && cat ${PR_SIZE}`,
+    "grep split over lines": `grep -n \\\n  node ${PR_SIZE}`,
+    "grep on the line after a cd": `cd .\ngrep -n node ${PR_SIZE}`,
+    "echo": `echo node ${PR_SIZE}`,
+    "echo, quoted, with a semicolon before node": `echo "done; node ${PR_SIZE}"`,
+    "echo, quoted, with && before node": `echo 'ready && node ${PR_SIZE}'`,
+    "a comment": `# node ${PR_SIZE}`,
+    "a comment line, then another command": `# node ${PR_SIZE} comes next\ngit status`,
+  };
+  for (const [name, bash] of Object.entries(NOT_RUNS)) assert.deepEqual(failedWith(t, [{ bash }, ...REST]), ["AC-378-1-size-checked"], name);
+});
+
 test("AC-378-1 and AC-378-2: the fixture's #1 is over the limit and #2 is under it, by the kit's own pr-size.mjs", { skip: skipWin }, async (t) => {
   const { build } = await import("../scenarios/size-send-back/fixture.mjs");
   const dir = join(tempDir(t), "repo");

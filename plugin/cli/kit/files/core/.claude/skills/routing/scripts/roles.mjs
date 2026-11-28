@@ -3,7 +3,7 @@
 //   node .agents/skills/routing/scripts/roles.mjs [cto|coordinator|builder] [--project <dir>]
 // Prints one line per role, e.g. "cto: Claude Opus 5.5 · high (docs/profile.toml)". Warnings go to stderr.
 // Dependency-free, Node 22+.
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -158,7 +158,18 @@ function main(argv) {
   return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+/** True when node started this file, also through a symlinked file or folder: import.meta.url is the real path, so
+ * argv[1] is resolved to its real path too (#506, as in pr-size.mjs, #439). */
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false; // An argv[1] that names no file (a REPL, a loader's stand-in) isn't this module.
+  }
+}
+
+if (isMainModule()) {
   try {
     process.exitCode = main(process.argv.slice(2));
   } catch (error) {

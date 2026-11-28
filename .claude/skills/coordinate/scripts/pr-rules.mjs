@@ -13,7 +13,7 @@
 // Exit 0: every rule holds. 1: a rule is broken, the head moved, or GitHub's file list stops short of the pull
 // request (it lists at most 3000 files) on two reads in a row. 2: a usage or API error, or counts that don't add up
 // on two reads in a row. Never a pass.
-import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { MAX_FILES, changedPaths, gh, pages, prArgs } from "./agent-files.mjs";
 import { CAP, recordProblem } from "./insights-land.mjs";
@@ -136,4 +136,15 @@ export function main(argv) {
   return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+/** True when node started this file, also through a symlinked file or folder: import.meta.url is the real path, so
+ * argv[1] is resolved to its real path too (#506, as in pr-size.mjs, #439). */
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false; // An argv[1] that names no file (a REPL, a loader's stand-in) isn't this module.
+  }
+}
+
+if (isMainModule()) process.exitCode = main(process.argv.slice(2));
