@@ -169,9 +169,10 @@ Steps 2 and 3 happen in the same turn you find the problem. A blocker said only 
 2. **Comment the message** on the issue or pull request. No issue to comment on? Open one. For a blocker or a decision, add the `needs-human` label. For a blocker, add `blocker` too, and the "Setup step for you" when the person must act outside the repo.
 3. **Ping and record it:**
    ```bash
-   node .claude/hooks/notify.mjs --level decision --issue 14 --title "Public links or invite only?" --message "<the questions>" --link <issue url>
+   node .claude/hooks/notify.mjs --level decision --issue 14 --title "Public links or invite only?" --message "<the questions>" --link <issue url> --rule <file>:<line>
    ```
    It adds the board event for you (don't add a second one) and prints what it did: `sent`, `batched`, `held` or `recorded`. It works from Codex and scripts too. The path is in the repo.
+   - **`--rule <file>:<line>`** names what made you stop: the gate's rule, the always-stop item or the skill step, for example `--rule AGENTS.md:12`. Add `--always-stop` for an always-stop item. notify.mjs writes an `ask` insights record with them (#334) and prints its path under `record`. Commit it with your work.
 4. **Waiting on you.** If you're the coordinator or the thread the person talks to, add a line to "Waiting on you" in `docs/state.md`, most important first: `🛑 #16 · test deploy key missing · since 08:31`. Builders on a branch skip this. The coordinator copies it from the label.
 5. **Sheet.** If the profile sets `[board] sheet` and you have the Google Sheets connector, append one row for this ask to the project's tab (see `../coordinate/board.md`). The next sweep rewrites the tab anyway.
 6. **Keep going** on other safe work. Never wait.
@@ -196,6 +197,7 @@ Steps 2 and 3 happen in the same turn you find the problem. A blocker said only 
   - write it down as `docs/decisions/<issue>-<n>.md`;
   - remove `needs-human`;
   - add a `decision` board event (`board.mjs event decision issue=14 title="..."`);
+  - write the answered record, if the ask's record exists: `node .agents/skills/coordinate/scripts/insights.mjs write ask answered=<the ask record's file name>`. It counts the minutes waited. The agent that acts on the answer writes it;
   - pick the work back up.
 
 ## When the person is back
