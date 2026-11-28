@@ -71,7 +71,13 @@ With no key, the app builds and tests pass, and every send fails closed.
    ```
    Send only to an address you got from the auth provider or verified yourself. Never auto-reply to an address typed into a public form: that mails strangers on your domain's reputation.
 6. Keys stay with the person: they verify a sending domain in Resend (SPF and DKIM records), then set `pnpm exec wrangler secret put RESEND_API_KEY --env test` and `EMAIL_FROM` (and again with `--env production`). Use a separate key for test and production.
-7. `pnpm exec eslint --fix . && pnpm format`: the pack's lint sorts imports, including the ones this add-on added.
+7. Sort the imports this add-on added and format its files, and only its files. Make the Worker's types first: `worker-configuration.d.ts` is git-ignored, so a fresh copy has none until a lint or typecheck runs, and without it the typed rules' fixes misread the code (they drop type assertions that are needed, and typecheck fails).
+   ```sh
+   pnpm cf-typegen &&
+   pnpm exec eslint --fix src/lib/email src/server/email.resend.ts src/server/email.resend.test.ts src/env.d.ts src/server/composition.ts &&
+   pnpm exec prettier --write src/lib/email src/server/email.resend.ts src/server/email.resend.test.ts src/env.d.ts src/server/composition.ts
+   ```
+   The `&&` stops the step if the types can't be made. Never `eslint --fix .` here: a whole-project fix can rewrite files this add-on never touched.
 8. `pnpm check`.
 
 ## Verify

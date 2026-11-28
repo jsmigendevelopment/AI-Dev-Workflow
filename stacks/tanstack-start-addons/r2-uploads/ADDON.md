@@ -72,7 +72,13 @@ With no keys: the app builds and tests pass, `/files` shows the signed-out state
    ```
 5. `pnpm db:generate --name files`, read the SQL (one table, two indexes), then `pnpm db:migrate:local`.
 6. `pnpm build` once, so `src/routeTree.gen.ts` picks up `/files` and `/api/files/$id`. Optionally, add a `/files` link to `src/components/site-header.tsx`.
-7. `pnpm exec eslint --fix . && pnpm format`: the pack's lint sorts imports, including the ones this add-on added.
+7. Sort the imports this add-on added and format its files, and only its files. Make the Worker's types first: `worker-configuration.d.ts` is git-ignored, so a fresh copy has none until a lint or typecheck runs, and without it the typed rules' fixes misread the code (they drop type assertions that are needed, and typecheck fails). Step 2's `FILES` bucket is in the types it makes.
+   ```sh
+   pnpm cf-typegen &&
+   pnpm exec eslint --fix src/modules/files 'src/routes/api/files.$id.ts' src/routes/files.tsx src/server/request-actor.ts src/server/composition.ts src/components/site-header.tsx eslint.config.js &&
+   pnpm exec prettier --write src/modules/files 'src/routes/api/files.$id.ts' src/routes/files.tsx src/server/request-actor.ts src/server/composition.ts src/components/site-header.tsx eslint.config.js wrangler.jsonc
+   ```
+   The `&&` stops the step if the types can't be made. Never `eslint --fix .` here: a whole-project fix can rewrite files this add-on never touched. The quotes keep the shell from reading `$id`.
 8. `pnpm check`.
 8. Before the first deploy: `node scripts/setup-cloudflare.mjs --dry-run`, show the person, then run it for real; it creates `app-files-test` and `app-files-production`. `pnpm deploy:test` and `pnpm deploy:production` apply the migration. R2 has a free tier; past it, storage and operations cost money, so creating the buckets is the person's yes.
 

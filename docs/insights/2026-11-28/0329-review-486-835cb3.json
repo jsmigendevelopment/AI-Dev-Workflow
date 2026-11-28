@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T03:29:43.734Z",
+  "issue": null,
+  "pr": 486,
+  "sha": "612fe9f42a9254e3d66eccf13c198f95b8caa832",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "changes",
+  "must": 1,
+  "nice": 4,
+  "categories": [
+    "correctness",
+    "tests",
+    "docs"
+  ]
+}
