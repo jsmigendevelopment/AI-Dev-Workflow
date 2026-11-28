@@ -180,3 +180,23 @@ test("AC-400-1: WHEN a split parent on stdin has no labels field THEN the script
   assert.equal(run([], JSON.stringify(children)).status, 0, "issues that split nothing still read without labels");
   assert.match(read("docs/decisions/375-1.md"), /\*\*Decision:\*\*[^\n]*--json number,title,body,labels/);
 });
+
+test("AC-433-1: WHEN a real reason has 'so' or 'and' inside a negation, or the split is the subject of a consequence, THEN it passes", () => {
+  for (const reason of ["not so easy to split into parts", "too risky and costly to split into parts",
+    "cannot be safely and cleanly split into parts", "hard to review but harder to split into parts",
+    "mechanical rename: splitting into parts would break the build"]) {
+    assert.deepEqual(checkSizes([issue(5, `exception: ${reason}`)]), [], reason);
+  }
+  assert.match(consistency, /exits 2 when it gets no issue, or a split parent with no `labels` field/);
+});
+
+test("AC-433-1: WHEN 'so', 'and', 'then' or 'but' is followed by the split THEN the reason still fails as both", () => {
+  const both = "#10 Parent: the Size: line states both an exception and a split. Keep one.";
+  const children = [issue(12, "300 lines"), issue(13, "300 lines")];
+  for (const reason of ["too big and split into child issues", "too big so we split it into child issues",
+    "too big, and it was split into child issues", "too big then split into child issues", "too big but already split",
+    "splitting into child issues would be cleaner, so it was split into parts", "splitting into child issues would be cleaner"]) {
+    const parent = { ...issue(10, `exception: ${reason}`, "Parent"), labels: ["status:ready"] };
+    assert.deepEqual(checkSizes([parent, ...children]), [both], reason);
+  }
+});
