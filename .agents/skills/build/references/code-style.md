@@ -4,6 +4,8 @@ The owner's opinionated preferences. Lint enforces what it can. This covers the 
 
 These rules hold whatever the stack. The `build` skill follows them, the `pr-review` skill checks them, and a stack pack turns as many as it can into lint rules. Tests have their own page: [testing.md](testing.md). How an app is put together (state, errors, loading, UI layers, the API, issue links) is in [app-conventions.md](app-conventions.md).
 
+The app has a Go backend? The rules that name a TypeScript tool (3, 4, 5, 11, 12, 14 and 15) have a Go version in [code-style-go.md](code-style-go.md), numbered the same.
+
 ## The rules
 
 ### 1. Search before you write
