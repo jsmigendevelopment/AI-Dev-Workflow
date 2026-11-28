@@ -6,7 +6,8 @@ import { spawnSync } from "./child.mjs";
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { fake, logger, put, safeEnv, tmp, unixOnly } from "./helpers.mjs";
+import { runChecks } from "../src/checks.mjs";
+import { fake, fakeSystem, logger, put, safeEnv, tmp, unixOnly } from "./helpers.mjs";
 import { stamp } from "./procs-fake.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -207,4 +208,58 @@ test("#185 round 1: doctor --fix plans with the PATH search exec runs, so a core
   assert.equal(pnpmFirst(dir, [projectBin]), "npm install -g corepack");
   fake(outside, "corepack", TOOL("outside"));
   assert.equal(pnpmFirst(dir, [projectBin, outside]), "corepack enable");
+});
+
+// #538: with a go.mod, doctor says whether go is found and new enough. The fake system answers `go version`.
+const GO_MOD = "module example.com/app\n\ngo 1.26.10\n";
+function goChecks(files, sys) {
+  const dir = tmp();
+  for (const [path, text] of Object.entries(files)) put(dir, path, text);
+  return runChecks(dir, { sys }).filter((c) => /\bgo\b/i.test(c.label) && !/\bgit|github/i.test(c.label));
+}
+
+test("AC-538-4: WHEN doctor runs in a folder with a go.mod and no go THEN it reports go as not found, with the install fix", () => {
+  const [check, ...rest] = goChecks({ "go.mod": GO_MOD }, fakeSystem({ commands: ["git"] }));
+  assert.equal(rest.length, 0);
+  assert.equal(check.status, "✗");
+  assert.equal(check.label, "go not found");
+  assert.match(check.fix, /Install Go 1\.26\.10 or newer from https:\/\/go\.dev\/dl\//);
+  assert.deepEqual(check.remedy.print, ["Install Go 1.26.10 or newer from https://go.dev/dl/"]);
+});
+
+test("AC-538-4: WHEN go is found and new enough THEN the check passes, and an older go fails with the version it found", () => {
+  const probes = (out) => ({ "go version": { ok: true, out, all: out } });
+  const [ok] = goChecks({ "go.mod": GO_MOD }, fakeSystem({ commands: ["go"], probes: probes("go version go1.26.11 linux/amd64") }));
+  assert.equal(ok.status, "✓");
+  assert.equal(ok.label, "Go 1.26.11 (go.mod needs 1.26.10)");
+  const [old] = goChecks({ "go.mod": GO_MOD }, fakeSystem({ commands: ["go"], probes: probes("go version go1.24.7 linux/amd64") }));
+  assert.equal(old.status, "✗");
+  assert.equal(old.label, "Go 1.24.7 found, go.mod needs 1.26.10");
+  assert.match(old.fix, /Install Go 1\.26\.10 or newer/);
+  // A go.mod with no go line still asks for a go, and any answer that names a version passes.
+  const [bare] = goChecks({ "go.mod": "module x\n" }, fakeSystem({ commands: ["go"], probes: probes("go version go1.21.0 linux/amd64") }));
+  assert.equal(bare.label, "Go 1.21.0 (go.mod has no go line)");
+});
+
+test("AC-538-4: WHEN the folder has no go.mod THEN doctor lists nothing about go and never runs it", () => {
+  const sys = fakeSystem({ commands: ["go"] });
+  const asked = [];
+  const probe = sys.probe;
+  sys.probe = (cmd, args, opts) => (asked.push(cmd), probe(cmd, args, opts));
+  assert.deepEqual(goChecks({}, sys), []);
+  assert.equal(asked.includes("go"), false);
+});
+
+test("AC-538-4: doctor never runs a go the project ships, and says where it found one", unixOnly, () => {
+  const dir = tmp(), outside = tmp("onrails-bin-"), projectBin = join(dir, "node_modules", ".bin");
+  put(dir, "go.mod", GO_MOD);
+  fake(projectBin, "go", TOOL("planted"));
+  const none = doctorChild(dir, { bins: [projectBin] });
+  assert.equal(none.calls, "");
+  assert.match(none.stdout, /✗ go not found \(go found only in a node_modules\/\.bin, not run\)\n/);
+  fake(outside, "go", `#!/usr/bin/env node\nrequire("fs").appendFileSync(process.env.FAKE_LOG, "outside-go " + process.argv.slice(2).join(" ") + "\\n");\nconsole.log("go version go1.26.11 linux/amd64");\n`);
+  const found = doctorChild(dir, { bins: [projectBin, outside] });
+  assert.match(found.calls, /^outside-go version$/m);
+  assert.doesNotMatch(found.calls, /planted/);
+  assert.match(found.stdout, /✓ Go 1\.26\.11 \(go\.mod needs 1\.26\.10\)/);
 });
