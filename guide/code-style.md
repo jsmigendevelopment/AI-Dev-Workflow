@@ -89,7 +89,7 @@ No comments that narrate the code (`// loop over the users`). Write comments for
 
 ### 13. Small pull requests
 
-Stay under 1,000 changed lines, not counting lockfiles, generated files and test fixtures. Over that, split it, or give it the `size-exception` label and a `Size exception: <reason>` line in the description.
+Stay under 1,000 changed lines, not counting lockfiles, generated files and test fixtures; check with `node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main`. Over that, split it, or give it the `size-exception` label and a `Size exception: <reason>` line in the description.
 
 **Why:** reviewers, human or AI, catch less as a diff grows. A small pull request gets a real review.
 
