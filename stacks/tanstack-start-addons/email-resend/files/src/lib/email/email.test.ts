@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+
 import { AppError } from '@/lib/app-error'
+
 import { disabledEmailSender, type EmailMessage } from './email'
 import { memoryEmailSender } from './email.memory'
 import { html } from './html'
