@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T17:10:15.691Z",
+  "issue": null,
+  "pr": 704,
+  "sha": "722f20cc1e1f32d9b6340855b52ebd2d91ded409",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "pass",
+  "model_from": "the worker setup notes",
+  "usage_before": "unknown",
+  "usage_after": "unknown",
+  "usage_from": "not shown in a cloud session",
+  "started": "2026-11-28T17:09:33Z"
+}
