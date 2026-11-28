@@ -4,6 +4,10 @@ All notable changes to the kit are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Fixed
+
+- **Every add-on's lint step, and the pack's pre-commit hook, make the Worker's types before `eslint --fix` (#425).** The `analytics`, `database-supabase`, `email-resend`, `jobs`, `r2-uploads` and `stripe` add-ons now run `pnpm cf-typegen`, then `eslint --fix` and `prettier --write` on their own files only, as the Sentry add-on does since #320. The lefthook pre-commit job runs `pnpm cf-typegen` first, so it no longer fails on `no-unsafe-argument` in a fresh copy or drops a needed type assertion from a staged file (decision 425-1).
+
 ## [0.7.2] - 2026-11-28
 
 ### Added
