@@ -16,7 +16,8 @@ const QUESTIONS = [
   ["github_plan", "GitHub plan", ["free", "team", "enterprise"]],
   ["naming_style", "Naming style for apps (e.g. one lowercase word, festival themed)"],
   ["strongest", "Strongest model (planning, research)"],
-  ["everyday", "Everyday model (building, reviews)"],
+  ["everyday", "Everyday model (the loop, reviews, big builds)"],
+  ["fast", "Fast model (the builder's model, e.g. Claude Sonnet 5.5)"],
   ["creative", "Creative model (art, copy)"],
   ["second_opinion", "Second-opinion model from another vendor"],
 ];

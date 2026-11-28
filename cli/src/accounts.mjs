@@ -8,7 +8,7 @@ import { FAIL, OK } from "./marks.mjs";
 import { profilePath } from "./profile.mjs";
 
 const TOOLS = ["claude", "codex"];
-const RULE = "A fixed split by job or project. At a limit, an account's work waits for its reset; it never moves to another account.";
+const RULE = "A fixed split by job or project. At a limit, an account's work waits for its reset; it never moves to another account. One exception: when you use Codex, non-security builds may go to ChatGPT. Never to a second Claude account.";
 const HOW = "the routing skill's references/accounts.md";
 
 // One { key, label, tool, config_dir, projects, jobs } per [accounts.<key>] table.
