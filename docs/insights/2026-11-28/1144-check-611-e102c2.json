@@ -1,0 +1,54 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T11:44:35.534Z",
+  "issue": 432,
+  "pr": 611,
+  "sha": "104644a3eddcdfa4da15938f00957eaedf216405",
+  "job": null,
+  "tool": null,
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "state": "success",
+  "fence": "Fence: none (reviewer ran the kit checks in a fresh clone with a safe PATH)",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0.077
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0.072
+    },
+    {
+      "name": "cd cli && npm run bundle (no diff)",
+      "result": "pass",
+      "seconds": 1.445
+    },
+    {
+      "name": "cd cli && npm test",
+      "result": "pass",
+      "seconds": 104.5
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 78.5
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0.084
+    },
+    {
+      "name": "pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0.148
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false,
+  "model_from": "effort level not shown in this session"
+}
