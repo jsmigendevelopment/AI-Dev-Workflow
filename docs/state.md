@@ -1,28 +1,28 @@
 # State
 
-Updated 2026-11-27 18:00 UTC by the coordinator (session_01QHnB3KjQfR34yczJypyfi1).
+Updated 2026-11-28 09:00 UTC by a helper for the coordinator (session_01TbAsgtVhPoLGTcFKYk4Hk1).
 
-- **Automation level:** Full (decision 259-1, the owner's words). `docs/stack.md` records it (#360). Kit-repo reviews: decision 28, so the one code review writes the `Weakening review:` line.
-- **Main's checks:** Checks: pass @ 24ba647ec2893c60e7ca1658485700a67ab19c26 (sync-skills, npm-readme, bundle, cli `npm test` 980 tests 0 fail, `test:evals` 65/65, evals dry run).
-- **Sweep timer:** none · **Supervisor:** none (the loop runs as a sub-thread of the live thread). **Release:** 0.7.1 on npm; the rest is under Unreleased; releases are the owner's.
+- **Automation:** Full (decision 259-1). `docs/stack.md` records it (#360). Workers run on Sonnet 5.5 high. The coordinator runs on Opus 5.5 medium (owner, 2026-11-28). Kit-repo reviews: decision 28, so the one code review writes the `Weakening review:` line.
+- **Sweep timer:** none · **Supervisor:** none. **Release:** 0.7.2 is on npm and tagged; the rest is under Unreleased; releases are the owner's.
 
-## In flight
-Nothing. No claims, no open loop pull requests. Open but not the loop's: #234 (Electron starter, review queued as #230), #119 (cheat sheets draft, later pass).
-
-## Pass just done (2026-11-27)
-38 pull requests merged, from #270 (#229) to #328 (#263). Every `status:ready` issue from the start of the run closed.
-
-## Next pass: the `status:ready` queue (pass gate, decision 259-2, AI picks)
-- p1: #329-#333 (insights, split from #281), #321-#322 (kit lessons, from #253), #340, #342, #344 (Go backend, from #279), #112.
-- p2: #269, #129, #227, #334, #347, #348, #360, #361, #319, #320.
-- p3: #260, #230 (review PR #234), #362, #363.
-- Start with #361 and #269: both make parallel builds safer.
-
-## Later passes
-#278, #272 (need the tranquiliti contracts on its main), #264, #134 (with the owner's next hand release), #115/#119 (art on the owner's other account), #128, #124, #114, #111, #135, #95, #92, #86-#88, #136, and the non-ready children of #253, #279 and #281. Closed at the gate: #89, #121.
+## /afk (2026-11-28 09:00 UTC)
+- **Away:** long, open-ended. **Hard stop:** none. **Pings:** critical only.
+- **Main:** 2564aa2c0d9ad18751950d2b1aeefe5569fdaac8.
+- **In flight:** PR #495 (#401), approved at a6c005b, head is now 8bef9ce (records stale). Claimed with no open PR: #537, #531. Open, not the loop's: #234 (Electron starter), #119 (draft, cheat sheets).
+- **Next ready (46 open: p1 1, p2 8, p3 37):** #457 (p1), then p2: #539, #536, #535, #534, #533, #530. #388 waits for the owner's pick.
+- **At the limit:** wait for the reset and carry on. Seven-day usage is at its warning level and shows no percentage. It resets 2026-12-04 14:00 UTC.
+- **Merged today:** 75 pull requests, #434 to #573 (merged since 2026-11-28 00:00 UTC).
 
 ## Waiting on you
-Nothing blocks. FYI only: add the commons review token when you want its Claude review (#89); tag v0.7.1 if not yet done.
+1. PR #495 (#401): the permission check refused the squash merge, so it needs your yes. Its records must be rebuilt first.
+2. Turn off GitHub Actions on onRails-Marketing.
+3. Merge AGENTS.md.onrails-new on onRails-Marketing. The 0.7.2 kit update is pushed to branch claude/sweet-archimedes-kfgsjg.
+4. Stray remote branches the proxy can't delete: `chore/insights-*`, and merged `feat/*` and `fix/*`.
+5. #388 needs a pick: an Opus redraw or Fable.
 
 ## Gotchas
-`mark-check.mjs` is refused by the proxy (403); the `Checks:` comment is the record. `agent-files.mjs gate` reads Full from `docs/stack.md` on main (#360): an agent-file pull request passes on the code review's `Weakening review: pass @ <head>` line, with no label. Builders' cloud checkouts can be older than main: brief them to branch from fresh `origin/main` (#361). Run the gate with `TMPDIR` set or unset; both pass since #282.
+- /tmp was wiped once on 11-28, at about 05:55 UTC. The commit-signing helper `/tmp/code-sign` came back at 07:30. If it goes missing, pause builds. Never turn signing off without the owner's yes.
+- GitHub ignores the CHANGELOG union driver, so update-branch can return 422. Then merge locally, then carry.
+- Never pass unknown flags to `insights.mjs land`: it ignores them and opens a PR.
+- `mark-check.mjs` is refused by the proxy (403); the `Checks:` comment is the record. `agent-files.mjs gate` passes on the code review's `Weakening review: pass @ <head>` line, with no label.
+- Builders' cloud checkouts can be older than main: brief them to branch from fresh `origin/main` (#361).
