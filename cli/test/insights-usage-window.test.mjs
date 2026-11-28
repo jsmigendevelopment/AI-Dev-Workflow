@@ -3,12 +3,13 @@
 // reset or its two readings name different windows. The last tests are the two small items from the issue's comment.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "./child.mjs";
 import { safeEnv, tmp } from "./helpers.mjs";
 import { dayFolder, fileName, parseLine, validate } from "../src/insights-record.mjs";
+import { recordProblem } from "../../.agents/skills/coordinate/scripts/insights-land.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const WRITER = join(REPO, ".agents/skills/coordinate/scripts/insights.mjs");
@@ -204,4 +205,83 @@ test("AC-431-3: WHEN two builds of an issue share an unknown model or effort THE
     merge("2026-11-24T15:00:00.000Z", 72)]));
   assert.ok(out.includes("| #30 | sonnet · medium | unknown · unknown | unknown |"), out);
   assert.ok(out.includes("| #30 | unknown · unknown | unknown · unknown | yes |"), out);
+});
+
+// #572, from the review of #563: the edges of the report's rule, both mixed orders of "Fixed it", and a zone on started and ended.
+const crossed = (fields) => report(week({ usage_window_before: "seven_day", ...fields })).includes("| #70 | 2 | 1 | unknown |");
+const shown = (fields) => report(week({ usage_window_before: "seven_day", ...fields })).includes("| #70 | 2 | 2 | 6% |");
+
+test("AC-572-1: WHEN a reset is exactly at started THEN the run isn't crossed, and a millisecond later it is", () => {
+  assert.ok(shown({ usage_resets_before: "2026-11-24T09:00:00.000Z" }), "at started");
+  assert.ok(crossed({ usage_resets_before: "2026-11-24T09:00:00.001Z" }), "just after started");
+});
+
+test("AC-572-1: WHEN ended differs from at THEN a reset at ended crosses and one after ended, before at, doesn't", () => {
+  const ended = "2026-11-24T10:30:00.000Z";
+  assert.ok(crossed({ ended, usage_resets_after: ended }), "at ended");
+  assert.ok(shown({ ended, usage_resets_after: "2026-11-24T10:30:00.001Z" }), "after ended, before at");
+});
+
+test("AC-572-1: WHEN started or ended isn't a time THEN the report falls back to at, and to the end alone", () => {
+  // No usable start: a reset before the real start still counts, since only the end bounds the run.
+  assert.ok(crossed({ started: "yesterday", usage_resets_before: "2026-11-24T08:00:00.000Z" }), "bad started, reset before it");
+  assert.ok(shown({ started: "yesterday", usage_resets_before: "2026-11-24T11:00:00.001Z" }), "bad started, reset after at");
+  assert.ok(crossed({ ended: "soon", usage_resets_after: AT }), "bad ended, reset at at");
+  assert.ok(shown({ ended: "soon", usage_resets_after: "2026-11-24T11:00:00.001Z" }), "bad ended, reset after at");
+});
+
+const escalation = (...runs) => report(project([...RETRY, ...runs, merge("2026-11-24T15:00:00.000Z", 72)]));
+const failed = (at) => rec("job", at, { job: "review-code", pr: 72, model: "opus", effort: "medium", outcome: "fail", send_back: "review-must" });
+const passed = (at) => rec("job", at, { job: "review-code", pr: 72, model: "opus", effort: "medium", outcome: "pass" });
+
+test("AC-572-2: WHEN a known build is followed by a build with an unknown model THEN its fixed it is unknown, and the later one's is yes", () => {
+  const out = escalation(
+    build("2026-11-24T11:00:00.000Z", 30, 72, { model: "opus", effort: "medium" }), failed("2026-11-24T12:00:00.000Z"),
+    build("2026-11-24T13:00:00.000Z", 30, 72, { model: "unknown", effort: "unknown" }), passed("2026-11-24T14:00:00.000Z"));
+  assert.ok(out.includes("| #30 | sonnet · medium | opus · medium | unknown |"), out);
+  assert.ok(out.includes("| #30 | opus · medium | unknown · unknown | yes |"), out);
+});
+
+test("AC-572-2: WHEN a build with an unknown model is followed by a known one THEN its fixed it is unknown, and the later one's is yes", () => {
+  const out = escalation(
+    build("2026-11-24T11:00:00.000Z", 30, 72, { model: "unknown", effort: "unknown" }), failed("2026-11-24T12:00:00.000Z"),
+    build("2026-11-24T13:00:00.000Z", 30, 72, { model: "opus", effort: "medium" }), passed("2026-11-24T14:00:00.000Z"));
+  assert.ok(out.includes("| #30 | sonnet · medium | unknown · unknown | unknown |"), out);
+  assert.ok(out.includes("| #30 | unknown · unknown | opus · medium | yes |"), out);
+});
+
+test("AC-572-3: WHEN started or ended has no zone THEN validate names the field", () => {
+  for (const name of ["started", "ended"]) {
+    for (const value of ["2026-11-24T09:00:00", "2026-11-24T09:00:00.000", "2026-11-24T09:00", "2026-11-24 09:00:00", "2026-11-24", "Nov 24 2026 09:00"]) {
+      assert.equal(problems(job({ [name]: value }), name).length, 1, `${name} ${JSON.stringify(value)}: ${validate(job({ [name]: value }))}`);
+    }
+    for (const value of ["2026-11-24T09:00:00Z", "2026-11-24T09:00:00.000Z", "2026-11-24T09:00Z", "2026-11-24T09:00:00+01:00"]) {
+      assert.deepEqual(problems(job({ [name]: value }), name), [], `${name} ${value}`);
+    }
+  }
+  // Text that is no time at all stays valid: the writer's `line` takes started=yesterday and the run line says unknown (AC-129-2).
+  assert.deepEqual(validate(job({ started: "yesterday" })), []);
+});
+
+test("AC-572-3: WHEN the writer gets a started or ended with no zone THEN it exits 2 naming the field and writes nothing", () => {
+  const dir = tmp("onrails-zone-writer-");
+  spawnSync("git", ["init", "-q", "-b", "main"], { cwd: dir, encoding: "utf8", env: safeEnv() });
+  const env = safeEnv({ ONRAILS_NOW: "2026-11-27T14:32:00Z" });
+  delete env.CLAUDE_PROJECT_DIR;
+  const base = ["job", "job=build", "issue=12", "outcome=finished", "model=opus", "effort=high", "tool=claude-code"];
+  for (const bad of ["started=2026-11-27T14:20:00", "ended=2026-11-27 14:30:00"]) {
+    const r = spawnSync(process.execPath, [WRITER, "write", ...base, bad], { cwd: dir, encoding: "utf8", env });
+    assert.equal(r.status, 2, `${bad}: ${r.stderr}`);
+    assert.ok(r.stderr.includes(bad.split("=")[0]), r.stderr);
+  }
+  assert.equal(existsSync(join(dir, "docs/insights")), false, "a refused write leaves no file");
+  const ok = spawnSync(process.execPath, [WRITER, "write", ...base, "started=2026-11-27T14:20:00Z", "ended=2026-11-27T14:30:00Z"], { cwd: dir, encoding: "utf8", env });
+  assert.equal(ok.status, 0, ok.stderr);
+});
+
+test("AC-572-3: WHEN every record under docs/insights/ on main is checked THEN all of them still pass", () => {
+  const top = join(REPO, "docs/insights");
+  const files = readdirSync(top).flatMap((day) => readdirSync(join(top, day)).map((file) => `docs/insights/${day}/${file}`));
+  assert.ok(files.length > 0);
+  for (const file of files) assert.equal(recordProblem(file, readFileSync(join(REPO, file))), null, file);
 });
