@@ -18,7 +18,7 @@ const ACCESS = { CLOUDFLARE_ACCESS_TOKEN: 'set' }
 const TOKEN_SECRET = 'cfast_SECRET' // what the fake Cloudflare API answers for a new service token
 const PASSWORD = 'Zx81_random-SECRET-value-0123456' // the fakes' randomSecret()
 const github = (calls: string[]) => calls.filter((c) => c.startsWith('gh '))
-/** docs/stack.md text → the CI it names. A trailing comment is fine; a commented-out line isn't. */
+/** docs/stack.md text → the mode it names. A trailing comment is fine; a commented-out line isn't. */
 const CI_CASES: [string, 'actions' | 'local'][] = [
   ['## CI\n\nci = "actions"\n', 'actions'],
   ['ci="actions"', 'actions'],

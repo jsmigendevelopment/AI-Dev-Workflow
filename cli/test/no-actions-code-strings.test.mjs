@@ -98,6 +98,54 @@ test("#387 follow-up 2: a lead opts its section in only when its first clause se
   assert.deepEqual(badMentions("## The token\n\nOnly on `ci = \"actions\"` (`docs/stack.md`), which only the person turns on.\n\nWait for CI.\n"), []);
 });
 
+test("AC-451-1: WHEN code text holds \"Don't merge: CI hasn't finished.\" THEN the scan fails it", () => {
+  for (const bad of ["Don't merge: CI hasn't finished.", "Never merge: CI isn't green yet.", "Do not merge: the workflow has not finished."]) {
+    assert.equal(badMentions(bad).length, 1, bad);
+    assert.equal(codeMentions(`// ${bad}\nexport const x = 1;\n`, "a.mjs").length, 1, bad);
+  }
+  for (const ok of ["Never merge: never wait on CI.", "Don't merge: a red local gate stops it, not CI."]) assert.deepEqual(badMentions(ok), [], ok);
+});
+
+test("AC-451-2: WHEN a YAML file holds a plain, | or > value that names CI as the actor THEN the scan fails it", () => {
+  for (const bad of [
+    "msg: Wait for CI before merge\n",
+    "steps:\n  - Wait for CI to pass\n",
+    "run: |\n  pnpm check\n  # wait for CI\n",
+    "note: >\n  Wait for the workflow\n  to finish.\n",
+    "note: >-\n  CI runs this on every push.\nother: x\n",
+    "msg: Wait for\n  CI to pass\n",
+  ]) assert.equal(codeMentions(bad, "a.yml").length, 1, bad);
+  for (const ok of [
+    "msg: Never wait on CI\n",
+    "name: Lint and test\nrun: pnpm check --ci\n",
+    "run: |\n  pnpm lint\n  pnpm test\nafter: Run the local gate\n",
+    "note: >\n  The local gate runs it.\nCI: true\n",
+    "- Run `ci = \"local\"` checks\n",
+  ]) assert.deepEqual(codeMentions(ok, "a.yaml"), [], ok);
+});
+
+test("AC-451-3: WHEN code text holds \"// wait for ci\" THEN the scan fails it, and a ci key or file name still passes", () => {
+  assert.equal(codeMentions("// wait for ci\n", "a.mjs").length, 1);
+  assert.equal(codeMentions("const m = 'Wait for ci to finish.';\n", "a.ts").length, 1);
+  for (const ok of [
+    "// Read the `ci` key from docs/stack.md.",
+    "// The `ci = \"…\"` line in docs/stack.md.",
+    "// Same as ci-mode.ts and preflight-ci.mjs.",
+    "// The ci = \"local\" gate runs it.",
+  ]) assert.deepEqual(codeMentions(`${ok}\n`, "a.mjs"), [], ok);
+});
+
+test("AC-451-3: no test title in the stack pack names CI or the workflows as the actor", () => {
+  const files = [
+    "stacks/tanstack-start/src/lib/site-gate.test.ts",
+    "stacks/tanstack-start/scripts/cloudflare/local-keys.test.ts",
+    "stacks/tanstack-start/scripts/connect/secrets-mode.test.ts",
+  ];
+  // Both name docs/stack.md itself, not the service: a heading the tests parse and the `ci` key's describe title.
+  const names = ["## CI", "ci in docs/stack.md"];
+  for (const path of files) assert.deepEqual(codeMentions(readFileSync(join(REPO, path), "utf8"), path).filter((s) => !names.includes(s)), [], path);
+});
+
 test("#387 follow-up 3: only a fence mark at least as long as the opening one closes a code block", () => {
   assert.deepEqual(badMentions("## Steps\n\n````md\n```\n## Never\n```\n````\n\nCI runs it.\n"), ["CI runs it."]);
   assert.deepEqual(badMentions("## Steps\n\n```\n## Never\n````\n\nCI runs it.\n"), ["CI runs it."]);
