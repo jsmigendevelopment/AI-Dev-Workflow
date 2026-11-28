@@ -138,3 +138,37 @@ test("#139: before git init, push-secrets reads only the app folder, never a doc
   assert.deepEqual(gh(r.calls), []);
   assert.match(r.stdout, /ci = "local"/);
 });
+
+// #537: a repo with a go.mod keeps its keys with the Go service's host, so the messages name that host's flag.
+const GO_MOD = "module example.com/app\n\ngo 1.26\n";
+
+test("AC-537-5: WHEN the repo has a go.mod THEN setup-github's closing line names --cloud-run, and the web pack's still names --wrangler", UNIX, () => {
+  const go = repo();
+  writeFileSync(join(go, "go.mod"), GO_MOD);
+  const r = run(SETUP, go, ["--plan", "team"]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /Next: put production keys with their host: push-secrets --cloud-run for the Go service, --wrangler for a web app on Cloudflare, never in the repo or GitHub\./);
+  const web = run(SETUP, repo(), ["--plan", "team"]);
+  assert.match(web.stdout, /Next: put production keys in Cloudflare \(pnpm connect, or push-secrets --wrangler\), never in the repo or GitHub\./);
+  assert.doesNotMatch(web.stdout, /--cloud-run/);
+});
+
+test("AC-537-5: WHEN a go.mod sits above the app folder, inside the repo, THEN setup-github names --cloud-run too", UNIX, () => {
+  const top = repo();
+  writeFileSync(join(top, "go.mod"), GO_MOD);
+  const app = join(top, "services", "api");
+  mkdirSync(app, { recursive: true });
+  const r = run(SETUP, app, ["--plan", "team"], top);
+  assert.match(r.stdout, /push-secrets --cloud-run for the Go service/);
+});
+
+test("AC-537-5: WHEN the repo has a go.mod and ci = local THEN push-secrets names --cloud-run where it says where values go, and for a value stored nowhere", UNIX, () => {
+  const go = repo();
+  writeFileSync(join(go, "go.mod"), GO_MOD);
+  const r = run(PUSH, go, []);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /ci = "local" \(docs\/stack\.md\): nothing goes to GitHub\. Secrets go to Secret Manager with --cloud-run \(or to Cloudflare with --wrangler\); plain variables go to the Cloud Run service with --cloud-run\./);
+  assert.match(r.stdout, /production: API_TOKEN is stored nowhere \(a secret, and nothing takes one on ci = "local" without --cloud-run or --wrangler\)/);
+  assert.match(r.stdout, /production: SITE_URL is stored nowhere \(a plain variable: --cloud-run sets it on the Cloud Run service\)/);
+  assert.doesNotMatch(r.stdout, /wrangler\.jsonc/);
+});

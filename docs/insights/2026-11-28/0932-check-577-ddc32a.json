@@ -1,0 +1,32 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T09:32:52.562Z",
+  "issue": null,
+  "pr": 577,
+  "sha": "614229304aaef239b0397d0f6499722143b23b95",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0.03
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0.06
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-rules.mjs 577 --repo jsmigendevelopment/onRails --head 614229304aaef239b0397d0f6499722143b23b95",
+      "result": "pass",
+      "seconds": 1.22
+    }
+  ],
+  "state": "success",
+  "failed_step": null,
+  "flaky_rerun": false
+}

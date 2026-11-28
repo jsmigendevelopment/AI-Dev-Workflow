@@ -1,5 +1,5 @@
 // Fakes for the push-secrets, setup-github and connect tests: a repo whose docs/stack.md says
-// `ci`, fake `gh`, `npx` and `wrangler` on PATH that log every call, and test and production values.
+// `ci`, fake `gh`, `npx`, `wrangler` and `gcloud` on PATH that log every call, and test and production values.
 import { execFileSync, spawnSync } from "./child.mjs";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -20,9 +20,13 @@ const argv = process.argv.slice(2);
 let stdin = "";
 try { stdin = fs.readFileSync(0, "utf8"); } catch { /* no stdin to read (closed, or a terminal that would block): the call had no input */ }
 const cmd = require("path").basename(process.argv[1]);
-fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ cmd, argv, stdin }) + "\\n");
+// A gcloud call may carry its values in a --flags-file: the log keeps what the file held, as a value on stdin is kept.
+const files = argv.filter((a) => a.startsWith("--flags-file=")).map((a) => fs.readFileSync(a.slice("--flags-file=".length), "utf8"));
+// ...and the modes the file and its folder have while the call runs (octal strings, "600" and "700").
+const modes = argv.filter((a) => a.startsWith("--flags-file=")).map((a) => { const f = a.slice("--flags-file=".length); const m = (p) => (fs.statSync(p).mode & 0o777).toString(8); return { file: m(f), dir: m(require("path").dirname(f)) }; });
+fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ cmd, argv, stdin, files, modes }) + "\\n");
 if (process.env.FAKE_FAIL && [cmd, ...argv].join(" ").startsWith(process.env.FAKE_FAIL)) {
-  const given = argv.includes("--body") ? argv[argv.indexOf("--body") + 1] : stdin;
+  const given = argv.includes("--body") ? argv[argv.indexOf("--body") + 1] : files.join("") || stdin;
   process.stderr.write(process.env.FAKE_ECHO ? "invalid value: " + given + "\\n" : "✘ [ERROR] Authentication error [code: 10000]\\n");
   process.exit(1);
 }
@@ -38,9 +42,9 @@ if (argv[0] === "api" && argv.some((a) => a.endsWith("/rulesets"))) say("[]");
 const bins = new Map();
 const binFor = (dir) => bins.get(dir) ?? bins.set(dir, tmp("onrails-fake-bin-")).get(dir);
 
-/** Puts the fake gh, npx and wrangler in a folder outside `dir`, the one fakeEnv(dir) puts first on PATH. */
+/** Puts the fake gh, npx, wrangler and gcloud in a folder outside `dir`, the one fakeEnv(dir) puts first on PATH. */
 export function fakeBin(dir) {
-  for (const name of ["gh", "npx", "wrangler"]) {
+  for (const name of ["gh", "npx", "wrangler", "gcloud"]) {
     writeFileSync(join(binFor(dir), name), FAKE);
     chmodSync(join(binFor(dir), name), 0o755);
   }
