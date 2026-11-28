@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T12:50:10.089Z",
+  "issue": 513,
+  "pr": null,
+  "sha": "946e2be5993d53ce6572c86c145d9e66d7871ca7",
+  "job": "build",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "started",
+  "usage_before": "unknown",
+  "usage_from": "the subagent session shows no usage reading"
+}
