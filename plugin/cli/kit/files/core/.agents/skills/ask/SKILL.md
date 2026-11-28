@@ -206,6 +206,8 @@ Steps 2 and 3 happen in the same turn you find the problem. A blocker said only 
 
 Work passed to another session or account is a handoff. It is written down with the owner's exact words, gets a one-line receipt, and has a follow-up check. A brief that starts or hands on the loop also quotes the automation level and every decision row that lifts a gate, word for word. The format and both sides' steps are in `references/handoffs.md`.
 
+**In the live thread** (rule 17), a handoff never waits for the receipt: start the receiver in the background, end the turn, and answer the person's next message right away. Their words that touch the handed-down work go to it word for word.
+
 ## References
 
 | File | Load when |

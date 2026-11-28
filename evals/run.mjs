@@ -28,7 +28,7 @@ async function loadScenarios(dir, only) {
     const base = join(dir, name);
     const fixture = await import(pathToFileURL(join(base, "fixture.mjs")).href);
     const checks = await import(pathToFileURL(join(base, "checks.mjs")).href);
-    out.push({ name, prompt: readFileSync(join(base, "prompt.md"), "utf8").trim(), build: fixture.build, checks: checks.checks, manual: checks.manual ?? [], guard: checks.guard === true, limits: checks.limits ?? {}, tools: checks.tools ?? [], optIn: checks.optIn === true });
+    out.push({ name, prompt: readFileSync(join(base, "prompt.md"), "utf8").trim(), build: fixture.build, checks: checks.checks, manual: checks.manual ?? [], guard: checks.guard === true, limits: checks.limits ?? {}, tools: checks.tools ?? [], followUps: checks.followUps ?? [], optIn: checks.optIn === true });
   }
   // An opt-in scenario runs only when --scenario names it, so the default run stays under the cap.
   return only ? { scenarios: out, optedOut: [] } : { scenarios: out.filter((s) => !s.optIn), optedOut: out.filter((s) => s.optIn).map((s) => s.name) };
@@ -77,8 +77,8 @@ async function runArm(scenario, arm, cliOpts, tmp) {
   if (arm === "with") installKit(repoDir, home);
   const before = new Set(listFiles(repoDir));
   const run = await runClaude({
-    bin: opts.claude, cwd: repoDir, prompt: scenario.prompt, timeoutSec: opts.timeoutSec,
-    args: claudeArgs({ ...opts, tools: scenario.tools }), env: claudeEnv(process.env, { home }),
+    bin: opts.claude, cwd: repoDir, prompt: scenario.prompt, timeoutSec: opts.timeoutSec, followUps: scenario.followUps,
+    args: claudeArgs({ ...opts, tools: scenario.tools, streamInput: scenario.followUps.length > 0 }), env: claudeEnv(process.env, { home }),
   });
   const events = parseStream(run.stdout);
   const t = summarize(events, repoDir);
@@ -124,6 +124,7 @@ function dryRun(scenarios, opts, version) {
     const own = withLimits(opts, s.limits);
     if (["maxTurns", "timeoutSec", "maxBudgetUsd"].some((k) => own[k] !== opts[k])) console.log(`  ${s.name}: its own limits, ${own.maxTurns} turns, ${own.timeoutSec} s, $${own.maxBudgetUsd} budget`);
     if (s.tools.length) console.log(`  ${s.name}: also allows ${s.tools.join(", ")}`);
+    if (s.followUps.length) console.log(`  ${s.name}: ${s.followUps.length} follow-up message(s), each once a turn ends (--input-format stream-json)`);
     for (const arm of ["with", "without"]) console.log(`  ${s.name} [${arm}]: ${s.checks.length} check(s): ${s.checks.map((c) => c.id).join(", ")}`);
   }
   console.log(`Results would go to ${join(opts.resultsDir, resultsName(new Date().toISOString().slice(0, 10), opts.model, version))}.json`);

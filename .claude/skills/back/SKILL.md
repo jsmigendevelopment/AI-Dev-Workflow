@@ -9,6 +9,8 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
 
 **On Full automation, ask nothing here:** every step that asks or offers has its own "On Full" branch: follow it, say your pick in the report, and go on. The last step starts the loop again (`automation`'s `references/full.md`).
 
+**This is the live thread** (rule 17 in `AGENTS.md`): it reads, reports and hands work down. The retro (step 7) runs in a background sub-agent, and every fix, build or merge goes to the loop.
+
 ## Steps
 
 **Preflight first:** `node .agents/skills/ask/scripts/preflight.mjs --if-changed --record`. When `docs/state.md` says `Environment: ok` and the sandbox hasn't changed, it skips the slow probes and says so. Otherwise it prints one table: follow `../ask/references/preflight.md` for every `✗` row, and put what's left in the report's "Waiting on you", as ONE item.
@@ -46,7 +48,7 @@ Works the same in a brand-new thread or one that's been running all night. **Reb
    - **Still running:** `node .agents/skills/ask/scripts/procs.mjs list`. Back from a pause in this session? `procs.mjs resume`. A stale one (its owner session is gone, or past its time or its pause) was started by onRails: stop it with `procs.mjs stop stale` and say so.
    - **Anyone else** who touched the repo.
 
-7. **Retro, after a long run.** The person was away for the night or longer, or the loop merged or parked 5 or more issues since the last retro? Run the retro below, unless the `/afk` section in `docs/state.md` already has one for this run. Then show its findings in the report.
+7. **Retro, after a long run.** The person was away for the night or longer, or the loop merged or parked 5 or more issues since the last retro? Run the retro below, unless the `/afk` section in `docs/state.md` already has one for this run. Start it in a background sub-agent, say in the report that its findings come when it reports back, and pass them on then.
 
 8. **Triage.** Below Full, offer three options with your pick first, and wait for their choice. On Full, it's a report line, not a question: *"Next: <your pick>. The loop goes on."* The options:
    - a pass at `gate`: try it, then re-plan the next pass (the right pick then);

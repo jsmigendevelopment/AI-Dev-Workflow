@@ -63,7 +63,7 @@ Recommended and Hands-on keep every wait: the review and the wireframe approval.
    - **Hands-on** if the person wants to learn the code or review everything;
    - **Full** only for a side project with no real users.
 3. **Custom?** Ask the switches three at a time, each with the Recommended value as the suggestion.
-4. **Write it** to the "Automation level" section of `docs/stack.md` (the section is in `templates/stack.md` of the `idea` skill). Fill in every switch, even for a named level. Add a line to `docs/decisions.md`. Commit it through a pull request like any change.
+4. **Write it** to the "Automation level" section of `docs/stack.md` (the section is in `templates/stack.md` of the `idea` skill). Fill in every switch, even for a named level. Add a line to `docs/decisions.md`. A background sub-agent opens the pull request (rule 17); don't wait for it.
 5. **Tell the loop.** The coordinator reads `docs/stack.md` on every sweep, so nothing else is needed. Say what changes from now on, in two lines.
 
 ## When to suggest a switch
