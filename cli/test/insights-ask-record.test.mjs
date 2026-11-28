@@ -1,11 +1,12 @@
 // Every stop, wait or ask writes an ask record naming the rule that caused it (#334, part of #281): AC-334-1 to AC-334-6.
+// #497 hardens how the rule is checked and the writers are run: AC-497-1 to AC-497-3.
 // notify.mjs runs from this checkout in a temp repo that holds a copy of the coordinate scripts, with a temp home.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "./child.mjs";
+import { spawn, spawnSync } from "./child.mjs";
 import { safeEnv, tmp } from "./helpers.mjs";
 import { validate } from "../src/insights-record.mjs";
 
@@ -229,4 +230,59 @@ test("#334 guard: WHEN the record write fails THEN the ping still goes out and n
   assert.equal(status, 0);
   assert.equal(out.action, "sent");
   assert.match(out.record.error, /disk full/);
+});
+
+test("AC-497-1: WHEN --rule names a symlink inside the repo that points outside it THEN rule_ok is false; a broken link fails closed and a normal in-repo path stays true", () => {
+  const outside = tmp("onrails-ask-outside-");
+  writeFileSync(join(outside, "other.md"), "a\nb\nc\n");
+  const dir = repo();
+  mkdirSync(join(dir, "docs", "inner"));
+  writeFileSync(join(dir, "docs", "inner", "real.md"), "a\nb\nc\n");
+  symlinkSync(join(outside, "other.md"), join(dir, "leak.md"));
+  symlinkSync(outside, join(dir, "leakdir"));
+  symlinkSync(join(dir, "docs", "inner", "real.md"), join(dir, "inside-link.md"));
+  symlinkSync(join(outside, "gone.md"), join(dir, "broken.md"));
+  const want = { "leak.md:1": false, "leakdir/other.md:1": false, "broken.md:1": false, "inside-link.md:3": true, "docs/inner/real.md:3": true, "AGENTS.md:20": true };
+  for (const rule of Object.keys(want)) assert.equal(notify(dir, "--rule", rule).status, 0, rule);
+  assert.deepEqual(Object.fromEntries(records(dir).map((r) => [r.rule, r.rule_ok])), want);
+});
+
+test("AC-497-2: WHEN a rule starts with hook: and what follows isn't [\\w-]+ THEN the record's rule is missing; hook:Stop and hook:pre-commit are kept", () => {
+  for (const rule of ["hook:a b", "hook:", "hook:../x"]) {
+    const dir = repo();
+    const { status, out } = notify(dir, "--rule", rule);
+    assert.equal(status, 0, rule);
+    assert.equal(only(dir).record.rule, "missing", rule);
+    assert.equal(out.record.rule, "missing", rule);
+  }
+  for (const rule of ["hook:Stop", "hook:pre-commit"]) {
+    const dir = repo();
+    notify(dir, "--rule", rule);
+    assert.equal(only(dir).record.rule, rule);
+  }
+});
+
+// A script that ignores SIGTERM and runs for 12 seconds. notify's own limit is 5 seconds, so only SIGKILL stops it in time.
+const STUBBORN = 'process.on("SIGTERM", () => {}); setTimeout(() => {}, 12000);\n';
+
+/** Runs notify.mjs in dir and resolves with its exit code and how many milliseconds it took. */
+function timed(dir, ...args) {
+  const started = Date.now();
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [NOTIFY, "--level", "decision", "--title", "t", "--print", "--rule", "AGENTS.md:12", ...args], { cwd: dir, stdio: "ignore", env: env() });
+    child.on("close", (code) => resolve({ code, ms: Date.now() - started }));
+  });
+}
+
+test("AC-497-3: WHEN the record writer or the board script ignores SIGTERM and runs past the timeout THEN notify.mjs still returns within it", async () => {
+  const writerDir = repo();
+  writeFileSync(join(writerDir, SCRIPTS, "insights.mjs"), STUBBORN);
+  const boardDir = repo();
+  writeFileSync(join(boardDir, SCRIPTS, "board.mjs"), STUBBORN);
+  // Both run at once, so the test waits out the timeout once.
+  const [writer, board] = await Promise.all([timed(writerDir, "--no-board"), timed(boardDir)]);
+  assert.equal(writer.code, 0);
+  assert.equal(board.code, 0);
+  assert.ok(writer.ms < 9000, `the writer held notify for ${writer.ms} ms`);
+  assert.ok(board.ms < 9000, `the board script held notify for ${board.ms} ms`);
 });

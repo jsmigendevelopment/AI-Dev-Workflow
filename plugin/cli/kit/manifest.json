@@ -326,7 +326,7 @@
     ".claude/skills/wireframes/SKILL.md": "3e4ba52c8e4946b1fcc44f18374f6e8af5c5007ad3ef4929b7869807eeb797ef",
     ".claude/skills/writing-for-agents/SKILL.md": "12af095a4d702cc899db56fc0caf49340ab9b19ee8d6307416f110f0bbbb990a",
     ".claude/settings.json": "81364ca2f3a5943c1f651b072665330863f6a4441f28548ac008c76d78fec973",
-    ".claude/hooks/notify.mjs": "39f49024e2daac37b0cba1cc474616acc2214d7db302244e766135ba3b524ab2",
+    ".claude/hooks/notify.mjs": "4816fe3a08ef4455194120bf2ff624a258f6e0319b1aedd138358ec9a58572cc",
     ".claude/hooks/session-start.mjs": "a1ea07a22d6cb8e932de44cae814f2e0d47f22c946a73b3c96128f2b94a9f89c",
     ".codex/config.toml": "fb34df3fc196ff7ba6dec5bd6c686b4712bf16ee16ededfbe16a4366ea67d8c7",
     ".codex/hooks.json": "ca2e92f3b0f1b1e3499f0d8a86e8770cbbcd688d1db3cddd264d18655311a782",
