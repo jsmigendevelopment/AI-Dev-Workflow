@@ -286,16 +286,17 @@ test("#377 round 2, nice items 3 and 4: only data types count as fixtures, under
 
 /** pr-size.mjs --base main in a checkout git takes for another user's, as a dev container's mounted folder is. A fake
  * git (first on PATH) sets git's own GIT_TEST_ASSUME_DIFFERENT_OWNER for calls made inside the checkout, so git's real
- * ownership check runs without chown or root. The operator's global config marks the checkout safe, and pr-size.mjs
- * must trust it itself, as it drops that config. The fake logs each call as "<folder>\t<arguments>". */
-function otherOwner(files) {
+ * ownership check runs without chown or root. The operator's global config holds `safe` (the checkout's root by
+ * default, or the entries `safe(root)` returns) and pr-size.mjs must trust the root itself only then, as it drops that
+ * config. The fake logs each call as "<folder>\t<arguments>". */
+function otherOwner(files, { safe = (root) => [root] } = {}) {
   const dir = checkout();
   commitBranch(dir, files);
   const root = realpathSync(dir);
   const fakes = tmp("onrails-owner-");
   const home = join(fakes, "home");
   mkdirSync(join(home, ".config"), { recursive: true });
-  writeFileSync(join(home, ".gitconfig"), `[safe]\n\tdirectory = ${root}\n`);
+  writeFileSync(join(home, ".gitconfig"), `[safe]\n${safe(root).map((entry) => `\tdirectory = ${entry}\n`).join("")}`);
   mkdirSync(join(fakes, "bin"));
   writeFileSync(join(fakes, "bin", "git"), `#!/bin/sh
 printf '%s\\t%s\\n' "$PWD" "$*" >> "$FAKE_GIT_LOG"
@@ -329,4 +330,26 @@ test("#432: only the checkout's own root is trusted, never a wildcard, and the g
     const named = [...args.matchAll(/safe\.directory=(\S*)/g)].map((m) => m[1]);
     assert.deepEqual(named, [r.root], `git ${args}`);
   }
+});
+
+test("#432: WHEN the checkout is owned by another user and the global config does not list it THEN pr-size.mjs refuses it as main does, exit 2", unixOnly, () => {
+  const r = otherOwner({ "src/a.ts": lines(30) }, { safe: () => ["/srv/some/other/checkout"] });
+  assert.equal(r.status, 2, r.stdout);
+  assert.match(r.stderr, /dubious ownership/);
+  assert.doesNotMatch(r.stdout, /changed lines counted/);
+  assert.ok(r.calls.every(([, args]) => !/safe\.directory/.test(args)), "no call names a trusted folder");
+  assert.equal(otherOwner({ "src/a.ts": lines(30) }, { safe: () => [] }).status, 2, "no safe.directory at all");
+});
+
+test("#432: a global safe.directory of * is read as git reads it, so the checkout counts, and every call still names only its root", unixOnly, () => {
+  const r = otherOwner({ "src/a.ts": lines(30) }, { safe: () => ["*"] });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /HEAD against main: 30 changed lines counted/);
+  for (const [, args] of r.calls) assert.deepEqual([...args.matchAll(/safe\.directory=(\S*)/g)].map((m) => m[1]), [r.root], `git ${args}`);
+});
+
+test("#432: an empty safe.directory clears the list before it, as in git, and a parent or a child of the root is not the root", unixOnly, () => {
+  assert.equal(otherOwner({ "src/a.ts": lines(30) }, { safe: (root) => [root, ""] }).status, 2, "cleared after the root");
+  assert.equal(otherOwner({ "src/a.ts": lines(30) }, { safe: (root) => ["", root] }).status, 0, "listed after the clear");
+  assert.equal(otherOwner({ "src/a.ts": lines(30) }, { safe: (root) => [dirname(root), `${root}/src`] }).status, 2, "a parent and a child");
 });

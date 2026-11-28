@@ -20,8 +20,8 @@
 // (the coordinator's main): job=size-check, the pull request (null for a local diff), the head sha, the counted lines,
 // outcome pass, or fail with send_back=size. The count on it is this script's own. A count that can't be recorded is exit 2.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { changedPaths, gh, pages, prArgs } from "./agent-files.mjs";
@@ -56,9 +56,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const UNSAFE_ENV = /TOKEN|SECRET|PASSWORD|API_KEY|^GIT_|^GH_|^GITHUB_/i;
 const SAFE_GIT = ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "core.attributesFile=/dev/null", "-c", "core.ignorecase=false"];
 
-// The one folder every isolated call names safe.directory (#432): without the global config, a safe.directory listed
-// there (a dev container's mounted folder, owned by another user) is ignored, and every call fails on ownership. Only
-// this folder is trusted, never `*`. `checkout` is the checkout git reports once it is asked.
+// The one folder every isolated call names safe.directory (#432), and only when the operator's own global config marks
+// it safe: without that config, a safe.directory listed there (a dev container's mounted folder, owned by another
+// user) is ignored, and every call fails on ownership. Never `*`, never a folder the operator didn't mark; an unmarked
+// checkout owned by another user is refused as before. `checkout` is the checkout git reports once it is asked.
 let trusted;
 let checkout;
 
@@ -85,12 +86,43 @@ function folderWithDotGit() {
   }
 }
 
-/** The checkout that holds this script, as git reports it. The first ask trusts only the folder found above. */
+const SAFE_SECTION = /^\s*\[\s*safe\s*\]\s*(?:[#;].*)?$/i;
+const SAFE_DIRECTORY = /^\s*directory\s*=\s*([^#;"\\]*?)\s*$/i;
+
+/** The `safe.directory` values in one git config file's text, in order. Only the plain form `git config --add
+ * safe.directory <path>` writes is read: a value with a quote, backslash, `#` or `;`, an include, or anything else
+ * unusual isn't listed, which fails closed (the checkout is refused). */
+function safeDirectoryValues(text) {
+  const values = [];
+  let inSafe = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (/^\s*\[/.test(line)) inSafe = SAFE_SECTION.test(line);
+    else if (inSafe) values.push(...(SAFE_DIRECTORY.exec(line)?.slice(1) ?? []));
+  }
+  return values;
+}
+
+/** The operator's own list: GIT_CONFIG_GLOBAL if set (as git reads it), else the XDG file, then ~/.gitconfig. Read from
+ * those files, never by letting git find them, so every git call keeps GIT_CONFIG_GLOBAL=/dev/null. An empty value
+ * clears the ones before it, as in git. */
+function operatorSafeDirectories() {
+  const config = process.env.GIT_CONFIG_GLOBAL;
+  const files = config ? [config] : [join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "git", "config"), join(homedir(), ".gitconfig")];
+  let listed = [];
+  for (const path of files.filter((file) => existsSync(file))) {
+    for (const value of safeDirectoryValues(readFileSync(path, "utf8"))) listed = value === "" ? [] : [...listed, value];
+  }
+  return listed;
+}
+
+/** The checkout that holds this script, as git reports it. Every call, the first included, names the folder found above
+ * as safe.directory only when the operator's global config lists exactly that folder, or `*`, which in git means every folder. */
 function checkoutRoot() {
   if (!checkout) {
-    trusted = folderWithDotGit();
+    const root = folderWithDotGit();
+    const listed = root ? operatorSafeDirectories() : [];
+    if (root && (listed.includes(root) || listed.includes("*"))) trusted = root;
     checkout = git(["rev-parse", "--show-toplevel"], { cwd: HERE }).trim();
-    trusted = checkout;
   }
   return checkout;
 }
