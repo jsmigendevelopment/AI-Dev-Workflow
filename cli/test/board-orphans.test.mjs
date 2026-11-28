@@ -174,6 +174,15 @@ test("AC-397-2: WHEN an unlabelled `Handoff ·` issue's author owns the repo in 
   assert.deepEqual(kinds(orphansOf(dir, issues)), [[25, "no-receipt"], [26, "no-receipt"], [27, "no-receipt"]], "not acme-fan's");
 });
 
+// Round 3 of the review on #437, nice 4: an API url's `/repos/` segment is skipped, a github.com url's is not.
+test("AC-445-2: WHEN an issue's url is an API url THEN its owner is read from the path, and `github.com/repos/<name>` is not an owner", () => {
+  const dir = project();
+  const api = { url: "https://api.github.com/repos/acme/app/issues/30", user: { login: "acme" }, author: undefined };
+  const trap = { url: "https://github.com/repos/eve/app/issues/31" };
+  const issues = [bodyHandoff(30, "x", api), bodyHandoff(31, "eve", trap), bodyHandoff(32, "eve", { url: "https://api.github.com/eve/app/issues/32" })];
+  assert.deepEqual(kinds(orphansOf(dir, issues)), [[30, "no-receipt"]], "acme from the API url, and eve from neither odd one");
+});
+
 test("AC-397-3: WHEN comments come from REST with `created_at` THEN a real receipt counts", () => {
   const dir = project();
   const rest = (created_at, body) => ({ user: { login: "me" }, author_association: "MEMBER", created_at, body });
