@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { accountsList } from "../src/accounts.mjs";
 import { addPack, listAddons, listPacks } from "../src/add.mjs";
 import { ciLocal } from "../src/ci-local.mjs";
+import { configGet } from "../src/config.mjs";
 import { doctor } from "../src/doctor.mjs";
 import { doctorFix } from "../src/fix.mjs";
 import { initGlobal } from "../src/global.mjs";
@@ -64,6 +65,11 @@ Usage:
   npx onrails map [dir]                   write docs/map.generated.md: each module under src/ with its
                                           files and lines of code, who imports whom, import cycles and
                                           sideways imports between feature modules (JS and TS only)
+  npx onrails config get <section.key> [dir]
+                                          print a setting and the layer it comes from: project
+                                          (docs/profile.toml), personal (~/.onrails/profile.toml) or
+                                          kit default (the profile template). Prints nothing for a
+                                          key that looks like a token, key or secret
   npx onrails add <pack> [dir] [--force]  copy a stack pack into the project
   npx onrails add --list                  list the stack packs
   npx onrails add <pack> --list-addons    list a pack's optional add-ons
@@ -142,6 +148,9 @@ async function run(command, args, flags, { ask, yes }) {
   switch (command) {
     case "accounts": return accountsList(args[0]);
     case "map": return mapRepo(args[0]);
+    case "config":
+      if (args[0] !== "get") return fail(`Unknown config command: ${args[0] ?? ""} (use get)`);
+      return args[1] === undefined ? fail("Name a setting, e.g.: npx onrails config get defaults.risk_dial") : configGet(args[1], args[2]);
     case "init":
       if (flags.has("--global")) return initGlobal();
       if (flags.has("--start") && flags.has("--no-start")) return fail("Use --start or --no-start, not both.");
