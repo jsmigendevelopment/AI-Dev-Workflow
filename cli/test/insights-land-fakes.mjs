@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "./child.mjs";
 import { fake, fakeGh, safeEnv, tmp } from "./helpers.mjs";
+import { findCommand } from "../src/system.mjs";
 import { dayFolder, fileName, validate } from "../src/insights-record.mjs";
 
 export const REPO = fileURLToPath(new URL("../..", import.meta.url));
@@ -59,15 +60,27 @@ export function setup() {
   return { root, dir, seed: join(root, "seed") };
 }
 
-/** Runs insights.mjs in dir against a fake gh answering `api`. Returns the result and the gh calls. */
-export function run(dir, args, api = {}) {
+/**
+ * Runs insights.mjs in dir against a fake gh answering `api`, with `env` added. Returns the result and the gh calls.
+ * `logGitEnv` puts a git in front of the real one that keeps each call's args and GIT_ variables, as `gitEnv`.
+ */
+export function run(dir, args, api = {}, { env = {}, logGitEnv = false } = {}) {
   const ghDir = tmp("onrails-gh-");
   const log = join(ghDir, "agents.log");
   for (const name of ["claude", "codex"]) fake(join(ghDir, "bin"), name, `#!/bin/sh\necho "${name} $*" >> '${log}'\n`);
-  const gh = fakeGh(ghDir, { user: { login: ME }, ...api }, { ...GIT_ENV, ONRAILS_NOW: NOW });
+  const envLog = join(ghDir, "git-env.log");
+  if (logGitEnv) fake(join(ghDir, "bin"), "git", `#!/bin/sh\n{ echo "git $*"; env | grep '^GIT_' | sort; echo; } >> '${envLog}'\nexec '${findCommand("git")}' "$@"\n`);
+  const gh = fakeGh(ghDir, { user: { login: ME }, ...api }, { ...GIT_ENV, ONRAILS_NOW: NOW, ...env });
   const r = spawnSync(process.execPath, [join(dir, SCRIPTS, "insights.mjs"), ...args], { cwd: dir, encoding: "utf8", env: gh.env });
   assert.equal(existsSync(log) ? readFileSync(log, "utf8") : "", "", "no claude or codex call");
-  return { ...r, calls: gh.calls() };
+  return { ...r, calls: gh.calls(), gitEnv: existsSync(envLog) ? readFileSync(envLog, "utf8") : "" };
+}
+
+/** Writes two new records into the checkout, as a reviewer's harvest and the gate would, and returns their paths, sorted. */
+export function twoNew(dir) {
+  put(dir, pathOf(REVIEW, "d4e5f6"), json(REVIEW));
+  put(dir, pathOf(JOB, "0a0b0c"), json(JOB));
+  return [pathOf(REVIEW, "d4e5f6"), pathOf(JOB, "0a0b0c")].sort();
 }
 
 /** Every record file under dir's docs/insights/, as { path: parsed record }. */
