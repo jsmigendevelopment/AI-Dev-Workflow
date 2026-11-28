@@ -14,8 +14,12 @@
 //
 // The coordinator carries records to main (#332), from its own checkout of main:
 //   harvest --pr <n> --repo <owner>/<name>   writes each valid insights line from the pull request's comments that
-//       isn't on disk yet. Only comments by gh's own login, or a login under [insights] writers in docs/profile.toml,
-//       count. A line that fails validate, names another pull request or can't be a record file is skipped and named.
+//       isn't on disk yet. Only comments by gh's own account, or an account listed as "login:id" under [insights]
+//       writers in docs/profile.toml, count, by the numeric user ID (#408): a comment whose login matches but whose ID
+//       doesn't is skipped and named. A line that fails validate, names another pull request or can't be a record
+//       file is skipped and named. A `check` line counts only from a comment that reports the run (#441): its first
+//       line is `Checks: pass|fail @ <sha>`, or `Code review: approve|request changes @ <sha>` with one such line
+//       later (the reviewer's verdict comment), the sha is the record's and pass or fail fits its state.
 //       A record's id is a hash of it, so a rerun writes nothing; a different file on that name is named and kept.
 //   land [--verify <pr>] [--repo <owner>/<name>]   lands the records on main: insights-land.mjs says how.
 // harvest and land exit 2 on a usage, git or API error.
@@ -35,7 +39,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileS
 import { join } from "node:path";
 import { pages } from "./agent-files.mjs";
 import { carry, heldRecords, save } from "./insights-carry.mjs";
-import { canonical, land, ownLogin, recordProblem } from "./insights-land.mjs";
+import { canonical, land, ownAccount, recordProblem } from "./insights-land.mjs";
 import { ASK_FILE, KINDS, LINE_START, VERSION, coerce, dayFolder, fileName, parseLine, runLine, toLine, validate } from "./insights-record.mjs";
 
 const USAGE = "usage: insights.mjs write|line <kind> key=value ... | harvest --pr <n> --repo <owner>/<name> | land [--verify <pr>] [--repo <owner>/<name>] | has-records --pr <n> --sha <sha> | carry --pr <n> --from <sha> --to <sha>";
@@ -124,14 +128,36 @@ function writeOrLine(cmd, kind, pairs) {
   }
 }
 
-/** The logins under [insights] writers = ["a", "b"] in docs/profile.toml, lower case. The list may span lines. */
-function listedWriters(root) {
+/**
+ * The accounts harvest trusts (#408): gh's own, then each "login:id" under [insights] writers = ["a:1", "b:2"] in
+ * docs/profile.toml (the list may span lines). Trust is by the numeric user ID, which a rename or a recycled login
+ * can't take over; the login is only a label for the warnings. An entry with no ID is named and not trusted.
+ */
+function trustedAccounts(root) {
+  const me = ownAccount();
+  const accounts = [{ login: me.login.toLowerCase(), id: me.id, name: "gh's own login" }];
   let text;
-  try { text = readFileSync(join(root, "docs", "profile.toml"), "utf8"); } catch { return []; }
+  try { text = readFileSync(join(root, "docs", "profile.toml"), "utf8"); } catch { return accounts; }
   // A login holds no "#", so a "#" starts a TOML comment wherever it is.
   const body = (text.split(/^\[insights\]\s*$/m)[1]?.split(/^\[/m)[0] ?? "").replace(/#[^\n]*/g, "");
   const list = body.match(/^\s*writers\s*=\s*\[([^\]]*)\]/m)?.[1] ?? "";
-  return [...list.matchAll(/"([^"]+)"/g)].map((m) => m[1].toLowerCase());
+  for (const [, entry] of list.matchAll(/"([^"]+)"/g)) {
+    const pinned = /^([\w.-]+):(\d{1,15})$/.exec(entry);
+    if (pinned) accounts.push({ login: pinned[1].toLowerCase(), id: Number(pinned[2]), name: "a writer" });
+    else {
+      const login = /^[\w.-]+$/.test(entry) ? entry : "<login>";
+      warn(`writers entry ${JSON.stringify(entry)} has no user ID, so it isn't trusted. List it as "${login}:<id>"; gh api users/${login} --jq .id gives the ID.`);
+    }
+  }
+  return accounts;
+}
+
+/** Why a comment's author isn't one of `accounts`, or null when its user ID is. */
+function distrust(accounts, login, id) {
+  if (!Number.isSafeInteger(id)) return "its author has no user ID";
+  if (accounts.some((a) => a.id === id)) return null;
+  const same = accounts.find((a) => a.login === login.toLowerCase());
+  return same ? `the login matches ${same.name}, but its user ID ${id} isn't ${same.id}` : "not gh's own account or under [insights] writers";
 }
 
 function lineProblem(json) {
@@ -160,10 +186,38 @@ function keep(root, record) {
   return { path: join(root, rel) };
 }
 
-/** Why a parsed, valid record from #pr's comments can't be kept, or what keep() says. */
-function harvestOne(root, record, pr) {
+// The two comments that report a run (#441). The merge helper's starts with the verdict. The reviewer's one verdict
+// comment starts with `Code review: ...` and holds the verdict at the start of a later line (pr-review, "Verdict").
+const VERDICT = /^Checks: (pass|fail) @ ([0-9a-f]{40})\s*$/;
+const REVIEWED = /^Code review: (?:approve|request changes) @ ([0-9a-f]{40})\s*$/;
+
+/**
+ * Why a `check` record can't come from this comment, or null (#441). Builders, reviewers and the coordinator post as
+ * one login, so the comment itself must say it reports the run: its verdict names the record's sha, and pass or fail
+ * agrees with the record's state. A stray line elsewhere can't stand in for the run (#417).
+ */
+function checkProblem(body, record) {
+  const lines = body.split(/\r?\n/);
+  let verdict = VERDICT.exec(lines[0]);
+  if (!verdict) {
+    const reviewed = REVIEWED.exec(lines[0]);
+    if (!reviewed) return "its comment doesn't start with `Checks: pass|fail @ <sha>` or `Code review: approve|request changes @ <sha>`";
+    if (reviewed[1] !== record.sha) return `the comment reviews ${reviewed[1]}, not the record's ${record.sha}`;
+    const found = lines.map((l) => VERDICT.exec(l)).filter(Boolean);
+    if (found.length > 1) return "the comment has two or more Checks: lines, so which one covers this run is unclear";
+    if (!found.length) return "the comment has no `Checks: pass|fail @ <sha>` line at the start of a line";
+    [verdict] = found;
+  }
+  if (verdict[2] !== record.sha) return `its Checks: line names ${verdict[2]}, not the record's ${record.sha}`;
+  const state = verdict[1] === "pass" ? "success" : "failure";
+  return record.state === state ? null : `Checks: ${verdict[1]} doesn't match the record's state ${record.state}`;
+}
+
+/** Why a parsed, valid record from #pr's comment `body` can't be kept, or what keep() says. */
+function harvestOne(root, record, pr, body) {
   if (record.pr != null && record.pr !== Number(pr)) return { why: `pr: ${record.pr} isn't #${pr}` };
-  return keep(root, record);
+  const problem = record.kind === "check" ? checkProblem(body, record) : null;
+  return problem ? { why: `check line: ${problem}` } : keep(root, record);
 }
 
 function harvest(args) {
@@ -171,21 +225,22 @@ function harvest(args) {
   const repo = flag(args, "--repo");
   if (!/^\d+$/.test(pr ?? "") || !/^[\w.-]+\/[\w.-]+$/.test(repo ?? "")) fail(2, "usage: insights.mjs harvest --pr <n> --repo <owner>/<name>");
   const root = gitRoot();
-  const trusted = new Set([ownLogin().toLowerCase(), ...listedWriters(root)]);
+  const accounts = trustedAccounts(root);
   for (const c of pages(`repos/${repo}/issues/${pr}/comments`)) {
     const body = String(c.body ?? "");
     const lines = [...body.matchAll(LINE)];
     const opened = body.split(LINE_START).length - 1;
     const login = String(c.user?.login ?? "");
     if (!opened) continue;
-    if (!trusted.has(login.toLowerCase())) {
-      warn(`skipped comment ${c.id} by ${login}: not gh's own login or under [insights] writers`);
+    const untrusted = distrust(accounts, login, c.user?.id);
+    if (untrusted) {
+      warn(`skipped comment ${c.id} by ${login}: ${untrusted}`);
       continue;
     }
     if (opened > lines.length) warn(`skipped ${opened - lines.length} insights line(s) in comment ${c.id} by ${login}: opened but never closed with --> on the same line`);
     for (const [line, json] of lines) {
       const record = parseLine(line);
-      const kept = record ? harvestOne(root, record, pr) : { why: lineProblem(json) };
+      const kept = record ? harvestOne(root, record, pr, body) : { why: lineProblem(json) };
       if (kept.why) warn(`skipped a line in comment ${c.id} by ${login}: ${kept.why}`);
       if (kept.path) process.stdout.write(`${kept.path}\n`);
     }
@@ -222,7 +277,7 @@ else if (cmd === "has-records") hasRecords(rest);
 else if (cmd === "harvest" || cmd === "land" || cmd === "carry") {
   try {
     if (cmd === "harvest") harvest(rest);
-    else if (cmd === "carry") carry(gitRoot(2), rest);
+    else if (cmd === "carry") carry(rest);
     else land(gitRoot(), rest);
   } catch (e) {
     fail(2, String(e.stderr || e.message).trim());

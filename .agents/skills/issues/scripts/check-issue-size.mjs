@@ -29,7 +29,9 @@ const LIMIT_WORD = /^(?:under|up to|at most|<|≤)/i;
 // "tests - 600", "test code: 600", "600 in tests").
 // "#1024", "1200-x.ts", "test/12-x.ts" or "AC-12-1 tests" isn't one.
 const SECOND = /\d\+?\s*k?\s*(?:\p{L}+\s+)?(?:lines?|loc)(?!\p{L})/iu;
-const TESTS = /(?<![\p{L}\p{N}])tests?(?![\p{L}\p{N}/._-])(?:\s+(?:code|files?|cases?|suites?))?[\s:=~≈+(\[\-–—]*(?:(?:about|around|roughly|approximately|approx\.?|another|add|adds|plus)\s*)?\d|(?<![\p{L}\p{N}#/._-])\d[\d,.]*\s*k?\s*(?:\p{L}+\s+)?tests?(?![\p{L}\p{N}/._-])/iu;
+const TESTS = /(?<![\p{L}\p{N}])tests?(?![\p{L}\p{N}/._-])(?:\s+(?:code|files?|cases?|suites?))?[\s:=~≈+(\[\-–—]*(?:(?:about|around|roughly|approximately|approx\.?|another|add|adds|plus)\s*)?\d[\d,.]*\s*k?(?!\p{L})|(?<![\p{L}\p{N}#/._-])\d[\d,.]*\s*k?\s*(?:\p{L}+\s+)?tests?(?![\p{L}\p{N}/._-])/iu;
+// A count of files, not of lines ("test files: 2", "tests – 2 new files", under 10): cut out before TESTS reads the part.
+const FILE_COUNT = /(?<![\p{L}\p{N}])tests?\s+files?[\s:=~≈+(\[\-–—]*\d(?![\d,.\p{L}])|(?<=tests?[\s:=~≈+(\[\-–—]+)\d(?!\d)\s+(?:new\s+)?files?(?!\p{L})/giu;
 // The two whole forms, each only at the start of the value or right after a "·".
 const EXCEPTION = /^exception:\s*/i;
 const SPLIT = /^split into\s+(#\d+(?:\s*(?:,|&|and)\s*#\d+)*)\s*$/i;
@@ -48,13 +50,17 @@ const SPLIT_SAID = new RegExp(
     String.raw`|(?:broken|cut)(?:\s+up)?\s+into|split\s*[.!]?\s*$|child(?:ren)?\s+issues?|children\s+#?\d+)(?!\p{L})`,
   "giu",
 );
-// A clause ends at punctuation, a dash or slash, or "so", "and", "then" or "but": "too big - split into ..." fails.
-const CLAUSE = /[,;:.()\/–—]|\s-\s|(?<!\p{L})(?:so|and|then|but)(?!\p{L})/iu;
+// A clause ends at punctuation, a dash or slash, or at "so", "and", "then" or "but" when the split comes right after
+// it: "too big - split into ..." and "too big and split into ..." fail, "not so easy to split into parts" passes.
+const CLAUSE = /[,;:.()\/–—]|\s-\s|(?<!\p{L})(?:so|and|then|but)(?=\s+(?:(?:we|i|it|it['’]s|this|they|is|are|was|were|be|been|got|has|have|had|now|already|also|then)\s+)*(?:split|broken|cut)(?!\p{L}))/iu;
+const CLAUSE_ALL = new RegExp(CLAUSE, "giu");
+// "splitting into parts would break the build": the split is what a consequence is about, not what was done.
+const CONSEQUENCE = /^\s*(?:\p{L}+\s+){0,2}(?:would|will|could|might)(?!\p{L})/iu;
 const NEGATION = /(?<!\p{L})(?:no|not|never|cannot|can['’]?t|won['’]?t|don['’]?t|doesn['’]?t|isn['’]?t|unable|without|hard|too)(?!\p{L})/iu;
 // Size written in a way the value reader skips: a table cell, "_Size_:", a full-width colon, "Size -". As on main, the
 // unit may follow the number anywhere in the same clause ("1,500 (est.) lines", "1,500 new code lines"). Only a number
 // with a size unit after it (px, MB) is skipped, so "font size: 16px, line-height: 24px" isn't one.
-const MENTION = /(?<!\p{L})size(?!\p{L})[\s_*`]*[:：|=\-–—][^\n]*?\d(?!\s*(?:px|pt|em|rem|vh|vw|kb|mb|gb|tb|bytes?)(?!\p{L}))[^\n,;:\d]*?(?<!\p{L})k?(?:lines?|loc)(?!\p{L})/iu;
+const MENTION = /(?<!\p{L})size(?!\p{L})(?:\s+(?:estimate|est\.?)(?!\p{L}))?(?:\s*\([^)\n]*\))?[\s_*`]*[:：|=\-–—→][^\n]*?\d(?!\s*(?:px|pt|em|rem|vh|vw|kb|mb|gb|tb|bytes?)(?!\p{L}))[^\n,;:\d]*?(?<!\p{L})k?(?:lines?|loc)(?!\p{L})/iu;
 // CommonMark: up to 3 spaces of indent, closed by a run of the same character at least as long.
 const FENCE = /^ {0,3}((`|~)\2{2,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1\2*[ \t]*$|(?![\s\S]))/gm;
 const QUOTE = /^[ \t]*>.*$/gm;
@@ -100,7 +106,7 @@ function parse(value) {
     else if (/\d/.test(head)) size.unreadable = head;
     if (match && LIMIT_WORD.test(head)) size.limit = true;
   }
-  const second = segments.slice(1).find((s) => !EXCEPTION.test(s) && !SPLIT.test(s) && (SECOND.test(s) || TESTS.test(s)));
+  const second = segments.slice(1).find((s) => !EXCEPTION.test(s) && !SPLIT.test(s) && (SECOND.test(s) || TESTS.test(s.replace(FILE_COUNT, ""))));
   if (second !== undefined) size.second = second;
   if (split) size.split = split[1].match(/\d+/g).map(Number);
   return size;
@@ -116,8 +122,14 @@ const noReason = (reason) => {
   const words = reason.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
   return PLACEHOLDERS.has(words) || PLACEHOLDER_START.test(words);
 };
+// The clause a split phrase sits in, read from the whole reason: "so", "and" or "but" ends a clause only if the split follows.
+const clauseBefore = (reason, index) => {
+  const cut = [...reason.matchAll(CLAUSE_ALL)].filter((c) => c.index + c[0].length <= index).pop();
+  return reason.slice(cut ? cut.index + cut[0].length : 0, index);
+};
 const splitReason = (reason) =>
-  /#\d+/.test(reason) || [...reason.matchAll(SPLIT_SAID)].some((m) => !NEGATION.test(reason.slice(0, m.index).split(CLAUSE).pop()));
+  /#\d+/.test(reason) || [...reason.matchAll(SPLIT_SAID)].some((m) =>
+    !NEGATION.test(clauseBefore(reason, m.index)) && !(/^split/i.test(m[0]) && CONSEQUENCE.test(reason.slice(m.index + m[0].length).split(CLAUSE)[0])));
 const labelledReady = (labels) =>
   (labels ?? []).some((l) => String(typeof l === "string" ? l : l?.name).toLowerCase() === "status:ready");
 // A file is ready unless it says blocked: coordinate's local mode adds `Status: ready` to a file with no status line.

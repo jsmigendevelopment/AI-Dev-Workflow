@@ -7,17 +7,22 @@
 // `no-issue` label or Dependabot opened it; and pr-size.mjs's size rule (#377): under 1,000 changed lines, unless it
 // has the `size-exception` label and a `Size exception: <reason>` line. Lockfiles and test fixtures don't count, nor
 // files main marks `linguist-generated` in a .gitattributes committed in the checkout that holds this script. A rename
-// skips only when its old and new names both do. The pull request comes from the API as data; none of its code runs.
+// skips only when its old and new names both do. Every file the pull request adds, changes or renames to under
+// docs/insights/ must be a record as `insights.mjs land --verify` takes it (its own recordProblem), read from GitHub
+// at the head (#408). The pull request comes from the API as data; none of its code runs.
 // Exit 0: every rule holds. 1: a rule is broken, the head moved, or GitHub's file list stops short of the pull
 // request (it lists at most 3000 files) on two reads in a row. 2: a usage or API error, or counts that don't add up
 // on two reads in a row. Never a pass.
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MAX_FILES, changedPaths, gh, pages, prArgs } from "./agent-files.mjs";
+import { CAP, recordProblem } from "./insights-land.mjs";
 import { generated, markBinaries, measure, sizeProblem } from "./pr-size.mjs";
 
 const CLOSES = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/i;
 const BRANCH = /^(?:feat|fix)\/(\d+)-[a-z0-9][a-z0-9-]*$/;
+// Any case: a path a case-insensitive disk folds onto docs/insights/ is checked too, and recordProblem refuses it.
+const INSIGHTS = /^docs\/insights\//i;
 
 /** Every reason the pull request isn't tied to an issue. Empty when it is. */
 export function linkProblems({ body, branch, labels, author }) {
@@ -28,6 +33,28 @@ export function linkProblems({ body, branch, labels, author }) {
   if (!closes) problems.push("The description needs `Closes #<issue>` (or Fixes / Resolves).");
   if (!named) problems.push(`The branch "${branch}" must look like feat/<issue>-short-name or fix/<issue>-short-name.`);
   if (closes && named && closes[1] !== named[1]) problems.push(`The branch names issue #${named[1]} but the description closes #${closes[1]}.`);
+  return problems;
+}
+
+/** Each file the pull request leaves under docs/insights/ that isn't a record exactly as the writer writes it, as
+ * "path: why". A removed file leaves nothing to check. Throws when GitHub can't give a file's content at the head. */
+function insightsProblems(repo, head, files) {
+  const problems = [];
+  for (const { filename, status } of files) {
+    if (!INSIGHTS.test(filename) || status === "removed") continue;
+    let file;
+    try {
+      file = JSON.parse(gh(`repos/${repo}/contents/${filename.split("/").map(encodeURIComponent).join("/")}?ref=${head}`));
+    } catch (error) {
+      throw new Error(`${filename}: ${String(error.stderr || error.message).trim()}`);
+    }
+    let why = null;
+    if (file.type !== "file") why = "not a plain file";
+    else if (file.size > CAP) why = `over ${CAP} bytes`;
+    else if (file.encoding !== "base64" || typeof file.content !== "string") throw new Error(`GitHub didn't send ${filename}'s content.`);
+    else why = recordProblem(filename, Buffer.from(file.content, "base64"));
+    if (why) problems.push(`${filename}: ${why}. A file under docs/insights/ must be a record insights.mjs wrote, as \`land --verify\` checks it.`);
+  }
   return problems;
 }
 
@@ -96,6 +123,12 @@ export function main(argv) {
   }
   const tooBig = sizeProblem(lines, { labels, body: pull.body ?? "" });
   if (tooBig) problems.push(tooBig);
+  try {
+    problems.push(...insightsProblems(repo, head, files));
+  } catch (error) {
+    console.error(`Couldn't read a file #${pr} changes under docs/insights/ at ${head}, so it can't pass. ${error.message}`);
+    return 2;
+  }
   for (const problem of problems) console.error(problem);
   if (problems.length) return 1;
   const closes = CLOSES.exec(pull.body ?? "")?.[1];
