@@ -123,7 +123,7 @@ A root `package.json` in the Go repo, with the web app in `web/`. Every command 
 | `test:e2e` | `pnpm build && pnpm --dir web exec playwright test` |
 | `check` | `pnpm lint && pnpm typecheck && pnpm test && pnpm build` |
 
-Two helpers feed `typecheck`: `gen` is `go run ./cmd/openapi > api/openapi.yaml && pnpm --dir web gen` (orval), and `gen:check` is `pnpm gen && git diff --exit-code -- api web/src/api`. My runs compared copies with `diff` and not with `git diff`, so the git form is [inferred], not run. `go test -race` needs a C compiler; it ran here, where gcc is installed [c30 · measured].
+Two helpers feed `typecheck`: `gen` is `go run ./cmd/openapi > api/openapi.yaml && pnpm --dir web gen` (orval), and `gen:check` is `pnpm gen && git diff --exit-code -- api web/src/api && test -z "$(git status --porcelain -- api web/src/api)"`. My runs compared copies with `diff` and not with `git diff`, so the git form is [inferred], not run. **Note for the Go pack's builder:** `git diff --exit-code` alone passes when the generator writes a file that is not tracked yet (a new route or schema makes a new file), because `git diff` ignores untracked files. The `git status --porcelain` part is what fails on an untracked generated file; keep it, and keep the generated paths out of `.gitignore`, which `git status` also skips. In a scratch repo with a stand-in `gen`, the old form exited 0 with an untracked generated file and the new form exited 1; both exited 0 on a clean tree and after the file was committed. The `test -z` part needs a POSIX shell, and nothing ran on Windows. `go test -race` needs a C compiler; it ran here, where gcc is installed [c30 · measured].
 
 ### What `test:e2e` means for an API
 
@@ -258,7 +258,7 @@ ServeMux, `go vet` and `go test` ship with Go. The tools ran on the 1.26.0 and 1
 
 - **The pack as a whole.** No `pnpm check` ran on a real Go pack. The pieces ran as separate commands on scratch apps.
 - **Go 1.27.** The tools ran on 1.26.x toolchains.
-- **The git form of `gen:check`.** Copies were compared with `diff`.
+- **The git form of `gen:check`.** Copies were compared with `diff`. The untracked-file check ran only in a scratch repo with a stand-in `gen`, not with orval or the Go generator.
 - **The gate's clean-home run.** The gate runs each command with an empty home [c26 · read]. I think the Go module cache then starts empty, so a first run downloads every module, and a `go.mod` that names a newer toolchain makes the `go` command fetch it unless `GOTOOLCHAIN=local` is set [inferred from s15]. With `GOTOOLCHAIN=local` the installed Go must be 1.26.10 or newer, or huma will not build [c71 · read]. Not run.
 - **GitHub-only counts.** The open-issue counts (huma 119, Hey API 683), openapi-typescript's issues 2818, 2841 and 2872 and its last push date come from the GitHub REST API on 2026-11-28; the fresh fact-check could not reach GitHub and did not confirm them. The npm side (no openapi-typescript release since 2026-02-11) was confirmed.
 - **ogen, swaggo, Hurl, Taskfile and echo's and chi's route groups.** Read, not run.
