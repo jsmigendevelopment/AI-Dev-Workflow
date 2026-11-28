@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T19:15:07.900Z",
+  "issue": null,
+  "pr": 737,
+  "sha": "89e18240d7cd668eb4ed27a0d750e925d28c18b1",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 1,
+  "categories": [
+    "code-rules"
+  ],
+  "model_from": "own session system prompt"
+}
