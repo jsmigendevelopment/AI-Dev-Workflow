@@ -1,0 +1,48 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T10:57:59.533Z",
+  "issue": null,
+  "pr": 599,
+  "sha": "283d3c035704968f7033765edd813e0b7faac1e3",
+  "job": null,
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "state": "success",
+  "fence": "none: run unfenced in a fresh clone with its own TMPDIR and fake claude/codex on PATH",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cd cli && npm run bundle && npm test",
+      "result": "pass",
+      "seconds": 190
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 109
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0
+    }
+  ],
+  "failed_step": null,
+  "flaky_rerun": false
+}

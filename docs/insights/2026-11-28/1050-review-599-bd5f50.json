@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kind": "review",
+  "at": "2026-11-28T10:50:13.386Z",
+  "issue": null,
+  "pr": 599,
+  "sha": "aa106c0ce1f66aa382ca02dbed23fb709062cf57",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "round": 1,
+  "verdict": "pass",
+  "must": 0,
+  "nice": 2,
+  "categories": [
+    "env-files",
+    "number-words"
+  ]
+}
