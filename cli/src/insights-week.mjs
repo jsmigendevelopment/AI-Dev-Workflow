@@ -153,8 +153,11 @@ function sizes(ctx) {
 function fixedIt(ctx, b) {
   const passed = (r) => r.kind === "merge" || (r.kind === "review" && r.verdict === "pass") || (r.kind === "job" && r.outcome === "pass")
     || (r.kind === "check" && r.state === "success");
-  // From the issue's next build on another model or effort, the records belong to that escalation's row.
-  const next = ctx.builds.find((n) => n.issue === b.issue && Date.parse(n.at) > Date.parse(b.at) && who(n) !== who(b));
+  // From the issue's next build on another model or effort, the records belong to that escalation's row. A build with
+  // an unknown model or effort can't be told from a retry or from an escalation, so it ends no row: unknown (#431).
+  const next = ctx.builds.find((n) => n.issue === b.issue && Date.parse(n.at) > Date.parse(b.at)
+    && (who(n) !== who(b) || isUnknown(b) || isUnknown(n)));
+  if (next && (isUnknown(b) || isUnknown(next))) return "unknown";
   const last = ctx.all.filter((r) => ctx.issueOf(r) === b.issue && Date.parse(r.at) > Date.parse(b.at)
     && (!next || Date.parse(r.at) < Date.parse(next.at)) && (FAILURES.has(reason(r)) || passed(r))).at(-1);
   return !last ? "unknown" : passed(last) ? "yes" : "no";
@@ -177,15 +180,30 @@ function escalations(ctx) {
     `Builds after a failed review or check: ${total}. Escalated: ${count.yes}. Not escalated: ${count.no}. Unknown: ${count.unknown}.`,
     ...(rows.length ? ["", ...table(["Issue", "From", "To", "Fixed it"], rows)] : []), "",
     "An escalation is any new model or effort on the next build of the issue. Fixed it, up to the next escalation: the last failed "
-    + "review or check (no), or pass, green gate or merge (yes), else unknown."];
+    + "review or check (no), or pass, green gate or merge (yes), else unknown. Unknown too when the next build of the issue, or this one, has an "
+    + "unknown model or effort: it could be a retry or an escalation."];
 }
 
-/** A run's usage: its after minus its before, when both are percentages and it didn't go down. Else null. */
+/** Did the run cross its window's reset (#431)? A reset time inside the run, or two readings of different windows. Unknown or absent says nothing. */
+function crossedReset(r) {
+  const known = (w) => w !== undefined && w !== "unknown";
+  if (known(r.usage_window_before) && known(r.usage_window_after) && r.usage_window_before !== r.usage_window_after) return true;
+  const ended = Date.parse(r.ended ?? r.at);
+  const end = Number.isNaN(ended) ? Date.parse(r.at) : ended;
+  const start = Date.parse(r.started ?? "");
+  // A reset at the start's own moment or before it was over before the run began; without a start, only the end counts.
+  return [r.usage_resets_before, r.usage_resets_after].some((t) => {
+    const reset = Date.parse(t ?? "");
+    return reset <= end && (Number.isNaN(start) || reset > start);
+  });
+}
+
+/** A run's usage: its after minus its before, when both are percentages and it didn't go down or cross a reset. Else null. */
 function used(r) {
   const before = READING.exec(r.usage_before ?? "")?.[1];
   const after = READING.exec(r.usage_after ?? "")?.[1];
   const delta = Number(after) - Number(before);
-  return before === undefined || after === undefined || delta < 0 ? null : delta;
+  return before === undefined || after === undefined || delta < 0 || crossedReset(r) ? null : delta;
 }
 
 function usagePerMerge(ctx) {
@@ -203,7 +221,8 @@ function usagePerMerge(ctx) {
   });
   return ["## Usage per merged pull request", "", ...table(["Pull request", "Runs", "With a reading", "Plan usage seen"], rows), "",
     "Plan usage seen while its runs ran: each run's after minus its before, in percent, not a cost. It includes anything that ran "
-    + "beside them, and reads low if the plan reset during a run. Runs on different or unrecorded tools, or one without both readings: unknown."];
+    + "beside them. A run that crossed its window's reset (a recorded reset time inside the run, or readings of two windows) has no usage seen: "
+    + "after a reset it would read low. Runs on different or unrecorded tools, or one without both readings: unknown."];
 }
 
 /** The report for the week starting at `start` (ms), as Markdown. */
