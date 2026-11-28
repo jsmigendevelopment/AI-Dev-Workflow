@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T20:34:51.745Z",
+  "issue": null,
+  "pr": 744,
+  "sha": "515f63e10f30c765808241241a30906b7f0b1f90",
+  "job": "review-code",
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "unknown",
+  "outcome": "fail",
+  "send_back": "review-must",
+  "model_from": "system prompt names the model; effort not shown"
+}
