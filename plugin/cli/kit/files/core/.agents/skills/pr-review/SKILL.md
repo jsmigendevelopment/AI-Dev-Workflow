@@ -12,10 +12,13 @@ You did not write this code. Judge only the **issue, the diff and the check resu
 
 ## Check
 
-1. **Every `auto` acceptance check has a test whose title carries its ID.** Search the diff for each `AC-<issue>-<n>`. A missing ID, or a test that doesn't prove its check, is a must fix. Each test would fail without the change. The local checks passed on the head commit (`coordinate`, step 6.1). Briefed to run them yourself? Follow that step from its first check: the local gate only runs the loop's own branches. Workflow results don't count.
+1. **Every `auto` acceptance check has a test whose title carries its ID.** Search the diff for each `AC-<issue>-<n>`. A missing ID, or a test that doesn't prove its check, is a must fix. Each test would fail without the change. The local checks passed on the head commit (`coordinate`, step 6.1). Workflow results don't count.
    - A bug fix comes with a test that reproduces the bug.
    - Tests go through the public interface and mock only the edges (network, clock, randomness).
    - No snapshot test stands in for a logic test.
+   - **Briefed to run them yourself?** Follow `coordinate` step 6.1 from its first check, 6.1.1: the local gate only runs the loop's own branches. Time each command, as 6.1.3 says. Run `mark-check.mjs` without `--record`: you commit nothing, so a record file in your checkout never reaches main. Instead, end the `Checks:` comment with the output of this command, pasted as printed (never type the JSON by hand). The coordinator's harvest then finds the head's `check` record, and the merge step doesn't run the checks again (#417):
+     `node .agents/skills/coordinate/scripts/insights.mjs line check pr=<pr> sha=<sha> 'commands=<commands>' state=<success|failure> 'failed_step=<failed>' flaky_rerun=<rerun> fence=<fence-name>`
+     `<commands>` is a JSON list with one `{"name": "<command>", "result": "<pass|fail|skipped>", "seconds": <seconds>}` per command, named as in the comment, each name at most 200 characters. `state` is `success` on `Checks: pass`, else `failure`. `<failed>` is the first red command, or `null` on a pass. Inside the single quotes, write each `'` as `'\''`, or the shell cuts the value short. `<rerun>` is `true` when a command failed and then passed when run again, else `false`. `<fence-name>` is only the word after `Fence:` in `fence.mjs`'s line (`bubblewrap`, `sandbox-exec` or `none`), never the rest of the line, which holds apostrophes. Ran the commands without `fence.mjs`? Leave `fence=` out.
 2. **No test was weakened,** skipped or deleted, including tests from earlier slices.
 3. **The fence:** nothing out of scope was built, and the schema and API changed only if the issue said so.
 4. **Architecture:**
@@ -36,7 +39,7 @@ You did not write this code. Judge only the **issue, the diff and the check resu
    - [ ] **Names and imports:** clear names, kebab-case files, the path alias, no deep `../../..`.
    - [ ] **New packages** are real, spelled right, and checked as the `dependencies` skill says.
    - [ ] **Docs:** any doc the change makes wrong was updated in this diff.
-   - [ ] **Size of the change:** under 1,000 changed lines, not counting lockfiles, generated files and test fixtures. Over that, it has the `size-exception` label and a `Size exception: <reason>` line, or it gets split.
+   - [ ] **Size of the change:** under 1,000 changed lines, not counting lockfiles, generated files and test fixtures; check with `node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main`. Over that, it has the `size-exception` label and a `Size exception: <reason>` line, or it gets split.
 6. **App conventions** (`guide/app-conventions.md` in the kit). One line each:
    - [ ] **Issue link:** the branch is `feat/<n>-...` or `fix/<n>-...`, and the body says `Closes #<n>`, unless it's labelled `no-issue`. Reading the body for this one line is fine.
    - [ ] **Rule of three:** no third copy of a UI piece that should now be shared, and no shared component extracted before then.
