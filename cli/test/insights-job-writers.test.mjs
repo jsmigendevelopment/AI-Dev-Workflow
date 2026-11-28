@@ -16,6 +16,8 @@ const FAKE = {
   n: "12", pr: "40", sha: "b".repeat(40), model: "opus", effort: "low", tool: "claude-code",
   round: "1", must: "0", nice: "2", categories: "tests,bugs",
   "usage-before": "unknown", "usage-after": "unknown", "usage-from": "get_session",
+  // pr-review's own check run (#417): its single-quoted values hold spaces and JSON.
+  commands: '[{"name":"npm test","result":"pass","seconds":61}]', failed: "null", rerun: "false", "fence-name": "bubblewrap",
 };
 
 /** Every backticked insights.mjs command in a skill. */
@@ -40,10 +42,13 @@ function repo() {
   return dir;
 }
 
+/** Splits a filled command into its arguments as a shell would: a single-quoted part keeps its spaces. */
+const args = (cmd) => cmd.match(/(?:[^\s']+|'[^']*')+/g).map((a) => a.replaceAll("'", ""));
+
 function run(dir, cmd) {
   const env = safeEnv({ ONRAILS_NOW: "2026-11-27T14:32:00Z" });
   delete env.CLAUDE_PROJECT_DIR;
-  return spawnSync(process.execPath, [join(REPO, WRITER), ...fill(cmd).split(" ")], { cwd: dir, encoding: "utf8", env });
+  return spawnSync(process.execPath, [join(REPO, WRITER), ...args(fill(cmd))], { cwd: dir, encoding: "utf8", env });
 }
 
 const has = (cmd, ...fields) => fields.every((f) => new RegExp(`(^| )${f}=`).test(cmd));
@@ -76,7 +81,8 @@ test("AC-330-3: WHEN qa/SKILL.md and pr-security/SKILL.md are read THEN each ver
 
 test("AC-330-4: WHEN the commands the skills print are run in a temp repo THEN each exits 0 and its record validates", () => {
   const all = ["build", "pr-review", "qa", "pr-security"].flatMap((s) => commands(skill(s)).map((c) => [s, c]));
-  assert.equal(all.length, 6);
+  // build's start and finish, pr-review's job, review and own check run (#417), qa's job and pr-security's job.
+  assert.equal(all.length, 7);
   for (const [name, cmd] of all) {
     const dir = repo();
     const r = run(dir, cmd);
