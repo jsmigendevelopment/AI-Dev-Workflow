@@ -72,3 +72,19 @@ test("AC-397-1: handoff-reading: a reading and its question in one paragraph, wi
   const expected = { ...Object.fromEntries(Object.keys(cases).map((name) => [name, ["AC-5-asks-owner"]])), ...Object.fromEntries(Object.keys(passes).map((name) => [name, []])) };
   assert.deepEqual({ ...failed(cases), ...failed(passes) }, expected);
 });
+
+// #445 item 1, from round 3 of the review on #437: a good question asked as two questions ("...? Or the video?")
+// passes, and "OK to start? Or not?" still fails.
+test("AC-445-1: handoff-reading: a choice asked as two questions passes asks-owner, and 'OK to start? Or not?' still fails it", { skip: skipWin }, (t) => {
+  const cases = {
+    "'or' opens the second question": [goodReceipt, { text: "Which do you mean by 'make it pop': bolder type and colour? Or the autoplay video in the summary?" }],
+    "'or' opens the second question, video first": [goodReceipt, { text: "By 'make it pop', do you mean the autoplay video? Or bolder type and colour?" }],
+    "a go-ahead question, then 'Or not?'": [STAMP, { text: "Got it. A larger autoplay video will make the hero pop. OK to start? Or not?" }],
+  };
+  const failed = Object.fromEntries(Object.entries(cases).map(([name, steps]) => [name, failedChecks(t, steps)]));
+  assert.deepEqual(failed, {
+    "'or' opens the second question": [],
+    "'or' opens the second question, video first": [],
+    "a go-ahead question, then 'Or not?'": ["AC-5-asks-owner"],
+  });
+});
