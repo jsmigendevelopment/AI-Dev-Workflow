@@ -235,8 +235,9 @@ function scriptText(src) {
 }
 
 const indentOf = (line) => /^\s*/.exec(line)[0].length;
-// What a YAML line holds after its `- ` marks and its `key:`.
-const YAML_VALUE = /^\s*(?:-\s+)*(?:(?:"[^"]*"|'[^']*'|[^\s#'"[{][^#]*?):(?:\s+|$))?(.*)$/;
+// What a YAML line holds after its `- ` marks and its `key:`. The value is `[\s\S]*`, not `.*`: a stray `\r` or U+2028
+// in a line (the split is on `\n`) must still match, or `exec` returns null.
+const YAML_VALUE = /^\s*(?:-\s+)*(?:(?:"[^"]*"|'[^']*'|[^\s#'"[{][^#]*?):(?:\s+|$))?([\s\S]*)$/;
 const BLOCK_HEADER = /^[|>][+-]?\d?[+-]?$/;
 
 /**
@@ -274,7 +275,8 @@ function readYamlValue(lines, n, pieces) {
 function hashText(src, yaml) {
   const pieces = [];
   let run = [];
-  const lines = src.split("\n");
+  // A CRLF file reads like its LF twin.
+  const lines = src.split(/\r?\n/);
   for (let n = 0; n < lines.length; n++) {
     const line = lines[n];
     if (/^\s*#/.test(line)) {
@@ -316,9 +318,10 @@ function codeText(source, path) {
 }
 
 // In code text, a lowercase `ci` is the docs/stack.md key or part of a file name, never the service: a backticked `ci`,
-// a hyphenated name (`ci-mode.ts`, `preflight-ci.mjs`) or `ci =`. Any other lowercase `ci` ("// wait for ci") is read.
-// `ci = "actions"` and `ci = "local"` stay, since they say which mode a line runs on (#451).
-const CI_KEY = /(?:(?<=[`-])ci\b|\bci(?=-)|\bci(?= =))(?! = "(?:actions|local)")/g;
+// a hyphenated name (`ci-mode.ts`, `preflight-ci.mjs`) or a quoted value of the key (`ci = "…"`, `ci = "actions-later"`).
+// Any other lowercase `ci` ("// wait for ci", "// wait for ci = done") is read. `ci = "actions"` and `ci = "local"`
+// stay, since they say which mode a line runs on (#451).
+const CI_KEY = /(?:(?<=[`-])ci\b|\bci(?=-)|\bci(?= = "))(?! = "(?:actions|local)")/g;
 // A message's plural mark, as in `file(s)`, opens no clause.
 const PLURAL = /\(s\)/g;
 

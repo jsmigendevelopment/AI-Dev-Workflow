@@ -124,6 +124,35 @@ test("AC-451-2: WHEN a YAML file holds a plain, | or > value that names CI as th
   ]) assert.deepEqual(codeMentions(ok, "a.yaml"), [], ok);
 });
 
+test("AC-451-2: WHEN a YAML file has CRLF line endings, a stray \\r or a U+2028 THEN the scan never throws and reads it as it reads LF", () => {
+  for (const ok of [
+    "msg: ok\r\n",
+    "# comment\r\nx: y\r\n",
+    "msg: Never wait on CI\r\nrun: |\r\n  pnpm lint\r\nafter: Run the local gate\r\n",
+    "msg: ok x: y\n",
+    "msg: ok\rx: y\n",
+  ]) assert.deepEqual(codeMentions(ok, "a.yml"), [], JSON.stringify(ok));
+  for (const bad of [
+    "msg: Wait for CI before merge\r\n",
+    "steps:\r\n  - Wait for CI to pass\r\n",
+    "run: |\r\n  pnpm check\r\n  # wait for CI\r\n",
+    "note: >-\r\n  Wait for the workflow\r\n  to finish.\r\nother: x\r\n",
+    "msg: Wait for\r\n  CI to pass\r\n",
+    "# Wait for\r\n# CI to pass\r\nx: y\r\n",
+    "msg: Wait for CI x: y\n",
+  ]) assert.equal(codeMentions(bad, "a.yml").length, 1, JSON.stringify(bad));
+  // A CRLF file reads the same as its LF twin, hit for hit.
+  for (const lf of ["msg: Wait for\n  CI to pass\nrun: |\n  # wait for CI\n", "# CI runs this\n# on every push.\nname: Lint\n"])
+    assert.deepEqual(codeMentions(lf.replace(/\n/g, "\r\n"), "a.yaml"), codeMentions(lf, "a.yaml"), JSON.stringify(lf));
+});
+
+test("AC-451-3: WHEN code text holds \"// wait for ci = done\" THEN the scan fails it, and a ci = \"…\" line still passes", () => {
+  assert.equal(codeMentions("// wait for ci = done\n", "a.mjs").length, 1);
+  assert.equal(codeMentions("const m = 'Wait for ci = true.';\n", "a.ts").length, 1);
+  for (const ok of ["// The ci = \"…\" line in docs/stack.md.", "const s = 'ci = \"actions-later\"';"])
+    assert.deepEqual(codeMentions(`${ok}\n`, "a.mjs"), [], ok);
+});
+
 test("AC-451-3: WHEN code text holds \"// wait for ci\" THEN the scan fails it, and a ci key or file name still passes", () => {
   assert.equal(codeMentions("// wait for ci\n", "a.mjs").length, 1);
   assert.equal(codeMentions("const m = 'Wait for ci to finish.';\n", "a.ts").length, 1);
