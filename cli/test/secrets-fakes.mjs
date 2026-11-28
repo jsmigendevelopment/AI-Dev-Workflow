@@ -22,7 +22,9 @@ try { stdin = fs.readFileSync(0, "utf8"); } catch { /* no stdin to read (closed,
 const cmd = require("path").basename(process.argv[1]);
 // A gcloud call may carry its values in a --flags-file: the log keeps what the file held, as a value on stdin is kept.
 const files = argv.filter((a) => a.startsWith("--flags-file=")).map((a) => fs.readFileSync(a.slice("--flags-file=".length), "utf8"));
-fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ cmd, argv, stdin, files }) + "\\n");
+// ...and the modes the file and its folder have while the call runs (octal strings, "600" and "700").
+const modes = argv.filter((a) => a.startsWith("--flags-file=")).map((a) => { const f = a.slice("--flags-file=".length); const m = (p) => (fs.statSync(p).mode & 0o777).toString(8); return { file: m(f), dir: m(require("path").dirname(f)) }; });
+fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ cmd, argv, stdin, files, modes }) + "\\n");
 if (process.env.FAKE_FAIL && [cmd, ...argv].join(" ").startsWith(process.env.FAKE_FAIL)) {
   const given = argv.includes("--body") ? argv[argv.indexOf("--body") + 1] : files.join("") || stdin;
   process.stderr.write(process.env.FAKE_ECHO ? "invalid value: " + given + "\\n" : "✘ [ERROR] Authentication error [code: 10000]\\n");

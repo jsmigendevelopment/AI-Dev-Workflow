@@ -6,6 +6,7 @@
 //   .env.production.local   values for the "production" environment
 // Usage: node push-secrets.mjs [--dry-run] [--wrangler] [--cloud-run [--service BASE] [--region R] [--project P]]
 //        [--env test|production]
+// A flag's value is the next word: `--service=shop` (the = form) is refused with exit 1 before any call.
 // On ci = "local" (every repo, unless the person turned Actions on) nothing reads GitHub's copies,
 // so nothing goes to GitHub: secrets go to the Cloudflare Workers with --wrangler, and plain
 // variables belong in wrangler.jsonc vars.
@@ -30,6 +31,13 @@ const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
 const WRANGLER = args.includes("--wrangler");
 const CLOUD_RUN = args.includes("--cloud-run");
+// Every flag takes its value as the next word. An `--name=value` form would be ignored (a push to production could go to
+// the wrong service or project), so it stops the run before any call (decision 537-1).
+const equalsForm = args.find((a) => /^--[a-z][a-z-]*=/.test(a));
+if (equalsForm) {
+  console.error(`${equalsForm.split("=")[0]}=... is not understood: write the flag and its value as two words (for example --service shop).`);
+  process.exit(1);
+}
 const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
 const only = flag("--env");
 
@@ -107,6 +115,12 @@ function gcloud(cmdArgs, input) {
 /** The Cloud Run service and Secret Manager id for one value. */
 const cloudRunNames = (name, env) => ({ service: `${base}-${env}`, secretId: `${base}-${env}-${name}` });
 
+/** Where a --cloud-run call lands, for the dry run: a secret takes a project, a plain variable a project and a region. */
+const cloudRunPlace = (secret) => {
+  const inProject = project ? `project ${project}` : "gcloud's active project";
+  return secret ? inProject : `${inProject}, ${region ? `region ${region}` : "gcloud's default region"}`;
+};
+
 /**
  * One value to Cloud Run: a secret to Secret Manager (create, else a new version; the value on stdin), a plain variable to
  * the service's environment (the value in a temp --flags-file, deleted after, so no argument holds it). Returns null or
@@ -122,15 +136,26 @@ function toCloudRun(name, value, env, secret) {
     const added = gcloud(["secrets", "versions", "add", secretId, "--data-file=-"], value);
     return added && `create: ${made.line}; new version: ${added.line}`;
   }
-  const dir = mkdtempSync(join(tmpdir(), "onrails-push-"));
+  // A temp folder that can't be made or written is this name's failure, not a crash: the later names still go (AC-537-3).
+  // The errors here hold a path and a code, never a value.
+  let dir = null;
+  let reason = null;
   try {
+    dir = mkdtempSync(join(tmpdir(), "onrails-push-"));
     const file = join(dir, "flags.yaml");
     writeFileSync(file, JSON.stringify({ "--update-env-vars": { [name]: value } }), { mode: 0o600 });
     // Forward slashes: gcloud.cmd takes only plain words on Windows, and gcloud reads C:/... as well as the backslash form
-    return gcloud(["run", "services", "update", service, `--flags-file=${file.replaceAll("\\", "/")}`])?.line ?? null;
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
+    reason = gcloud(["run", "services", "update", service, `--flags-file=${file.replaceAll("\\", "/")}`])?.line ?? null;
+  } catch (e) {
+    reason = `could not use a temporary folder for the flags file (${e.code ?? e.message})`;
   }
+  if (!dir) return reason;
+  try {
+    rmSync(dir, { recursive: true, force: true });
+  } catch (e) {
+    reason = `${reason ? `${reason}; ` : ""}could not remove the temporary folder ${dir} (${e.code ?? e.message}): delete it by hand`;
+  }
+  return reason;
 }
 
 function parseEnv(file) {
@@ -189,7 +214,9 @@ for (const env of envs) {
   if (!existsSync(file)) { console.log(`${env}: no ${file}, skipped`); continue; }
   const values = parseEnv(file);
   // A tool's error can echo what it was given: every value in the file is hidden before a line prints, as connect does (#161).
-  const hide = (text) => Object.values(values).filter(Boolean).reduce((t, v) => t.replaceAll(v, "<hidden>"), String(text));
+  // gcloud may echo a value in its JSON-escaped form (a quote or backslash in it), so that form is hidden too, longest first.
+  const secretsToHide = [...new Set(Object.values(values).filter(Boolean).flatMap((v) => [v, JSON.stringify(v).slice(1, -1)]))].sort((a, b) => b.length - a.length);
+  const hide = (text) => secretsToHide.reduce((t, v) => t.replaceAll(v, "<hidden>"), String(text));
   for (const [name, m] of Object.entries(meta)) {
     if (!m.scope.includes(env)) continue;
     const value = values[name];
@@ -212,7 +239,7 @@ for (const env of envs) {
       const where = cmd === "gh" ? `${m.secret ? "GitHub secret" : "GitHub variable"} (${gh.label})`
         : cmd === "cloud-run" ? (m.secret ? `Secret Manager secret (${cr.secretId})` : `Cloud Run variable (service ${cr.service})`)
           : "Cloudflare secret";
-      if (DRY) { console.log(`${env}: would set ${name} as a ${where}`); stored = true; continue; }
+      if (DRY) { console.log(`${env}: would set ${name} as a ${where}${cmd === "cloud-run" ? ` in ${cloudRunPlace(m.secret)}` : ""}`); stored = true; continue; }
       if (cmd === "cloud-run") {
         const reason = toCloudRun(name, value, env, m.secret);
         if (!reason) {

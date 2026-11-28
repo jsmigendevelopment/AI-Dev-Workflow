@@ -3,10 +3,11 @@
 // and every value is made up.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { nodeOnly } from "./helpers.mjs";
-import { LIVE_VALUE, PUSH, lastLine, repo, run, TEST_VALUE, UNIX } from "./secrets-fakes.mjs";
+import { execFileSync } from "./child.mjs";
+import { nodeOnly, safeEnv, tmp } from "./helpers.mjs";
+import { LIVE_VALUE, PUSH, envFiles, fakeBin, lastLine, repo, run, TEST_VALUE, UNIX } from "./secrets-fakes.mjs";
 
 const SITE = "https://example.com";
 
@@ -26,9 +27,9 @@ function noValue(text) {
 test("AC-537-1: WHEN --cloud-run and --dry-run run on a fixture THEN each name is listed with its destination and no value appears", UNIX, () => {
   const r = run(PUSH, goRepo(), ["--dry-run", "--cloud-run"]);
   assert.equal(r.status, 0, seen(r));
-  assert.match(r.stdout, /^test: would set API_TOKEN as a Secret Manager secret \(api-test-API_TOKEN\)$/m);
-  assert.match(r.stdout, /^production: would set API_TOKEN as a Secret Manager secret \(api-production-API_TOKEN\)$/m);
-  assert.match(r.stdout, /^production: would set SITE_URL as a Cloud Run variable \(service api-production\)$/m);
+  assert.match(r.stdout, /^test: would set API_TOKEN as a Secret Manager secret \(api-test-API_TOKEN\) in gcloud's active project$/m);
+  assert.match(r.stdout, /^production: would set API_TOKEN as a Secret Manager secret \(api-production-API_TOKEN\) in gcloud's active project$/m);
+  assert.match(r.stdout, /^production: would set SITE_URL as a Cloud Run variable \(service api-production\) in gcloud's active project, gcloud's default region$/m);
   assert.equal(lastLine(r.stdout), "Every value would be stored somewhere.");
   assert.deepEqual(r.calls, [], "a dry run starts no tool");
   noValue(seen(r));
@@ -122,4 +123,91 @@ test("AC-537-3: WHEN gcloud isn't on PATH THEN each name FAILED says so and the 
   assert.equal(r.status, 1, seen(r));
   assert.match(r.stdout, /^test: FAILED API_TOKEN as a Secret Manager secret \(api-test-API_TOKEN\): gcloud isn't on your PATH$/m);
   assert.equal(lastLine(r.stdout), "Stored nowhere: API_TOKEN (test). Keep .env.test.local until each one is stored.");
+});
+
+test("AC-537-1: WHEN --project and --region are given with --dry-run THEN each name says where it would go", UNIX, () => {
+  const r = run(PUSH, goRepo(), ["--dry-run", "--cloud-run", "--env", "production", "--project", "my-proj-1", "--region", "us-east1"]);
+  assert.equal(r.status, 0, seen(r));
+  assert.match(r.stdout, /^production: would set API_TOKEN as a Secret Manager secret \(api-production-API_TOKEN\) in project my-proj-1$/m);
+  assert.match(r.stdout, /^production: would set SITE_URL as a Cloud Run variable \(service api-production\) in project my-proj-1, region us-east1$/m);
+  assert.deepEqual(r.calls, []);
+});
+
+test("AC-537-2: WHEN a flag is written --name=value THEN nothing runs and nothing is stored, so a push never goes to the wrong service", UNIX, () => {
+  for (const bad of ["--service=zzz-svc", "--region=zzz-region", "--project=zzz-proj", "--env=production"]) {
+    const r = run(PUSH, goRepo(), ["--cloud-run", bad]);
+    assert.equal(r.status, 1, bad);
+    assert.match(r.stderr, new RegExp(`${bad.split("=")[0]}=\\.\\.\\. is not understood: write the flag and its value as two words`), bad);
+    assert.doesNotMatch(r.stderr, new RegExp(bad.split("=")[1]), "the value is not echoed");
+    assert.deepEqual(r.calls, [], bad);
+    assert.equal(r.stdout, "", bad);
+  }
+});
+
+test("AC-537-2: WHEN the flags file is made THEN it is mode 600 inside a folder of mode 700, and the folder is gone after the call", UNIX, () => {
+  const r = run(PUSH, goRepo(), ["--cloud-run", "--env", "production"]);
+  assert.equal(r.status, 0, seen(r));
+  const update = gcloud(r).find((c) => c.argv[0] === "run");
+  assert.deepEqual(update.modes, [{ file: "600", dir: "700" }]);
+  const file = update.argv.find((a) => a.startsWith("--flags-file=")).slice("--flags-file=".length);
+  assert.equal(existsSync(file.slice(0, file.lastIndexOf("/"))), false, "the folder is gone too");
+});
+
+test("AC-537-3: WHEN gcloud fails for the plain variable THEN the flags file and its folder are gone after the failed call", UNIX, () => {
+  const r = run(PUSH, goRepo(), ["--cloud-run", "--env", "production"], undefined, { FAKE_FAIL: "gcloud run services update" });
+  assert.equal(r.status, 1, seen(r));
+  const update = gcloud(r).find((c) => c.argv[0] === "run");
+  const file = update.argv.find((a) => a.startsWith("--flags-file=")).slice("--flags-file=".length);
+  assert.equal(existsSync(file), false, "the file is gone");
+  assert.equal(existsSync(file.slice(0, file.lastIndexOf("/"))), false, "the folder is gone");
+});
+
+test("AC-537-3: WHEN the temp folder can't be made THEN that name FAILED with no value, the other names still go, and the last line says stored nowhere", UNIX, () => {
+  const r = run(PUSH, goRepo(), ["--cloud-run"], undefined, { TMPDIR: "/nonexistent-dir-for-537" });
+  assert.equal(r.status, 1, seen(r));
+  assert.doesNotMatch(r.stderr, /at .*\.mjs|node:internal/, "no stack trace");
+  assert.match(r.stdout, /^production: FAILED SITE_URL as a Cloud Run variable \(service api-production\): could not use a temporary folder for the flags file \(ENOENT\)$/m);
+  assert.match(r.stdout, /^test: set API_TOKEN as a Secret Manager secret/m, "the names before it went");
+  assert.match(r.stdout, /^production: set API_TOKEN as a Secret Manager secret/m, "the names after it were still tried");
+  assert.deepEqual(gcloud(r).map((c) => c.argv[0]), ["secrets", "secrets"], "no gcloud call for the name that failed");
+  assert.equal(lastLine(r.stdout), "Stored nowhere: SITE_URL (production). Keep .env.production.local until each one is stored.");
+  assert.doesNotMatch(r.stdout, /Every value is stored somewhere/);
+  noValue(seen(r));
+});
+
+test("AC-537-3: WHEN the temp folder can't be written THEN a plain variable that comes first does not stop the later names", UNIX, () => {
+  const dir = goRepo();
+  // A plain variable listed before a secret: the later secret must still be tried after the plain one failed.
+  writeFileSync(join(dir, ".env.example"), "# scope: production, secret: no\nSITE_URL=\n# scope: production\nAPI_TOKEN=\n");
+  const r = run(PUSH, dir, ["--cloud-run", "--env", "production"], undefined, { TMPDIR: "/nonexistent-dir-for-537" });
+  assert.equal(r.status, 1, seen(r));
+  assert.match(r.stdout, /^production: FAILED SITE_URL as a Cloud Run variable/m);
+  assert.match(r.stdout, /^production: set API_TOKEN as a Secret Manager secret/m);
+  assert.equal(lastLine(r.stdout), "Stored nowhere: SITE_URL (production). Keep .env.production.local until each one is stored.");
+});
+
+test("AC-537-3: WHEN gcloud echoes a value in its JSON-escaped form THEN that form is hidden too", UNIX, () => {
+  const dir = goRepo();
+  const tricky = 'https://example.com/a"b\\c';
+  writeFileSync(join(dir, ".env.production.local"), `API_TOKEN=${LIVE_VALUE}\nSITE_URL=${tricky}\n`);
+  const r = run(PUSH, dir, ["--cloud-run", "--env", "production"], undefined, { FAKE_FAIL: "gcloud run services update", FAKE_ECHO: "1" });
+  assert.equal(r.status, 1, seen(r));
+  // The fake echoes the flags file, which holds the value as JSON writes it: a" as a\" and a backslash doubled.
+  assert.match(r.stdout, /^production: FAILED SITE_URL as a Cloud Run variable \(service api-production\): invalid value: \{"--update-env-vars":\{"SITE_URL":"<hidden>"\}\}$/m);
+  for (const form of [tricky, JSON.stringify(tricky).slice(1, -1), "a\\\"b"]) assert.ok(!seen(r).includes(form), `no ${form}`);
+});
+
+test("AC-537-4: WHEN a go.mod sits above the .git folder THEN it is ignored and the messages stay as for a web app", UNIX, () => {
+  const outer = tmp("onrails-go-above-");
+  writeFileSync(join(outer, "go.mod"), "module example.com/other\n\ngo 1.26\n");
+  const app = join(outer, "app");
+  mkdirSync(join(app, "docs"), { recursive: true });
+  execFileSync("git", ["init", "-q", app], { env: safeEnv() });
+  writeFileSync(join(app, "docs", "stack.md"), '## CI\n\nci = "local"\n');
+  fakeBin(app);
+  envFiles(app);
+  const r = run(PUSH, app, []);
+  assert.equal(r.status, 0, seen(r));
+  assert.match(r.stdout, /Secrets go to Cloudflare with --wrangler; plain variables belong in wrangler\.jsonc vars\./);
+  assert.doesNotMatch(r.stdout, /cloud-run/);
 });
