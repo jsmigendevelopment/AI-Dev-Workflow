@@ -32,7 +32,7 @@ Text is capped at 200 characters. A list is comma-separated or a JSON list, and 
 
 | Kind | Fields (required in bold) |
 |---|---|
-| `job` | **outcome** (`started`, `pr-opened`, `finished`, `handed-off`, `stopped`, `failed`, `swept`, `paused`, `ended`, `pass`, `fail`), started, ended, usage_before, usage_after, usage_from (required with either usage field), send_back (`size`, `review-must`, `checks`, `infra`, `process`; only with outcome `fail`, `failed`, `stopped` or `handed-off`). See "What a run cost" |
+| `job` | **outcome** (`started`, `pr-opened`, `finished`, `handed-off`, `stopped`, `failed`, `swept`, `paused`, `ended`, `pass`, `fail`), started, ended, usage_before, usage_after, usage_from (required with either usage field), send_back (`size`, `review-must`, `checks`, `infra`, `process`; only with outcome `fail`, `failed`, `stopped` or `handed-off`), lines (a whole number: only on `job=size-check` with outcome `pass` or `fail`, and then `sha` is required). See "What a run cost" and "A pull request's size" |
 | `check` | **commands** (JSON list of `{name, result: pass\|fail\|skipped, seconds}`), failed_step (null on a pass), flaky_rerun, state (`success`, `failure`), fence. The local gate's `mark-check.mjs --record <file>` writes it (#331). A reviewer that runs the checks itself ends its verdict comment with a `line check` instead (#417); harvest keeps it only under the rule above (#441). That record's `fence` holds only the fence's name (`bubblewrap`, `sandbox-exec`, `none`); the gate's own record keeps the whole first `Fence:` line |
 | `review` | **round**, **verdict** (`pass`, `changes`), **must**, **nice**, categories |
 | `fix-round` | **round**, **fixed** |
@@ -68,13 +68,23 @@ A builder's finish record and each reviewer's job line carry the run's cost:
 
 | Reason | Who writes it |
 |---|---|
-| `size` | `coordinate` 6.1.1, a `job=size-check` record when `pr-size.mjs` exits 1 |
+| `size` | `coordinate` 6.1.1: `pr-size.mjs --record` writes the `job=size-check` record, with `outcome=fail` when it exits 1 (#427). Local mode writes its own, as `local-mode.md` step 3 says |
 | `review-must` | `pr-review` and `pr-security`, on request changes |
 | `checks` | `qa`, when an acceptance check failed. The local gate's own red run is its `check` record with `state: failure` |
 | `infra` | `qa` when the preview or browser wouldn't run; `build` when it stopped on the machine, a tool or a service |
 | `process` | `build`, when a rule or a gate stopped it |
 
 Records from before #380 have none of these fields and stay valid.
+
+## A pull request's size (#427)
+
+`pr-size.mjs <n> --repo <owner>/<repo> --record issue=<issue> model=<model> effort=<effort> tool=<tool>` counts the head and then writes one `job=size-check` record through `insights.mjs write`, in the checkout it runs in (the coordinator's main). Pass `--record` last: it takes only those pairs, and the script sets every other field.
+
+- `lines` is the counted lines (lockfiles, generated files and test fixtures not counted), `sha` the head that was counted, `pr` the pull request (`null` for a local diff).
+- `outcome` is `pass`, also for a size exception, or `fail` with `send_back=size` when the head is at 1,000 counted lines or more with no exception. A fail with `lines` under 1,000, or without `send_back=size`, is refused.
+- A count that can't be recorded is exit 2, and it says so (`Couldn't record the size`). A count that can't be made writes nothing.
+- The weekly report reads a pull request's size as `lines` on its last size-check record in the week. A pull request with none is `unknown`. Older size-check records have no `lines` and stay valid.
+- A size-check record is the coordinator's own count, not a review run: `has-records` and `carry` don't take it for the review job.
 
 ## One example per kind
 

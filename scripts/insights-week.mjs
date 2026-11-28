@@ -13,7 +13,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validate } from "./insights-record.mjs";
+import { SIZE_LIMIT, validate } from "./insights-record.mjs";
 
 const USAGE = "usage: insights-week.mjs [--week [<yyyy-Www>]] [--skip <yyyy-Www>] [dir]";
 const REASONS = ["size", "review-must", "checks", "infra", "process"];
@@ -122,16 +122,31 @@ function sendBacks(ctx) {
     "Each send-back, and each red local gate as checks, counts against the last build of its pull request or issue before it: unknown when there is none."];
 }
 
+/** The size buckets in the order they print: a label, and which counted lines belong in it. */
+const BUCKETS = [["under 500", (n) => n < 500], ["500 to 999", (n) => n >= 500 && n < SIZE_LIMIT], ["1,000 or more", (n) => n >= SIZE_LIMIT]];
+
+/** A pull request's size (#427): the counted lines on its last size check in the week, else undefined. */
+const sizeOf = (week, pr) => week.filter((r) => r.pr === pr && r.lines !== undefined).at(-1)?.lines;
+
 function sizes(ctx) {
-  const prs = new Set(ctx.week.filter((r) => r.pr != null).map((r) => r.pr));
+  const prs = [...new Set(ctx.week.filter((r) => r.pr != null).map((r) => r.pr))];
   const back = new Set(ctx.week.filter((r) => reason(r) && r.pr != null).map((r) => r.pr));
   const big = [...new Set(ctx.week.filter((r) => r.send_back === "size" && r.pr != null).map((r) => r.pr))].sort((a, b) => a - b);
-  const unknownRow = (label) => [label, "unknown", "unknown", "unknown"];
+  const counted = new Map(prs.map((pr) => [pr, sizeOf(ctx.week, pr)]));
+  const known = [...counted.values()].some((n) => n !== undefined);
+  const line = (label, list) => {
+    const sent = list.filter((pr) => back.has(pr)).length;
+    return [label, list.length, sent, ratio(sent, list.length, percent)];
+  };
+  // No size on any record: every bucket stays unknown, and every pull request prints under unknown.
+  const buckets = BUCKETS.map(([label, fits]) => (known ? line(label, prs.filter((pr) => counted.get(pr) !== undefined && fits(counted.get(pr))))
+    : [label, "unknown", "unknown", "unknown"]));
   return ["## Pull request size against send-backs", "",
-    ...table(["Size (counted lines)", "Pull requests", "Sent back", "Rate"], [unknownRow("under 500"), unknownRow("500 to 999"),
-      unknownRow("1,000 or more"), ["All sizes", prs.size, back.size, ratio(back.size, prs.size, percent)]]), "",
+    ...table(["Size (counted lines)", "Pull requests", "Sent back", "Rate"],
+      [...buckets, line("unknown", prs.filter((pr) => counted.get(pr) === undefined)), line("All sizes", prs)]), "",
     `Sent back for size (1,000 or more at that head): ${big.length ? big.map((n) => `#${n}`).join(", ") : "none"}.`,
-    "The records hold no other size, so each bucket is unknown."];
+    known ? "A pull request's size is the counted lines of its last size check in the week, from the `job=size-check` record that `pr-size.mjs --record` writes. unknown: no size record that week."
+      : "The records hold no size check's count, so each bucket is unknown."];
 }
 
 /** How a build after a verified failure ended: the last later failure (no) or pass, green gate or merge (yes), else unknown. */
