@@ -16,18 +16,18 @@
 //   fine (`go mod tidy` drops the old versions'). Go compares the downloaded bytes with every go.sum line for that
 //   version and asks the checksum database only when a line is missing, so a line for a module go.mod doesn't require
 //   does nothing, and a second hash for a version can only fail a build.
-// - Only the go.mod and go.sum of a module count: one under a `vendor/` or `testdata/` folder, which Go ignores, is
-//   refused as any other file is (#581).
+// - Only the go.mod and go.sum of a module count: one under a `vendor/` or `testdata/` folder, or under a folder whose
+//   name starts with `_` or `.`, all of which Go ignores, is refused as any other file is (#581, #590).
 // - A refusal quotes at most 200 characters of a line, so a huge line can't fill a comment (#581).
 // Each check returns why the change is more than a version bump, or null, like manifestChange and lockfileChange.
 
 const GO_NAME = /(?:^|\/)go\.(?:mod|sum)$/;
-// Folders `go` skips: what is in one is a copy or a fixture, never the module being bumped. Any letter case, since a
-// case-insensitive file system reads Vendor/ as vendor/.
-const SKIPPED = /(?:^|\/)(?:vendor|testdata)\//i;
+// Folders `go` skips: what is in one is a copy or a fixture, never the module being bumped. vendor and testdata, in any
+// letter case since a case-insensitive file system reads Vendor/ as vendor/, and any folder named from "_" or "." (#590).
+const SKIPPED = /(?:^|\/)(?:vendor|testdata|[_.][^/]*)\//i;
 const CAP = 200;
 
-/** go.mod or go.sum, at any depth, the way `go` finds them: not one under vendor/ or testdata/ (#581). */
+/** go.mod or go.sum, at any depth, the way `go` finds them: not one under vendor/, testdata/, or a _ or . folder (#581, #590). */
 export const isGoFile = (path) => GO_NAME.test(path) && !SKIPPED.test(path);
 const GO_MOD = /(?:^|\/)go\.mod$/;
 const DIRECTIVES = new Set(["module", "go", "toolchain", "godebug", "require", "exclude", "replace", "retract", "tool", "ignore"]);
