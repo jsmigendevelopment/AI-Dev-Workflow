@@ -1,0 +1,53 @@
+{
+  "v": 1,
+  "kind": "check",
+  "at": "2026-11-28T12:37:48.145Z",
+  "issue": 485,
+  "pr": 624,
+  "sha": "f9b0a3439dc0bc926bd8940c970ea4d25742cdf7",
+  "job": null,
+  "tool": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "state": "success",
+  "flaky_rerun": false,
+  "failed_step": null,
+  "fence": "none",
+  "commands": [
+    {
+      "name": "node scripts/sync-skills.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node scripts/npm-readme.mjs --check",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "cd cli && npm run bundle",
+      "result": "pass",
+      "seconds": 1
+    },
+    {
+      "name": "cd cli && npm test",
+      "result": "pass",
+      "seconds": 153
+    },
+    {
+      "name": "npm run test:evals",
+      "result": "pass",
+      "seconds": 88
+    },
+    {
+      "name": "node evals/run.mjs --dry-run",
+      "result": "pass",
+      "seconds": 0
+    },
+    {
+      "name": "node .agents/skills/coordinate/scripts/pr-size.mjs --base origin/main",
+      "result": "pass",
+      "seconds": 0
+    }
+  ]
+}
