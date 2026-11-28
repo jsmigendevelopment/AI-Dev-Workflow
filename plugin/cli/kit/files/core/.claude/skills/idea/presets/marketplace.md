@@ -4,7 +4,7 @@
 
 ## Preloaded (confirm, don't ask)
 
-- **Add-ons:** Clerk auth, Stripe Connect (payouts to sellers), R2 uploads (listings and photos), Resend email, Sentry, Cloudflare Web Analytics, Turnstile.
+- **Add-ons:** Clerk auth, Stripe Connect (payouts to sellers), R2 uploads (listings and photos), Resend email, Sentry, Cloudflare Web Analytics, Turnstile (a TypeScript backend on Workers; with a Go backend the server-side ones move into the Go service, see `stacks/tanstack-start-addons/README.md`).
 - **Floor answers:**
   - both sides sign up;
   - reporting and blocking users;
