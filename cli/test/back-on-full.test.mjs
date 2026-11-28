@@ -15,8 +15,8 @@ const step = (prefix) => {
   assert.ok(found, `found ${prefix}`);
   return found.text;
 };
-// The skills on the loop's path. The rest of the kit is #260.
-const SCANNED = [".agents/skills/back", ".agents/skills/afk", ".agents/skills/coordinate"];
+// Every skill (#260). The files outside .agents/skills the loop reads are named in full-branch-scan.test.mjs.
+const SCANNED = [".agents/skills"];
 
 test("AC-254-2: WHEN a skill line asks, waits, offers or says the person picks THEN the check fails, unless the same step has an On Full branch", () => {
   // The lines that let /back ask on Full, as they were on main before #254.

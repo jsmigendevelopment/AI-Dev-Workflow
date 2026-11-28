@@ -12,7 +12,7 @@
 
 ## Offer it
 
-Ask the person once, in plain words, with the recommended answer:
+Below Full, ask the person once, in plain words, with the recommended answer. On Full, skip the offer (step 9 of `stack-tanstack-start`):
 
 > Cloudflare makes a free add-on for your agent: its own guides for Cloudflare, and a way for me to look at your Cloudflare account (read logs, check settings) when something breaks. It needs your Cloudflare sign-in in the browser the first time I use it. I'd install it for you, on your user account, not in this repo. Install it? (Recommended: yes.)
 
@@ -38,7 +38,7 @@ codex mcp login cloudflare
 ```
 
 - `skills` is the Vercel Labs package on npm (checked 2026-11-22: v1.9.0, repo `vercel-labs/skills`). `--global` puts the skills in the person's user folder, not in this repo's `.agents/skills`, so the kit's skills and its mirror check stay clean.
-- These write outside the repo, so Codex's sandbox asks the person to approve each one. That is expected.
+- These write outside the repo, so Codex's sandbox asks the person to approve each one. That is expected. On Full the offer is skipped, so no prompt appears.
 - `codex mcp login cloudflare` opens the browser. The person signs in and picks what to allow.
 - Then the person starts a new Codex session to load the MCP server.
 - Cloudflare's README also lists a Codex plugin (`codex plugin marketplace add cloudflare/skills`, then `codex plugin add cloudflare@cloudflare`). The prompt above doesn't use it. Pick one way, never both.

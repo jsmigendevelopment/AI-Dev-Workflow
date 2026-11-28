@@ -44,7 +44,7 @@ Take them in order. Stop at the first one that gives steps of size 4 or under.
 4. **By data.** One kind of data first. Plain text items first. Items with a quantity after.
 5. **By state.** The screen with data first. Then its empty state, its error state and its loading state, each its own step when it's real work.
 6. **By screen.** A plain form first. Drag to reorder after.
-7. **Plain before nice.** Ask the server every 5 seconds first, live push after. A list first, search and sort after.
+7. **Plain before nice.** Poll the server every 5 seconds first, live push after. A list first, search and sort after.
 
 **The passes use different cuts.** Pass 1 takes the first two: each verb's plainest path. Pass 2 takes the rules, the kinds of data and the states. Pass 3 takes the nice versions, speed and polish. That's what "a pass is an improvement" looks like, step by step.
 
