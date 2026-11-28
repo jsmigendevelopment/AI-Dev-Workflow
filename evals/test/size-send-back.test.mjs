@@ -41,7 +41,10 @@ test("AC-378-1 and AC-378-2: the fixture's #1 is over the limit and #2 is under 
   const meta = build(dir);
   // Installed untracked, as `onrails init` puts the kit in the "with" arm: pr-size.mjs counts the checkout it is in.
   mkdirSync(join(dir, SCRIPTS), { recursive: true });
-  for (const name of ["pr-size.mjs", "agent-files.mjs", "command-for.mjs"]) copyFileSync(join(KIT_SCRIPTS, name), join(dir, SCRIPTS, name));
+  // agent-files.mjs's gate reuses carry's proof (#478), so the insights scripts come along.
+  for (const name of ["pr-size.mjs", "agent-files.mjs", "command-for.mjs", "insights-carry.mjs", "insights-land.mjs", "insights-record.mjs"]) {
+    copyFileSync(join(KIT_SCRIPTS, name), join(dir, SCRIPTS, name));
+  }
   const size = (head) => spawnSync(process.execPath, [join(dir, SCRIPTS, "pr-size.mjs"), "--base", "main", "--head", head], { cwd: dir, encoding: "utf8" });
   const big = size(meta.big);
   assert.equal(big.status, 1, big.stdout + big.stderr);

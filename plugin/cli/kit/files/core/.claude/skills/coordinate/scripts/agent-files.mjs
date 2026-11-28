@@ -6,6 +6,8 @@
 // so it proves nothing, #103): only the weakening review does, a comment from someone with write access
 // that is the line
 //   Weakening review: pass @ <full head sha>
+// `gate` also takes that line at an earlier commit when the head is only clean merges of origin/main on top of it, each
+// proved as `insights.mjs carry` proves one, from the checkout it runs in (#478).
 // On every level, a writer's fail at the head refuses first, whatever the labels say. A fail that is
 // there when the guard decides beats every pass; one deleted, or edited to drop the fail line, doesn't.
 // `gate` runs this file from the default branch, as does a workflow not yet removed, and reads the level from
@@ -28,6 +30,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { commandFor } from "./command-for.mjs";
+import { fetchMain, mergedFrom } from "./insights-carry.mjs";
 
 /** Paths that change the agents' rules, the checks, or the automation level the guard reads. */
 // Any case: a case-insensitive checkout (macOS, Windows) puts `.Claude/x` in `.claude/` and opens
@@ -166,7 +169,8 @@ export function decide({ changed = [], labels = [], stack = "", comments = [], h
   if (!full && labels.includes("human-approved")) return { pass: true, why: "the human-approved label" };
   const need = full ? `a "Weakening review: pass @ ${head || "<head sha>"}" comment from someone with write access (Full automation: the label doesn't count)`
     : "the human-approved label";
-  return { pass: false, why: `These files change the agents' rules or checks, or delete tests, and need ${need}:\n${rules.join("\n")}` };
+  // `need` marks the one refusal a carried pass can lift (#478): Full, and no verdict at this commit.
+  return { pass: false, need: full, why: `These files change the agents' rules or checks, or delete tests, and need ${need}:\n${rules.join("\n")}` };
 }
 
 /** Before a merge: the runs are real and green, and the live decision still passes (a fail posted later blocks it). */
@@ -385,8 +389,38 @@ function gate(argv) {
   const { pr, repo, head } = prArgs(argv.slice(1));
   if (!pr || !repo || !head) return { pass: false, why: "Usage: agent-files.mjs gate <n> --repo <owner>/<name> --head <sha>" };
   // As in a workflow not yet removed, the level comes from the default branch, so a pull request can't change it.
-  const r = decide({ ...fromApi(repo, pr, head, defaultStack(repo)), expected: head });
-  return { ...r, why: `${head}: ${r.why}` };
+  const live = fromApi(repo, pr, head, defaultStack(repo));
+  const r = decide({ ...live, expected: head });
+  const final = r.need ? carried(repo, live, r) : r;
+  return { ...final, why: `${head}: ${final.why}` };
+}
+
+/**
+ * On Full with no verdict at the head (#478): the verdict at an earlier commit decides when the head is a chain of clean
+ * merges of origin/main on top of it, each step proved as `insights.mjs carry` proves one, from this checkout. A writer's
+ * fail at any commit of the chain refuses. Anything else keeps `need`, the refusal at the head, and says why.
+ */
+function carried(repo, live, need) {
+  const refuse = (why) => ({ ...need, why: `${need.why}\nNo earlier pass carries: ${why}.` });
+  try {
+    // The checkout this runs from, as insights.mjs finds its own: carry's proof reads its objects and origin/main.
+    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    fetchMain(root);
+    for (let sha = live.head, merges = 1; ; merges++) {
+      const step = mergedFrom(root, sha);
+      if (step.why) return refuse(step.why);
+      sha = step.from;
+      const voters = [...new Set(live.comments.filter((c) => verdictOf(c.body, sha)).map((c) => c.user?.login).filter(Boolean))];
+      const { writers: trusted, unchecked } = access(repo, voters);
+      const r = decide({ ...live, head: sha, expected: null, trusted, unchecked });
+      if (r.need) continue;
+      if (!r.pass) return { pass: false, why: `${r.why}\nThe head is only clean merges of main on top of ${sha}, so that verdict stands.` };
+      return { pass: true, why: `the weakening review passed at ${sha}, carried across ${merges} clean merge(s) of origin/main` };
+    }
+  } catch (error) {
+    if (error instanceof AccessUnknown) throw error;
+    return refuse(String(error.stderr || error.message).trim());
+  }
 }
 
 export function main(argv, env = process.env) {

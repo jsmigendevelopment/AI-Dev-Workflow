@@ -20,7 +20,9 @@ export function checkout(attributes = "") {
   const dir = tmp("onrails-rules-");
   git(dir, "init", "-q");
   mkdirSync(join(dir, SCRIPTS), { recursive: true });
-  for (const name of ["pr-rules.mjs", "pr-size.mjs", "agent-files.mjs", "command-for.mjs"]) copyFileSync(source(name), join(dir, SCRIPTS, name));
+  // agent-files.mjs's gate reuses carry's proof (#478), so the insights scripts come along.
+  const scripts = ["pr-rules.mjs", "pr-size.mjs", "agent-files.mjs", "command-for.mjs", "insights-carry.mjs", "insights-land.mjs", "insights-record.mjs"];
+  for (const name of scripts) copyFileSync(source(name), join(dir, SCRIPTS, name));
   writeFileSync(join(dir, ".gitattributes"), attributes);
   git(dir, "add", "-A");
   git(dir, "commit", "-q", "-m", "main");
