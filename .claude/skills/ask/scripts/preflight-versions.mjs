@@ -105,7 +105,7 @@ export async function checkVersions(dir, tool, sys, pkg, manager, safe) {
 const GO_LINE = /^go[ \t]+(\d+\.\d+(?:\.\d+)?)(?:rc\d+|beta\d+)?[ \t]*(?:\/\/.*)?\r?$/m;
 // One small module, asked for its version list: it needs only the module proxy, never the repo's own modules.
 const GO_PROBE = "golang.org/x/sync";
-// The first proxy in `go env GOPROXY`, only when it is a plain host: a proxy URL can carry a user and a token.
+// A proxy entry of `go env GOPROXY`, only when it is a plain host: a proxy URL can carry a user and a token.
 const PROXY_HOST = /^https?:\/\/([a-z0-9.-]+(?::\d{1,5})?)(?:[/,|]|$)/i;
 
 /** go.mod's need as { want }, where want is null when it has no readable go line. null when the folder has no go.mod. */
@@ -148,8 +148,18 @@ export async function checkGoProxy(dir, tool, sys, go, safe) {
   if (!how) return { status: "limited", detail: NO_AWAY };
   if (go.status !== "ok") return { status: "limited", detail: "checked once go is installed and new enough" };
   const list = await sys.run("go", ["list", "-m", "-versions", GO_PROBE], { ...how, timeout: 30000 });
-  const proxy = await sys.run("go", ["env", "GOPROXY"], how);
-  const host = shown(PROXY_HOST.exec(proxy?.out?.trim() ?? "")?.[1], "host", "proxy.golang.org");
-  if (list?.ok) return { status: "ok", detail: `${host} answered` };
-  return { status: "blocked", detail: `${host} didn't answer (${cause(list?.out, "no answer")})`, ladder: ladder("goproxy", tool, { host, platform: sys.platform }) };
+  const proxy = proxyInUse((await sys.run("go", ["env", "GOPROXY"], how))?.out?.trim() ?? "");
+  if (list?.ok) return { status: "ok", detail: proxy.host ? `${proxy.host} answered` : `${proxy.said}, and go got the module list` };
+  const detail = proxy.host ? `${proxy.host} didn't answer` : `${proxy.said}, and go got no module list`;
+  return { status: "blocked", detail: `${detail} (${cause(list?.out, "no answer")})`, ladder: ladder("goproxy", tool, { host: proxy.host ?? "the module proxy", platform: sys.platform }) };
+}
+
+// What `go env GOPROXY` puts first (#566): a plain host by name, off and direct as themselves, anything else (a URL with a
+// user and a token, a file path) without its text. No answer: Go's own default, the one name preflight may assume.
+function proxyInUse(value) {
+  const first = value.split(/[,|]/)[0].trim();
+  if (!first) return { host: "proxy.golang.org" };
+  if (first === "off" || first === "direct") return { said: `GOPROXY is ${first}` };
+  const host = shown(PROXY_HOST.exec(first)?.[1], "host", null);
+  return host ? { host } : { said: "GOPROXY isn't a plain host" };
 }
