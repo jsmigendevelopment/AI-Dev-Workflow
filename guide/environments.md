@@ -48,7 +48,7 @@ A setting that's safe to read in public (an app name, a feature flag's default, 
 
 | Environment | Default | Option |
 |---|---|---|
-| **test** and **preview** | open, but `noindex` | Cloudflare Access (a sign-in page: Google, GitHub and others, or a one-time PIN by email) or a password page. The person picks at setup |
+| **test** and **preview** | open, but `noindex` | Cloudflare Access (a sign-in page: Google, GitHub and others, or a one-time PIN by email) or a password page. The person picks at setup; on Full, Access with Google, recorded as an AI pick, not reviewed |
 | **production** | open to everyone (a "Coming soon" page until launch) | Access in front of all of it (an internal tool) or of some paths (`/admin/*`). A production change: dry run, then the person's yes |
 
 With Access on, the app also checks Access's signed token on every protected request, and refuses anything without a valid one. The deploy scripts' smoke tests get in with a service token of their own, one for test and one for production.
@@ -111,10 +111,10 @@ A leaked production key is a 🛑 blocker through the `ask` skill. The person do
 
 **Why:** a first day spent hunting for keys is a lost day. The list plus the schema make it an hour.
 
-## 11. How agents ask the person for a value
+## 11. How agents get a value from the person
 
 - **Always through the `secrets` skill's checklist,** never in chat. The agent names the variable, says where to get it, and says which file or command takes it. The person types the value into the file or a prompt that hides it.
 - Each step uses the "Setup step for you" format from the `ask` skill: numbered steps, the exact link, the exact text to copy, what you'll see when it worked, and how long it takes.
-- The agent never asks the person to paste a value in chat. If they do anyway, the agent says so, doesn't repeat it, and asks them to rotate that key (rule 9).
+- The agent never asks the person to paste a value in chat. If they do anyway, the agent says so, doesn't repeat it, and asks them to rotate that key (rule 9). On Full, it doesn't wait: it lists the rotation as a "Setup step for you" in the FYI and carries on.
 
 **Why:** a value in chat is stored in the chat log, outside every secret store, and can't be taken back.

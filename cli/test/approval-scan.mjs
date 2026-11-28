@@ -139,6 +139,7 @@ export const ALLOWED = [
   [".agents/skills/stack-tanstack-start/SKILL.md", "`pnpm deploy:production --confirm \"deploy production\"`, only after the person's yes |", "deploying to production: always-stop"],
   [".agents/skills/stack-tanstack-start/SKILL.md", "Only after their yes to that plan: the same command without `--dry-run` and with `--production-ok`.", "production settings: always-stop"],
   ["guide/environments.md", "the session, only after the person's yes |", "deploying to production: always-stop"],
+  [".agents/skills/build/references/environments.md", "the session, only after the person's yes |", "deploying to production: always-stop"],
   ["stacks/tanstack-start/README.md", "`pnpm deploy:production`, only after the person's yes |", "deploying to production: always-stop"],
   ["stacks/tanstack-start/README.md", "`pnpm deploy:production --confirm \"deploy production\"`, only after the person's yes.", "deploying to production: always-stop"],
   ["stacks/electron-desktop/PACK.md", "Signing costs money, so **stop and ask the person before setting any of it up.**", "code signing needs a paid certificate: paying"],
