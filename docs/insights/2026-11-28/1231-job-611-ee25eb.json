@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "kind": "job",
+  "at": "2026-11-28T12:31:20.713Z",
+  "issue": null,
+  "pr": 611,
+  "sha": "7205c633e7921d3a5929c9a5f7c5f945fb3f3ec8",
+  "job": "carry-review",
+  "tool": null,
+  "model": "unknown",
+  "effort": "unknown",
+  "outcome": "pass"
+}
