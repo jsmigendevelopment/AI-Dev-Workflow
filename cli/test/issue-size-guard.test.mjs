@@ -18,12 +18,16 @@ const HIDDEN = [
   // #429 round 2 must 2.
   "| Size | about 1,500 new code lines |", "Size - 1,500 total changed lines", "Size - 1,500 new test lines",
   "Size - 1,500 changed source lines", "Size - about 1,500-ish lines", "Size - 1,500 (est.) lines", "Size - 1,500 or so lines",
+  // #433 item 3: a word, a bracket or an arrow between "size" and the separator.
+  "Size estimate: 1,500 lines", "Size (est.): 1,500 lines", "Size → 1,500 lines",
 ];
 
 const NOTES = [
   "The font size: 12px. The page size grows a little.", "- Body font size: 16px, line-height: 24px",
   "- Max upload size: 5 MB. Show the error on one line.", "- Page size: 20 rows, wrap long lines",
   "- Font size: 16px line-height 24px", "- Icon size: 24 px lines",
+  // #433 item 3: the same words and brackets around a size that isn't a count of lines.
+  "- Size estimate: 5 MB, wrap long lines", "- Size (px): 16, line-height 24", "- Size → 24px, one line",
 ];
 
 const next = (line) => checkSizes([{ number: 8, title: "Hidden", body: `Size: 200 lines · cli/src\n${line}\n` }]);
