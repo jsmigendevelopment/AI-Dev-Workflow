@@ -96,11 +96,14 @@ export function coerce(kind, name, raw) {
   return raw;
 }
 
+/** A num value: fractions stay (a check's 95.5 seconds), but never past the safe integer range (#411). */
+const safeNumber = (value) => typeof value === "number" && value >= 0 && value <= Number.MAX_SAFE_INTEGER;
+
 function checkField(name, spec, value) {
   if (value === undefined) return spec.req ? `${name}: required` : null;
   if (value === null) return spec.nullable ? null : `${name}: can't be null`;
-  if (spec.type === "int" && !(Number.isInteger(value) && value >= 0)) return `${name}: must be a whole number`;
-  if (spec.type === "num" && !(typeof value === "number" && Number.isFinite(value) && value >= 0)) return `${name}: must be a number`;
+  if (spec.type === "int" && !(Number.isSafeInteger(value) && value >= 0)) return `${name}: must be a whole number up to ${Number.MAX_SAFE_INTEGER}`;
+  if (spec.type === "num" && !safeNumber(value)) return `${name}: must be a number from 0 to ${Number.MAX_SAFE_INTEGER}`;
   if (spec.type === "bool" && typeof value !== "boolean") return `${name}: must be true or false`;
   if (spec.type === "list" && !Array.isArray(value)) return `${name}: must be a list`;
   if (spec.type === "str") {
@@ -116,15 +119,23 @@ function checkField(name, spec, value) {
   return null;
 }
 
+/** The only keys a commands item has: any other, an own __proto__ included, is refused (#411). */
+const COMMAND_KEYS = ["name", "result", "seconds"];
+
 function checkCommands(commands) {
   for (const c of commands) {
     if (!c || typeof c !== "object" || typeof c.name !== "string" || !["pass", "fail", "skipped"].includes(c.result)
-      || !(typeof c.seconds === "number" && c.seconds >= 0)) {
+      || !safeNumber(c.seconds)) {
       return "commands: each item needs name, result (pass, fail or skipped) and seconds";
     }
+    if (Object.keys(c).some((k) => !COMMAND_KEYS.includes(k))) return `commands: an item has a key other than ${COMMAND_KEYS.join(", ")}`;
+    if (c.name.length > TEXT_CAP) return `commands: a name is longer than ${TEXT_CAP} characters`;
   }
   return null;
 }
+
+/** Exactly what toISOString writes for it: Date.parse alone reads "(...)" as a comment and takes offsets (#411). */
+const isoUtc = (at) => typeof at === "string" && !Number.isNaN(Date.parse(at)) && new Date(at).toISOString() === at;
 
 /** The run-cost rules of a job record (#380). Records from before #380 have none of these fields, so they pass. */
 function jobProblems(record, board) {
@@ -147,9 +158,7 @@ export function validate(record) {
   // Own text keys only: "constructor" is no kind, and neither is ["review"], which Object.hasOwn reads as "review" (#332).
   const kinds = typeof record.kind === "string" && Object.hasOwn(KINDS, record.kind) ? KINDS[record.kind] : undefined;
   if (!kinds) return [...errors, `kind: must be one of ${Object.keys(KINDS).join(", ")}`];
-  if (typeof record.at !== "string" || Number.isNaN(Date.parse(record.at)) || !record.at.endsWith("Z")) {
-    errors.push("at: must be a UTC ISO time");
-  }
+  if (!isoUtc(record.at)) errors.push("at: must be a UTC ISO time, exactly as toISOString writes it (2026-11-27T14:32:00.000Z)");
   const board = record.source === "board";
   for (const [name, spec] of Object.entries(ENVELOPE)) {
     const e = checkField(name, spec, record[name]);
