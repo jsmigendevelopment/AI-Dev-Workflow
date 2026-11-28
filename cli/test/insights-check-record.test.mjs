@@ -260,3 +260,70 @@ test("AC-331-5: WHEN coordinate/SKILL.md step 6.1 is read THEN it says to time e
   assert.match(step, /--state failure --description "<red command> failed" --record <record>/);
   assert.match(step, /on exit 0, 1 and 3 alike/);
 });
+
+/** The fence the gate sends, run through mark-check: the record's fence. */
+function fenceOf(fence) {
+  const r = mark({ record: gateFile({ ...PASS, fence }) });
+  assert.equal(r.status, 0, r.stderr);
+  const found = records(r.dir);
+  assert.equal(found.length, 1, "one record");
+  return found[0].record.fence;
+}
+
+/** A UTF-16 half of an emoji with no partner: what a cut through the middle of one leaves. */
+const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+
+test("AC-386-1: WHEN the fence holds U+202E, U+2028 or U+FEFF THEN the record's fence has none of them", unixOnly, () => {
+  const cases = [
+    { why: "right-to-left override", fence: "Fence: none ‮bwrap‬", want: "Fence: none bwrap" },
+    { why: "line separator", fence: "Fence: none (bwrap)", want: "Fence: none(bwrap)" },
+    { why: "byte order mark", fence: "﻿Fence: bubblewrap", want: "Fence: bubblewrap" },
+    { why: "paragraph separator, zero width space and joiner", fence: "Fence:  a​b‍c", want: "Fence: abc" },
+    { why: "format characters don't count towards the cap", fence: `Fence: ${"‮".repeat(100)}${"a".repeat(250)}`, want: `Fence: ${"a".repeat(TEXT_CAP - 7)}` },
+  ];
+  for (const { why, fence, want } of cases) {
+    assert.equal(fenceOf(fence), want, why);
+  }
+});
+
+test("AC-386-1: WHEN a command name or the failed step holds U+202E, U+2028 or U+FEFF THEN it exits 2 and writes no record and posts no status", unixOnly, () => {
+  const named = (command) => ({ ...PASS, commands: [{ command, result: "fail", seconds: 3 }], failed: "pnpm check" });
+  const bad = {
+    "a command with a right-to-left override": named("pnpm check‮"),
+    "a command with a line separator": named("pnpm check ok"),
+    "a command with a paragraph separator": named("pnpm check"),
+    "a command with a byte order mark": named("﻿pnpm check"),
+    "a command with a zero width joiner": named("pnpm‍check"),
+    "a failed step with a right-to-left override": { ...named("pnpm check"), failed: "pnpm ‮check" },
+    "a failed step with a line separator": { ...named("pnpm check"), failed: "pnpm check " },
+  };
+  for (const [why, gate] of Object.entries(bad)) {
+    const r = mark({ record: gateFile(gate), state: "failure" });
+    assert.equal(r.status, 2, `${why}: ${r.stderr}`);
+    assert.match(r.stderr, /--record .*commands|--record .*failed/, why);
+    assert.deepEqual(records(r.dir), [], `${why}: no record`);
+    assert.equal(r.calls, "", `${why}: no status posted`);
+  }
+});
+
+test("AC-386-1: ordinary letters, spaces and an emoji stay in the fence and in a command name", unixOnly, () => {
+  assert.equal(fenceOf("Fence: none (café 日本語 \u{1F600})"), "Fence: none (café 日本語 \u{1F600})");
+  const names = { ...PASS, commands: [{ command: "pnpm run café 日本語", result: "pass", seconds: 2 }], failed: null };
+  const r = mark({ record: gateFile(names) });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(records(r.dir)[0].record.commands[0].name, "pnpm run café 日本語");
+});
+
+test("AC-386-2: WHEN the fence's 200th character is an emoji THEN the record's fence ends with the whole emoji or without it, never half", unixOnly, () => {
+  const smile = "\u{1F600}";
+  const cases = [
+    { why: "the emoji starts at the last unit the cap allows", fence: `${"a".repeat(198)}${smile}tail`, want: `${"a".repeat(198)}${smile}` },
+    { why: "the emoji would run past the cap", fence: `${"a".repeat(199)}${smile}tail`, want: "a".repeat(199) },
+    { why: "a fence of emoji only", fence: smile.repeat(150), want: smile.repeat(TEXT_CAP / 2) },
+  ];
+  for (const { why, fence, want } of cases) {
+    const kept = fenceOf(fence);
+    assert.doesNotMatch(kept, LONE_SURROGATE, `${why}: no half of an emoji`);
+    assert.equal(kept, want, why);
+  }
+});
