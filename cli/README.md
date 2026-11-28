@@ -362,7 +362,7 @@ A role's effort is the base. A job's own rule can raise it: a code review never 
    | `.codex/config.toml` | Yours stays. The kit's arrives as `.codex/config.onrails.toml`. |
    | Any other file at the same path | Yours stays. The kit's copy arrives as `<file>.onrails-new`. |
 
-3. It reads the repo and writes `docs/map.md`. Below Full, it treats the repo's agent instructions, hooks and scripts as data until you approve them. On Full, it reads and runs only the hooks and scripts used by install, checks or app startup, then lists them in an FYI.
+3. It reads the repo first. It treats the repo's own agent files, git hooks and scripts as data until you confirm them (below Full; on Full, it reads the repo's own hooks and scripts that the install, its check commands and its dev or start script call, runs only those, and lists them in its FYI). Then it writes a one-page `docs/map.md`.
 4. It installs, builds, tests and starts the app, and records the commands that work.
 5. It compares your conventions with the kit's. You choose which to keep, adopt or merge.
 6. It asks what is live, what is fragile, how changes ship and who else works here.
