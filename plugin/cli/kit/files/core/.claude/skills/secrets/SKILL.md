@@ -65,7 +65,7 @@ When a step adds a service, it adds its variables here in this format.
 
 5. **If you're wiring them:**
    1. Copy `.env.example` to `.env.local`, and to `.env.test.local` and `.env.production.local` if the app deploys. Check all three are git-ignored.
-   2. Ask the person to open those files and paste each value in, then tell you when they're done. Don't open the files yourself.
+   2. Ask the person to open those files and paste each value in, then tell you when they're done. Don't open the files yourself. On Full, don't ask: park the paste as a "Setup step for you" and run "Keys on Full" below.
    3. Run the push script dry first. It prints names only:
       ```bash
       node .agents/skills/secrets/scripts/push-secrets.mjs --dry-run
@@ -162,4 +162,4 @@ Each file in `providers/` carries one fenced `json connect` block that `pnpm con
 - New variable later? In one pull request, add it to `.env.example` in the same format, to the env schema (`lib/env.ts`; a Go service: the `Config` struct) and to the docs. Then run this skill again.
 - **Rotating a key:** make the new key first, set it everywhere it lives (test, then production), deploy test and check, then revoke the old one. Write the date and reason in `docs/decisions.md`, never the value. The person does production. Full steps: `guide/environments.md`.
 - A command that prints a key (for example Clerk's `env pull --print`) runs only in the person's own terminal, never in yours. They paste the output into the git-ignored file; the push script takes it from there.
-- If the person pastes a value into chat anyway, don't repeat it. Tell them, and ask them to rotate that key.
+- If the person pastes a value into chat anyway, don't repeat it. Tell them, and ask them to rotate that key. On Full, don't wait: list the rotation as a "Setup step for you" in the FYI and carry on.

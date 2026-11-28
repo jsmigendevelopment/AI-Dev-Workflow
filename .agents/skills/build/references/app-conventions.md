@@ -8,7 +8,7 @@ The examples name the default web stack (TanStack Start, TanStack Query, TanStac
 
 The app has a Go backend? The server-side sections (5, 8, 10 to 16 and 18) have a Go version in [app-conventions-go.md](app-conventions-go.md), numbered the same.
 
-Joining a repo that already does some of this its own way? The `join` skill lists each clash and the person picks. Never switch a repo to these conventions silently.
+Joining a repo that already does some of this its own way? The `join` skill lists each clash and the person picks (on Full, `join` takes its recommendation). Never switch a repo to these conventions silently.
 
 ## 1. Rule of three for UI
 

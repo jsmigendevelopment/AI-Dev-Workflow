@@ -11,7 +11,7 @@ Write issues from the CTO's plan (`docs/pyramid.md`, `docs/design.md`) as `routi
 
 **On Full automation,** the CTO decides every gap instead: a plan gap, an MVP-core gap, a `[NEEDS CLARIFICATION]` marker and a consistency-check gap. Record each as "AI pick, not reviewed" in `docs/decisions.md`, write the issue, and list them in one ℹ️ FYI.
 
-**Hands-on** automation: write the issues and stop. Don't add `status:ready` unless the person asks. They pick what gets built.
+**Hands-on** automation: write the issues and stop. Don't add `status:ready` unless the person asks. They pick what gets built. On Full this level never applies: every issue gets `status:ready` and a priority.
 
 ## Steps
 

@@ -14,7 +14,7 @@ The person shouldn't need to know any of this. For each area, give your **recomm
 The platform comes first, because everything else depends on it.
 
 1. **Platform(s):** web, iOS, Android, desktop, CLI. Decide from the main flow and the users, not from habit.
-2. **Backend.** Ask in plain words: "Does this app need a backend? That's its own data, rules that run on a server, background jobs, or an API other apps call. A blog or a marketing site doesn't." A static or content site: no backend, skip to the framework.
+2. **Backend.** Ask in plain words: "Does this app need a backend? That's its own data, rules that run on a server, background jobs, or an API other apps call. A blog or a marketing site doesn't." A static or content site: no backend, skip to the framework. On Full, don't ask: decide it from the pitch and record it as "AI pick, not reviewed".
 3. **Host: Cloudflare Workers or not.** Backend yes? Ask: "Will it run on Cloudflare Workers?" Signs it won't: long-running processes, heavy compute, background workers, persistent connections, or another host the person wants. Then recommend (decision 344-1):
 
    | Answer | Recommend | Why | Alternatives |
@@ -30,8 +30,8 @@ The platform comes first, because everything else depends on it.
 7. **API pattern:** controller → service → repository/client, with one composition root. Also pick the wire style.
 8. **Data:** the database, how the schema is migrated, and backups.
 9. **Auth:** buy it, don't build it.
-10. **Environments:** **test** and **production**, plus a **preview per pull request** if the host offers one. After each merge, the session deploys main to test with the pack's script (`pnpm deploy:test` on the web pack), never a workflow.
-   - **Who can open the test site and previews?** Ask in plain words: "Should the test site need a login, so strangers and search engines can't see it?" Recommend **Cloudflare Access** (that's a login wall in front of the app, like Google IAP). Then ask how people sign in, and offer every personal-account option, recommendation first:
+10. **Environments:** **test** and **production**, plus a **preview per pull request** if the host has one. After each merge, the session deploys main to test with the pack's script (`pnpm deploy:test` on the web pack), never a workflow.
+   - **Who can open the test site and previews?** Ask in plain words: "Should the test site need a login, so strangers and search engines can't see it?" Recommend **Cloudflare Access** (that's a login wall in front of the app, like Google IAP). On Full, don't ask: take what `stack-tanstack-start` step 8 says for Full. Then ask how people sign in, and offer every personal-account option, recommendation first:
 
      | Sign in with | Good for |
      |---|---|
@@ -42,14 +42,14 @@ The platform comes first, because everything else depends on it.
      | Yandex | Testers in Russia and nearby |
      | An emailed one-time code | No setup at all. Always kept as the fallback. |
 
-     They can pick more than one. Then ask who's allowed: a list of emails, a whole email domain, or a GitHub org. Each provider except the emailed code needs a login app the person creates once ("Setup step for you" in `ask`). Other choices: a password page in the app, or no protection.
+     They can pick more than one. Then ask who's allowed: a list of emails, a whole email domain, or a GitHub org. Each provider except the emailed code needs a login app the person creates once ("Setup step for you" in `ask`). Other choices: a password page in the app, or no protection. On Full, allow only the signed-in account's email.
    - **Anything in production behind a login?** For example `/admin`, or the whole app for an internal tool. Production changes are on the always-stop list: show the dry run, then ask.
    - **Agents get test credentials only.** Production keys and settings stay with the person.
 11. **The checks, run from the session (`ci = "local"`):** the project must provide `check`, `lint`, `typecheck`, `test`, `test:e2e` and `build` (see `AGENTS.md`). Before every merge, an agent other than the builder runs them on the exact head commit in a clean worktree, plus a secret scan and the agent-file guard, and posts the `onrails/check` commit status (`coordinate`). Previews and deploys are scripts the session runs too. Write `ci = "local"` in `docs/stack.md` for every repo, private or public: no GitHub Actions. `ci = "actions"` only if the person turns it on themselves; never recommend it. Never add a workflow, enable one or depend on one. A tool's docs say "add this workflow"? Run its commands from the session as a package script instead. Lint enforces the code rules a tool can check: no `any` or unexplained `eslint-disable`, no `console.log`, file and function size, unused exports, import order and kebab-case names.
 12. **Build vs buy** for every other need: open source first, then a free-tier SaaS, then build it.
 13. **App conventions,** as quick confirmations. Say the default and move on unless the person objects. The reasons are in `guide/app-conventions.md` in the kit.
     - State: local `useState` first, then typed search params for anything shareable, then **Zustand** only for complex shared client state. Server data in TanStack Query, forms in **TanStack Form**, tables in **TanStack Table**. The other TanStack defaults (charts, Markdown, highlighting, long lists, shortcuts) are in the table below: confirm them as defaults, install none until a feature needs it.
-    - Drizzle, snake_case plural tables, `created_at` and `updated_at`, an index on every foreign key. The ID: **UUIDv7 or ULID**, made on the server. Ask which.
+    - Drizzle, snake_case plural tables, `created_at` and `updated_at`, an index on every foreign key. The ID: **UUIDv7 or ULID**, made on the server. Ask which. On Full, take UUIDv7.
     - Money: one `Money` type in integer minor units plus the currency. Rounding: half-even for splitting and tax, unless they want another rule.
     - Time: instants in UTC. Ask the format: **ISO 8601 or epoch milliseconds**, one for the project. Temporal where supported, else `date-fns` with `@date-fns/tz` (until research confirms).
     - A public API under `/api/v1`, if anything outside the web app will call it, with OpenAPI built from the Zod schemas by the build.
@@ -108,7 +108,7 @@ The platform comes first, because everything else depends on it.
 
 **The TanStack defaults per area** (forms, data grids, charts, Markdown, code highlighting, long lists, keyboard shortcuts) are the owner's decision of 2026-11-23 for any web app, on any framework. They are defaults *when the app needs that area*, not installs: nothing is added until a feature needs it, and the issue that adds it names its recipe (`stack-tanstack-start/references/tanstack/<area>.md`), which the builder loads. The grill and `/join` confirm each one as a default ("Charts, if we need them: TanStack Charts. OK?"); they don't open it as a question.
 
-If the person picks a database, make it a real decision. Switching engines after launch means a new SQL dialect and a data migration.
+If a database is picked, make it a real decision. Switching engines after launch means a new SQL dialect and a data migration.
 
 **Cloudflare first:** if Cloudflare offers a need on its free tier, recommend it. One account, one bill, one dashboard.
 
@@ -116,14 +116,14 @@ For other platforms there's no fixed default. Recommend the mainstream choice, s
 
 ## Stack packs
 
-**Add-ons:** a pack can have add-ons (for the web pack, `stacks/tanstack-start-addons/`). Offer one only when the app needs it, then apply it with `npx onrails add tanstack-start/<add-on>` and finish the steps in its `ADDON.md`.
+**Add-ons:** a pack can have add-ons (for the web pack, `stacks/tanstack-start-addons/`). Offer one only when the app needs it, then apply it with `npx onrails add tanstack-start/<add-on>` and finish the steps in its `ADDON.md`. On Full, apply it without asking.
 
 A stack pack is a ready-made starter for one stack: configs, the folder skeleton, an example module, the check contract, and the checks, previews and deploys as scripts the session runs, already working. Packs ship no GitHub Actions workflows. Look for a skill named `stack-<name>` (for example `stack-tanstack-start`).
 
 - **A pack exists for the pick:** say so, and slice 0 applies it (see `pyramid`).
-- **A stub pack** (`stacks/<name>/PACK.md`, no app files yet): the groundwork is done but the starter isn't built. Tell the person, then build it in their project by following `PACK.md` step by step: the pinned versions, the folder structure, how each check-contract command maps, the checks and release. Never add the GitHub Actions workflow a `PACK.md` asks for: make that job a package script the session runs instead. Re-check the versions first, because they age. Slice 0 isn't done until every check-contract command passes. Afterwards, offer to contribute the finished starter back to the kit.
+- **A stub pack** (`stacks/<name>/PACK.md`, no app files yet): the groundwork is done but the starter isn't built. Tell the person, then build it in their project by following `PACK.md` step by step: the pinned versions, the folder structure, how each check-contract command maps, the checks and release. Never add the GitHub Actions workflow a `PACK.md` asks for: make that job a package script the session runs instead. Re-check the versions first, because they age. Slice 0 isn't done until every check-contract command passes. Afterwards, offer to contribute the finished starter back to the kit; on Full, skip the offer.
 - **Changing a pack in the kit?** Run `npm test` in `cli/` with `ONRAILS_PRETTIER_INSTALL=1` (needs the network), or with `ONRAILS_PRETTIER_DIR` set to the folder of the pack's pinned Prettier package (the one with its `package.json`). Without one of them the AC-421-2 tests skip, and a pack file Prettier would change still passes.
-- **No pack:** slice 0 sets up the same things by hand, following the check contract and `architecture.md`. Afterwards, offer to save the result as a new pack.
+- **No pack:** slice 0 sets up the same things by hand, following the check contract and `architecture.md`. Afterwards, offer to save the result as a new pack; on Full, skip the offer.
 
 Research behind the packs: `research/platform-packs.md` in the kit.
 

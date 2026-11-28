@@ -2,7 +2,7 @@
 
 Last checked: 2026-11-23. Rules every recipe shares: [`README.md`](README.md). Keys and where to get them: [`../providers/posthog.md`](../providers/posthog.md) (#258).
 
-**Only if the person picks PostHog.** The kit's default is the `analytics` add-on (Cloudflare Web Analytics, no cookies). PostHog is for funnels, product events and session replay.
+**Only if the person chooses PostHog.** The kit's default is the `analytics` add-on (Cloudflare Web Analytics, no cookies). PostHog is for funnels, product events and session replay.
 
 ## Ask first
 

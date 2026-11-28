@@ -1,6 +1,6 @@
 # Presets
 
-A preset is a head start for a common kind of app. The grill asks which one the idea is closest to, loads it, and **confirms** the preset's answers instead of asking from zero. Anything the person changes wins. Pick one in the "who and why" topic.
+A preset is a head start for a common kind of app. The grill asks which one the idea is closest to, loads it, and **confirms** the preset's answers instead of asking from zero. Anything the person changes wins. Pick one in the "who and why" topic. On Full, the grill takes the profile's `preset`, else its own pick.
 
 | Preset | For |
 |---|---|

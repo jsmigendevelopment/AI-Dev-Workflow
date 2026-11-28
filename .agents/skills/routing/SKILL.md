@@ -55,7 +55,7 @@ Three roles do most of the work. The Jobs table below says which role runs each 
 | The live thread you talk to all day | Everyday · **low**. Speed matters most here. It answers, records and relays; it never runs the loop (`coordinate`, "Where this runs"). |
 | Loop coordinator (a background sub-agent or cloud session the live thread starts) | Everyday · **medium**. The **coordinator** role. It merges and judges reviews. |
 | Grill and planning chat | Everyday · medium |
-| **Auto grill:** the self-grill and its review | **Strongest · high, or Everyday · high or extra-high.** It makes every early decision. Recommend it plainly, then ask under the first rule below. Models: "Auto grill" below. |
+| **Auto grill:** the self-grill and its review | **Strongest · high, or Everyday · high or extra-high.** It makes every early decision. Recommend it plainly, then ask under the first rule below. On Full, don't ask: use the current model. Models: "Auto grill" below. |
 | Competitor scan (background, during the grill) | Everyday · medium. Broad searching, not design, so it doesn't ask first. |
 | Wireframes stage 1, layout (background, from the grill's main-flow topic) | Everyday · medium. Grey boxes, not design, so it doesn't ask first. |
 | Wireframes stage 2, detailed UI and UX (background, from the look-and-feel topic) | **Strongest · high** |
@@ -71,7 +71,7 @@ Three roles do most of the work. The Jobs table below says which role runs each 
 
 ## Auto grill
 
-Recommend a run from this table when the person picks auto grill. Ask before the strongest tier, as the rules say. The model names are the example setup (checked 2026-11). Map them to your own tiers.
+Recommend a run from this table when the person picks auto grill. Below Full, ask before the strongest tier, as the rules say. On Full, use the current model and don't ask. The model names are the example setup (checked 2026-11). Map them to your own tiers.
 
 | | Claude | ChatGPT / Codex |
 |---|---|---|

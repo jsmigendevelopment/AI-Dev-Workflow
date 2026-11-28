@@ -36,9 +36,49 @@ export const steps = (text) => {
 /** The steps in `text` that hand something to the person with no On Full branch of their own. */
 export const unbranched = (text) => steps(text).filter((s) => HANDS_TO_PERSON.test(s.text) && !ON_FULL.test(s.text));
 
-/** Every unbranched step in these files, as "file:line: text". */
-export const scan = (files) => files.flatMap((f) => unbranched(read(f)).map((s) => `${f}:${s.line}: ${s.text.slice(0, 120)}`));
+// #260: the steps that need no On Full branch, because they are on the always-stop list (AGENTS.md; automation's
+// references/full.md): production, paying, the person's own logins, real data after launch, stopping a running
+// strongest-tier job. Each is [file, the words of its step, why]. The words must still match an unbranched step of
+// that file, so an entry whose step moved, changed or gained a branch fails the test (unusedExceptions).
+const ALWAYS_STOP = "always-stop list";
+export const EXCEPTIONS = [
+  ["AGENTS.md", "## Always stop and ask the person before", `the ${ALWAYS_STOP} itself`],
+  ["plugin/cli/kit/files/core/AGENTS.md", "## Always stop and ask the person before", `the ${ALWAYS_STOP} itself, in the kit's copy`],
+  [".agents/skills/idea/templates/stack.md", "production, secrets, real data and money always wait for the person.", `the ${ALWAYS_STOP} itself`],
+  [".agents/skills/routing/SKILL.md", "Never stop or restart a strongest-tier run without the person's yes.", "stopping a running strongest-tier job: always-stop"],
+  [".agents/skills/diagnose/SKILL.md", "no real data, settings, secrets, deploys or extra logging there without the person's yes.", "touching production: always-stop"],
+  [".agents/skills/stack/SKILL.md", "Production changes are on the always-stop list: show the dry run, then ask.", "production settings: always-stop"],
+  [".agents/skills/stack-monorepo-expo/SKILL.md", "cost money or touch production: stop and ask the person.", "paying and production: always-stop"],
+  [".agents/skills/stack-tanstack-start/SKILL.md", "Wait for a yes: a production setting is on the always-stop list.", "production settings: always-stop"],
+  [".agents/skills/stack-tanstack-start/SKILL.md", "Wait for a yes: going public is on the always-stop list.", "going public: always-stop"],
+];
+
+/** Every unbranched step in these files, as "file:line: text", less the steps `exceptions` name. */
+export const scan = (files, exceptions = EXCEPTIONS) => files.flatMap((f) => unbranched(read(f))
+  .filter((s) => !exceptions.some(([file, words]) => file === f && s.text.includes(words)))
+  .map((s) => `${f}:${s.line}: ${s.text.slice(0, 120)}`));
+
+/** The exceptions that name no unbranched step of their file any more: they hide nothing, so they go. */
+export const unusedExceptions = (files, exceptions = EXCEPTIONS) => exceptions.filter(([file, words]) =>
+  !files.includes(file) || !unbranched(read(file)).some((s) => s.text.includes(words)));
 
 /** The .md files under a repo folder. */
 export const mdFiles = (dir) => readdirSync(fileURLToPath(new URL(dir, ROOT)), { recursive: true })
   .filter((f) => f.endsWith(".md")).map((f) => `${dir}/${f.replaceAll("\\", "/")}`);
+
+// #260: the whole skills folder, so a new skill is scanned the day it lands.
+export const SCANNED = [".agents/skills"];
+// The other files the loop reads, named one by one so a moved file fails the test (read throws) instead of dropping out.
+// The hooks in .claude/hooks print no kit .md: they read the app's docs/state.md and docs/stack.md.
+export const NAMED = [
+  "AGENTS.md", "plugin/cli/kit/files/core/AGENTS.md",
+  ".agents/skills/coordinate/board.md", ".agents/skills/coordinate/references/insights.md",
+  ".agents/skills/coordinate/references/local-mode.md", ".agents/skills/coordinate/references/size-send-back.md",
+  ".agents/skills/automation/references/full.md",
+  ".agents/skills/build/references/app-conventions-go.md", ".agents/skills/build/references/app-conventions.md",
+  ".agents/skills/build/references/code-style.md", ".agents/skills/build/references/testing.md",
+  ".agents/skills/ask/references/handoffs.md", ".agents/skills/ask/references/preflight.md", ".agents/skills/ask/references/voice.md",
+  ".agents/skills/pr-review/SKILL.md", ".agents/skills/pr-security/SKILL.md", ".agents/skills/qa/SKILL.md", ".agents/skills/diagnose/SKILL.md",
+  ".agents/skills/stack-tanstack-start/SKILL.md", ".agents/skills/stack-tanstack-start/references/cloudflare-agent-setup.md",
+  ".agents/skills/stack-monorepo-expo/SKILL.md",
+];

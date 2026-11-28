@@ -16,7 +16,7 @@ AI fills every gap with a guess. The grill finds the gaps first. A missed decisi
 
 - **Three questions per round,** numbered. Under each one, put **Recommended:** with your best answer and a one-line reason, so the person can reply "yes, yes, change 3 to X."
   - Exception: on **taste, scope and money**, ask the open question first. Mark it *(open, no suggestion yet)*, and offer your recommendation only after they answer. A default shown first steers people.
-- **Their ideas first.** Ask "what else should it do?", then ask about their answers. Offer your own ideas only when they stall or ask, and make them different from what's already listed. Mark them as yours in `features.md`.
+- **Their ideas first.** Ask "what else should it do?", then ask about their answers. Offer your own ideas only when they stall or ask, and make them different from what's already listed. Mark them as yours in `features.md`. On Full there is no round: auto grill drafts the list itself and marks each idea "AI pick, not reviewed".
 - **Plain words first, term second.** For example: "Should people see each other's lists, or only their own? (That's called access control.)"
 - **Confirm with a choice, never "is that right?"** For example: "Do you mean anyone with the link can see it, or only people you invite?" Or show a filled-in example and ask what's wrong with it.
 - **No flattery.** If part of the idea is weak, say so and say why.
@@ -25,7 +25,7 @@ AI fills every gap with a guess. The grill finds the gaps first. A missed decisi
 
 - **Profile:** if `docs/profile.toml` exists, its answers are defaults. Confirm them in one round ("Your profile says private repo, move-fast, Clerk, Cloudflare. Keep all?") instead of asking each one.
 - **GitHub Free and a private repo** (`[me] github_plan = "free"`, `repo_visibility = "private"`): say what that loses before they confirm. On `ci = "local"` (the default) the deploys run from the session and no secret is stored in GitHub. Only if the person turns on `ci = "actions"`: GitHub gives a free private repo no environments, so secrets become repository secrets named `TEST_…` and `PRODUCTION_…`. That means no required reviewer on production and no main-only rule. On `ci = "actions"` every workflow on every branch can read the `PRODUCTION_` secrets. On `ci = "actions"` the production deploy is gated only by a manual Run workflow plus typing "deploy production". Offer the choices: keep it private on Free and accept that, make the repo public, or upgrade (Pro or Team adds environments; a required reviewer on a private repo needs Enterprise).
-- **Preset:** in the first topic, ask which preset the idea is closest to (see `presets/README.md` in the `idea` skill), with your pick first. The profile's `preset` is the default. Load it, confirm its "Preloaded" answers in one round, and ask its "Still ask" questions in the right topics.
+- **Preset:** in the first topic, ask which preset the idea is closest to (see `presets/README.md` in the `idea` skill), with your pick first. The profile's `preset` is the default. Load it, confirm its "Preloaded" answers in one round, and ask its "Still ask" questions in the right topics. On Full, take the profile's `preset`, else your pick, and record it as "AI pick, not reviewed".
 - What the person says always beats the profile and the preset.
 
 ## Topics and budgets
@@ -42,7 +42,7 @@ Work topic by topic. **Each topic has a soft budget of about 10 questions:** few
    - **Feed the drawing.** At the end of topics 3, 4 and 5, tell it what changed: new `must` features and floor items add screens, and the MVP cut drops the ones it doesn't need.
 3. **Features:** the person's ideas, questions on each, then yours if they stall. Sort each into must, later or not now.
 4. **The floor:** every item on the floor checklist in `features.md` gets an answer or a recorded default. Never skipped.
-5. **The MVP:** open with the competitor scan, in five lines or fewer: what exists, what users complain about, and the gaps. Then ask: *"What will yours do that they don't?"* If the scan isn't back yet, say so and continue; revisit the MVP when it lands. The one core piece. Push for one. If they name five, ask which one they'd keep if they could keep only one. **The core is never defaulted.**
+5. **The MVP:** open with the competitor scan, in five lines or fewer: what exists, what users complain about, and the gaps. Then ask: *"What will yours do that they don't?"* If the scan isn't back yet, say so and continue; revisit the MVP when it lands. The one core piece. Push for one. If they name five, ask which one they'd keep if they could keep only one. **The core is never defaulted.** On Full, don't ask: read the core from the pitch and mark it "AI pick, not reviewed" (`references/auto.md`).
 6. **Look and feel.** Taste, so ask open questions first and give your suggestion only after they answer:
    - *"Describe the feel in three words."* (for example calm, playful, serious)
    - *"Name two or three apps or sites whose look you like, and what you like about each."*
