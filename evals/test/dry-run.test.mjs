@@ -18,8 +18,8 @@ test("dry run prints the plan, needs no claude and writes nothing", () => {
   assert.match(r.stdout, /one-prompt: its own limits, 60 turns, 600 s, \$1\.5 budget/);
   assert.match(r.stdout, /preflight-blocked: its own limits, 24 turns, 240 s, \$0\.5 budget/);
   const optIn = r.stdout.match(/^Opt-in, not in this run: (.+)\. Name them with --scenario\.$/m)?.[1].split(", ") ?? [];
-  assert.deepEqual(optIn.sort(), ["back-on-full", "ci-never-starts", "clean-up-server", "decision-lifts-gate", "full-never-parks", "live-thread-loop", "live-thread-only-talks", "short-on-memory", "size-send-back", "test-by-hand-zero", "voice-reading"]);
-  assert.match(r.stdout, /Opt-in, not in this run: back-on-full, ci-never-starts, clean-up-server, decision-lifts-gate, full-never-parks, live-thread-loop, live-thread-only-talks, short-on-memory, size-send-back, test-by-hand-zero, voice-reading\. Name them with --scenario\./);
+  assert.deepEqual(optIn.sort(), ["back-on-full", "ci-never-starts", "clean-up-server", "decision-lifts-gate", "full-never-parks", "go-backend-pick", "live-thread-loop", "live-thread-only-talks", "short-on-memory", "size-send-back", "test-by-hand-zero", "voice-reading"]);
+  assert.match(r.stdout, /Opt-in, not in this run: back-on-full, ci-never-starts, clean-up-server, decision-lifts-gate, full-never-parks, go-backend-pick, live-thread-loop, live-thread-only-talks, short-on-memory, size-send-back, test-by-hand-zero, voice-reading\. Name them with --scenario\./);
   assert.doesNotMatch(r.stdout, /test-by-hand-zero \[with\]/);
   assert.doesNotMatch(r.stdout, /ci-never-starts \[with\]/);
   assert.ok(!existsSync(join(tmpdir(), "evals-never")));
